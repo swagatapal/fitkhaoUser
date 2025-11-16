@@ -27,4 +27,7 @@ class AppConfig {
   static const String updateProfilePath = '/api/user/profile';
   static const String createSubscriptionPath = '/api/subscription/create';
   static const String walletTopupPath = '/api/wallet/topup';
+  static const String placeOrderPath = '/api/orders/place';
+  static const String walletOrderPaymentPath = '/api/wallet/order-payment';
+  static const String orderHistoryPath = '/api/orders/history';
 }

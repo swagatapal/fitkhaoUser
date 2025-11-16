@@ -5,10 +5,13 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/providers/providers.dart';
 import '../../../../shared/widgets/logo_widget.dart';
 import '../../models/cart_item.dart';
+import '../../models/order_placement_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/wallet_provider.dart';
+import '../widgets/order_confirmation_modal.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -489,7 +492,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             children: [
               _buildSummaryRow(
                 AppStrings.couponBalance,
-                '₹${wallet?.couponBalance}',
+                '₹${wallet?.couponBalance.toStringAsFixed(2)}',
               ),
               const SizedBox(height: AppSizes.spacing8),
               _buildSummaryRow(
@@ -499,7 +502,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               const Divider(height: AppSizes.spacing20),
               _buildSummaryRow(
                 AppStrings.remainingBalance,
-                '₹${(wallet?.couponBalance)!-deducted}',
+                '₹${((wallet?.couponBalance)!-deducted).toStringAsFixed(2)}',
                 isBold: true,
               ),
             ],
@@ -536,12 +539,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Widget _buildConfirmOrderButton() {
+    final cartItems = ref.watch(cartProvider);
+    final totalPrice = ref.watch(cartTotalPriceProvider);
+
+    // Calculate total with GST
+    final gst = totalPrice * 0.23;
+    final grandTotal = totalPrice + gst;
+
     return SizedBox(
       width: double.infinity,
       height: AppSizes.buttonHeight,
       child: ElevatedButton(
-        onPressed: () {
-          _showSuccessDialog();
+        onPressed: cartItems.isEmpty ? null : () {
+          _showOrderConfirmationModal(cartItems, grandTotal);
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primaryGreen,
@@ -562,7 +572,160 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  void _showSuccessDialog() {
+  Future<void> _showOrderConfirmationModal(
+    List<CartItem> cartItems,
+    double totalAmount,
+  ) async {
+    try {
+      // Get user data from local storage and profile
+      final localStorage = await ref.read(localStorageProvider.future);
+      final userPhone = localStorage.getUserPhone() ?? '9800072183';
+
+      // Fetch user profile to get address details from API
+      debugPrint('[CheckoutScreen] Fetching user profile for delivery address...');
+      final authRepo = ref.read(authRepositoryProvider);
+      final profileResponse = await authRepo.getProfile();
+
+      // Debug: Log full response structure
+      debugPrint('[CheckoutScreen] Full profile response: $profileResponse');
+      debugPrint('[CheckoutScreen] Response keys: ${profileResponse.keys.toList()}');
+
+      // Try to parse address from different possible structures
+      Map<String, dynamic>? address;
+
+      // Try structure: response['data']['user']['profile']['address']
+      if (profileResponse['data'] != null) {
+        final profileData = profileResponse['data'] as Map<String, dynamic>?;
+        debugPrint('[CheckoutScreen] Profile data: $profileData');
+        debugPrint('[CheckoutScreen] Profile data keys: ${profileData?.keys.toList()}');
+
+        if (profileData != null && profileData['user'] != null) {
+          final user = profileData['user'] as Map<String, dynamic>?;
+          debugPrint('[CheckoutScreen] User object: $user');
+
+          if (user != null && user['profile'] != null) {
+            final profile = user['profile'] as Map<String, dynamic>?;
+            debugPrint('[CheckoutScreen] Profile object: $profile');
+            debugPrint('[CheckoutScreen] Profile object keys: ${profile?.keys.toList()}');
+            address = profile?['address'] as Map<String, dynamic>?;
+          }
+        } else if (profileData != null && profileData['profile'] != null) {
+          // Try structure: response['data']['profile']['address']
+          final profile = profileData['profile'] as Map<String, dynamic>?;
+          debugPrint('[CheckoutScreen] Profile object: $profile');
+          debugPrint('[CheckoutScreen] Profile object keys: ${profile?.keys.toList()}');
+          address = profile?['address'] as Map<String, dynamic>?;
+        } else if (profileData != null && profileData['address'] != null) {
+          // Try structure: response['data']['address']
+          address = profileData['address'] as Map<String, dynamic>?;
+        }
+      } else if (profileResponse['profile'] != null) {
+        // Try structure: response['profile']['address']
+        final profile = profileResponse['profile'] as Map<String, dynamic>?;
+        address = profile?['address'] as Map<String, dynamic>?;
+      } else if (profileResponse['address'] != null) {
+        // Try structure: response['address']
+        address = profileResponse['address'] as Map<String, dynamic>?;
+      }
+
+      debugPrint('[CheckoutScreen] Extracted address: $address');
+      debugPrint('[CheckoutScreen] Address keys: ${address?.keys.toList()}');
+
+      // Extract address fields from profile API response
+      final deliveryAddress = DeliveryAddress(
+        buildingName: address?['buildingName'] as String? ?? 'N/A',
+        street: address?['street'] as String? ?? 'N/A',
+        area: address?['area'] as String? ?? 'N/A',
+        city: address?['city'] as String? ?? '',
+        state: address?['state'] as String? ?? '',
+        //pincode: address?['pincode'] as String? ?? '000000',
+        pincode: '560034',
+        contactNumber: userPhone,
+        latitude: (address?['latitude'] as num?)?.toDouble() ?? 0.0,
+        longitude: (address?['longitude'] as num?)?.toDouble() ?? 0.0,
+      );
+
+      debugPrint('[CheckoutScreen] Using delivery address: ${deliveryAddress.buildingName}, ${deliveryAddress.street}, ${deliveryAddress.city}');
+
+      if (!mounted) return;
+
+      final result = await showDialog<Map<String, dynamic>>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => OrderConfirmationModal(
+          deliveryDate: _selectedDeliveryDate == 'Tomorrow'
+              ? DateTime.now().add(const Duration(days: 1)).toIso8601String()
+              : DateTime.now().add(const Duration(days: 2)).toIso8601String(),
+          cartItems: cartItems,
+          totalAmount: totalAmount,
+          deliveryAddress: deliveryAddress,
+        ),
+      );
+
+      debugPrint('[CheckoutScreen] Order confirmation result: $result');
+
+      if (result != null && result['success'] == true && mounted) {
+        debugPrint('[CheckoutScreen] Payment successful! Showing success dialog and clearing cart...');
+        _showSuccessDialog(result['order'], result['payment']);
+      } else {
+        debugPrint('[CheckoutScreen] Order was not successful or result is null');
+      }
+    } catch (e) {
+      debugPrint('[CheckoutScreen] Error fetching profile for delivery address: $e');
+
+      // Show error to user
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Unable to fetch delivery address from profile. Please update your profile with address details.'),
+          backgroundColor: AppColors.errorColor,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+
+      // Fallback to user phone and default address if profile fetch fails
+      final localStorage = await ref.read(localStorageProvider.future);
+      final userPhone = localStorage.getUserPhone() ?? '9800072183';
+
+      final deliveryAddress = DeliveryAddress(
+        buildingName: 'N/A',
+        street: 'N/A',
+        area: 'N/A',
+        city: '',
+        state: '',
+        pincode: '000000',
+        contactNumber: userPhone,
+        latitude: 0.0,
+        longitude: 0.0,
+      );
+
+      debugPrint('[CheckoutScreen] Using fallback address due to profile fetch error');
+
+      if (!mounted) return;
+
+      final result = await showDialog<Map<String, dynamic>>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => OrderConfirmationModal(
+          deliveryDate: _selectedDeliveryDate == 'Tomorrow'
+              ? DateTime.now().add(const Duration(days: 1)).toIso8601String()
+              : DateTime.now().add(const Duration(days: 2)).toIso8601String(),
+          cartItems: cartItems,
+          totalAmount: totalAmount,
+          deliveryAddress: deliveryAddress,
+        ),
+      );
+
+      if (result != null && result['success'] == true && mounted) {
+        _showSuccessDialog(result['order'], result['payment']);
+      }
+    }
+  }
+
+  void _showSuccessDialog(dynamic order, dynamic payment) {
+    debugPrint('[CheckoutScreen] Displaying success dialog...');
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -600,6 +763,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSizes.spacing12),
+              if (order != null)
+                Text(
+                  'Order #${order.orderNumber}',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.semiBold,
+                    color: AppColors.primaryGreen,
+                    fontFamily: 'Lato',
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              const SizedBox(height: AppSizes.spacing8),
               const Text(
                 'Your order has been confirmed and will be delivered soon.',
                 style: TextStyle(
@@ -610,25 +785,63 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
+              if (payment != null && payment.wallet != null) ...[
+                const SizedBox(height: AppSizes.spacing20),
+                Container(
+                  padding: const EdgeInsets.all(AppSizes.spacing12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Remaining Wallet Balance',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          fontWeight: AppTypography.medium,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      const SizedBox(height: AppSizes.spacing4),
+                      Text(
+                        '₹${payment.wallet.couponBalance.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: AppTypography.fontSize18,
+                          fontWeight: AppTypography.bold,
+                          color: AppColors.primaryGreen,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
 
-    // Auto navigate to home after 2 seconds
-    Future.delayed(const Duration(seconds: 2), () {
+    // Auto navigate to home after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
       if (!mounted) return;
 
-      // Clear cart
+      debugPrint('[CheckoutScreen] Success dialog timeout - clearing cart and navigating back...');
+
+      // Clear cart (both in-memory and local storage)
       ref.read(cartProvider.notifier).clearCart();
+      debugPrint('[CheckoutScreen] Cart cleared from local storage');
 
       // Close dialog
       Navigator.of(context).pop();
+      debugPrint('[CheckoutScreen] Success dialog closed');
 
       // Navigate back to home (delivery screen)
       // Pop twice to go back to delivery screen (pop checkout, pop menu)
       Navigator.of(context).popUntil((route) => route.isFirst);
+      debugPrint('[CheckoutScreen] Navigated back to home screen');
     });
   }
 }

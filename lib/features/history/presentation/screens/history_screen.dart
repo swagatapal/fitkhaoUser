@@ -1,109 +1,52 @@
 import 'package:fitkhao_user/core/utils/responsive_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
-import '../../models/order.dart';
-import 'delivered_order_details_screen.dart';
+import '../../models/order_history_model.dart';
+import '../../providers/order_history_provider.dart';
 import 'order_tracking_screen.dart';
 
 enum _HistoryFilter { upcoming, delivered }
 
-class HistoryScreen extends StatefulWidget {
+class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
   @override
-  State<HistoryScreen> createState() => _HistoryScreenState();
+  ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   _HistoryFilter _selected = _HistoryFilter.upcoming;
   final TextEditingController _searchController = TextEditingController();
-
-  // Mock orders
-  late final List<OrderModel> _upcomingOrders;
-  late final List<OrderModel> _deliveredOrders;
 
   @override
   void initState() {
     super.initState();
-    _seedMockData();
+    // Load order history when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(orderHistoryProvider.notifier).loadOrderHistory(refresh: true);
+    });
   }
 
-  void _seedMockData() {
-    _upcomingOrders = [
-      OrderModel(
-        id: 'FK12345',
-        restaurantName: 'Green Bowl Kitchen',
-        restaurantImage: 'assets/images/o1.png',
-        orderTime: DateTime.now().subtract(const Duration(minutes: 10)),
-        deliveredTime: null,
-        address: '24B, Park Street, Kolkata',
-        items: const [
-          OrderItemModel(name: 'Quinoa Salad', quantity: 1, price: 199),
-          OrderItemModel(name: 'Avocado Toast', quantity: 1, price: 149),
-        ],
-        deliveryFee: 20,
-        tax: 18,
-        statusStage: OrderStatusStage.preparing,
-      ),
-      OrderModel(
-        id: 'FK12346',
-        restaurantName: 'Lean Grill House',
-        restaurantImage: 'assets/images/o2.png',
-        orderTime: DateTime.now().subtract(const Duration(minutes: 5)),
-        deliveredTime: null,
-        address: '24B, Park Street, Kolkata',
-        items: const [
-          OrderItemModel(name: 'Grilled Chicken', quantity: 1, price: 249),
-          OrderItemModel(name: 'Brown Rice', quantity: 1, price: 79),
-        ],
-        deliveryFee: 25,
-        tax: 22,
-        statusStage: OrderStatusStage.outForDelivery,
-      ),
-    ];
-
-    _deliveredOrders = [
-      OrderModel(
-        id: 'FK12001',
-        restaurantName: 'FitKhao Cafe',
-        restaurantImage: 'assets/images/o3.png',
-        orderTime: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
-        deliveredTime: DateTime.now().subtract(const Duration(days: 1, hours: 1, minutes: 20)),
-        address: '24B, Park Street, Kolkata',
-        items: const [
-          OrderItemModel(name: 'Oats Bowl', quantity: 1, price: 129),
-          OrderItemModel(name: 'Greek Yogurt', quantity: 1, price: 99),
-        ],
-        deliveryFee: 15,
-        tax: 16,
-        statusStage: OrderStatusStage.delivered,
-      ),
-      OrderModel(
-        id: 'FK11998',
-        restaurantName: 'Healthy Hub',
-        restaurantImage: 'assets/images/o2.png',
-        orderTime: DateTime.now().subtract(const Duration(days: 2, hours: 3)),
-        deliveredTime: DateTime.now().subtract(const Duration(days: 2, hours: 2, minutes: 40)),
-        address: '24B, Park Street, Kolkata',
-        items: const [
-          OrderItemModel(name: 'Veggie Wrap', quantity: 2, price: 99),
-        ],
-        deliveryFee: 20,
-        tax: 12,
-        statusStage: OrderStatusStage.delivered,
-      ),
-    ];
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final historyState = ref.watch(orderHistoryProvider);
+    final historyNotifier = ref.read(orderHistoryProvider.notifier);
+
+    // Filter orders based on selection
     final orders = _selected == _HistoryFilter.upcoming
-        ? _upcomingOrders
-        : _deliveredOrders;
+        ? historyNotifier.upcomingOrders
+        : historyNotifier.deliveredOrders;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -117,52 +60,98 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 _buildHeader(),
                 const SizedBox(height: AppSizes.spacing12),
                 Padding(
-                  padding:  EdgeInsets.symmetric(horizontal: AppSizes.screenPaddingHorizontal),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSizes.screenPaddingHorizontal),
                   child: _buildSegmentedControl(context),
                 ),
                 const SizedBox(height: AppSizes.spacing12),
                 Padding(
-                  padding:  EdgeInsets.symmetric(horizontal: AppSizes.screenPaddingHorizontal),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSizes.screenPaddingHorizontal),
                   child: _buildSearchBar(),
                 ),
                 const SizedBox(height: AppSizes.spacing12),
-
               ],
             ),
             Expanded(
-              child: orders.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSizes.screenPaddingHorizontal,
-                      ),
-                      itemCount: orders.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: AppSizes.spacing12),
-                      itemBuilder: (context, index) {
-                        final order = orders[index];
-                        return _OrderCard(
-                          order: order,
-                          isUpcoming: _selected == _HistoryFilter.upcoming,
-                          onTap: () {
-                            if (_selected == _HistoryFilter.upcoming) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => OrderTrackingScreen(order: order),
+              child: historyState.isLoading && historyState.orders.isEmpty
+                  ? _buildLoadingState()
+                  : historyState.error != null && historyState.orders.isEmpty
+                      ? _buildErrorState(historyState.error!, historyNotifier)
+                      : orders.isEmpty
+                          ? _buildEmptyState()
+                          : RefreshIndicator(
+                              onRefresh: () => historyNotifier.refresh(),
+                              child: ListView.separated(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSizes.screenPaddingHorizontal,
                                 ),
-                              );
-                            } else {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => DeliveredOrderDetailsScreen(order: order),
-                                ),
-                              );
-                            }
-                          },
-                        );
-                      },
-                    ),
+                                itemCount: orders.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: AppSizes.spacing12),
+                                itemBuilder: (context, index) {
+                                  final order = orders[index];
+                                  return _OrderCard(
+                                    order: order,
+                                    isUpcoming:
+                                        _selected == _HistoryFilter.upcoming,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              OrderTrackingScreen(order: order),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return const Center(
+      child: CircularProgressIndicator(
+        color: AppColors.primaryGreen,
+      ),
+    );
+  }
+
+  Widget _buildErrorState(String error, OrderHistoryNotifier notifier) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSizes.spacing24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 48,
+              color: AppColors.errorColor,
+            ),
+            const SizedBox(height: AppSizes.spacing16),
+            Text(
+              error,
+              style: const TextStyle(
+                fontSize: AppTypography.fontSize14,
+                color: AppColors.textSecondary,
+                fontFamily: AppTypography.fontFamily,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSizes.spacing16),
+            ElevatedButton(
+              onPressed: () => notifier.refresh(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+              ),
+              child: const Text('Retry'),
             ),
           ],
         ),
@@ -175,7 +164,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       padding: const EdgeInsets.all(AppSizes.p6),
       decoration: BoxDecoration(
         color: const Color(0xFFEFF5EC),
-        borderRadius: BorderRadius.circular(context.responsiveSpacing(AppSizes.radius50)),
+        borderRadius: BorderRadius.circular(
+            context.responsiveSpacing(AppSizes.radius50)),
         border: Border.all(color: AppColors.primaryGreen, width: AppSizes.borderThin),
       ),
       child: Row(
@@ -249,21 +239,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
           const SizedBox(width: AppSizes.spacing12),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   "Order History",
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: AppTypography.fontSize20,
                     fontWeight: AppTypography.bold,
                     color: AppColors.textPrimary,
                     fontFamily: 'Lato',
                   ),
                 ),
-                //const SizedBox(height: AppSizes.spacing2),
-
               ],
             ),
           ),
@@ -288,7 +276,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
   }
-
 
   Widget _buildSearchBar() {
     return Container(
@@ -347,7 +334,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
   }
-
 }
 
 class _SegmentChip extends StatelessWidget {
@@ -368,7 +354,8 @@ class _SegmentChip extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             color: selected ? AppColors.primaryGreen : Colors.transparent,
-            borderRadius: BorderRadius.circular(context.responsiveSpacing(AppSizes.spacing30)),
+            borderRadius: BorderRadius.circular(
+                context.responsiveSpacing(AppSizes.spacing30)),
           ),
           child: Center(
             child: Text(
@@ -388,7 +375,7 @@ class _SegmentChip extends StatelessWidget {
 }
 
 class _OrderCard extends StatelessWidget {
-  final OrderModel order;
+  final OrderHistory order;
   final bool isUpcoming;
   final VoidCallback onTap;
   const _OrderCard({required this.order, required this.isUpcoming, required this.onTap});
@@ -415,16 +402,19 @@ class _OrderCard extends StatelessWidget {
           padding: const EdgeInsets.all(AppSizes.p16),
           child: Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppSizes.radius12),
-                child: order.restaurantImage != null
-                    ? Image.asset(order.restaurantImage!, width: 64, height: 64, fit: BoxFit.cover)
-                    : Container(
-                        width: 64,
-                        height: 64,
-                        color: AppColors.primaryGreen.withValues(alpha: 0.08),
-                        child: const Icon(Icons.restaurant, color: AppColors.primaryGreen),
-                      ),
+              // Kitchen logo/icon placeholder
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppSizes.radius12),
+                ),
+                child: const Icon(
+                  Icons.restaurant,
+                  color: AppColors.primaryGreen,
+                  size: 32,
+                ),
               ),
               const SizedBox(width: AppSizes.spacing12),
               Expanded(
@@ -435,7 +425,7 @@ class _OrderCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            order.restaurantName,
+                            order.kitchen.name,
                             style: const TextStyle(
                               fontSize: AppTypography.fontSize16,
                               fontWeight: AppTypography.semiBold,
@@ -444,12 +434,12 @@ class _OrderCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        Icon(Icons.chevron_right, color: AppColors.textTertiary),
+                        const Icon(Icons.chevron_right, color: AppColors.textTertiary),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Order #${order.id} • ${order.items.length} items',
+                      'Order #${order.orderNumber} • ${order.items.length} items',
                       style: const TextStyle(
                         fontSize: AppTypography.fontSize13,
                         color: AppColors.textSecondary,
@@ -459,13 +449,10 @@ class _OrderCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        if (isUpcoming)
-                          _statusPill(_stageText(order.statusStage), AppColors.primaryGreen)
-                        else
-                          _statusPill('Delivered', AppColors.successColor),
+                        _statusPill(_getStatusText(order.orderStatus), _getStatusColor(order.orderStatus)),
                         const Spacer(),
                         Text(
-                          _formatTime(order.isDelivered ? (order.deliveredTime ?? order.orderTime) : order.orderTime),
+                          _formatDate(order.createdAt),
                           style: const TextStyle(
                             fontSize: AppTypography.fontSize12,
                             color: AppColors.textTertiary,
@@ -503,25 +490,65 @@ class _OrderCard extends StatelessWidget {
     );
   }
 
-  static String _stageText(OrderStatusStage stage) {
-    switch (stage) {
-      case OrderStatusStage.placed:
-        return 'Placed';
-      case OrderStatusStage.confirmed:
+  static String _getStatusText(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'Pending';
+      case 'confirmed':
         return 'Confirmed';
-      case OrderStatusStage.preparing:
+      case 'preparing':
         return 'Preparing';
-      case OrderStatusStage.outForDelivery:
+      case 'out_for_delivery':
+      case 'out-for-delivery':
         return 'On the way';
-      case OrderStatusStage.delivered:
+      case 'delivered':
         return 'Delivered';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status;
     }
   }
 
-  static String _formatTime(DateTime d) {
-    final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
-    final m = d.minute.toString().padLeft(2, '0');
-    final ampm = d.hour >= 12 ? 'PM' : 'AM';
-    return '$h:$m $ampm';
+  static Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'confirmed':
+      case 'preparing':
+        return AppColors.primaryGreen;
+      case 'out_for_delivery':
+      case 'out-for-delivery':
+        return Colors.blue;
+      case 'delivered':
+        return AppColors.successColor;
+      case 'cancelled':
+        return AppColors.errorColor;
+      default:
+        return AppColors.textSecondary;
+    }
+  }
+
+  static String _formatDate(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      final now = DateTime.now();
+      final difference = now.difference(date);
+
+      if (difference.inDays == 0) {
+        final h = date.hour % 12 == 0 ? 12 : date.hour % 12;
+        final m = date.minute.toString().padLeft(2, '0');
+        final ampm = date.hour >= 12 ? 'PM' : 'AM';
+        return '$h:$m $ampm';
+      } else if (difference.inDays == 1) {
+        return 'Yesterday';
+      } else if (difference.inDays < 7) {
+        return '${difference.inDays} days ago';
+      } else {
+        return '${date.day}/${date.month}/${date.year}';
+      }
+    } catch (e) {
+      return dateStr;
+    }
   }
 }

@@ -102,8 +102,8 @@ class ProfileUpdateRequest {
       buildingName: s.buildingNameNumber.isNotEmpty ? s.buildingNameNumber : null,
       street: s.street.isNotEmpty ? s.street : null,
       area: s.street.isNotEmpty ? s.street : null, // Using street as area fallback
-      city: 'Bangalore', // Default city
-      state: 'Karnataka', // Default state
+      city: '', // Default city
+      state: '', // Default state
       pincode: s.pincode.isNotEmpty ? s.pincode : null,
       latitude: s.latitude,
       longitude: s.longitude,

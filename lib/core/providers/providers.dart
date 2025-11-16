@@ -5,6 +5,8 @@ import '../network/api_client.dart';
 import '../../features/auth/repository/auth_repository.dart';
 import '../../features/delivery/repository/subscription_repository.dart';
 import '../../features/delivery/repository/wallet_repository.dart';
+import '../../features/delivery/repository/order_repository.dart';
+import '../../features/history/repository/order_history_repository.dart';
 
 /// Provider for LocalStorageService
 final localStorageProvider = FutureProvider<LocalStorageService>((ref) async {
@@ -58,4 +60,30 @@ final walletRepositoryProvider = Provider<WalletRepository>((ref) {
   }
 
   return WalletRepository(apiClient: apiClient, localStorage: localStorage);
+});
+
+/// Provider for OrderRepository
+/// Handles order placement and payment with remote API
+final orderRepositoryProvider = Provider<OrderRepository>((ref) {
+  final localStorage = ref.watch(localStorageProvider).value;
+  final apiClient = ref.watch(apiClientProvider);
+
+  if (localStorage == null) {
+    throw Exception('LocalStorage not initialized');
+  }
+
+  return OrderRepository(apiClient: apiClient, localStorage: localStorage);
+});
+
+/// Provider for OrderHistoryRepository
+/// Handles fetching order history with remote API
+final orderHistoryRepositoryProvider = Provider<OrderHistoryRepository>((ref) {
+  final localStorage = ref.watch(localStorageProvider).value;
+  final apiClient = ref.watch(apiClientProvider);
+
+  if (localStorage == null) {
+    throw Exception('LocalStorage not initialized');
+  }
+
+  return OrderHistoryRepository(apiClient: apiClient, localStorage: localStorage);
 });
