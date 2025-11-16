@@ -233,22 +233,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => context.pop(),
-            child: Container(
-              padding: const EdgeInsets.all(AppSizes.spacing8),
-              decoration: BoxDecoration(
-                color: AppColors.darkGreen,
-                borderRadius: BorderRadius.circular(AppSizes.radius8),
-              ),
-              child: const Icon(
-                Icons.arrow_back,
-                color: AppColors.textWhite,
-                size: AppSizes.icon24,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSizes.spacing12),
+          // GestureDetector(
+          //   onTap: () => context.pop(),
+          //   child: Container(
+          //     padding: const EdgeInsets.all(AppSizes.spacing8),
+          //     decoration: BoxDecoration(
+          //       color: AppColors.darkGreen,
+          //       borderRadius: BorderRadius.circular(AppSizes.radius8),
+          //     ),
+          //     child: const Icon(
+          //       Icons.arrow_back,
+          //       color: AppColors.textWhite,
+          //       size: AppSizes.icon24,
+          //     ),
+          //   ),
+          // ),
+          // const SizedBox(width: AppSizes.spacing12),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -118,4 +118,48 @@ class OrderRepository {
       throw NetworkException(message: message, originalError: e);
     }
   }
+
+  /// Cancel an order
+  Future<Map<String, dynamic>> cancelOrder({
+    required String orderId,
+    required String reason,
+  }) async {
+    debugPrint('[OrderRepository] Cancelling order $orderId via API...');
+
+    try {
+      // Get auth token
+      final token = _localStorage.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+          message: 'Authentication required. Please login again.',
+        );
+      }
+
+      // Prepare headers with Bearer token
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+
+      // Prepare request body
+      final body = {
+        'reason': reason,
+      };
+
+      // Make POST request
+      final json = await _apiClient.postJson(
+        '${AppConfig.cancelOrderPath}/$orderId',
+        body: body,
+        headers: headers,
+      );
+
+      debugPrint('[OrderRepository] Cancel order response: $json');
+
+      return json;
+    } catch (e) {
+      debugPrint('[OrderRepository] Cancel order error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
 }

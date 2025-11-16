@@ -1,13 +1,124 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/providers/providers.dart';
 import '../../models/order_history_model.dart';
 
-class OrderTrackingScreen extends StatelessWidget {
+class OrderTrackingScreen extends ConsumerStatefulWidget {
   final OrderHistory order;
   const OrderTrackingScreen({super.key, required this.order});
+
+  @override
+  ConsumerState<OrderTrackingScreen> createState() => _OrderTrackingScreenState();
+}
+
+class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
+  bool _isCancelling = false;
+
+  /// Check if cancel button should be shown
+  bool get _shouldShowCancelButton {
+    // Only show for confirmed orders
+    if (widget.order.orderStatus.toLowerCase() != 'confirmed') {
+      return false;
+    }
+
+    try {
+      final deliveryDate = DateTime.parse(widget.order.deliveryDate);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final tomorrow = today.add(const Duration(days: 1));
+      final dayAfterTomorrow = today.add(const Duration(days: 2));
+
+      final deliveryDay = DateTime(deliveryDate.year, deliveryDate.month, deliveryDate.day);
+
+      // If delivery is tomorrow, show button only today
+      if (deliveryDay == tomorrow) {
+        return true;
+      }
+
+      // If delivery is day after tomorrow, show button up to tomorrow
+      if (deliveryDay == dayAfterTomorrow && (now.isBefore(tomorrow.add(const Duration(days: 1))))) {
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      debugPrint('[OrderTrackingScreen] Error checking cancel button visibility: $e');
+      return false;
+    }
+  }
+
+  void _showCancelOrderModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _CancelOrderModal(
+        order: widget.order,
+        onCancel: (reason) => _cancelOrder(reason),
+      ),
+    );
+  }
+
+  Future<void> _cancelOrder(String reason) async {
+    if (_isCancelling) return;
+
+    setState(() {
+      _isCancelling = true;
+    });
+
+    try {
+      final orderRepo = ref.read(orderRepositoryProvider);
+      final response = await orderRepo.cancelOrder(
+        orderId: widget.order.id,
+        reason: reason,
+      );
+
+      if (!mounted) return;
+
+      if (response['success'] == true) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message'] ?? 'Order cancelled successfully'),
+            backgroundColor: AppColors.successColor,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        // Navigate back to history screen
+        Navigator.of(context).pop();
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message'] ?? 'Failed to cancel order'),
+            backgroundColor: AppColors.errorColor,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[OrderTrackingScreen] Cancel order error: $e');
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to cancel order. Please try again.'),
+          backgroundColor: AppColors.errorColor,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCancelling = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +137,7 @@ class OrderTrackingScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _OrderSummaryCard(order: order),
+                    _OrderSummaryCard(order: widget.order),
                     const SizedBox(height: AppSizes.spacing16),
                     _buildOrderItems(),
                     const SizedBox(height: AppSizes.spacing16),
@@ -34,12 +145,16 @@ class OrderTrackingScreen extends StatelessWidget {
                     const SizedBox(height: AppSizes.spacing16),
                     _buildPriceSummary(),
                     const SizedBox(height: AppSizes.spacing16),
-                    if (order.orderStatus != 'delivered' && order.orderStatus != 'cancelled')
+                    if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
                       _buildTimeline(context),
-                    if (order.orderStatus != 'delivered' && order.orderStatus != 'cancelled')
+                    if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
                       const SizedBox(height: AppSizes.spacing20),
-                    if (order.orderStatus != 'delivered' && order.orderStatus != 'cancelled')
+                    if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
                       _buildHelpRow(context),
+                    if (_shouldShowCancelButton) ...[
+                      const SizedBox(height: AppSizes.spacing16),
+                      _buildCancelButton(),
+                    ],
                     const SizedBox(height: AppSizes.spacing20),
                   ],
                 ),
@@ -153,7 +268,7 @@ class OrderTrackingScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSizes.spacing12),
-          ...order.items.map((item) => Padding(
+          ...widget.order.items.map((item) => Padding(
                 padding: const EdgeInsets.only(bottom: AppSizes.spacing12),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,19 +386,19 @@ class OrderTrackingScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSizes.spacing12),
           _buildDetailRow(Icons.location_on, 'Address',
-              '${order.deliveryAddress.buildingName}, ${order.deliveryAddress.street}'),
+              '${widget.order.deliveryAddress.buildingName}, ${widget.order.deliveryAddress.street}'),
           const SizedBox(height: AppSizes.spacing8),
           _buildDetailRow(Icons.calendar_today, 'Delivery Date',
-              _formatDeliveryDate(order.deliveryDate)),
+              _formatDeliveryDate(widget.order.deliveryDate)),
           const SizedBox(height: AppSizes.spacing8),
           _buildDetailRow(
-              Icons.access_time, 'Delivery Slot', _formatDeliverySlot(order.deliverySlot)),
+              Icons.access_time, 'Delivery Slot', _formatDeliverySlot(widget.order.deliverySlot)),
           const SizedBox(height: AppSizes.spacing8),
-          _buildDetailRow(Icons.phone, 'Contact', order.deliveryAddress.contactNumber),
-          if (order.deliveryAddress.deliveryInstructions != null) ...[
+          _buildDetailRow(Icons.phone, 'Contact', widget.order.deliveryAddress.contactNumber),
+          if (widget.order.deliveryAddress.deliveryInstructions != null) ...[
             const SizedBox(height: AppSizes.spacing8),
             _buildDetailRow(Icons.note, 'Delivery Instructions',
-                order.deliveryAddress.deliveryInstructions!),
+                widget.order.deliveryAddress.deliveryInstructions!),
           ],
         ],
       ),
@@ -354,14 +469,14 @@ class OrderTrackingScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSizes.spacing12),
-          _buildPriceRow('Subtotal', order.subtotal),
+          _buildPriceRow('Subtotal', widget.order.subtotal),
           const SizedBox(height: AppSizes.spacing8),
-          _buildPriceRow('Delivery Charge', order.deliveryCharge),
+          _buildPriceRow('Delivery Charge', widget.order.deliveryCharge),
           const SizedBox(height: AppSizes.spacing8),
-          _buildPriceRow('Tax & Fees', order.tax),
-          if (order.discount > 0) ...[
+          _buildPriceRow('Tax & Fees', widget.order.tax),
+          if (widget.order.discount > 0) ...[
             const SizedBox(height: AppSizes.spacing8),
-            _buildPriceRow('Discount', -order.discount, isDiscount: true),
+            _buildPriceRow('Discount', -widget.order.discount, isDiscount: true),
           ],
           const Divider(height: AppSizes.spacing20),
           Row(
@@ -377,7 +492,7 @@ class OrderTrackingScreen extends StatelessWidget {
                 ),
               ),
               Text(
-                '₹${order.total.toStringAsFixed(2)}',
+                '₹${widget.order.total.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize18,
                   fontWeight: AppTypography.bold,
@@ -397,13 +512,13 @@ class OrderTrackingScreen extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  _getPaymentIcon(order.paymentMethod),
+                  _getPaymentIcon(widget.order.paymentMethod),
                   size: 18,
                   color: AppColors.primaryGreen,
                 ),
                 const SizedBox(width: AppSizes.spacing8),
                 Text(
-                  'Paid via ${_formatPaymentMethod(order.paymentMethod)}',
+                  'Paid via ${_formatPaymentMethod(widget.order.paymentMethod)}',
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize12,
                     fontWeight: AppTypography.medium,
@@ -487,10 +602,10 @@ class OrderTrackingScreen extends StatelessWidget {
           ...List.generate(steps.length, (index) {
             final s = steps[index];
             final stepStatus = s.$1;
-            final currentStatusIndex = _getStatusIndex(order.orderStatus);
+            final currentStatusIndex = _getStatusIndex(widget.order.orderStatus);
             final stepIndex = _getStatusIndex(stepStatus);
             final isCompleted = currentStatusIndex > stepIndex;
-            final isCurrent = order.orderStatus.toLowerCase() == stepStatus.toLowerCase();
+            final isCurrent = widget.order.orderStatus.toLowerCase() == stepStatus.toLowerCase();
             final isLast = index == steps.length - 1;
 
             return _TimelineTile(
@@ -555,6 +670,42 @@ class OrderTrackingScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCancelButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _isCancelling ? null : _showCancelOrderModal,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.errorColor,
+          disabledBackgroundColor: AppColors.errorColor.withValues(alpha: 0.5),
+          padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radius4),
+          ),
+        ),
+        icon: _isCancelling
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Icon(Icons.cancel, color: Colors.white),
+        label: Text(
+          _isCancelling ? 'Cancelling...' : 'Cancel Order',
+          style: const TextStyle(
+            fontSize: AppTypography.fontSize14,
+            fontWeight: AppTypography.semiBold,
+            color: Colors.white,
+            fontFamily: AppTypography.fontFamily,
+          ),
+        ),
+      ),
     );
   }
 
@@ -862,6 +1013,287 @@ class _TimelineTile extends StatelessWidget {
           ),
         )
       ],
+    );
+  }
+}
+
+class _CancelOrderModal extends StatefulWidget {
+  final OrderHistory order;
+  final Function(String reason) onCancel;
+
+  const _CancelOrderModal({
+    required this.order,
+    required this.onCancel,
+  });
+
+  @override
+  State<_CancelOrderModal> createState() => _CancelOrderModalState();
+}
+
+class _CancelOrderModalState extends State<_CancelOrderModal> {
+  final _formKey = GlobalKey<FormState>();
+  final _reasonController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitCancellation() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    // Close the modal and trigger cancellation
+    Navigator.of(context).pop();
+    widget.onCancel(_reasonController.text.trim());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+      ),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSizes.spacing24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(AppSizes.spacing12),
+                      decoration: BoxDecoration(
+                        color: AppColors.errorColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppSizes.radius8),
+                      ),
+                      child: const Icon(
+                        Icons.cancel,
+                        color: AppColors.errorColor,
+                        size: AppSizes.icon24,
+                      ),
+                    ),
+                    const SizedBox(width: AppSizes.spacing12),
+                    const Expanded(
+                      child: Text(
+                        'Cancel Order',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize20,
+                          fontWeight: AppTypography.bold,
+                          color: AppColors.textPrimary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSizes.spacing16),
+
+                // Order info
+                Container(
+                  padding: const EdgeInsets.all(AppSizes.spacing12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.receipt_long,
+                        color: AppColors.primaryGreen,
+                        size: AppSizes.icon20,
+                      ),
+                      const SizedBox(width: AppSizes.spacing8),
+                      Expanded(
+                        child: Text(
+                          'Order #${widget.order.orderNumber}',
+                          style: const TextStyle(
+                            fontSize: AppTypography.fontSize14,
+                            fontWeight: AppTypography.semiBold,
+                            color: AppColors.textPrimary,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSizes.spacing20),
+
+                // Warning message
+                Container(
+                  padding: const EdgeInsets.all(AppSizes.spacing12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    border: Border.all(
+                      color: Colors.orange.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.orange,
+                        size: AppSizes.icon20,
+                      ),
+                      const SizedBox(width: AppSizes.spacing8),
+                      Expanded(
+                        child: Text(
+                          'Your payment will be refunded to your wallet within 2-3 business days.',
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize12,
+                            color: Colors.orange.shade800,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSizes.spacing20),
+
+                // Cancellation reason
+                const Text(
+                  'Reason for Cancellation',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.semiBold,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: AppSizes.spacing8),
+                TextFormField(
+                  controller: _reasonController,
+                  maxLines: 4,
+                  enabled: !_isSubmitting,
+                  decoration: InputDecoration(
+                    hintText: 'Please tell us why you want to cancel this order (minimum 10 characters)',
+                    hintStyle: const TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      color: AppColors.textTertiary,
+                      fontFamily: 'Lato',
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius4),
+                      borderSide: const BorderSide(color: AppColors.borderColor),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius4),
+                      borderSide: const BorderSide(color: AppColors.borderColor),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius4),
+                      borderSide: const BorderSide(color: AppColors.primaryGreen, width: 2),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius4),
+                      borderSide: const BorderSide(color: AppColors.errorColor),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius4),
+                      borderSide: const BorderSide(color: AppColors.errorColor, width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSizes.spacing16,
+                      vertical: AppSizes.spacing12,
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please provide a reason for cancellation';
+                    }
+                    if (value.trim().length < 10) {
+                      return 'Reason must be at least 10 characters long';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppSizes.spacing24),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
+                          side: const BorderSide(color: AppColors.borderColor),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radius4),
+                          ),
+                        ),
+                        child: const Text(
+                          'Go Back',
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize14,
+                            fontWeight: AppTypography.semiBold,
+                            color: AppColors.textPrimary,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSizes.spacing12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submitCancellation,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.errorColor,
+                          disabledBackgroundColor: AppColors.errorColor.withValues(alpha: 0.5),
+                          padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppSizes.radius4),
+                          ),
+                        ),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Confirm Cancel',
+                                style: TextStyle(
+                                  fontSize: AppTypography.fontSize14,
+                                  fontWeight: AppTypography.semiBold,
+                                  color: Colors.white,
+                                  fontFamily: 'Lato',
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
