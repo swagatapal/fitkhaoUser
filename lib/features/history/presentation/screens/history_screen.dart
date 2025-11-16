@@ -52,62 +52,72 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(),
-                const SizedBox(height: AppSizes.spacing12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSizes.screenPaddingHorizontal),
-                  child: _buildSegmentedControl(context),
-                ),
-                const SizedBox(height: AppSizes.spacing12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSizes.screenPaddingHorizontal),
-                  child: _buildSearchBar(),
-                ),
-                const SizedBox(height: AppSizes.spacing12),
-              ],
-            ),
+            _buildHeader(),
             Expanded(
-              child: historyState.isLoading && historyState.orders.isEmpty
-                  ? _buildLoadingState()
-                  : historyState.error != null && historyState.orders.isEmpty
-                      ? _buildErrorState(historyState.error!, historyNotifier)
-                      : orders.isEmpty
-                          ? _buildEmptyState()
-                          : RefreshIndicator(
-                              onRefresh: () => historyNotifier.refresh(),
-                              child: ListView.separated(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSizes.screenPaddingHorizontal,
-                                ),
-                                itemCount: orders.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(height: AppSizes.spacing12),
-                                itemBuilder: (context, index) {
-                                  final order = orders[index];
-                                  return _OrderCard(
-                                    order: order,
-                                    isUpcoming:
-                                        _selected == _HistoryFilter.upcoming,
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              OrderTrackingScreen(order: order),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: AppSizes.spacing12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSizes.screenPaddingHorizontal),
+                    child: _buildSegmentedControl(context),
+                  ),
+                  const SizedBox(height: AppSizes.spacing12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSizes.screenPaddingHorizontal),
+                    child: _buildSearchBar(),
+                  ),
+                  const SizedBox(height: AppSizes.spacing8),
+
+                   Expanded(
+                      child: Material(
+                        color: AppColors.textWhite,
+                        child: historyState.isLoading && historyState.orders.isEmpty
+                            ? _buildLoadingState()
+                            : historyState.error != null && historyState.orders.isEmpty
+                                ? _buildErrorState(historyState.error!, historyNotifier)
+                                : orders.isEmpty
+                                    ? _buildEmptyState()
+                                    : RefreshIndicator(
+                                        onRefresh: () => historyNotifier.refresh(),
+                                        child: ListView.separated(
+                                          padding: const EdgeInsets.only(
+                                            left: AppSizes.screenPaddingHorizontal,
+                                            right: AppSizes.screenPaddingHorizontal,
+                                            bottom: AppSizes.spacing24,
+                                          ),
+                                          itemCount: orders.length,
+                                          separatorBuilder: (_, __) =>
+                                              const SizedBox(height: AppSizes.spacing12),
+                                          itemBuilder: (context, index) {
+                                            final order = orders[index];
+                                            return _OrderCard(
+                                              order: order,
+                                              isUpcoming:
+                                                  _selected == _HistoryFilter.upcoming,
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        OrderTrackingScreen(order: order),
+                                                  ),
+                                                );
+                                              },
+                                            );
+                                          },
                                         ),
-                                      );
-                                    },
-                                  );
-                                },
-                              ),
-                            ),
+                                      ),
+                      ),
+                    ),
+
+                  const SizedBox(height: AppSizes.spacing48),
+
+                ],
+              ),
             ),
           ],
         ),
@@ -404,17 +414,20 @@ class _OrderCard extends StatelessWidget {
             children: [
               // Kitchen logo/icon placeholder
               Container(
-                width: 64,
-                height: 64,
+                width: 70,
+                height: 70,
                 decoration: BoxDecoration(
                   color: AppColors.primaryGreen.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppSizes.radius12),
+                  borderRadius: BorderRadius.circular(AppSizes.radius4),
                 ),
-                child: const Icon(
-                  Icons.restaurant,
-                  color: AppColors.primaryGreen,
-                  size: 32,
-                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppSizes.radius4),
+                  child: Image.network("https://media.istockphoto.com/id/877317520/photo/burgers-on-the-dark-rustic-background.jpg?s=612x612&w=0&k=20&c=3wXk0Lh-aKBjzvqqmujDOhUXEaydf4M__eT9xzyxM_A=",
+                    width: 70,
+                    height: 70,
+                    fit: BoxFit.cover,
+                  ),
+                )
               ),
               const SizedBox(width: AppSizes.spacing12),
               Expanded(
@@ -434,7 +447,7 @@ class _OrderCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+                        const Icon(Icons.chevron_right, color: AppColors.darkGreen),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -473,10 +486,10 @@ class _OrderCard extends StatelessWidget {
 
   static Widget _statusPill(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.p10, vertical: AppSizes.p6),
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.p10, vertical: AppSizes.p4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
       ),
       child: Text(
         label,

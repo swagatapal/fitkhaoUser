@@ -13,57 +13,116 @@ class OrderTrackingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text(
-          'Order Details',
-          style: TextStyle(
-            fontSize: AppTypography.fontSize18,
-            fontWeight: AppTypography.semiBold,
-            color: AppColors.textPrimary,
-            fontFamily: AppTypography.fontFamily,
-          ),
-        ),
-      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSizes.screenPaddingHorizontal,
-            vertical: AppSizes.screenPaddingVertical,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _OrderSummaryCard(order: order),
-              const SizedBox(height: AppSizes.spacing20),
-              if (order.orderStatus != 'delivered' && order.orderStatus != 'cancelled')
-                _buildEta(context),
-              if (order.orderStatus != 'delivered' && order.orderStatus != 'cancelled')
-                const SizedBox(height: AppSizes.spacing20),
-              _buildOrderItems(),
-              const SizedBox(height: AppSizes.spacing20),
-              _buildDeliveryDetails(),
-              const SizedBox(height: AppSizes.spacing20),
-              _buildPriceSummary(),
-              const SizedBox(height: AppSizes.spacing20),
-              if (order.orderStatus != 'delivered' && order.orderStatus != 'cancelled')
-                _buildTimeline(context),
-              if (order.orderStatus != 'delivered' && order.orderStatus != 'cancelled')
-                const SizedBox(height: AppSizes.spacing32),
-              if (order.orderStatus != 'delivered' && order.orderStatus != 'cancelled')
-                _buildHelpRow(context),
-              const SizedBox(height: AppSizes.spacing20),
-            ],
-          ),
+        child: Column(
+          children: [
+            _buildHeader(context),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSizes.screenPaddingHorizontal,
+                  vertical: AppSizes.screenPaddingVertical,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _OrderSummaryCard(order: order),
+                    const SizedBox(height: AppSizes.spacing16),
+                    _buildOrderItems(),
+                    const SizedBox(height: AppSizes.spacing16),
+                    _buildDeliveryDetails(),
+                    const SizedBox(height: AppSizes.spacing16),
+                    _buildPriceSummary(),
+                    const SizedBox(height: AppSizes.spacing16),
+                    if (order.orderStatus != 'delivered' && order.orderStatus != 'cancelled')
+                      _buildTimeline(context),
+                    if (order.orderStatus != 'delivered' && order.orderStatus != 'cancelled')
+                      const SizedBox(height: AppSizes.spacing20),
+                    if (order.orderStatus != 'delivered' && order.orderStatus != 'cancelled')
+                      _buildHelpRow(context),
+                    const SizedBox(height: AppSizes.spacing20),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.p20,
+        vertical: AppSizes.spacing8,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: AppSizes.shadowBlur10,
+            offset: const Offset(0, AppSizes.spacing2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => context.pop(),
+            child: Container(
+              padding: const EdgeInsets.all(AppSizes.spacing8),
+              decoration: BoxDecoration(
+                color: AppColors.darkGreen,
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+              child: const Icon(
+                Icons.arrow_back,
+                color: AppColors.textWhite,
+                size: AppSizes.icon24,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSizes.spacing12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Order Details",
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize20,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          CircleAvatar(
+            radius: AppSizes.spacing24,
+            backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
+            backgroundImage: const NetworkImage(
+              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
+            ),
+            onBackgroundImageError: (exception, stackTrace) {},
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.3),
+                  width: AppSizes.borderThin,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Widget _buildOrderItems() {
     return Container(
@@ -71,7 +130,7 @@ class OrderTrackingScreen extends StatelessWidget {
       padding: const EdgeInsets.all(AppSizes.p16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radius16),
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
         border: Border.all(color: AppColors.borderColor),
         boxShadow: [
           BoxShadow(
@@ -104,13 +163,11 @@ class OrderTrackingScreen extends StatelessWidget {
                       height: 50,
                       decoration: BoxDecoration(
                         color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(AppSizes.radius8),
+                        borderRadius: BorderRadius.circular(AppSizes.radius4),
                       ),
-                      child: const Icon(
-                        Icons.restaurant,
-                        color: AppColors.primaryGreen,
-                        size: 24,
-                      ),
+                      child: ClipRRect(
+                          borderRadius: BorderRadius.circular(AppSizes.radius4),
+                          child: Image.network("https://arthurmillerfoundation.org/wp-content/uploads/2018/06/default-placeholder.png"))
                     ),
                     const SizedBox(width: AppSizes.spacing12),
                     Expanded(
@@ -190,7 +247,7 @@ class OrderTrackingScreen extends StatelessWidget {
       padding: const EdgeInsets.all(AppSizes.p16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radius16),
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
         border: Border.all(color: AppColors.borderColor),
         boxShadow: [
           BoxShadow(
@@ -274,7 +331,7 @@ class OrderTrackingScreen extends StatelessWidget {
       padding: const EdgeInsets.all(AppSizes.p16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radius16),
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
         border: Border.all(color: AppColors.borderColor),
         boxShadow: [
           BoxShadow(
@@ -389,58 +446,6 @@ class OrderTrackingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEta(BuildContext context) {
-    final etaText = _getEtaText(order.orderStatus);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSizes.p16),
-      decoration: BoxDecoration(
-        color: AppColors.primaryGreen.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(AppSizes.radius16),
-        border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.2)),
-            ),
-            child: const Icon(Icons.timer, color: AppColors.primaryGreen),
-          ),
-          const SizedBox(width: AppSizes.spacing12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Estimated Arrival',
-                style: TextStyle(
-                  fontSize: AppTypography.fontSize14,
-                  fontWeight: AppTypography.medium,
-                  color: AppColors.textSecondary,
-                  fontFamily: AppTypography.fontFamily,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                etaText,
-                style: const TextStyle(
-                  fontSize: AppTypography.fontSize18,
-                  fontWeight: AppTypography.bold,
-                  color: AppColors.textPrimary,
-                  fontFamily: AppTypography.fontFamily,
-                ),
-              ),
-            ],
-          )
-        ],
-      ),
-    );
-  }
 
   Widget _buildTimeline(BuildContext context) {
     final steps = [
@@ -456,7 +461,7 @@ class OrderTrackingScreen extends StatelessWidget {
       padding: const EdgeInsets.all(AppSizes.p16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radius16),
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
         border: Border.all(color: AppColors.borderColor),
         boxShadow: [
           BoxShadow(
@@ -511,7 +516,7 @@ class OrderTrackingScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
               side: const BorderSide(color: AppColors.primaryGreen),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSizes.radius12),
+                borderRadius: BorderRadius.circular(AppSizes.radius4),
               ),
             ),
             icon: const Icon(Icons.support_agent, color: AppColors.primaryGreen),
@@ -534,7 +539,7 @@ class OrderTrackingScreen extends StatelessWidget {
               backgroundColor: AppColors.primaryGreen,
               padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSizes.radius12),
+                borderRadius: BorderRadius.circular(AppSizes.radius4),
               ),
             ),
             icon: const Icon(Icons.call, color: Colors.white),
@@ -665,7 +670,7 @@ class _OrderSummaryCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSizes.p16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radius16),
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
         border: Border.all(color: AppColors.borderColor),
         boxShadow: [
           BoxShadow(
@@ -678,13 +683,15 @@ class _OrderSummaryCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 64,
-            height: 64,
+            width: 70,
+            height: 70,
             decoration: BoxDecoration(
               color: AppColors.primaryGreen.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(AppSizes.radius12),
+              borderRadius: BorderRadius.circular(AppSizes.radius4),
             ),
-            child: const Icon(Icons.restaurant, color: AppColors.primaryGreen, size: 32),
+            child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppSizes.radius4),
+                child: Image.network("https://arthurmillerfoundation.org/wp-content/uploads/2018/06/default-placeholder.png")),
           ),
           const SizedBox(width: AppSizes.spacing12),
           Expanded(
@@ -717,7 +724,7 @@ class _OrderSummaryCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: _getStatusColor(order.orderStatus).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppSizes.radius6),
+                    borderRadius: BorderRadius.circular(AppSizes.radius4),
                   ),
                   child: Text(
                     _getStatusText(order.orderStatus),
