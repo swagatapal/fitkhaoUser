@@ -8,6 +8,7 @@ import '../../../../shared/widgets/logo_widget.dart';
 import '../../providers/wallet_provider.dart';
 import '../widgets/recharge_topup_modal.dart';
 import 'subscription_checkout_screen.dart';
+import 'transaction_history_screen.dart';
 
 class SubscriptionPlanScreen extends ConsumerStatefulWidget {
   const SubscriptionPlanScreen({super.key});
@@ -121,6 +122,8 @@ class _SubscriptionPlanScreenState
                       ),
                       const SizedBox(height: AppSizes.spacing24),
                       _buildWhyFitKhaoSection(),
+                      const SizedBox(height: AppSizes.spacing24),
+                      _buildTransactionHistoryButton(),
                       const SizedBox(height: AppSizes.spacing24),
                     ],
                   ),
@@ -381,6 +384,47 @@ class _SubscriptionPlanScreenState
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildTransactionHistoryButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const TransactionHistoryScreen(),
+            ),
+          );
+        },
+        icon: const Icon(
+          Icons.history,
+          size: AppSizes.icon20,
+        ),
+        label: const Text(
+          'View Transaction History',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize16,
+            fontWeight: AppTypography.semiBold,
+            fontFamily: 'Lato',
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primaryGreen,
+          side: const BorderSide(
+            color: AppColors.primaryGreen,
+            width: 2,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radius4),
+          ),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSizes.spacing16,
+          ),
+        ),
+      ),
     );
   }
 

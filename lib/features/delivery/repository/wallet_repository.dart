@@ -5,6 +5,7 @@ import '../../../core/services/local_storage_service.dart';
 import '../../../core/config/app_config.dart';
 import '../models/wallet_balance_model.dart';
 import '../models/wallet_topup_model.dart';
+import '../models/transaction_model.dart';
 
 /// Repository for wallet related operations
 class WalletRepository {
@@ -96,6 +97,41 @@ class WalletRepository {
       return WalletTopupResponse.fromJson(json);
     } catch (e) {
       debugPrint('[WalletRepository] Wallet topup error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
+  /// Get wallet transaction history
+  Future<TransactionResponse> getTransactionHistory() async {
+    debugPrint('[WalletRepository] Fetching transaction history via API...');
+
+    try {
+      // Get auth token
+      final token = _localStorage.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+          message: 'Authentication required. Please login again.',
+        );
+      }
+
+      // Prepare headers with Bearer token
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+
+      // Make GET request
+      final json = await _apiClient.getJson(
+        AppConfig.walletTransactionsPath,
+        headers: headers,
+      );
+
+      debugPrint('[WalletRepository] Transaction history response: $json');
+
+      return TransactionResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[WalletRepository] Transaction history error: $e');
       final message = ExceptionHandler.getErrorMessage(e);
       throw NetworkException(message: message, originalError: e);
     }

@@ -31,4 +31,5 @@ class AppConfig {
   static const String walletOrderPaymentPath = '/api/wallet/order-payment';
   static const String orderHistoryPath = '/api/orders/history';
   static const String cancelOrderPath = '/api/orders/cancel';
+  static const String walletTransactionsPath = '/api/wallet/transactions';
 }
