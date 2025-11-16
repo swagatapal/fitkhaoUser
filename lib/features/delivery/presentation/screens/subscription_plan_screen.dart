@@ -590,7 +590,7 @@ class _SubscriptionPlanScreenState
                 ),
               ),
               Text(
-                wallet?.couponBalance.toString()??"",
+                wallet?.couponBalance.toStringAsFixed(2)??"",
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize16,
                   fontWeight: AppTypography.semiBold,
