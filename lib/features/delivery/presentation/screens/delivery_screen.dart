@@ -7,6 +7,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../shared/widgets/primary_button.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../providers/wallet_provider.dart';
+import '../../providers/trending_provider.dart';
 import '../widgets/membership_popup.dart';
 import 'menu_list_screen.dart';
 
@@ -26,6 +27,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   bool _isProfileLoaded = false;
   bool _hasShownMembershipPopup = false;
+  bool _trendingLoaded = false;
 
   @override
   void initState() {
@@ -34,6 +36,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProfileData();
       _loadWalletBalance();
+      _loadTrending();
     });
   }
 
@@ -41,6 +44,17 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadTrending() async {
+    if (_trendingLoaded) return;
+    final notifier = ref.read(trendingProvider.notifier);
+    await notifier.load(
+      kitchenId: '691249acdcddaf162cea0e7a',
+      timeSlot: 'morning',
+      limit: 5,
+    );
+    if (mounted) setState(() => _trendingLoaded = true);
   }
 
   /// Load user profile data
@@ -765,6 +779,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   }
 
   Widget _buildTrendingNow() {
+    final trendingState = ref.watch(trendingProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -783,19 +798,34 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         const SizedBox(height: AppSizes.spacing16),
         SizedBox(
           height: 160,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: 3,
-            itemBuilder: (context, index) {
-              return _buildTrendingItem();
-            },
+          child: trendingState.when(
+            loading: () => ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: 3,
+              itemBuilder: (context, index) => _buildTrendingSkeleton(),
+            ),
+            error: (e, _) => Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSizes.p20),
+              child: Text(
+                e.toString(),
+                style: const TextStyle(color: AppColors.errorColor),
+              ),
+            ),
+            data: (items) => ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: items.length,
+              itemBuilder: (context, index) => _buildTrendingItem(
+                items[index].itemName,
+                items[index].avgPrice,
+              ),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTrendingItem() {
+  Widget _buildTrendingItem(String title, double price) {
     return Padding(
       padding: EdgeInsets.only(left: AppSizes.p20),
       child: Container(
@@ -850,9 +880,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Healthy Bowl',
-                    style: TextStyle(
+                  Text(
+                    title,
+                    style: const TextStyle(
                       fontSize: AppTypography.fontSize14,
                       fontWeight: AppTypography.semiBold,
                       color: AppColors.textPrimary,
@@ -862,25 +892,62 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: AppSizes.spacing4),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.local_fire_department,
-                        size: AppSizes.icon14,
-                        color: AppColors.primaryGreen,
-                      ),
-                      const SizedBox(width: AppSizes.spacing4),
-                      const Text(
-                        '450 kcal',
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize12,
-                          fontWeight: AppTypography.regular,
-                          color: AppColors.textSecondary,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                    ],
+                  Text(
+                    '₹ ${price.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      fontWeight: AppTypography.medium,
+                      color: AppColors.textSecondary,
+                      fontFamily: 'Lato',
+                    ),
                   ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrendingSkeleton() {
+    return Padding(
+      padding: EdgeInsets.only(left: AppSizes.p20),
+      child: Container(
+        width: 160,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius4),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: AppSizes.shadowBlur10,
+              offset: const Offset(0, AppSizes.spacing4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              height: 100,
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(AppSizes.radius4),
+                  topRight: Radius.circular(AppSizes.radius4),
+                ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.all(AppSizes.spacing8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 12, width: 100),
+                  SizedBox(height: AppSizes.spacing4),
+                  SizedBox(height: 10, width: 60),
                 ],
               ),
             ),

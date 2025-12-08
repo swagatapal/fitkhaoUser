@@ -89,7 +89,7 @@ class _OrderConfirmationModalState
 
       // Step 1: Place order
       final orderResponse = await orderRepo.placeOrder(
-        kitchenId: '691249acdcddaf162cea0e7a', // TODO: Get from menu/kitchen selection
+        kitchenId: '69275ba5c538faaf25e2acd1', // TODO: Get from menu/kitchen selection
         deliveryDate: widget.deliveryDate,
         deliverySlot: _selectedDeliverySlot,
         items: orderItems,
