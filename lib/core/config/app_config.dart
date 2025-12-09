@@ -21,7 +21,12 @@ class AppConfig {
   static const String appName = 'FitKhao';
 
   /// API
-  static const String baseApiUrl = 'http://10.15.146.1:7071';
+  //static const String baseApiUrl = 'http://10.15.146.1:7071';
+  static const String baseApiUrl = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net';
+
+
+
+
   static const String sendOtpPath = '/api/auth/send-otp';
   static const String verifyOtpPath = '/api/auth/verify-otp';
   static const String updateProfilePath = '/api/user/profile';
