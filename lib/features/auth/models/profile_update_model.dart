@@ -19,6 +19,7 @@ class ProfileUpdateRequest {
   final SpecialConditions? specialConditions;
   final DigestiveIssues? digestiveIssues;
   final String? selectedKitchenId;
+  final String? imgUrl; // Profile image URL
 
   const ProfileUpdateRequest({
     this.name,
@@ -36,6 +37,7 @@ class ProfileUpdateRequest {
     this.specialConditions,
     this.digestiveIssues,
     this.selectedKitchenId,
+    this.imgUrl,
   });
 
   /// Map regularityStatus to DigestiveIssues
@@ -125,6 +127,7 @@ class ProfileUpdateRequest {
       specialConditions: special,
       digestiveIssues: digestive,
       selectedKitchenId: '', // Empty string as default
+      imgUrl: s.imgUrl != null && s.imgUrl!.isNotEmpty ? s.imgUrl : null,
     );
   }
 
@@ -165,6 +168,7 @@ class ProfileUpdateRequest {
         both: false,
       )).toFullJson(),
       'selectedKitchenId': selectedKitchenId ?? '',
+      'imgUrl': imgUrl ?? '',
     };
   }
 }

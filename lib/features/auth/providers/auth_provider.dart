@@ -227,6 +227,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(name: name);
   }
 
+  void saveImageUrl(String imgUrl){
+    state = state.copyWith(imgUrl: imgUrl);
+  }
   /// Save user gender and date of birth
   void savePersonalInfo({
     required String gender,
@@ -329,6 +332,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (success && profile != null) {
         // Extract profile data
         final name = profile['name'] as String? ?? '';
+        final imgUrl = profile['imgUrl'] as String? ?? "";
         final age = profile['age'] as int? ?? 0;
         final gender = profile['gender'] as String? ?? 'male';
         final weight = (profile['weight'] as num?)?.toDouble() ?? 0.0;
@@ -384,6 +388,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         // Update state with fetched data
         state = state.copyWith(
           name: name,
+          imgUrl: imgUrl,
           gender: gender,
           dateOfBirth: dateOfBirth,
           height: height > 0 ? height : null,
@@ -428,6 +433,52 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Update user profile (for editing existing profile)
+  /// Allows partial updates without strict validation
+  Future<bool> updateProfile() async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    try {
+      // Create profile update request from current state
+      final profileData = ProfileUpdateRequest.fromAuthState(state);
+
+      debugPrint('[AuthNotifier] Profile data prepared: ${profileData.toFullJson()}');
+
+      // Call API to update profile
+      final response = await _authRepository.updateProfile(
+        profileData: profileData,
+      );
+
+      debugPrint('[AuthNotifier] Profile update API response: $response');
+
+      // Check if update was successful
+      final success = response['success'] == true;
+      final message = response['message'] as String?;
+
+      if (success) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: null,
+        );
+        debugPrint('[AuthNotifier] Profile updated successfully');
+        return true;
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: message ?? 'Failed to update profile. Please try again.',
+        );
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[AuthNotifier] Profile update error: $e');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString().replaceAll('Exception: ', ''),
+      );
+      return false;
+    }
+  }
+
   /// Complete registration with all collected data
   /// Calls PUT API to update user profile
   Future<bool> completeRegistration() async {
@@ -439,7 +490,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state.weight == null ||
         state.buildingNameNumber.isEmpty ||
         state.street.isEmpty ||
-        state.pincode.isEmpty) {
+        state.pincode.isEmpty ||
+        state.imgUrl == null
+    ) {
       state = state.copyWith(
         errorMessage: 'Missing required information. Please complete all steps.',
       );

@@ -10,6 +10,7 @@ class AuthState {
   final int resendTimer;
   final bool canResend;
   final String? receivedOtpMessage;
+  final String? imgUrl;
 
   // User profile data
   final String name;
@@ -53,6 +54,7 @@ class AuthState {
     this.errorMessage,
     this.otp = '',
     this.otpId,
+    this.imgUrl,
     this.isResendingOtp = false,
     this.resendTimer = 0,
     this.canResend = false,
@@ -93,6 +95,7 @@ class AuthState {
     String? errorMessage,
     String? otp,
     String? otpId,
+    String? imgUrl,
     bool? isResendingOtp,
     int? resendTimer,
     bool? canResend,
@@ -137,6 +140,7 @@ class AuthState {
       canResend: canResend ?? this.canResend,
       receivedOtpMessage: receivedOtpMessage ?? this.receivedOtpMessage,
       name: name ?? this.name,
+      imgUrl: imgUrl??this.imgUrl,
       gender: gender ?? this.gender,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       height: height ?? this.height,

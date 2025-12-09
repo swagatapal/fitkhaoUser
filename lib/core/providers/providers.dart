@@ -87,3 +87,4 @@ final orderHistoryRepositoryProvider = Provider<OrderHistoryRepository>((ref) {
 
   return OrderHistoryRepository(apiClient: apiClient, localStorage: localStorage);
 });
+

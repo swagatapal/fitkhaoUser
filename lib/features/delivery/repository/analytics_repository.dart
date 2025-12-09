@@ -32,7 +32,7 @@ class AnalyticsRepository {
         'Content-Type': 'application/json',
       };
 
-      final url = '${AppConfig.analyticsBaseApiUrl}${AppConfig.trendingPath}'
+      final url = '${AppConfig.baseApiUrl}${AppConfig.trendingPath}'
           '?kitchenId=$kitchenId&timeSlot=$timeSlot&limit=$limit';
 
       final json = await _apiClient.getJson(url, headers: headers);

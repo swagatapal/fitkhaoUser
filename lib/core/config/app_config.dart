@@ -37,8 +37,8 @@ class AppConfig {
   static const String orderHistoryPath = '/api/orders/history';
   static const String cancelOrderPath = '/api/orders/cancel';
   static const String walletTransactionsPath = '/api/wallet/transactions';
+  static const String uploadImagePath = '/api/upload/image';
 
   /// Analytics base (trending)
-  static const String analyticsBaseApiUrl = 'http://10.54.111.1:7071';
   static const String trendingPath = '/api/analytics/trending/';
 }

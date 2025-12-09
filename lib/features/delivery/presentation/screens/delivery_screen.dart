@@ -158,8 +158,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                     _buildHeader(),
                     const SizedBox(height: AppSizes.spacing8),
                     _trackSubscription(),
-                    const SizedBox(height: AppSizes.spacing16),
-                    _buildSearchBar(),
+                    // const SizedBox(height: AppSizes.spacing16),
+                    // _buildSearchBar(),
                     const SizedBox(height: AppSizes.spacing12),
                     _buildDailyGoalCard(),
                     const SizedBox(height: AppSizes.spacing12),
@@ -259,23 +259,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSizes.spacing2),
-              GestureDetector(
-                onTap: () {
-                  // TODO: Implement location change
-                },
-                child: const Text(
-                  AppStrings.changeFitKhaoLocation,
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize12,
-                    fontWeight: AppTypography.bold,
-                    color: AppColors.primaryGreen,
-                    fontFamily: 'Lato',
-                    decoration: TextDecoration.underline,
-                    decorationColor: AppColors.primaryGreen,
-                  ),
-                ),
-              ),
+
             ],
           ),
         ),
@@ -286,8 +270,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             CircleAvatar(
               radius: AppSizes.spacing28,
               backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-              backgroundImage: const NetworkImage(
-                "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
+              backgroundImage:  NetworkImage(
+                ref.watch(authProvider).imgUrl??"https://i.sstatic.net/l60Hf.png",
               ),
               onBackgroundImageError: (exception, stackTrace) {},
               child: Container(

@@ -47,6 +47,7 @@ class _DetailedHealthInfoScreenState
       TextEditingController();
 
   bool _isInitialized = false;
+  String? _uploadedImageUrl;
 
   @override
   void initState() {
@@ -83,6 +84,11 @@ class _DetailedHealthInfoScreenState
 
     setState(() {
       // Basic info
+      // Load existing profile image URL from server
+      if (authState.imgUrl != null && authState.imgUrl!.isNotEmpty) {
+        _uploadedImageUrl = authState.imgUrl;
+      }
+
       if (authState.height != null && authState.height! > 0) {
         _heightCm = authState.height!.toStringAsFixed(0);
         _heightController.text = _heightCm;
@@ -97,12 +103,16 @@ class _DetailedHealthInfoScreenState
 
       // Exercise info
       _doesExercise = authState.doesExercise;
-      if (authState.exerciseDaysPerWeek != null && authState.exerciseDaysPerWeek! > 0) {
+      if (authState.exerciseDaysPerWeek != null &&
+          authState.exerciseDaysPerWeek! > 0) {
         _exerciseDaysPerWeek = authState.exerciseDaysPerWeek!.toString();
         _daysController.text = _exerciseDaysPerWeek;
       }
-      if (authState.exerciseDurationHours != null && authState.exerciseDurationHours! > 0) {
-        _exerciseDurationHrs = authState.exerciseDurationHours!.toStringAsFixed(0);
+      if (authState.exerciseDurationHours != null &&
+          authState.exerciseDurationHours! > 0) {
+        _exerciseDurationHrs = authState.exerciseDurationHours!.toStringAsFixed(
+          0,
+        );
         _durationController.text = _exerciseDurationHrs;
       }
 
@@ -228,7 +238,8 @@ class _DetailedHealthInfoScreenState
     authNotifier.saveDetailedHealthInfo(
       height: double.parse(_heightCm),
       weight: double.parse(_weightKg),
-      physicalActivityLevel: professionApiFormat, // Use API format (type-1, type-2, type-3)
+      physicalActivityLevel: professionApiFormat,
+      // Use API format (type-1, type-2, type-3)
       doesExercise: _doesExercise,
       exerciseDaysPerWeek: _doesExercise && _exerciseDaysPerWeek.isNotEmpty
           ? int.parse(_exerciseDaysPerWeek)
@@ -236,7 +247,8 @@ class _DetailedHealthInfoScreenState
       exerciseDurationHours: _doesExercise && _exerciseDurationHrs.isNotEmpty
           ? double.parse(_exerciseDurationHrs)
           : null,
-      exerciseType: exerciseTypeApiFormat, // Use API format (type-1, type-2, type-3)
+      exerciseType: exerciseTypeApiFormat,
+      // Use API format (type-1, type-2, type-3)
       pregnancy: _conditions.contains('pregnancy'),
       lactation: _conditions.contains('lactation'),
       diabetes: _conditions.contains('diabetes'),
@@ -315,13 +327,16 @@ class _DetailedHealthInfoScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                       Text("Select type of Physical Activity", style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF2B292A),
-                        fontFamily: "Lato"
-                       ),),
-                       SizedBox(height: spacing12,),
+                      Text(
+                        "Select type of Physical Activity",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF2B292A),
+                          fontFamily: "Lato",
+                        ),
+                      ),
+                      SizedBox(height: spacing12),
 
                       // Body Details Section
                       _buildSectionTitle(AppStrings.bodyDetails),
@@ -433,13 +448,15 @@ class _DetailedHealthInfoScreenState
                       SizedBox(height: spacing20),
 
                       // Physiological Status Section
-
-                      Text(AppStrings.selectPhysiologicalStatus, style: TextStyle(
-                        fontFamily: "Lato",
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF2B292A),
-                      ),),
+                      Text(
+                        AppStrings.selectPhysiologicalStatus,
+                        style: TextStyle(
+                          fontFamily: "Lato",
+                          fontSize: 18,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF2B292A),
+                        ),
+                      ),
                       SizedBox(height: spacing12),
                       Text(
                         AppStrings.physiologicalConditions,
@@ -502,7 +519,7 @@ class _DetailedHealthInfoScreenState
                         height: context.inputHeight,
                         isLoading: authState.isLoading,
                       ),
-                      SizedBox(height:context.responsiveSpacing(90.0)),
+                      SizedBox(height: context.responsiveSpacing(90.0)),
                     ],
                   ),
                 ),
@@ -523,7 +540,13 @@ class _DetailedHealthInfoScreenState
                   color: Color(0xFF5D9E40),
                   borderRadius: BorderRadius.circular(AppSizes.radius15),
                 ),
-                child: Center(child: Image.asset("assets/images/edit_user.png", height: AppSizes.icon16, width: AppSizes.icon19)),
+                child: Center(
+                  child: Image.asset(
+                    "assets/images/edit_user.png",
+                    height: AppSizes.icon16,
+                    width: AppSizes.icon19,
+                  ),
+                ),
               ),
             ),
           ),
@@ -545,7 +568,7 @@ class _DetailedHealthInfoScreenState
             height: AppSizes.containerHeightLarge,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF5D9E40), Color(0xFF4A7D33)],
+                colors: [Color(0xFF4A7D33), Color(0xFF4A7D33)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -560,7 +583,7 @@ class _DetailedHealthInfoScreenState
             ),
           ),
 
-          // Centered food image
+          // Centered profile image
           Positioned(
             top: AppSizes.headerHeight,
             left: 0,
@@ -571,31 +594,33 @@ class _DetailedHealthInfoScreenState
                 height: AppSizes.containerHeightXLarge,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(AppSizes.radius16),
-                  color: Colors.transparent
-                  // boxShadow: [
-                  //   BoxShadow(
-                  //     color: Colors.black.withValues(alpha: 0.2),
-                  //     blurRadius: 20,
-                  //     offset: const Offset(0, 10),
-                  //   ),
-                  // ],
+                  color: _uploadedImageUrl == null || _uploadedImageUrl!.isEmpty
+                      ? AppColors.primaryGreen.withValues(alpha: 0.1)
+                      : Colors.transparent,
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(AppSizes.radius16),
-                  child: Image.network(
-                    "https://www.shutterstock.com/image-photo/close-head-shot-portrait-preppy-600nw-1433809418.jpg",
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey.shade300,
-                        child: Icon(
-                          Icons.restaurant,
-                          size: AppSizes.icon80,
-                          color: Colors.grey.shade600,
-                        ),
-                      );
-                    },
-                  ),
+                  child: _uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty
+                      ? Image.network(
+                          _uploadedImageUrl!,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: AppColors.primaryGreen,
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Image.network("https://i.sstatic.net/l60Hf.png", fit: BoxFit.cover,);
+                          },
+                        )
+                      : Image.network("https://i.sstatic.net/l60Hf.png", fit: BoxFit.cover,)
                 ),
               ),
             ),
@@ -785,7 +810,11 @@ class _DetailedHealthInfoScreenState
                   Row(
                     spacing: AppSizes.spacing10,
                     children: [
-                      Image.asset("assets/images/user.png", height: AppSizes.icon16, width: AppSizes.icon16),
+                      Image.asset(
+                        "assets/images/user.png",
+                        height: AppSizes.icon16,
+                        width: AppSizes.icon16,
+                      ),
                       Text(
                         title,
                         style: TextStyle(
@@ -802,7 +831,11 @@ class _DetailedHealthInfoScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     spacing: AppSizes.spacing10,
                     children: [
-                      Image.asset("assets/images/tool.png", height: AppSizes.icon16, width: AppSizes.icon16),
+                      Image.asset(
+                        "assets/images/tool.png",
+                        height: AppSizes.icon16,
+                        width: AppSizes.icon16,
+                      ),
                       Expanded(
                         child: Text(
                           description,
@@ -971,7 +1004,11 @@ class _DetailedHealthInfoScreenState
                 ),
               ),
               child: isChecked
-                  ? const Icon(Icons.check, color: Colors.white, size: AppSizes.icon14)
+                  ? const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: AppSizes.icon14,
+                    )
                   : null,
             ),
             SizedBox(width: context.responsiveSpacing(AppSizes.spacing12)),
