@@ -20,13 +20,21 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   int _selectedIndex = 0;
 
-  // List of screens
-  final List<Widget> _screens = [
-    DeliveryScreen(),
-    DashboardScreen(),
-    DetailedHealthInfoScreen(),
-    HistoryScreen(),
-  ];
+  // Build the current screen based on selected index
+  Widget _getCurrentScreen() {
+    switch (_selectedIndex) {
+      case 0:
+        return const DeliveryScreen();
+      case 1:
+        return const DashboardScreen();
+      case 2:
+        return const DetailedHealthInfoScreen();
+      case 3:
+        return const HistoryScreen();
+      default:
+        return const DeliveryScreen();
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -39,8 +47,8 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Display the selected screen
-          IndexedStack(index: _selectedIndex, children: _screens),
+          // Display only the currently selected screen
+          _getCurrentScreen(),
 
           // Floating Bottom Navigation Bar
           Positioned(

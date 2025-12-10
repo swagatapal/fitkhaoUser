@@ -75,6 +75,7 @@ class _BmiAnalysisScreenState extends ConsumerState<BmiAnalysisScreen> {
       height: heightInCm,
       weight: weightInKg,
       doesExercise: _doesExercise,
+      age: double.parse(calculateAge(_selectedDate!).toString())
     );
 
     ref.read(authProvider.notifier).saveHealthData(
@@ -173,6 +174,21 @@ class _BmiAnalysisScreenState extends ConsumerState<BmiAnalysisScreen> {
       });
     }
   }
+
+  int calculateAge(DateTime dob) {
+    DateTime today = DateTime.now();
+
+    int age = today.year - dob.year;
+
+    // If today's date is before the birthday this year → subtract 1
+    if (today.month < dob.month ||
+        (today.month == dob.month && today.day < dob.day)) {
+      age--;
+    }
+
+    return age;
+  }
+
 
   @override
   Widget build(BuildContext context) {

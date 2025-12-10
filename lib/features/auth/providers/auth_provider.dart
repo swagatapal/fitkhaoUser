@@ -236,6 +236,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required DateTime dateOfBirth,
     required double height,
     required double weight,
+    required double age,
     required bool doesExercise,
   }) {
     state = state.copyWith(
@@ -243,6 +244,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       dateOfBirth: dateOfBirth,
       height: height,
       weight: weight,
+      age: age,
       doesExercise: doesExercise,
     );
   }
@@ -279,6 +281,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   void saveDetailedHealthInfo({
     required double height,
     required double weight,
+    required double age,
     required String physicalActivityLevel,
     required bool doesExercise,
     int? exerciseDaysPerWeek,
@@ -297,6 +300,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(
       height: height,
       weight: weight,
+      age: age,
       physicalActivityLevel: physicalActivityLevel,
       doesExercise: doesExercise,
       exerciseDaysPerWeek: exerciseDaysPerWeek,
@@ -393,6 +397,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           dateOfBirth: dateOfBirth,
           height: height > 0 ? height : null,
           weight: weight > 0 ? weight : null,
+          age: double.parse(age.toString()),
           doesExercise: doesWorkout,
           exerciseDaysPerWeek: workoutDaysPerWeek > 0 ? workoutDaysPerWeek : null,
           exerciseDurationHours: workoutHoursPerDay > 0 ? workoutHoursPerDay : null,

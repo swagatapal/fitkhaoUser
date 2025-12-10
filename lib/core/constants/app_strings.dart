@@ -75,6 +75,7 @@ class AppStrings {
   // Detailed Health Information
   static const String selectTypePhysicalActivity =
       'Select type of Physical Activity';
+  static const String ageDetails = 'Age (in years)';
   static const String bodyDetails = 'Body Details';
   static const String sedentary = 'Sedentary';
   static const String moderate = 'Moderate';

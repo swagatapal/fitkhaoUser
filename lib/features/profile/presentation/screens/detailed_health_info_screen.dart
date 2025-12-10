@@ -23,6 +23,7 @@ class DetailedHealthInfoScreen extends ConsumerStatefulWidget {
 class _DetailedHealthInfoScreenState
     extends ConsumerState<DetailedHealthInfoScreen> {
   // Form fields
+  String _age = '';
   String _heightCm = '';
   String _weightKg = '';
   String _activityLevel = 'sedentary'; // sedentary, moderate, heavy
@@ -39,6 +40,7 @@ class _DetailedHealthInfoScreenState
       'constipated'; // constipated, diarrhoeal, both, none
 
   // Controllers
+  final TextEditingController _ageController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _daysController = TextEditingController();
@@ -60,6 +62,7 @@ class _DetailedHealthInfoScreenState
 
   @override
   void dispose() {
+    _ageController.dispose();
     _heightController.dispose();
     _weightController.dispose();
     _daysController.dispose();
@@ -89,6 +92,10 @@ class _DetailedHealthInfoScreenState
         _uploadedImageUrl = authState.imgUrl;
       }
 
+      if (authState.age != null && authState.age! > 0) {
+        _age = authState.age!.toStringAsFixed(0);
+        _ageController.text = _age;
+      }
       if (authState.height != null && authState.height! > 0) {
         _heightCm = authState.height!.toStringAsFixed(0);
         _heightController.text = _heightCm;
@@ -214,7 +221,7 @@ class _DetailedHealthInfoScreenState
   }
 
   bool get _isFormValid {
-    bool basicValid = _heightCm.isNotEmpty && _weightKg.isNotEmpty;
+    bool basicValid = _age.isNotEmpty && _heightCm.isNotEmpty && _weightKg.isNotEmpty;
 
     if (_doesExercise) {
       return basicValid &&
@@ -229,6 +236,22 @@ class _DetailedHealthInfoScreenState
     if (!_isFormValid) return;
 
     final authNotifier = ref.read(authProvider.notifier);
+    final authState = ref.read(authProvider);
+
+    // Calculate dateOfBirth from age
+    final now = DateTime.now();
+    final ageInt = int.parse(_age);
+    final dateOfBirth = DateTime(now.year - ageInt, now.month, now.day);
+
+    // Save age (as dateOfBirth) and other personal info
+    authNotifier.savePersonalInfo(
+      gender: authState.gender.isNotEmpty ? authState.gender : 'male',
+      dateOfBirth: dateOfBirth,
+      height: double.parse(_heightCm),
+      weight: double.parse(_weightKg),
+      age: double.parse(_age),
+      doesExercise: _doesExercise,
+    );
 
     // Map UI values to API format before saving
     final professionApiFormat = _mapProfessionToApi(_activityLevel);
@@ -238,6 +261,7 @@ class _DetailedHealthInfoScreenState
     authNotifier.saveDetailedHealthInfo(
       height: double.parse(_heightCm),
       weight: double.parse(_weightKg),
+      age: double.parse(_age),
       physicalActivityLevel: professionApiFormat,
       // Use API format (type-1, type-2, type-3)
       doesExercise: _doesExercise,
@@ -340,6 +364,12 @@ class _DetailedHealthInfoScreenState
 
                       // Body Details Section
                       _buildSectionTitle(AppStrings.bodyDetails),
+                      SizedBox(height: spacing12),
+                      _buildNumberField(
+                        label: AppStrings.ageDetails,
+                        controller: _ageController,
+                        onChanged: (value) => setState(() => _age = value),
+                      ),
                       SizedBox(height: spacing12),
                       _buildNumberField(
                         label: AppStrings.heightInCms,

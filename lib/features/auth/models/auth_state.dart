@@ -18,6 +18,7 @@ class AuthState {
   final DateTime? dateOfBirth;
   final double? height;
   final double? weight;
+  final double? age;
 
   // Address data
   final String buildingNameNumber;
@@ -52,6 +53,7 @@ class AuthState {
     this.isTermsAccepted = false,
     this.isLoading = false,
     this.errorMessage,
+    this.age,
     this.otp = '',
     this.otpId,
     this.imgUrl,
@@ -96,6 +98,7 @@ class AuthState {
     String? otp,
     String? otpId,
     String? imgUrl,
+    double? age,
     bool? isResendingOtp,
     int? resendTimer,
     bool? canResend,
@@ -144,6 +147,7 @@ class AuthState {
       gender: gender ?? this.gender,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       height: height ?? this.height,
+      age: age ?? this.age,
       weight: weight ?? this.weight,
       buildingNameNumber: buildingNameNumber ?? this.buildingNameNumber,
       street: street ?? this.street,
