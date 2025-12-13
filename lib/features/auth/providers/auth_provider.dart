@@ -495,8 +495,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state.weight == null ||
         state.buildingNameNumber.isEmpty ||
         state.street.isEmpty ||
-        state.pincode.isEmpty ||
-        state.imgUrl == null
+        state.pincode.isEmpty
+        //state.imgUrl == null
     ) {
       state = state.copyWith(
         errorMessage: 'Missing required information. Please complete all steps.',

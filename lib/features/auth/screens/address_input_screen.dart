@@ -315,122 +315,122 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
               ),
               SizedBox(height: spacing24),
               // Address Type Dropdown
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Choose your kitchen',
-                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: context.responsiveFontSize(14.0),
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                      const SizedBox(width: AppSizes.spacing4),
-                      Text(
-                        '*',
-                        style: TextStyle(
-                          color: AppColors.errorColor,
-                          fontSize: context.responsiveFontSize(AppTypography.fontSize16),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: spacing8),
-                  DropdownButtonFormField<String>(
-                    value: _selectedAddressType,
-                    icon: const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: AppColors.textSecondary,
-                    ),
-                    dropdownColor: Colors.white,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontSize: context.responsiveFontSize(14.0),
-                      fontFamily: 'Lato',
-                      color: AppColors.textPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Select nearest kitchen',
-                      hintStyle: TextStyle(
-                        fontSize: context.responsiveFontSize(14.0),
-                        color: AppColors.textSecondary,
-                        fontFamily: 'Lato',
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: context.responsiveSpacing(16.0),
-                        vertical: context.responsiveSpacing(12.0),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          context.responsiveSpacing(4.0),
-                        ),
-                        borderSide: const BorderSide(
-                          color: AppColors.borderColor,
-                          width: AppSizes.borderMedium,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          context.responsiveSpacing(4.0),
-                        ),
-                        borderSide: const BorderSide(
-                          color: AppColors.primaryGreen,
-                          width: AppSizes.borderMedium,
-                        ),
-                      ),
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedAddressType = value;
-                      });
-                    },
-                    items: _addressTypes
-                        .map(
-                          (t) => DropdownMenuItem<String>(
-                            value: t['label'] as String,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  t['icon'] as IconData,
-                                  color: AppColors.primaryGreen,
-                                  size: context.responsiveFontSize(20.0),
-                                ),
-                                SizedBox(
-                                  width: context.responsiveSpacing(12.0),
-                                ),
-                                Text(
-                                  t['label'] as String,
-                                  style: Theme.of(context).textTheme.bodyLarge
-                                      ?.copyWith(
-                                        fontSize: context.responsiveFontSize(
-                                          16.0,
-                                        ),
-                                        fontFamily: 'Lato',
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  SizedBox(height: spacing8),
-                  Text(
-                    "Select your nearest Fitkhao kitchen to get fatest delivery",
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
-                      fontSize: context.responsiveFontSize(12.0),
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: spacing24),
+              // Column(
+              //   crossAxisAlignment: CrossAxisAlignment.start,
+              //   children: [
+              //     Row(
+              //       children: [
+              //         Text(
+              //           'Choose your kitchen',
+              //           style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              //             color: AppColors.textPrimary,
+              //             fontWeight: FontWeight.w600,
+              //             fontSize: context.responsiveFontSize(14.0),
+              //             fontFamily: 'Lato',
+              //           ),
+              //         ),
+              //         const SizedBox(width: AppSizes.spacing4),
+              //         Text(
+              //           '*',
+              //           style: TextStyle(
+              //             color: AppColors.errorColor,
+              //             fontSize: context.responsiveFontSize(AppTypography.fontSize16),
+              //           ),
+              //         ),
+              //       ],
+              //     ),
+              //     SizedBox(height: spacing8),
+              //     DropdownButtonFormField<String>(
+              //       value: _selectedAddressType,
+              //       icon: const Icon(
+              //         Icons.keyboard_arrow_down_rounded,
+              //         color: AppColors.textSecondary,
+              //       ),
+              //       dropdownColor: Colors.white,
+              //       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              //         fontSize: context.responsiveFontSize(14.0),
+              //         fontFamily: 'Lato',
+              //         color: AppColors.textPrimary,
+              //       ),
+              //       decoration: InputDecoration(
+              //         hintText: 'Select nearest kitchen',
+              //         hintStyle: TextStyle(
+              //           fontSize: context.responsiveFontSize(14.0),
+              //           color: AppColors.textSecondary,
+              //           fontFamily: 'Lato',
+              //         ),
+              //         filled: true,
+              //         fillColor: Colors.white,
+              //         contentPadding: EdgeInsets.symmetric(
+              //           horizontal: context.responsiveSpacing(16.0),
+              //           vertical: context.responsiveSpacing(12.0),
+              //         ),
+              //         enabledBorder: OutlineInputBorder(
+              //           borderRadius: BorderRadius.circular(
+              //             context.responsiveSpacing(4.0),
+              //           ),
+              //           borderSide: const BorderSide(
+              //             color: AppColors.borderColor,
+              //             width: AppSizes.borderMedium,
+              //           ),
+              //         ),
+              //         focusedBorder: OutlineInputBorder(
+              //           borderRadius: BorderRadius.circular(
+              //             context.responsiveSpacing(4.0),
+              //           ),
+              //           borderSide: const BorderSide(
+              //             color: AppColors.primaryGreen,
+              //             width: AppSizes.borderMedium,
+              //           ),
+              //         ),
+              //       ),
+              //       onChanged: (value) {
+              //         setState(() {
+              //           _selectedAddressType = value;
+              //         });
+              //       },
+              //       items: _addressTypes
+              //           .map(
+              //             (t) => DropdownMenuItem<String>(
+              //               value: t['label'] as String,
+              //               child: Row(
+              //                 children: [
+              //                   Icon(
+              //                     t['icon'] as IconData,
+              //                     color: AppColors.primaryGreen,
+              //                     size: context.responsiveFontSize(20.0),
+              //                   ),
+              //                   SizedBox(
+              //                     width: context.responsiveSpacing(12.0),
+              //                   ),
+              //                   Text(
+              //                     t['label'] as String,
+              //                     style: Theme.of(context).textTheme.bodyLarge
+              //                         ?.copyWith(
+              //                           fontSize: context.responsiveFontSize(
+              //                             16.0,
+              //                           ),
+              //                           fontFamily: 'Lato',
+              //                         ),
+              //                   ),
+              //                 ],
+              //               ),
+              //             ),
+              //           )
+              //           .toList(),
+              //     ),
+              //     SizedBox(height: spacing8),
+              //     Text(
+              //       "Select your nearest Fitkhao kitchen to get fatest delivery",
+              //       style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              //         color: AppColors.textTertiary,
+              //         fontSize: context.responsiveFontSize(12.0),
+              //         fontFamily: 'Lato',
+              //       ),
+              //     ),
+              //   ],
+              // ),
+              // SizedBox(height: spacing24),
               // Continue Button
               PrimaryButton(
                 text: AppStrings.continueText,

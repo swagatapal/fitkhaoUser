@@ -544,21 +544,27 @@ class _OrderCard extends StatelessWidget {
 
   static String _formatDate(String dateStr) {
     try {
-      final date = DateTime.parse(dateStr);
+      // 1. Parse the UST/UTC time
+      DateTime utcDate = DateTime.parse(dateStr);
+
+      // 2. Convert to IST (UTC + 5:30)
+      DateTime istDate = utcDate.add(const Duration(hours: 5, minutes: 30));
+
+      // 3. Use IST for further calculations
       final now = DateTime.now();
-      final difference = now.difference(date);
+      final difference = now.difference(istDate);
 
       if (difference.inDays == 0) {
-        final h = date.hour % 12 == 0 ? 12 : date.hour % 12;
-        final m = date.minute.toString().padLeft(2, '0');
-        final ampm = date.hour >= 12 ? 'PM' : 'AM';
+        final h = istDate.hour % 12 == 0 ? 12 : istDate.hour % 12;
+        final m = istDate.minute.toString().padLeft(2, '0');
+        final ampm = istDate.hour >= 12 ? 'PM' : 'AM';
         return '$h:$m $ampm';
       } else if (difference.inDays == 1) {
         return 'Yesterday';
       } else if (difference.inDays < 7) {
         return '${difference.inDays} days ago';
       } else {
-        return '${date.day}/${date.month}/${date.year}';
+        return '${istDate.day}/${istDate.month}/${istDate.year}';
       }
     } catch (e) {
       return dateStr;
