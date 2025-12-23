@@ -13,6 +13,7 @@ import '../../features/profile/presentation/screens/detailed_health_info_screen.
 import '../../features/main_navigation/main_navigation_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/preferences_saved_screen.dart';
+import '../services/analytics_service.dart';
 import 'route_names.dart';
 
 /// Application router configuration using GoRouter
@@ -21,6 +22,7 @@ class AppRouter {
 
   static final GoRouter router = GoRouter(
     initialLocation: RouteNames.splash,
+    observers: [AnalyticsService.observer],
     debugLogDiagnostics: true,
     routes: [
       // Splash route

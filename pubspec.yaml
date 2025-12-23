@@ -65,6 +65,8 @@ dependencies:
   intl: ^0.20.2
   image_picker: ^1.2.0
   phone_number_hint: ^0.0.6
+  firebase_core: ^4.3.0
+  firebase_analytics: ^12.1.0
 
 dev_dependencies:
   flutter_test:
