@@ -31,9 +31,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final cartItems = ref.watch(cartProvider);
     final totalPrice = ref.watch(cartTotalPriceProvider);
 
-    // Calculate GST (23% of total)
-    final gst = totalPrice * 0.23;
-    final subTotal = totalPrice + gst;
+    // Calculate charges
+    final gst = totalPrice * 0.05; // 5% GST
+    final platformCharge = 7.0;
+    final deliveryCharge = 0.0;
+    final subTotal = totalPrice + gst + platformCharge + deliveryCharge;
     final deducted = subTotal > _couponBalance ? _couponBalance : subTotal;
     final remainingBalance = _couponBalance - deducted;
 
@@ -62,6 +64,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       _buildPaymentSummary(
                         totalPrice,
                         gst,
+                        platformCharge,
+                        deliveryCharge,
                         subTotal,
                         deducted,
                         remainingBalance,
@@ -423,6 +427,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Widget _buildPaymentSummary(
     double totalPrice,
     double gst,
+    double platformCharge,
+    double deliveryCharge,
     double subTotal,
     double deducted,
     double remainingBalance,
@@ -443,7 +449,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ),
         const SizedBox(height: AppSizes.spacing12),
 
-        // Item total and GST
+        // Item total, GST, Platform Charge, and Delivery Charge
         Container(
           padding: const EdgeInsets.all(AppSizes.spacing16),
           decoration: BoxDecoration(
@@ -462,8 +468,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
               const SizedBox(height: AppSizes.spacing8),
               _buildSummaryRow(
-                AppStrings.gst,
+                'GST (5%)',
                 '₹${gst.toStringAsFixed(2)}',
+              ),
+              const SizedBox(height: AppSizes.spacing8),
+              _buildSummaryRow(
+                'Platform Charge',
+                '₹${platformCharge.toStringAsFixed(2)}',
+              ),
+              const SizedBox(height: AppSizes.spacing8),
+              _buildSummaryRow(
+                'Delivery Charge',
+                '₹${deliveryCharge.toStringAsFixed(2)}',
               ),
               const Divider(height: AppSizes.spacing20),
               _buildSummaryRow(
@@ -542,9 +558,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final cartItems = ref.watch(cartProvider);
     final totalPrice = ref.watch(cartTotalPriceProvider);
 
-    // Calculate total with GST
-    final gst = totalPrice * 0.23;
-    final grandTotal = totalPrice + gst;
+    // Calculate total with GST, platform charge, and delivery charge
+    final gst = totalPrice * 0.05; // 5% GST
+    final platformCharge = 7.0;
+    final deliveryCharge = 0.0;
+    final grandTotal = totalPrice + gst + platformCharge + deliveryCharge;
 
     return SizedBox(
       width: double.infinity,

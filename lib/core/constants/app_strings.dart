@@ -189,7 +189,7 @@ class AppStrings {
   static const String selectDeliveryDate = 'Select Delivery Date';
   static const String tomorrow = 'Tomorrow';
   static const String dayAfterTomorrow = 'Day After Tomorrow';
-  static const String orderDeliveredBetween = 'Your order will be delivered  between 9:00 AM-10:00 AM';
+  static const String orderDeliveredBetween = 'Your order will be delivered  between 9:00 AM-9:00 PM';
   static const String paymentSummary = 'Payment Summary';
   static const String gst = 'GST';
   static const String subTotal = 'Sub Total';
