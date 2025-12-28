@@ -140,23 +140,24 @@ class OrderHistory {
 class Kitchen {
   final String id;
   final String name;
-  final String contactNumber;
-  final KitchenAddress address;
+  final String? contactNumber;
+  final KitchenAddress? address;
 
   const Kitchen({
     required this.id,
     required this.name,
-    required this.contactNumber,
-    required this.address,
+    this.contactNumber,
+    this.address,
   });
 
   factory Kitchen.fromJson(Map<String, dynamic> json) {
     return Kitchen(
       id: json['_id'] as String? ?? '',
       name: json['name'] as String? ?? '',
-      contactNumber: json['contactNumber'] as String? ?? '',
-      address: KitchenAddress.fromJson(
-          json['address'] as Map<String, dynamic>? ?? {}),
+      contactNumber: json['contactNumber'] as String?,
+      address: json['address'] != null
+          ? KitchenAddress.fromJson(json['address'] as Map<String, dynamic>)
+          : null,
     );
   }
 }
@@ -223,9 +224,8 @@ class OrderHistoryItem {
   final int quantity;
   final double subtotal;
   final NutritionalInfo? nutritionalInfo;
-  final String menuType;
-  final String mealType;
-  final String goalCategory;
+  final String foodType;
+  final String category;
   final String deliveryDate;
   final String deliverySlot;
   final String? specialInstructions;
@@ -244,9 +244,8 @@ class OrderHistoryItem {
     required this.quantity,
     required this.subtotal,
     this.nutritionalInfo,
-    required this.menuType,
-    required this.mealType,
-    required this.goalCategory,
+    required this.foodType,
+    required this.category,
     required this.deliveryDate,
     required this.deliverySlot,
     this.specialInstructions,
@@ -266,13 +265,12 @@ class OrderHistoryItem {
       itemPrice: (json['itemPrice'] as num?)?.toDouble() ?? 0.0,
       quantity: json['quantity'] as int? ?? 0,
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
-      nutritionalInfo: json['nutritionalInfo'] != null
+      nutritionalInfo: json['nutrition'] != null
           ? NutritionalInfo.fromJson(
-              json['nutritionalInfo'] as Map<String, dynamic>)
+              json['nutrition'] as Map<String, dynamic>)
           : null,
-      menuType: json['menuType'] as String? ?? '',
-      mealType: json['mealType'] as String? ?? '',
-      goalCategory: json['goalCategory'] as String? ?? '',
+      foodType: json['foodType'] as String? ?? 'veg',
+      category: json['category'] as String? ?? '',
       deliveryDate: json['deliveryDate'] as String? ?? '',
       deliverySlot: json['deliverySlot'] as String? ?? '',
       specialInstructions: json['specialInstructions'] as String?,
@@ -286,27 +284,24 @@ class OrderHistoryItem {
 
 /// Nutritional information
 class NutritionalInfo {
-  final int carbs;
-  final int protein;
-  final int fat;
-  final int kcal;
-  final int servingSize;
+  final double carbGm;
+  final double proteinGm;
+  final double fatGm;
+  final double energyKcal;
 
   const NutritionalInfo({
-    required this.carbs,
-    required this.protein,
-    required this.fat,
-    required this.kcal,
-    required this.servingSize,
+    required this.carbGm,
+    required this.proteinGm,
+    required this.fatGm,
+    required this.energyKcal,
   });
 
   factory NutritionalInfo.fromJson(Map<String, dynamic> json) {
     return NutritionalInfo(
-      carbs: json['carbs'] as int? ?? 0,
-      protein: json['protein'] as int? ?? 0,
-      fat: json['fat'] as int? ?? 0,
-      kcal: json['kcal'] as int? ?? 0,
-      servingSize: json['servingSize'] as int? ?? 0,
+      carbGm: (json['carbGm'] as num?)?.toDouble() ?? 0.0,
+      proteinGm: (json['proteinGm'] as num?)?.toDouble() ?? 0.0,
+      fatGm: (json['fatGm'] as num?)?.toDouble() ?? 0.0,
+      energyKcal: (json['energyKcal'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

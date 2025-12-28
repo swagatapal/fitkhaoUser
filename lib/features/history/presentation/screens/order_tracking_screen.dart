@@ -301,7 +301,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                           const SizedBox(height: 4),
                           if (item.nutritionalInfo != null)
                             Text(
-                              '${item.nutritionalInfo!.kcal} kcal • ${item.nutritionalInfo!.protein}g Protein',
+                              '${item.nutritionalInfo!.energyKcal.toStringAsFixed(0)} kcal • ${item.nutritionalInfo!.proteinGm.toStringAsFixed(1)}g Protein',
                               style: const TextStyle(
                                 fontSize: AppTypography.fontSize12,
                                 color: AppColors.textSecondary,
@@ -441,6 +441,14 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   }
 
   Widget _buildPriceSummary() {
+    // Calculate charges
+    final subtotal = widget.order.subtotal;
+    final tax = subtotal * 0.05; // 5% of subtotal
+    final platformCharge = 7.0;
+    final deliveryCharge = 0.0;
+    final discount = widget.order.discount;
+    final total = subtotal + tax + platformCharge + deliveryCharge - discount;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSizes.p16),
@@ -469,14 +477,16 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             ),
           ),
           const SizedBox(height: AppSizes.spacing12),
-          _buildPriceRow('Subtotal', widget.order.subtotal),
+          _buildPriceRow('Subtotal', subtotal),
           const SizedBox(height: AppSizes.spacing8),
-          _buildPriceRow('Delivery Charge', widget.order.deliveryCharge),
+          _buildPriceRow('GST (5%)', tax),
           const SizedBox(height: AppSizes.spacing8),
-          _buildPriceRow('Tax & Fees', widget.order.tax),
-          if (widget.order.discount > 0) ...[
+          _buildPriceRow('Platform Charge', platformCharge),
+          const SizedBox(height: AppSizes.spacing8),
+          _buildPriceRow('Delivery Charge', deliveryCharge),
+          if (discount > 0) ...[
             const SizedBox(height: AppSizes.spacing8),
-            _buildPriceRow('Discount', -widget.order.discount, isDiscount: true),
+            _buildPriceRow('Discount', -discount, isDiscount: true),
           ],
           const Divider(height: AppSizes.spacing20),
           Row(
@@ -492,7 +502,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                 ),
               ),
               Text(
-                '₹${widget.order.total.toStringAsFixed(2)}',
+                '₹${total.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize18,
                   fontWeight: AppTypography.bold,
