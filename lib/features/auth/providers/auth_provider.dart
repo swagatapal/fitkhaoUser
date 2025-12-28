@@ -348,6 +348,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final profession = profile['profession'] as String? ?? 'type-1';
         final selectedGoal = profile['selectedGoal'] as String? ?? 'regular-bmi-maintenance';
 
+        // Extract nutritional targets
+        final targetProtein = (profile['targetProtein'] as num?)?.toDouble();
+        final targetFat = (profile['targetFat'] as num?)?.toDouble();
+        final targetCarbs = (profile['targetCarbs'] as num?)?.toDouble();
+        final targetKCalories = (profile['targetKCalories'] as num?)?.toDouble();
+
+        // Parse lastUpdatedTargetKCal
+        DateTime? lastUpdatedTargetKCal;
+        final lastUpdatedStr = profile['lastUpdatedTargetKCal'] as String?;
+        if (lastUpdatedStr != null && lastUpdatedStr.isNotEmpty) {
+          try {
+            lastUpdatedTargetKCal = DateTime.parse(lastUpdatedStr);
+          } catch (e) {
+            debugPrint('[AuthNotifier] Error parsing lastUpdatedTargetKCal: $e');
+          }
+        }
+
         // Calculate date of birth from age (approximate)
         DateTime? dateOfBirth;
         if (age > 0) {
@@ -415,6 +432,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
           liverRelatedProblem: liverIssues,
           otherConditions: otherConditions,
           regularityStatus: regularityStatus,
+          targetProtein: targetProtein,
+          targetFat: targetFat,
+          targetCarbs: targetCarbs,
+          targetKCalories: targetKCalories,
+          lastUpdatedTargetKCal: lastUpdatedTargetKCal,
+          selectedGoal: selectedGoal,
           isLoading: false,
           errorMessage: null,
         );

@@ -47,6 +47,14 @@ class AuthState {
   final String otherConditions;
   final String regularityStatus;
 
+  // Nutritional targets
+  final double? targetProtein;
+  final double? targetFat;
+  final double? targetCarbs;
+  final double? targetKCalories;
+  final DateTime? lastUpdatedTargetKCal;
+  final String selectedGoal;
+
   const AuthState({
     this.phoneNumber = '',
     this.countryCode = '+91',
@@ -86,7 +94,13 @@ class AuthState {
     this.kidneyDisease = false,
     this.liverRelatedProblem = false,
     this.otherConditions = '',
-    this.regularityStatus='None',
+    this.regularityStatus = 'None',
+    this.targetProtein,
+    this.targetFat,
+    this.targetCarbs,
+    this.targetKCalories,
+    this.lastUpdatedTargetKCal,
+    this.selectedGoal = '',
   });
 
   AuthState copyWith({
@@ -129,6 +143,12 @@ class AuthState {
     bool? liverRelatedProblem,
     String? otherConditions,
     String? regularityStatus,
+    double? targetProtein,
+    double? targetFat,
+    double? targetCarbs,
+    double? targetKCalories,
+    DateTime? lastUpdatedTargetKCal,
+    String? selectedGoal,
   }) {
     return AuthState(
       phoneNumber: phoneNumber ?? this.phoneNumber,
@@ -143,7 +163,7 @@ class AuthState {
       canResend: canResend ?? this.canResend,
       receivedOtpMessage: receivedOtpMessage ?? this.receivedOtpMessage,
       name: name ?? this.name,
-      imgUrl: imgUrl??this.imgUrl,
+      imgUrl: imgUrl ?? this.imgUrl,
       gender: gender ?? this.gender,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       height: height ?? this.height,
@@ -170,6 +190,12 @@ class AuthState {
       liverRelatedProblem: liverRelatedProblem ?? this.liverRelatedProblem,
       otherConditions: otherConditions ?? this.otherConditions,
       regularityStatus: regularityStatus ?? this.regularityStatus,
+      targetProtein: targetProtein ?? this.targetProtein,
+      targetFat: targetFat ?? this.targetFat,
+      targetCarbs: targetCarbs ?? this.targetCarbs,
+      targetKCalories: targetKCalories ?? this.targetKCalories,
+      lastUpdatedTargetKCal: lastUpdatedTargetKCal ?? this.lastUpdatedTargetKCal,
+      selectedGoal: selectedGoal ?? this.selectedGoal,
     );
   }
 }

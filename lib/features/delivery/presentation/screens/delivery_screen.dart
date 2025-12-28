@@ -21,10 +21,6 @@ class DeliveryScreen extends ConsumerStatefulWidget {
 class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  // Mock data for goals (will be replaced with real data later)
-  final int todaysGoalKcal = 1100;
-  final String selectedGoal = AppStrings.leanMassGain;
-
   bool _isProfileLoaded = false;
   bool _hasShownMembershipPopup = false;
   bool _trendingLoaded = false;
@@ -139,6 +135,35 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return 'Location';
   }
 
+  /// Check if nutritional targets are available to show Today's Goal section
+  bool _shouldShowTodaysGoal() {
+    final authState = ref.watch(authProvider);
+    return authState.targetProtein != null &&
+        authState.targetFat != null &&
+        authState.targetCarbs != null &&
+        authState.targetKCalories != null;
+  }
+
+  /// Get formatted selected goal name
+  String _getSelectedGoalName() {
+    final authState = ref.watch(authProvider);
+    final goal = authState.selectedGoal;
+
+    // Map goal codes to display names
+    switch (goal) {
+      case 'fat-loss':
+        return 'Fat Loss';
+      case 'lean-mass-gain':
+        return 'Lean Mass Gain';
+      case 'muscle-gain':
+        return 'Muscle Gain';
+      case 'regular-bmi-maintenance':
+        return 'BMI Maintenance';
+      default:
+        return goal.isNotEmpty ? goal : AppStrings.leanMassGain;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -163,7 +188,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                     const SizedBox(height: AppSizes.spacing12),
                     _buildDailyGoalCard(),
                     const SizedBox(height: AppSizes.spacing12),
-                    _buildTodaysGoalSection(),
+                    if (_shouldShowTodaysGoal()) _buildTodaysGoalSection(),
+                    if (_shouldShowTodaysGoal()) const SizedBox(height: AppSizes.spacing12),
                     // const SizedBox(height: AppSizes.spacing24),
                     // _buildCompleteYourMealButton(),
                     const SizedBox(height: AppSizes.spacing16),
@@ -454,7 +480,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                               ),
                             ),
                             child: Text(
-                              selectedGoal,
+                              _getSelectedGoalName(),
                               style: const TextStyle(
                                 fontSize: AppTypography.fontSize12,
                                 fontWeight: AppTypography.medium,
@@ -507,13 +533,29 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   }
 
   Widget _buildTodaysGoalSection() {
+    final authState = ref.watch(authProvider);
+    final targetKCalories = authState.targetKCalories ?? 0;
+    final targetProtein = authState.targetProtein ?? 0;
+    final targetFat = authState.targetFat ?? 0;
+    final targetCarbs = authState.targetCarbs ?? 0;
+    final lastUpdated = authState.lastUpdatedTargetKCal;
+
+    // Format last updated date
+    String formattedDate = '18th November';
+    if (lastUpdated != null) {
+      final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      final day = lastUpdated.day;
+      final suffix = day == 1 || day == 21 || day == 31 ? 'st' : (day == 2 || day == 22 ? 'nd' : (day == 3 || day == 23 ? 'rd' : 'th'));
+      formattedDate = '$day$suffix ${months[lastUpdated.month - 1]}';
+    }
+
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              AppStrings.todaysGoal,
+              'Nutritional Targets',
               style: TextStyle(
                 fontSize: AppTypography.fontSize16,
                 fontWeight: AppTypography.semiBold,
@@ -530,9 +572,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 color: const Color(0xFFC66301),
                 borderRadius: BorderRadius.circular(AppSizes.radius4),
               ),
-              child: const Text(
-                '18th November',
-                style: TextStyle(
+              child: Text(
+                formattedDate,
+                style: const TextStyle(
                   fontSize: AppTypography.fontSize12,
                   fontWeight: AppTypography.medium,
                   color: Colors.white,
@@ -542,72 +584,105 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             ),
           ],
         ),
-        const SizedBox(height: AppSizes.spacing12),
-        Row(
-          children: [
-            SizedBox(
-              width: AppSizes.containerHeightSmall70,
-              height: AppSizes.containerHeightSmall70,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CircularProgressIndicator(
-                    value: 0.27, // 27% progress (300/1100)
-                    strokeWidth: AppSizes.spacing8,
-                    backgroundColor: AppColors.borderColor.withValues(
-                      alpha: 0.3,
-                    ),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppColors.primaryGreen,
-                    ),
-                  ),
-                ],
-              ),
+        const SizedBox(height: AppSizes.spacing16),
+
+        // Daily Calorie Goal
+        Container(
+          padding: const EdgeInsets.all(AppSizes.spacing16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primaryGreen.withValues(alpha: 0.1),
+                AppColors.primaryGreen.withValues(alpha: 0.05),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            const SizedBox(width: AppSizes.spacing20),
-            Expanded(
-              child: Column(
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+            border: Border.all(
+              color: AppColors.primaryGreen.withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text(
+                    'Daily Calorie Target',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.medium,
+                      color: AppColors.textSecondary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.spacing4),
                   RichText(
                     text: TextSpan(
                       style: const TextStyle(
-                        fontSize: AppTypography.fontSize20,
-                        fontWeight: AppTypography.regular,
-                        color: AppColors.textPrimary,
+                        fontSize: AppTypography.fontSize24,
+                        fontWeight: AppTypography.bold,
+                        color: AppColors.primaryGreen,
                         fontFamily: 'Lato',
                       ),
                       children: [
-                        TextSpan(text: '$todaysGoalKcal'),
+                        TextSpan(text: targetKCalories.toStringAsFixed(0)),
                         const TextSpan(
-                          text: ' ${AppStrings.kcal}',
+                          text: ' kcal',
                           style: TextStyle(
-                            fontSize: AppTypography.fontSize12,
-                            fontWeight: AppTypography.regular,
+                            fontSize: AppTypography.fontSize14,
+                            fontWeight: AppTypography.medium,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: AppSizes.spacing4),
-                  const Text(
-                    AppStrings.leftFor,
-                    style: TextStyle(
-                      fontSize: AppTypography.fontSize14,
-                      fontWeight: AppTypography.regular,
-                      color: AppColors.textSecondary,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.spacing8),
-                  Row(
-                    children: [
-                      _buildMealButton(AppStrings.lunch, Icons.lunch_dining),
-                      const SizedBox(width: AppSizes.spacing8),
-                      _buildMealButton(AppStrings.dinner, Icons.dinner_dining),
-                    ],
-                  ),
                 ],
+              ),
+              Icon(
+                Icons.local_fire_department,
+                color: AppColors.primaryGreen,
+                size: AppSizes.icon48,
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: AppSizes.spacing16),
+
+        // Macronutrient Breakdown
+        Row(
+          children: [
+            Expanded(
+              child: _buildMacroCard(
+                label: 'Protein',
+                value: targetProtein,
+                unit: 'g',
+                color: const Color(0xFF4A7C3E),
+                icon: Icons.fitness_center,
+              ),
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+            Expanded(
+              child: _buildMacroCard(
+                label: 'Carbs',
+                value: targetCarbs,
+                unit: 'g',
+                color: const Color(0xFFC66301),
+                icon: Icons.bakery_dining,
+              ),
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+            Expanded(
+              child: _buildMacroCard(
+                label: 'Fat',
+                value: targetFat,
+                unit: 'g',
+                color: const Color(0xFF6BA84F),
+                icon: Icons.water_drop,
               ),
             ),
           ],
@@ -616,28 +691,66 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
-  Widget _buildMealButton(String label, IconData icon) {
+  Widget _buildMacroCard({
+    required String label,
+    required double value,
+    required String unit,
+    required Color color,
+    required IconData icon,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.spacing12,
-        vertical: AppSizes.spacing4,
-      ),
+      padding: const EdgeInsets.all(AppSizes.spacing12),
       decoration: BoxDecoration(
-        color: AppColors.primaryGreen,
-        borderRadius: BorderRadius.circular(AppSizes.radius4),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: AppSizes.shadowBlur10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
         children: [
-          Icon(icon, color: Colors.white, size: AppSizes.icon16),
-          const SizedBox(width: AppSizes.spacing6),
+          Icon(
+            icon,
+            color: color,
+            size: AppSizes.icon24,
+          ),
+          const SizedBox(height: AppSizes.spacing8),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: AppTypography.fontSize12,
               fontWeight: AppTypography.medium,
-              color: Colors.white,
+              color: AppColors.textSecondary,
               fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: AppSizes.spacing4),
+          RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontSize: AppTypography.fontSize18,
+                fontWeight: AppTypography.bold,
+                color: color,
+                fontFamily: 'Lato',
+              ),
+              children: [
+                TextSpan(text: value.toStringAsFixed(0)),
+                TextSpan(
+                  text: unit,
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    fontWeight: AppTypography.medium,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
