@@ -90,22 +90,23 @@ class _OrderConfirmationModalState
       // Step 1: Place order
       final orderResponse = await orderRepo.placeOrder(
         kitchenId: '69275ba5c538faaf25e2acd1', // TODO: Get from menu/kitchen selection
-        deliveryDate: widget.deliveryDate,
+        deliveryDate: (widget.deliveryDate).substring(0, 10),
         deliverySlot: _selectedDeliverySlot,
         items: orderItems,
         deliveryAddress: deliveryAddress,
         paymentMethod: 'wallet',
+        orderType: 'single-meal',
         specialInstructions: _specialInstructionsController.text.trim().isNotEmpty
             ? _specialInstructionsController.text.trim()
             : null,
       );
 
       if (mounted && orderResponse.success && orderResponse.data != null) {
-        final orderId = orderResponse.data!.order.id;
+        final orderNumber = orderResponse.data!.orderNumber;
 
         // Step 2: Process wallet payment with amount from payment summary
         final paymentResponse = await orderRepo.processWalletPayment(
-          orderId: orderId,
+          orderId: orderNumber,
           amount: widget.totalAmount,
           paymentMethod: 'wallet',
         );
@@ -116,7 +117,7 @@ class _OrderConfirmationModalState
           });
 
           if (paymentResponse.success) {
-            debugPrint('[OrderConfirmationModal] Payment successful! Order ID: ${orderResponse.data!.order.id}');
+            debugPrint('[OrderConfirmationModal] Payment successful! Order Number: ${orderResponse.data!.orderNumber}');
 
             // Refresh wallet balance
             final walletNotifier = ref.read(walletProvider.notifier);
@@ -128,7 +129,9 @@ class _OrderConfirmationModalState
               debugPrint('[OrderConfirmationModal] Returning success data to checkout screen...');
               Navigator.of(context).pop({
                 'success': true,
-                'order': orderResponse.data!.order,
+                'orderNumber': orderResponse.data!.orderNumber,
+                'total': orderResponse.data!.total,
+                'paymentStatus': orderResponse.data!.paymentStatus,
                 'payment': paymentResponse.data,
               });
             }

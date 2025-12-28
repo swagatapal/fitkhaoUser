@@ -684,7 +684,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       if (result != null && result['success'] == true && mounted) {
         debugPrint('[CheckoutScreen] Payment successful! Showing success dialog and clearing cart...');
-        _showSuccessDialog(result['order'], result['payment']);
+        _showSuccessDialog(result['orderNumber'], result['payment']);
       } else {
         debugPrint('[CheckoutScreen] Order was not successful or result is null');
       }
@@ -736,12 +736,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       );
 
       if (result != null && result['success'] == true && mounted) {
-        _showSuccessDialog(result['order'], result['payment']);
+        _showSuccessDialog(result['orderNumber'], result['payment']);
       }
     }
   }
 
-  void _showSuccessDialog(dynamic order, dynamic payment) {
+  void _showSuccessDialog(String? orderNumber, dynamic payment) {
     debugPrint('[CheckoutScreen] Displaying success dialog...');
 
     showDialog(
@@ -781,9 +781,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSizes.spacing12),
-              if (order != null)
+              if (orderNumber != null)
                 Text(
-                  'Order #${order.orderNumber}',
+                  'Order #$orderNumber',
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize14,
                     fontWeight: AppTypography.semiBold,

@@ -8,6 +8,7 @@ class OrderPlacementRequest {
   final List<OrderItem> items;
   final DeliveryAddress deliveryAddress;
   final String paymentMethod;
+  final String orderType;
   final String? specialInstructions;
 
   const OrderPlacementRequest({
@@ -17,6 +18,7 @@ class OrderPlacementRequest {
     required this.items,
     required this.deliveryAddress,
     required this.paymentMethod,
+    required this.orderType,
     this.specialInstructions,
   });
 
@@ -28,6 +30,7 @@ class OrderPlacementRequest {
       'items': items.map((item) => item.toJson()).toList(),
       'deliveryAddress': deliveryAddress.toJson(),
       'paymentMethod': paymentMethod,
+      'orderType': orderType,
       if (specialInstructions != null && specialInstructions!.isNotEmpty)
         'specialInstructions': specialInstructions,
     };
@@ -124,15 +127,21 @@ class OrderPlacementResponse {
 
 /// Order data from placement response
 class OrderPlacementData {
-  final PlacedOrder order;
+  final String orderNumber;
+  final double total;
+  final String paymentStatus;
 
   const OrderPlacementData({
-    required this.order,
+    required this.orderNumber,
+    required this.total,
+    required this.paymentStatus,
   });
 
   factory OrderPlacementData.fromJson(Map<String, dynamic> json) {
     return OrderPlacementData(
-      order: PlacedOrder.fromJson(json['order'] as Map<String, dynamic>),
+      orderNumber: json['orderNumber'] as String? ?? '',
+      total: (json['total'] as num?)?.toDouble() ?? 0.0,
+      paymentStatus: json['paymentStatus'] as String? ?? '',
     );
   }
 }
