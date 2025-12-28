@@ -34,7 +34,7 @@ class MenuRepository {
         'Content-Type': 'application/json',
       };
 
-      // Make GET request
+      // Make GET request - fetch all items without mealType filter
       final json = await _apiClient.getJson(
         '/api/food/items',
         headers: headers,
@@ -42,30 +42,30 @@ class MenuRepository {
 
       debugPrint('[MenuRepository] Menu items response: $json');
 
-      // Parse response
-      final success = json['success'] == true;
-      if (!success) {
-        final message = json['message'] as String? ?? 'Failed to fetch menu items';
-        throw Exception(message);
-      }
+      // Parse response - items are nested under 'data'
+      final data = json['data'] as Map<String, dynamic>? ?? {};
+      final items = data['items'] as List<dynamic>? ?? [];
+      final count = data['count'] as int? ?? 0;
 
-      final data = json['data'] as Map<String, dynamic>?;
-      final items = data?['items'] as List<dynamic>? ?? [];
+      debugPrint('[MenuRepository] Found $count items in response');
 
       // Convert to MenuItem list
       final menuItems = items
           .map((item) => MenuItem.fromJson(item as Map<String, dynamic>))
           .toList();
 
-      // Filter by meal type if provided
+      debugPrint('[MenuRepository] Fetched ${menuItems.length} menu items from API');
+
+      // Filter by meal type on frontend if provided
       if (mealType != null && mealType.isNotEmpty) {
-        return menuItems
+        final filteredItems = menuItems
             .where((item) =>
                 item.mealType.toLowerCase() == mealType.toLowerCase())
             .toList();
+        debugPrint('[MenuRepository] Filtered to ${filteredItems.length} items for mealType: $mealType');
+        return filteredItems;
       }
 
-      debugPrint('[MenuRepository] Fetched ${menuItems.length} menu items');
       return menuItems;
     } catch (e) {
       debugPrint('[MenuRepository] Error fetching menu items: $e');

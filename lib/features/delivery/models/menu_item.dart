@@ -5,20 +5,22 @@ class MenuItem {
   final String imageUrl;
   final int calories;
   final double price;
-  final String category; // 'Lean Mass Gain', 'Fat Loss', 'Diet Maintain'
+  final String category; // 'bmiMaintainance', 'fatLoss', 'leanMassGain', etc.
   final bool isVeg;
   final String description;
   final String protein; // e.g., "12g"
   final String carbs; // e.g., "40g"
   final String fats; // e.g., "8g"
   final String fiber; // e.g., "6g"
-  final String menuType; // veg, non-veg, eggetarian, vegan
+  final String menuType; // veg, nonVeg, eggetarian, vegan
   final String mealType; // breakfast, lunch, dinner
   final List<String> goalCategory;
   final bool isAvailable;
   final List<String> tags;
   final List<String> allergens;
   final double rating; // Rating out of 5
+  final List<String> ingredients;
+  final Map<String, dynamic> suitability;
 
   const MenuItem({
     required this.id,
@@ -40,60 +42,87 @@ class MenuItem {
     this.tags = const [],
     this.allergens = const [],
     this.rating = 0.0,
+    this.ingredients = const [],
+    this.suitability = const {},
   });
 
   /// Create MenuItem from API response
   factory MenuItem.fromJson(Map<String, dynamic> json) {
-    final nutritionalInfo = json['nutritionalInfo'] as Map<String, dynamic>? ?? {};
-    final menuType = (json['menuType'] as String?) ?? 'veg';
+    // Parse nutrition information
+    final nutrition = json['nutrition'] as Map<String, dynamic>? ?? {};
+    final energyKcal = (nutrition['energyKcal'] as num?)?.toDouble() ?? 0.0;
+    final proteinGm = (nutrition['proteinGm'] as num?)?.toDouble() ?? 0.0;
+    final fatGm = (nutrition['fatGm'] as num?)?.toDouble() ?? 0.0;
+    final carbGm = (nutrition['carbGm'] as num?)?.toDouble() ?? 0.0;
 
-    // Determine if item is vegetarian
-    final isVeg = menuType.toLowerCase() == 'veg' ||
-                  menuType.toLowerCase() == 'eggetarian' ||
-                  menuType.toLowerCase() == 'vegan';
+    // Parse food type (veg, nonVeg)
+    final foodType = (json['foodType'] as String?) ?? 'veg';
+    final isVeg = foodType.toLowerCase() == 'veg';
 
-    // Map goal categories to UI categories
-    final goalCategories = (json['goalCategory'] as List<dynamic>?)
+    // Parse image
+    final imageObj = json['image'] as Map<String, dynamic>?;
+    final imageUrl = imageObj?['url'] as String? ?? '';
+
+    // Use default image if URL is empty or null
+    const defaultImageUrl = 'https://img.freepik.com/free-photo/top-view-table-full-food_23-2149209253.jpg';
+    final finalImageUrl = imageUrl.isEmpty ? defaultImageUrl : imageUrl;
+
+    // Parse category (bmiMaintainance, fatLoss, leanMassGain, etc.)
+    final category = (json['category'] as String?) ?? 'bmiMaintainance';
+
+    // Map category to display name
+    String displayCategory = 'BMI Maintenance';
+    switch (category.toLowerCase()) {
+      case 'bmimaintainance':
+      case 'bmi-maintenance':
+        displayCategory = 'BMI Maintenance';
+        break;
+      case 'fatloss':
+      case 'fat-loss':
+        displayCategory = 'Fat Loss';
+        break;
+      case 'leanmassgain':
+      case 'lean-mass-gain':
+        displayCategory = 'Lean Mass Gain';
+        break;
+      case 'musclegain':
+      case 'muscle-gain':
+        displayCategory = 'Muscle Gain';
+        break;
+      default:
+        displayCategory = category;
+    }
+
+    // Parse ingredients
+    final ingredients = (json['ingredients'] as List<dynamic>?)
         ?.map((e) => e.toString())
         .toList() ?? [];
 
-    // Determine primary category based on first goal
-    String category = 'Diet Maintain';
-    if (goalCategories.isNotEmpty) {
-      final firstGoal = goalCategories.first.toLowerCase();
-      if (firstGoal.contains('lean-mass') || firstGoal.contains('gain')) {
-        category = 'Lean Mass Gain';
-      } else if (firstGoal.contains('fat-loss')) {
-        category = 'Fat Loss';
-      } else if (firstGoal.contains('regular') || firstGoal.contains('maintenance')) {
-        category = 'Diet Maintain';
-      }
-    }
+    // Parse suitability
+    final suitability = json['suitability'] as Map<String, dynamic>? ?? {};
 
     return MenuItem(
       id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      imageUrl: 'https://img.freepik.com/free-photo/top-view-table-full-food_23-2149209253.jpg', // Default image
-      calories: (nutritionalInfo['kcal'] as num?)?.toInt() ?? 0,
+      name: json['dishName'] as String? ?? '',
+      imageUrl: finalImageUrl,
+      calories: energyKcal.toInt(),
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      category: category,
+      category: displayCategory,
       isVeg: isVeg,
       description: json['description'] as String? ?? '',
-      protein: '${nutritionalInfo['protein'] ?? 0}g',
-      carbs: '${nutritionalInfo['carbs'] ?? 0}g',
-      fats: '${nutritionalInfo['fat'] ?? 0}g',
+      protein: '${proteinGm.toStringAsFixed(1)}g',
+      carbs: '${carbGm.toStringAsFixed(1)}g',
+      fats: '${fatGm.toStringAsFixed(1)}g',
       fiber: '0g', // API doesn't provide fiber
-      menuType: menuType,
-      mealType: (json['mealType'] as String?) ?? 'lunch',
-      goalCategory: goalCategories,
-      isAvailable: json['isAvailable'] as bool? ?? true,
-      tags: (json['tags'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList() ?? [],
-      allergens: (json['allergens'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList() ?? [],
-      rating: (json['avgRating'] as num?)?.toDouble() ?? 0.0,
+      menuType: foodType,
+      mealType: (json['mealType'] as String?) ?? 'breakfast',
+      goalCategory: [category], // Store original category
+      isAvailable: json['isActive'] as bool? ?? true,
+      tags: const [], // No tags in current API response
+      allergens: const [], // No allergens in current API response
+      rating: 0.0, // No rating in current API response
+      ingredients: ingredients,
+      suitability: suitability,
     );
   }
 

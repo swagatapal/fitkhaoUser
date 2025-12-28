@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../models/menu_item.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/menu_provider.dart';
@@ -248,8 +249,8 @@ class _MenuListScreenState extends ConsumerState<MenuListScreen> {
           CircleAvatar(
             radius: AppSizes.spacing24,
             backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-            backgroundImage: const NetworkImage(
-              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
+            backgroundImage: NetworkImage(
+              ref.watch(authProvider).imgUrl ?? "https://i.sstatic.net/l60Hf.png",
             ),
             onBackgroundImageError: (exception, stackTrace) {},
             child: Container(
