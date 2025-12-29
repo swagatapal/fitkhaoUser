@@ -57,6 +57,9 @@ class AuthState {
   final DateTime? lastUpdatedTargetKCal;
   final String selectedGoal;
 
+  // Profile update tracking
+  final DateTime? profileUpdatedAt;
+
   const AuthState({
     this.phoneNumber = '',
     this.countryCode = '+91',
@@ -105,6 +108,7 @@ class AuthState {
     this.targetKCalories,
     this.lastUpdatedTargetKCal,
     this.selectedGoal = '',
+    this.profileUpdatedAt,
   });
 
   AuthState copyWith({
@@ -155,6 +159,7 @@ class AuthState {
     double? targetKCalories,
     DateTime? lastUpdatedTargetKCal,
     String? selectedGoal,
+    DateTime? profileUpdatedAt,
   }) {
     return AuthState(
       phoneNumber: phoneNumber ?? this.phoneNumber,
@@ -204,6 +209,7 @@ class AuthState {
       targetKCalories: targetKCalories ?? this.targetKCalories,
       lastUpdatedTargetKCal: lastUpdatedTargetKCal ?? this.lastUpdatedTargetKCal,
       selectedGoal: selectedGoal ?? this.selectedGoal,
+      profileUpdatedAt: profileUpdatedAt ?? this.profileUpdatedAt,
     );
   }
 }

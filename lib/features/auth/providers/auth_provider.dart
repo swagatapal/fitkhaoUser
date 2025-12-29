@@ -416,6 +416,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final pregnancyStage = profile['pregnancy'] as String?;
         final lactationStage = profile['lactation'] as String?;
 
+        // Extract profile updatedAt timestamp
+        DateTime? profileUpdatedAt;
+        final updatedAtStr = user?['updatedAt'] as String?;
+        if (updatedAtStr != null && updatedAtStr.isNotEmpty) {
+          try {
+            profileUpdatedAt = DateTime.parse(updatedAtStr);
+          } catch (e) {
+            debugPrint('[AuthNotifier] Error parsing profileUpdatedAt: $e');
+          }
+        }
+
         // Update state with fetched data
         state = state.copyWith(
           name: name,
@@ -452,6 +463,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           targetKCalories: targetKCalories,
           lastUpdatedTargetKCal: lastUpdatedTargetKCal,
           selectedGoal: selectedGoal,
+          profileUpdatedAt: profileUpdatedAt,
           isLoading: false,
           errorMessage: null,
         );

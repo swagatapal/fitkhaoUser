@@ -57,6 +57,8 @@ class _DetailedHealthInfoScreenState
 
   bool _isInitialized = false;
   String? _uploadedImageUrl;
+  DateTime? _lastProfileUpdate;
+  int _daysUntilNextUpdate = 0;
 
   @override
   void initState() {
@@ -88,11 +90,41 @@ class _DetailedHealthInfoScreenState
     }
   }
 
+  /// Check if user can update profile (21 days restriction)
+  bool _canUpdateProfile(DateTime? lastUpdate) {
+    if (lastUpdate == null) return true;
+    final now = DateTime.now();
+    final daysSinceLastUpdate = now.difference(lastUpdate).inDays;
+    return daysSinceLastUpdate >= 21;
+  }
+
+  /// Get days remaining until next profile update
+  int _getDaysUntilNextUpdate(DateTime? lastUpdate) {
+    if (lastUpdate == null) return 0;
+    final now = DateTime.now();
+    final daysSinceLastUpdate = now.difference(lastUpdate).inDays;
+    final daysRemaining = 21 - daysSinceLastUpdate;
+    return daysRemaining > 0 ? daysRemaining : 0;
+  }
+
+  /// Get button text based on update restriction
+  String _getSaveButtonText() {
+    print("days $_daysUntilNextUpdate");
+    if (_daysUntilNextUpdate > 0) {
+      return 'You can update after $_daysUntilNextUpdate ${_daysUntilNextUpdate == 1 ? 'day' : 'days'}';
+    }
+    return AppStrings.save;
+  }
+
   /// Populate form fields with data from AuthState
   void _populateFormFields() {
     final authState = ref.read(authProvider);
 
     setState(() {
+      // Load profile update timestamp and calculate days until next update
+      _lastProfileUpdate = authState.profileUpdatedAt;
+      _daysUntilNextUpdate = _getDaysUntilNextUpdate(_lastProfileUpdate);
+
       // Basic info
       // Load existing profile image URL from server
       if (authState.imgUrl != null && authState.imgUrl!.isNotEmpty) {
@@ -652,15 +684,15 @@ class _DetailedHealthInfoScreenState
 
                       // Save Button
                       PrimaryButton(
-                        text: AppStrings.save,
-                        onPressed: _isFormValid && !authState.isLoading
+                        text: _getSaveButtonText(),
+                        onPressed: _isFormValid && !authState.isLoading && _canUpdateProfile(_lastProfileUpdate)
                             ? _handleSave
                             : null,
                         textColor: Colors.white,
                         height: context.inputHeight,
                         isLoading: authState.isLoading,
                       ),
-                      SizedBox(height: context.responsiveSpacing(90.0)),
+                      SizedBox(height: context.responsiveSpacing(100.0)),
                     ],
                   ),
                 ),
