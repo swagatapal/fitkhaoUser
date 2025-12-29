@@ -20,6 +20,8 @@ class ProfileUpdateRequest {
   final DigestiveIssues? digestiveIssues;
   final String? selectedKitchenId;
   final String? imgUrl; // Profile image URL
+  final String? pregnancy; // P1, P2, P3
+  final String? lactation; // L1, L2
 
   const ProfileUpdateRequest({
     this.name,
@@ -38,6 +40,8 @@ class ProfileUpdateRequest {
     this.digestiveIssues,
     this.selectedKitchenId,
     this.imgUrl,
+    this.pregnancy,
+    this.lactation,
   });
 
   /// Map regularityStatus to DigestiveIssues
@@ -117,17 +121,19 @@ class ProfileUpdateRequest {
       gender: s.gender.isNotEmpty ? s.gender : null,
       weight: s.weight,
       height: s.height,
-      selectedGoal: "regular-bmi-maintenance", // This is the user's goal (fat-loss, lean-mass-gain, etc)
+      selectedGoal: s.selectedGoal.isNotEmpty ? s.selectedGoal : "regular-bmi-maintenance", // This is the user's goal (fat-loss, lean-mass-gain, etc)
       doesWorkout: s.doesExercise,
       workoutDaysPerWeek: s.exerciseDaysPerWeek,
       workoutHoursPerDay: s.exerciseDurationHours,
       exerciseType: s.exerciseType, // Already in API format (type-1, type-2, type-3)
-      profession: null, // Same as selectedGoal - represents activity level (type-1, type-2, type-3)
+      profession: s.physicalActivityLevel.isNotEmpty ? s.physicalActivityLevel : null, // Activity level (type-1, type-2, type-3)
       address: addr,
       specialConditions: special,
       digestiveIssues: digestive,
       selectedKitchenId: '', // Empty string as default
       imgUrl: s.imgUrl != null && s.imgUrl!.isNotEmpty ? s.imgUrl : null,
+      pregnancy: s.pregnancy && s.pregnancyStage != null ? s.pregnancyStage : null,
+      lactation: s.lactation && s.lactationStage != null ? s.lactationStage : null,
     );
   }
 
@@ -139,7 +145,7 @@ class ProfileUpdateRequest {
   /// - Booleans default to false
   /// - Objects include all nested keys with their defaults
   Map<String, dynamic> toFullJson() {
-    return {
+    final json = {
       'name': name ?? '',
       'age': age ?? 0,
       'gender': gender ?? '',
@@ -170,6 +176,18 @@ class ProfileUpdateRequest {
       'selectedKitchenId': selectedKitchenId ?? '',
       'imgUrl': imgUrl ?? '',
     };
+
+    // Only include pregnancy if it has a value
+    if (pregnancy != null && pregnancy!.isNotEmpty) {
+      json['pregnancy'] = pregnancy!;
+    }
+
+    // Only include lactation if it has a value
+    if (lactation != null && lactation!.isNotEmpty) {
+      json['lactation'] = lactation!;
+    }
+
+    return json;
   }
 }
 

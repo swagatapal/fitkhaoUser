@@ -39,6 +39,13 @@ class _DetailedHealthInfoScreenState
   String _regularlyStatus =
       'constipated'; // constipated, diarrhoeal, both, none
 
+  // Goal selection
+  String _selectedGoal = 'fat-loss'; // fat-loss, lean-mass-gain, regular-bmi-maintenance
+
+  // Pregnancy and Lactation stages
+  String _pregnancyStage = 'P1'; // P1, P2, P3
+  String _lactationStage = 'L1'; // L1, L2
+
   // Controllers
   final TextEditingController _ageController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
@@ -144,6 +151,19 @@ class _DetailedHealthInfoScreenState
       // Regularity status
       _regularlyStatus = authState.regularityStatus.toLowerCase();
 
+      // Selected goal
+      if (authState.selectedGoal.isNotEmpty) {
+        _selectedGoal = authState.selectedGoal;
+      }
+
+      // Pregnancy and Lactation stages
+      if (authState.pregnancyStage != null && authState.pregnancyStage!.isNotEmpty) {
+        _pregnancyStage = authState.pregnancyStage!;
+      }
+      if (authState.lactationStage != null && authState.lactationStage!.isNotEmpty) {
+        _lactationStage = authState.lactationStage!;
+      }
+
       _isInitialized = true;
     });
   }
@@ -221,37 +241,40 @@ class _DetailedHealthInfoScreenState
   }
 
   bool get _isFormValid {
-    bool basicValid = _age.isNotEmpty && _heightCm.isNotEmpty && _weightKg.isNotEmpty;
-
-    if (_doesExercise) {
-      return basicValid &&
-          _exerciseDaysPerWeek.isNotEmpty &&
-          _exerciseDurationHrs.isNotEmpty;
-    }
-
-    return basicValid;
+    // Allow saving with any combination of fields
+    return true;
   }
 
   Future<void> _handleSave() async {
-    if (!_isFormValid) return;
-
     final authNotifier = ref.read(authProvider.notifier);
     final authState = ref.read(authProvider);
 
-    // Calculate dateOfBirth from age
-    final now = DateTime.now();
-    final ageInt = int.parse(_age);
-    final dateOfBirth = DateTime(now.year - ageInt, now.month, now.day);
+    // Parse optional numeric fields
+    final parsedAge = _age.isNotEmpty ? double.tryParse(_age) : null;
+    final parsedHeight = _heightCm.isNotEmpty ? double.tryParse(_heightCm) : null;
+    final parsedWeight = _weightKg.isNotEmpty ? double.tryParse(_weightKg) : null;
+    final parsedExerciseDays = _exerciseDaysPerWeek.isNotEmpty ? int.tryParse(_exerciseDaysPerWeek) : null;
+    final parsedExerciseDuration = _exerciseDurationHrs.isNotEmpty ? double.tryParse(_exerciseDurationHrs) : null;
 
-    // Save age (as dateOfBirth) and other personal info
-    authNotifier.savePersonalInfo(
-      gender: authState.gender.isNotEmpty ? authState.gender : 'male',
-      dateOfBirth: dateOfBirth,
-      height: double.parse(_heightCm),
-      weight: double.parse(_weightKg),
-      age: double.parse(_age),
-      doesExercise: _doesExercise,
-    );
+    // Calculate dateOfBirth from age if age is provided
+    DateTime? dateOfBirth;
+    if (parsedAge != null && parsedAge > 0) {
+      final now = DateTime.now();
+      final ageInt = parsedAge.toInt();
+      dateOfBirth = DateTime(now.year - ageInt, now.month, now.day);
+    }
+
+    // Save personal info only if we have values
+    if (parsedAge != null || parsedHeight != null || parsedWeight != null || dateOfBirth != null) {
+      authNotifier.savePersonalInfo(
+        gender: authState.gender.isNotEmpty ? authState.gender : 'male',
+        dateOfBirth: dateOfBirth ?? authState.dateOfBirth ?? DateTime.now(),
+        height: parsedHeight ?? authState.height ?? 0.0,
+        weight: parsedWeight ?? authState.weight ?? 0.0,
+        age: parsedAge ?? authState.age ?? 0.0,
+        doesExercise: _doesExercise,
+      );
+    }
 
     // Map UI values to API format before saving
     final professionApiFormat = _mapProfessionToApi(_activityLevel);
@@ -259,22 +282,24 @@ class _DetailedHealthInfoScreenState
 
     // Save detailed health information to provider with API format
     authNotifier.saveDetailedHealthInfo(
-      height: double.parse(_heightCm),
-      weight: double.parse(_weightKg),
-      age: double.parse(_age),
+      height: parsedHeight ?? authState.height ?? 0,
+      weight: parsedWeight ?? authState.weight ?? 0,
+      age: parsedAge ?? authState.age ?? 0,
       physicalActivityLevel: professionApiFormat,
       // Use API format (type-1, type-2, type-3)
       doesExercise: _doesExercise,
-      exerciseDaysPerWeek: _doesExercise && _exerciseDaysPerWeek.isNotEmpty
-          ? int.parse(_exerciseDaysPerWeek)
+      exerciseDaysPerWeek: _doesExercise && parsedExerciseDays != null
+          ? parsedExerciseDays
           : null,
-      exerciseDurationHours: _doesExercise && _exerciseDurationHrs.isNotEmpty
-          ? double.parse(_exerciseDurationHrs)
+      exerciseDurationHours: _doesExercise && parsedExerciseDuration != null
+          ? parsedExerciseDuration
           : null,
       exerciseType: exerciseTypeApiFormat,
       // Use API format (type-1, type-2, type-3)
       pregnancy: _conditions.contains('pregnancy'),
+      pregnancyStage: _conditions.contains('pregnancy') ? _pregnancyStage : null,
       lactation: _conditions.contains('lactation'),
+      lactationStage: _conditions.contains('lactation') ? _lactationStage : null,
       diabetes: _conditions.contains('diabetes'),
       hypertension: _conditions.contains('hypertension'),
       cardiacProblem: _conditions.contains('cardiac'),
@@ -282,6 +307,7 @@ class _DetailedHealthInfoScreenState
       liverRelatedProblem: _conditions.contains('liver'),
       otherConditions: _conditions.contains('others') ? _otherConditions : '',
       regularityStatus: _capitalize(_regularlyStatus),
+      selectedGoal: _selectedGoal,
     );
 
     // Complete registration with collected data (calls PUT API)
@@ -381,6 +407,55 @@ class _DetailedHealthInfoScreenState
                         label: AppStrings.weightInKg,
                         controller: _weightController,
                         onChanged: (value) => setState(() => _weightKg = value),
+                      ),
+                      SizedBox(height: spacing16),
+
+                      // Goal Selection Section
+                      Row(
+                        children: [
+                          const Text(
+                            "Select Goal",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w400,
+                              color: Color(0xFF2B292A),
+                              fontFamily: "Lato",
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Text(
+                            "*",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.red,
+                              fontFamily: "Lato",
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: spacing12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildGoalOption(
+                              title: 'Fat Loss',
+                              value: 'fat-loss',
+                            ),
+                          ),
+                          SizedBox(width: spacing12),
+                          Expanded(
+                            child: _buildGoalOption(
+                              title: 'Lean Mass Gain',
+                              value: 'lean-mass-gain',
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: spacing12),
+                      _buildGoalOption(
+                        title: 'Regular BMI Maintenance',
+                        value: 'regular-bmi-maintenance',
                       ),
                       SizedBox(height: spacing16),
 
@@ -499,7 +574,43 @@ class _DetailedHealthInfoScreenState
                       ),
                       SizedBox(height: spacing12),
                       _buildCheckbox(AppStrings.pregnancy, 'pregnancy'),
+
+                      // Pregnancy stages (shown only if pregnancy is checked)
+                      if (_conditions.contains('pregnancy')) ...[
+                        SizedBox(height: spacing12),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 40.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildPregnancyStageOption('P1 [1-3 months]', 'P1'),
+                              SizedBox(height: spacing12),
+                              _buildPregnancyStageOption('P2 [4-6 months]', 'P2'),
+                              SizedBox(height: spacing12),
+                              _buildPregnancyStageOption('P3 [7-9 months]', 'P3'),
+                            ],
+                          ),
+                        ),
+                      ],
+
                       _buildCheckbox(AppStrings.lactation, 'lactation'),
+
+                      // Lactation stages (shown only if lactation is checked)
+                      if (_conditions.contains('lactation')) ...[
+                        SizedBox(height: spacing12),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 40.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildLactationStageOption('L1 [1-6 months]', 'L1'),
+                              SizedBox(height: spacing12),
+                              _buildLactationStageOption('L2 [6-12 months]', 'L2'),
+                            ],
+                          ),
+                        ),
+                      ],
+
                       _buildCheckbox(AppStrings.diabetes, 'diabetes'),
                       _buildCheckbox(AppStrings.hypertension, 'hypertension'),
                       _buildCheckbox(AppStrings.cardiacProblem, 'cardiac'),
@@ -1088,6 +1199,120 @@ class _DetailedHealthInfoScreenState
                 fontSize: context.responsiveFontSize(14.0),
                 fontWeight: FontWeight.w400,
                 color: AppColors.textPrimary,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGoalOption({
+    required String title,
+    required String value,
+  }) {
+    final isSelected = _selectedGoal == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedGoal = value),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.responsiveSpacing(8.0),
+          vertical: context.responsiveSpacing(8.0),
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryGreen : Colors.white,
+          borderRadius: BorderRadius.circular(context.responsiveSpacing(50.0)),
+          border: Border.all(
+            color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
+            width: 1.5,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: context.responsiveFontSize(14.0),
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.white : AppColors.textPrimary,
+              fontFamily: 'Lato',
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPregnancyStageOption(String label, String value) {
+    final isSelected = _pregnancyStage == value;
+    return GestureDetector(
+      onTap: () => setState(() => _pregnancyStage = value),
+      child: Container(
+        padding: EdgeInsets.all(context.responsiveSpacing(12.0)),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryGreen : Colors.white,
+          borderRadius: BorderRadius.circular(context.responsiveSpacing(50.0)),
+          border: Border.all(
+            color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isSelected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color: isSelected ? Colors.white : AppColors.primaryGreen,
+              size: AppSizes.icon20,
+            ),
+            SizedBox(width: context.responsiveSpacing(AppSizes.spacing12)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: context.responsiveFontSize(14.0),
+                fontWeight: FontWeight.w400,
+                color: isSelected ? Colors.white : AppColors.textPrimary,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLactationStageOption(String label, String value) {
+    final isSelected = _lactationStage == value;
+    return GestureDetector(
+      onTap: () => setState(() => _lactationStage = value),
+      child: Container(
+        padding: EdgeInsets.all(context.responsiveSpacing(12.0)),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryGreen : Colors.white,
+          borderRadius: BorderRadius.circular(context.responsiveSpacing(50.0)),
+          border: Border.all(
+            color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isSelected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color: isSelected ? Colors.white : AppColors.primaryGreen,
+              size: AppSizes.icon20,
+            ),
+            SizedBox(width: context.responsiveSpacing(AppSizes.spacing12)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: context.responsiveFontSize(14.0),
+                fontWeight: FontWeight.w400,
+                color: isSelected ? Colors.white : AppColors.textPrimary,
                 fontFamily: 'Lato',
               ),
             ),

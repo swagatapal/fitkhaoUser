@@ -38,7 +38,9 @@ class AuthState {
   final double? exerciseDurationHours;
   final String exerciseType;
   final bool pregnancy;
+  final String? pregnancyStage; // P1, P2, P3
   final bool lactation;
+  final String? lactationStage; // L1, L2
   final bool diabetes;
   final bool hypertension;
   final bool cardiacProblem;
@@ -87,7 +89,9 @@ class AuthState {
     this.exerciseDurationHours,
     this.exerciseType = 'type-1',
     this.pregnancy = false,
+    this.pregnancyStage,
     this.lactation = false,
+    this.lactationStage,
     this.diabetes = false,
     this.hypertension = false,
     this.cardiacProblem = false,
@@ -135,7 +139,9 @@ class AuthState {
     double? exerciseDurationHours,
     String? exerciseType,
     bool? pregnancy,
+    String? pregnancyStage,
     bool? lactation,
+    String? lactationStage,
     bool? diabetes,
     bool? hypertension,
     bool? cardiacProblem,
@@ -182,7 +188,9 @@ class AuthState {
       exerciseDurationHours: exerciseDurationHours ?? this.exerciseDurationHours,
       exerciseType: exerciseType ?? this.exerciseType,
       pregnancy: pregnancy ?? this.pregnancy,
+      pregnancyStage: pregnancyStage ?? this.pregnancyStage,
       lactation: lactation ?? this.lactation,
+      lactationStage: lactationStage ?? this.lactationStage,
       diabetes: diabetes ?? this.diabetes,
       hypertension: hypertension ?? this.hypertension,
       cardiacProblem: cardiacProblem ?? this.cardiacProblem,

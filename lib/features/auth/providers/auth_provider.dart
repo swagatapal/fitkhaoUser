@@ -288,7 +288,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     double? exerciseDurationHours,
     required String exerciseType,
     required bool pregnancy,
+    String? pregnancyStage,
     required bool lactation,
+    String? lactationStage,
     required bool diabetes,
     required bool hypertension,
     required bool cardiacProblem,
@@ -296,6 +298,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required bool liverRelatedProblem,
     required String otherConditions,
     required String regularityStatus,
+    required String selectedGoal,
   }) {
     state = state.copyWith(
       height: height,
@@ -307,7 +310,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       exerciseDurationHours: exerciseDurationHours,
       exerciseType: exerciseType,
       pregnancy: pregnancy,
+      pregnancyStage: pregnancyStage,
       lactation: lactation,
+      lactationStage: lactationStage,
       diabetes: diabetes,
       hypertension: hypertension,
       cardiacProblem: cardiacProblem,
@@ -315,6 +320,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       liverRelatedProblem: liverRelatedProblem,
       otherConditions: otherConditions,
       regularityStatus: regularityStatus,
+      selectedGoal: selectedGoal,
     );
   }
 
@@ -406,6 +412,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
           regularityStatus = 'Diarrhoeal';
         }
 
+        // Extract pregnancy and lactation stages
+        final pregnancyStage = profile['pregnancy'] as String?;
+        final lactationStage = profile['lactation'] as String?;
+
         // Update state with fetched data
         state = state.copyWith(
           name: name,
@@ -432,6 +442,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
           liverRelatedProblem: liverIssues,
           otherConditions: otherConditions,
           regularityStatus: regularityStatus,
+          pregnancy: pregnancyStage != null && pregnancyStage.isNotEmpty,
+          pregnancyStage: pregnancyStage,
+          lactation: lactationStage != null && lactationStage.isNotEmpty,
+          lactationStage: lactationStage,
           targetProtein: targetProtein,
           targetFat: targetFat,
           targetCarbs: targetCarbs,
@@ -509,24 +523,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Complete registration with all collected data
   /// Calls PUT API to update user profile
+  /// Allows partial updates - users can skip optional fields
   Future<bool> completeRegistration() async {
-    // Validate all required data is present
-    if (state.phoneNumber.isEmpty ||
-        state.name.isEmpty ||
-        state.dateOfBirth == null ||
-        state.height == null ||
-        state.weight == null ||
-        state.buildingNameNumber.isEmpty ||
-        state.street.isEmpty ||
-        state.pincode.isEmpty
-        //state.imgUrl == null
-    ) {
-      state = state.copyWith(
-        errorMessage: 'Missing required information. Please complete all steps.',
-      );
-      return false;
-    }
-
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
