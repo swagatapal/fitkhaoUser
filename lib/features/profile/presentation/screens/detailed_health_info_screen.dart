@@ -109,7 +109,6 @@ class _DetailedHealthInfoScreenState
 
   /// Get button text based on update restriction
   String _getSaveButtonText() {
-    print("days $_daysUntilNextUpdate");
     if (_daysUntilNextUpdate > 0) {
       return 'You can update after $_daysUntilNextUpdate ${_daysUntilNextUpdate == 1 ? 'day' : 'days'}';
     }
@@ -393,7 +392,28 @@ class _DetailedHealthInfoScreenState
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
+      body: authState.isLoading && !_isInitialized
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+                    strokeWidth: 3,
+                  ),
+                  const SizedBox(height: AppSizes.spacing16),
+                  Text(
+                    'Loading your profile...',
+                    style: TextStyle(
+                      fontSize: context.responsiveFontSize(14.0),
+                      color: AppColors.textSecondary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Stack(
         children: [
           // Main Column with Fixed Image and Scrollable Content
           Column(
