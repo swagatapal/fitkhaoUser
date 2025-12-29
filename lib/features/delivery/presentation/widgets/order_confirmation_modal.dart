@@ -65,7 +65,8 @@ class _OrderConfirmationModalState
         return OrderItem(
           foodItemId: cartItem.menuItem.id,
           quantity: cartItem.quantity,
-          specialInstructions: _specialInstructionsController.text.trim().isNotEmpty
+          specialInstructions:
+              _specialInstructionsController.text.trim().isNotEmpty
               ? _specialInstructionsController.text.trim()
               : null,
         );
@@ -82,62 +83,60 @@ class _OrderConfirmationModalState
         contactNumber: widget.deliveryAddress.contactNumber,
         latitude: widget.deliveryAddress.latitude,
         longitude: widget.deliveryAddress.longitude,
-        deliveryInstructions: _deliveryInstructionsController.text.trim().isNotEmpty
+        deliveryInstructions:
+            _deliveryInstructionsController.text.trim().isNotEmpty
             ? _deliveryInstructionsController.text.trim()
             : null,
       );
 
+      // Determine foodType based on cart items
+      // Priority: non-veg > eggetarian > vegan > veg
+      String foodType = 'veg';
+      for (final cartItem in widget.cartItems) {
+        final itemType = cartItem.menuItem.menuType.toLowerCase();
+        if (itemType == 'nonveg' || itemType == 'non-veg') {
+          foodType = 'non-veg';
+          break; // Non-veg has highest priority
+        } else if (itemType == 'eggetarian' && foodType != 'non-veg') {
+          foodType = 'eggetarian';
+        } else if (itemType == 'vegan' && foodType == 'veg') {
+          foodType = 'vegan';
+        }
+      }
+
       // Step 1: Place order
       final orderResponse = await orderRepo.placeOrder(
-        kitchenId: '69275ba5c538faaf25e2acd1', // TODO: Get from menu/kitchen selection
+        kitchenId: '69275ba5c538faaf25e2acd1',
+        // TODO: Get from menu/kitchen selection
         deliveryDate: (widget.deliveryDate).substring(0, 10),
         deliverySlot: _selectedDeliverySlot,
         items: orderItems,
         deliveryAddress: deliveryAddress,
         paymentMethod: 'wallet',
         orderType: 'single-meal',
-        specialInstructions: _specialInstructionsController.text.trim().isNotEmpty
+        foodType: foodType,
+        specialInstructions:
+            _specialInstructionsController.text.trim().isNotEmpty
             ? _specialInstructionsController.text.trim()
             : null,
       );
 
       if (mounted && orderResponse.success && orderResponse.data != null) {
-        final orderNumber = orderResponse.data!.orderNumber;
-
-        // Step 2: Process wallet payment with amount from payment summary
-        final paymentResponse = await orderRepo.processWalletPayment(
-          orderId: orderNumber,
-          amount: widget.totalAmount,
-          paymentMethod: 'wallet',
-        );
-
+        // Refresh wallet balance
+        final walletNotifier = ref.read(walletProvider.notifier);
+        await walletNotifier.loadWalletBalance();
+        // Close modal and return success data to checkout screen
         if (mounted) {
-          setState(() {
-            _isProcessing = false;
+          debugPrint(
+            '[OrderConfirmationModal] Returning success data to checkout screen...',
+          );
+          Navigator.of(context).pop({
+            'success': true,
+            'orderNumber': orderResponse.data!.orderNumber,
+            'total': orderResponse.data!.total,
+            'paymentStatus': orderResponse.data!.paymentStatus,
+            // 'payment': paymentResponse.data,
           });
-
-          if (paymentResponse.success) {
-            debugPrint('[OrderConfirmationModal] Payment successful! Order Number: ${orderResponse.data!.orderNumber}');
-
-            // Refresh wallet balance
-            final walletNotifier = ref.read(walletProvider.notifier);
-            await walletNotifier.loadWalletBalance();
-            debugPrint('[OrderConfirmationModal] Wallet balance refreshed');
-
-            // Close modal and return success data to checkout screen
-            if (mounted) {
-              debugPrint('[OrderConfirmationModal] Returning success data to checkout screen...');
-              Navigator.of(context).pop({
-                'success': true,
-                'orderNumber': orderResponse.data!.orderNumber,
-                'total': orderResponse.data!.total,
-                'paymentStatus': orderResponse.data!.paymentStatus,
-                'payment': paymentResponse.data,
-              });
-            }
-          } else {
-            _showErrorDialog(paymentResponse.message);
-          }
         }
       } else {
         if (mounted) {
@@ -147,6 +146,53 @@ class _OrderConfirmationModalState
           _showErrorDialog(orderResponse.message);
         }
       }
+
+      // if (mounted && orderResponse.success && orderResponse.data != null) {
+      //   final orderNumber = orderResponse.data!.orderNumber;
+      //
+      //   // Step 2: Process wallet payment with amount from payment summary
+      //   final paymentResponse = await orderRepo.processWalletPayment(
+      //     orderId: orderNumber,
+      //     amount: widget.totalAmount,
+      //     paymentMethod: 'wallet',
+      //   );
+      //
+      //   if (mounted) {
+      //     setState(() {
+      //       _isProcessing = false;
+      //     });
+      //
+      //     if (paymentResponse.success) {
+      //       debugPrint('[OrderConfirmationModal] Payment successful! Order Number: ${orderResponse.data!.orderNumber}');
+      //
+      //       // Refresh wallet balance
+      //       final walletNotifier = ref.read(walletProvider.notifier);
+      //       await walletNotifier.loadWalletBalance();
+      //       debugPrint('[OrderConfirmationModal] Wallet balance refreshed');
+      //
+      //       // Close modal and return success data to checkout screen
+      //       if (mounted) {
+      //         debugPrint('[OrderConfirmationModal] Returning success data to checkout screen...');
+      //         Navigator.of(context).pop({
+      //           'success': true,
+      //           'orderNumber': orderResponse.data!.orderNumber,
+      //           'total': orderResponse.data!.total,
+      //           'paymentStatus': orderResponse.data!.paymentStatus,
+      //           'payment': paymentResponse.data,
+      //         });
+      //       }
+      //     } else {
+      //       _showErrorDialog(paymentResponse.message);
+      //     }
+      //   }
+      // } else {
+      //   if (mounted) {
+      //     setState(() {
+      //       _isProcessing = false;
+      //     });
+      //     _showErrorDialog(orderResponse.message);
+      //   }
+      // }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -274,15 +320,22 @@ class _OrderConfirmationModalState
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppSizes.radius4),
-                        borderSide: const BorderSide(color: AppColors.borderColor),
+                        borderSide: const BorderSide(
+                          color: AppColors.borderColor,
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppSizes.radius4),
-                        borderSide: const BorderSide(color: AppColors.textWhite),
+                        borderSide: const BorderSide(
+                          color: AppColors.textWhite,
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppSizes.radius4),
-                        borderSide: const BorderSide(color: AppColors.textWhite, width: 2),
+                        borderSide: const BorderSide(
+                          color: AppColors.textWhite,
+                          width: 2,
+                        ),
                       ),
                     ),
                     icon: const Icon(Icons.keyboard_arrow_down),
@@ -337,15 +390,22 @@ class _OrderConfirmationModalState
                     hintText: 'e.g., No onions, extra spicy, etc.',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSizes.radius4),
-                      borderSide: const BorderSide(color: AppColors.borderColor),
+                      borderSide: const BorderSide(
+                        color: AppColors.borderColor,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSizes.radius4),
-                      borderSide: const BorderSide(color: AppColors.borderColor),
+                      borderSide: const BorderSide(
+                        color: AppColors.borderColor,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSizes.radius4),
-                      borderSide: const BorderSide(color: AppColors.primaryGreen, width: 2),
+                      borderSide: const BorderSide(
+                        color: AppColors.primaryGreen,
+                        width: 2,
+                      ),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: AppSizes.spacing16,
@@ -372,15 +432,22 @@ class _OrderConfirmationModalState
                     hintText: 'e.g., Ring the bell twice, leave at door, etc.',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSizes.radius4),
-                      borderSide: const BorderSide(color: AppColors.borderColor),
+                      borderSide: const BorderSide(
+                        color: AppColors.borderColor,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSizes.radius4),
-                      borderSide: const BorderSide(color: AppColors.borderColor),
+                      borderSide: const BorderSide(
+                        color: AppColors.borderColor,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSizes.radius4),
-                      borderSide: const BorderSide(color: AppColors.primaryGreen, width: 2),
+                      borderSide: const BorderSide(
+                        color: AppColors.primaryGreen,
+                        width: 2,
+                      ),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: AppSizes.spacing16,

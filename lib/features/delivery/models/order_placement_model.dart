@@ -9,6 +9,7 @@ class OrderPlacementRequest {
   final DeliveryAddress deliveryAddress;
   final String paymentMethod;
   final String orderType;
+  final String foodType;
   final String? specialInstructions;
 
   const OrderPlacementRequest({
@@ -19,6 +20,7 @@ class OrderPlacementRequest {
     required this.deliveryAddress,
     required this.paymentMethod,
     required this.orderType,
+    required this.foodType,
     this.specialInstructions,
   });
 
@@ -31,6 +33,7 @@ class OrderPlacementRequest {
       'deliveryAddress': deliveryAddress.toJson(),
       'paymentMethod': paymentMethod,
       'orderType': orderType,
+      'foodType': foodType,
       if (specialInstructions != null && specialInstructions!.isNotEmpty)
         'specialInstructions': specialInstructions,
     };

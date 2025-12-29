@@ -26,6 +26,7 @@ class OrderRepository {
     required DeliveryAddress deliveryAddress,
     required String paymentMethod,
     required String orderType,
+    required String foodType,
     String? specialInstructions,
   }) async {
     debugPrint('[OrderRepository] Placing order via API...');
@@ -54,6 +55,7 @@ class OrderRepository {
         deliveryAddress: deliveryAddress,
         paymentMethod: paymentMethod,
         orderType: orderType,
+        foodType: foodType,
         specialInstructions: specialInstructions,
       );
 
