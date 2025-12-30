@@ -741,10 +741,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         return 0;
       case 'confirmed':
         return 1;
-      case 'preparing':
+      case 'prepared':
         return 2;
-      case 'out-for-delivery':
-      case 'out_for_delivery':
+      case 'assigned':
         return 3;
       case 'delivered':
         return 4;
