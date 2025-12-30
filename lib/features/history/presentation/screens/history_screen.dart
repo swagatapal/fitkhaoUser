@@ -6,6 +6,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/router/route_names.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../models/order_history_model.dart';
 import '../../providers/order_history_provider.dart';
 import 'order_tracking_screen.dart';
@@ -265,23 +267,28 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               ],
             ),
           ),
-          CircleAvatar(
-            radius: AppSizes.spacing24,
-            backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-            backgroundImage: const NetworkImage(
-              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
-            ),
-            onBackgroundImageError: (exception, stackTrace) {},
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.3),
-                  width: AppSizes.borderThin,
-                ),
-              ),
-            ),
+
+          GestureDetector(
+            onTap: _showLogoutConfirmation,
+            child: Icon(Icons.logout_outlined, color: AppColors.darkGreen),
           ),
+          // CircleAvatar(
+          //   radius: AppSizes.spacing24,
+          //   backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
+          //   backgroundImage: const NetworkImage(
+          //     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
+          //   ),
+          //   onBackgroundImageError: (exception, stackTrace) {},
+          //   child: Container(
+          //     decoration: BoxDecoration(
+          //       shape: BoxShape.circle,
+          //       border: Border.all(
+          //         color: AppColors.primaryGreen.withValues(alpha: 0.3),
+          //         width: AppSizes.borderThin,
+          //       ),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -343,6 +350,141 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ),
       ),
     );
+  }
+
+  /// Show logout confirmation dialog
+  void _showLogoutConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+          ),
+          title: const Text(
+            'Logout',
+            style: TextStyle(
+              fontSize: AppTypography.fontSize18,
+              fontWeight: AppTypography.bold,
+              color: AppColors.textPrimary,
+              fontFamily: AppTypography.fontFamily,
+            ),
+          ),
+          content: const Text(
+            'Are you sure you want to logout?',
+            style: TextStyle(
+              fontSize: AppTypography.fontSize14,
+              color: AppColors.textSecondary,
+              fontFamily: AppTypography.fontFamily,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.semiBold,
+                  color: AppColors.textSecondary,
+                  fontFamily: AppTypography.fontFamily,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _handleLogout();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.errorColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radius4),
+                ),
+              ),
+              child: const Text(
+                'Logout',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.semiBold,
+                  color: Colors.white,
+                  fontFamily: AppTypography.fontFamily,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Handle logout process
+  Future<void> _handleLogout() async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primaryGreen,
+          ),
+        ),
+      );
+
+      // Perform logout
+      final authNotifier = ref.read(authProvider.notifier);
+      final success = await authNotifier.logout();
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (success && mounted) {
+        // Navigate to phone auth screen and clear navigation stack
+        context.go(RouteNames.phoneAuth);
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Logged out successfully'),
+            backgroundColor: AppColors.successColor,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else if (mounted) {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to logout. Please try again.'),
+            backgroundColor: AppColors.errorColor,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still showing
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: AppColors.errorColor,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 }
 

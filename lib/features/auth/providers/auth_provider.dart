@@ -618,6 +618,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Logout user and clear all local data
+  Future<bool> logout() async {
+    try {
+      // Clear local storage
+      await _authRepository.logout();
+
+      // Reset state
+      _resendTimer?.cancel();
+      state = const AuthState();
+
+      debugPrint('[AuthNotifier] User logged out successfully');
+      return true;
+    } catch (e) {
+      debugPrint('[AuthNotifier] Logout error: $e');
+      return false;
+    }
+  }
+
   void clearError() {
     state = state.copyWith(errorMessage: null);
   }

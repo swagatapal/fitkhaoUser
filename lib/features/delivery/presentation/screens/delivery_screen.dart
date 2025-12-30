@@ -456,12 +456,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Wrap(
                         children: [
                           const Text(
                             AppStrings.dailyGoal,
                             style: TextStyle(
-                              fontSize: AppTypography.fontSize18,
+                              fontSize: AppTypography.fontSize14,
                               fontWeight: AppTypography.bold,
                               color: Colors.white,
                               fontFamily: 'Lato',
@@ -505,7 +505,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       const Text(
                         AppStrings.recommendedIntake,
                         style: TextStyle(
-                          fontSize: AppTypography.fontSize13,
+                          fontSize: AppTypography.fontSize12,
                           fontWeight: AppTypography.medium,
                           color: Colors.white,
                           fontFamily: 'Lato',
@@ -573,7 +573,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 borderRadius: BorderRadius.circular(AppSizes.radius4),
               ),
               child: Text(
-                formattedDate,
+                "Lat updated $formattedDate",
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize12,
                   fontWeight: AppTypography.medium,
@@ -699,7 +699,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.all(AppSizes.spacing12),
+      padding: const EdgeInsets.all(AppSizes.spacing8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppSizes.radius8),
@@ -717,20 +717,31 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: AppSizes.icon24,
-          ),
-          const SizedBox(height: AppSizes.spacing8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: AppTypography.fontSize12,
-              fontWeight: AppTypography.medium,
-              color: AppColors.textSecondary,
-              fontFamily: 'Lato',
-            ),
+          // Icon(
+          //   icon,
+          //   color: color,
+          //   size: AppSizes.icon24,
+          // ),
+          // const SizedBox(height: AppSizes.spacing8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: color,
+                size: AppSizes.icon16,
+              ),
+              const SizedBox(width: AppSizes.spacing4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize12,
+                  fontWeight: AppTypography.medium,
+                  color: AppColors.textSecondary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSizes.spacing4),
           RichText(
