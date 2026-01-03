@@ -121,7 +121,7 @@ class ProfileUpdateRequest {
       gender: s.gender.isNotEmpty ? s.gender : null,
       weight: s.weight,
       height: s.height,
-      selectedGoal: s.selectedGoal.isNotEmpty ? s.selectedGoal : "regular-bmi-maintenance", // This is the user's goal (fat-loss, lean-mass-gain, etc)
+      selectedGoal: s.selectedGoal.isNotEmpty ? s.selectedGoal : "", // This is the user's goal (fat-loss, lean-mass-gain, etc)
       doesWorkout: s.doesExercise,
       workoutDaysPerWeek: s.exerciseDaysPerWeek,
       workoutHoursPerDay: s.exerciseDurationHours,

@@ -56,6 +56,7 @@ class AuthState {
   final double? targetKCalories;
   final DateTime? lastUpdatedTargetKCal;
   final String selectedGoal;
+  final String profession;
 
   // Profile update tracking
   final DateTime? profileUpdatedAt;
@@ -87,7 +88,7 @@ class AuthState {
     this.bmi,
     this.healthScore,
     this.doesExercise = false,
-    this.physicalActivityLevel = 'regular-bmi-maintenance',
+    this.physicalActivityLevel = '',
     this.exerciseDaysPerWeek,
     this.exerciseDurationHours,
     this.exerciseType = 'type-1',
@@ -108,6 +109,7 @@ class AuthState {
     this.targetKCalories,
     this.lastUpdatedTargetKCal,
     this.selectedGoal = '',
+    this.profession = "type-1",
     this.profileUpdatedAt,
   });
 
@@ -159,6 +161,7 @@ class AuthState {
     double? targetKCalories,
     DateTime? lastUpdatedTargetKCal,
     String? selectedGoal,
+    String? profession,
     DateTime? profileUpdatedAt,
   }) {
     return AuthState(
@@ -209,6 +212,7 @@ class AuthState {
       targetKCalories: targetKCalories ?? this.targetKCalories,
       lastUpdatedTargetKCal: lastUpdatedTargetKCal ?? this.lastUpdatedTargetKCal,
       selectedGoal: selectedGoal ?? this.selectedGoal,
+      profession: profession??this.profession,
       profileUpdatedAt: profileUpdatedAt ?? this.profileUpdatedAt,
     );
   }
