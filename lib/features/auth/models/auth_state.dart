@@ -213,7 +213,7 @@ class AuthState {
       lastUpdatedTargetKCal: lastUpdatedTargetKCal ?? this.lastUpdatedTargetKCal,
       selectedGoal: selectedGoal ?? this.selectedGoal,
       profession: profession??this.profession,
-      profileUpdatedAt: profileUpdatedAt ?? this.profileUpdatedAt,
+      profileUpdatedAt: lastUpdatedTargetKCal ?? this.lastUpdatedTargetKCal,
     );
   }
 }
