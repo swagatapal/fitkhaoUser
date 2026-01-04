@@ -82,6 +82,20 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
 
     if (response != null && mounted) {
       // OTP verified successfully
+      debugPrint('[OtpVerificationScreen] OTP verified, registering device...');
+
+      // Register device for push notifications
+      // Note: This runs in background and doesn't block navigation
+      authNotifier.registerDevice().then((success) {
+        if (success) {
+          debugPrint('[OtpVerificationScreen] Device registered successfully');
+        } else {
+          debugPrint('[OtpVerificationScreen] Device registration failed, but continuing...');
+        }
+      }).catchError((error) {
+        debugPrint('[OtpVerificationScreen] Device registration error: $error');
+      });
+
       // Check if user has a profile (name exists in profile)
       final hasProfile = response.user?.name != null &&
                          response.user!.name!.isNotEmpty;

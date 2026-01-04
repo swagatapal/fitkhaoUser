@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/providers.dart';
+import '../../../core/services/device_info_service.dart';
 import '../models/auth_state.dart';
 import '../models/profile_update_model.dart';
 import '../models/verify_otp_model.dart';
@@ -615,6 +616,46 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         errorMessage: e.toString().replaceAll('Exception: ', ''),
       );
+      return false;
+    }
+  }
+
+  /// Register device for push notifications
+  Future<bool> registerDevice() async {
+    try {
+      debugPrint('[AuthNotifier] Starting device registration...');
+
+      // Get device information
+      final deviceInfoService = DeviceInfoService.getInstance();
+      final deviceType = await deviceInfoService.getDeviceType();
+      final deviceId = await deviceInfoService.getDeviceId();
+      final deviceToken = await deviceInfoService.getDeviceToken();
+      final appVersion = await deviceInfoService.getAppVersion();
+
+      debugPrint('[AuthNotifier] Device Info - Type: $deviceType, ID: $deviceId, Version: $appVersion');
+
+      // Call API to register device
+      final response = await _authRepository.registerDevice(
+        deviceToken: deviceToken,
+        deviceType: deviceType,
+        deviceId: deviceId,
+        appVersion: appVersion,
+      );
+
+      final success = response['success'] == true;
+
+      if (success) {
+        debugPrint('[AuthNotifier] Device registered successfully');
+        return true;
+      } else {
+        final message = response['message'] as String? ?? 'Failed to register device';
+        debugPrint('[AuthNotifier] Device registration failed: $message');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('[AuthNotifier] Device registration error: $e');
+      // Don't fail the login process if device registration fails
+      // Just log the error and continue
       return false;
     }
   }

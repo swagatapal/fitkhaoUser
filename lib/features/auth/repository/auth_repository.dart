@@ -235,4 +235,56 @@ class AuthRepository {
       throw AuthException(message: message, originalError: e);
     }
   }
+
+  /// Register device for push notifications
+  Future<Map<String, dynamic>> registerDevice({
+    required String deviceToken,
+    required String deviceType,
+    required String deviceId,
+    required String appVersion,
+  }) async {
+    debugPrint('[AuthRepository] Registering device...');
+
+    try {
+      // Get auth token
+      final token = getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+          message: 'Authentication required. Please login again.',
+        );
+      }
+
+      // Prepare headers with Bearer token
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+
+      // Prepare payload
+      final payload = {
+        'deviceToken': deviceToken,
+        'deviceType': deviceType,
+        'deviceId': deviceId,
+        'appVersion': appVersion,
+        'userType': 'user',
+      };
+
+      debugPrint('[AuthRepository] Device registration payload: $payload');
+
+      // Make POST request
+      final json = await _apiClient.postJson(
+        '/api/device/register',
+        headers: headers,
+        body: payload,
+      );
+
+      debugPrint('[AuthRepository] Device registration response: $json');
+
+      return json;
+    } catch (e) {
+      debugPrint('[AuthRepository] Device registration error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw AuthException(message: message, originalError: e);
+    }
+  }
 }
