@@ -21,9 +21,7 @@ class DeliveryScreen extends ConsumerStatefulWidget {
 class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  bool _isProfileLoaded = false;
   bool _hasShownMembershipPopup = false;
-  bool _trendingLoaded = false;
 
   @override
   void initState() {
@@ -42,29 +40,28 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     super.dispose();
   }
 
+  /// Refresh all data
+  Future<void> _onRefresh() async {
+    await Future.wait([
+      _loadProfileData(),
+      _loadWalletBalance(),
+      //_loadTrending(),
+    ]);
+  }
+
   Future<void> _loadTrending() async {
-    if (_trendingLoaded) return;
     final notifier = ref.read(trendingProvider.notifier);
     await notifier.load(
       kitchenId: '691249acdcddaf162cea0e7a',
       timeSlot: 'morning',
       limit: 5,
     );
-    if (mounted) setState(() => _trendingLoaded = true);
   }
 
   /// Load user profile data
   Future<void> _loadProfileData() async {
-    if (_isProfileLoaded) return;
-
     final authNotifier = ref.read(authProvider.notifier);
     await authNotifier.loadProfile();
-
-    if (mounted) {
-      setState(() {
-        _isProfileLoaded = true;
-      });
-    }
   }
 
   /// Load wallet balance and subscription info
@@ -169,40 +166,45 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSizes.screenPaddingHorizontal,
+        child: RefreshIndicator(
+          onRefresh: _onRefresh,
+          color: AppColors.primaryGreen,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.screenPaddingHorizontal,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: AppSizes.spacing16),
+                      _buildHeader(),
+                      const SizedBox(height: AppSizes.spacing8),
+                      _trackSubscription(),
+                      // const SizedBox(height: AppSizes.spacing16),
+                      // _buildSearchBar(),
+                      const SizedBox(height: AppSizes.spacing12),
+                      _buildDailyGoalCard(),
+                      const SizedBox(height: AppSizes.spacing12),
+                      if (_shouldShowTodaysGoal()) _buildTodaysGoalSection(),
+                      if (_shouldShowTodaysGoal()) const SizedBox(height: AppSizes.spacing12),
+                      // const SizedBox(height: AppSizes.spacing24),
+                      // _buildCompleteYourMealButton(),
+                      const SizedBox(height: AppSizes.spacing16),
+                      _buildBrowseByCategories(),
+                    ],
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: AppSizes.spacing16),
-                    _buildHeader(),
-                    const SizedBox(height: AppSizes.spacing8),
-                    _trackSubscription(),
-                    // const SizedBox(height: AppSizes.spacing16),
-                    // _buildSearchBar(),
-                    const SizedBox(height: AppSizes.spacing12),
-                    _buildDailyGoalCard(),
-                    const SizedBox(height: AppSizes.spacing12),
-                    if (_shouldShowTodaysGoal()) _buildTodaysGoalSection(),
-                    if (_shouldShowTodaysGoal()) const SizedBox(height: AppSizes.spacing12),
-                    // const SizedBox(height: AppSizes.spacing24),
-                    // _buildCompleteYourMealButton(),
-                    const SizedBox(height: AppSizes.spacing16),
-                    _buildBrowseByCategories(),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSizes.spacing16),
-             // _buildTrendingNow(),
-              const SizedBox(height: AppSizes.spacing32),
-              const SizedBox(height: AppSizes.spacing32),
-              const SizedBox(height: AppSizes.spacing32),
-            ],
+                const SizedBox(height: AppSizes.spacing16),
+               // _buildTrendingNow(),
+                const SizedBox(height: AppSizes.spacing32),
+                const SizedBox(height: AppSizes.spacing32),
+                const SizedBox(height: AppSizes.spacing32),
+              ],
+            ),
           ),
         ),
       ),
