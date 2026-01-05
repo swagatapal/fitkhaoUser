@@ -198,7 +198,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 ),
               ),
               const SizedBox(height: AppSizes.spacing16),
-              _buildTrendingNow(),
+             // _buildTrendingNow(),
               const SizedBox(height: AppSizes.spacing32),
               const SizedBox(height: AppSizes.spacing32),
               const SizedBox(height: AppSizes.spacing32),
@@ -886,182 +886,182 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
-  Widget _buildTrendingNow() {
-    final trendingState = ref.watch(trendingProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.only(left: AppSizes.p20),
-          child: const Text(
-            AppStrings.trendingNow,
-            style: TextStyle(
-              fontSize: AppTypography.fontSize16,
-              fontWeight: AppTypography.bold,
-              color: AppColors.textPrimary,
-              fontFamily: 'Lato',
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSizes.spacing16),
-        SizedBox(
-          height: 160,
-          child: trendingState.when(
-            loading: () => ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: 3,
-              itemBuilder: (context, index) => _buildTrendingSkeleton(),
-            ),
-            error: (e, _) => Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSizes.p20),
-              child: Text(
-                e.toString(),
-                style: const TextStyle(color: AppColors.errorColor),
-              ),
-            ),
-            data: (items) => ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: items.length,
-              itemBuilder: (context, index) => _buildTrendingItem(
-                items[index].itemName,
-                items[index].avgPrice,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTrendingItem(String title, double price) {
-    return Padding(
-      padding: EdgeInsets.only(left: AppSizes.p20),
-      child: Container(
-        width: 160,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppSizes.radius4),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: AppSizes.shadowBlur10,
-              offset: const Offset(0, AppSizes.spacing4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(AppSizes.radius4),
-                  topRight: Radius.circular(AppSizes.radius4),
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(AppSizes.radius4),
-                  topRight: Radius.circular(AppSizes.radius4),
-                ),
-                child: Image.network(
-                  'https://img.freepik.com/free-photo/top-view-table-full-food_23-2149209253.jpg?semt=ais_hybrid&w=740&q=80',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                      child: const Icon(
-                        Icons.restaurant,
-                        size: AppSizes.icon48,
-                        color: AppColors.primaryGreen,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(AppSizes.spacing8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize14,
-                      fontWeight: AppTypography.semiBold,
-                      color: AppColors.textPrimary,
-                      fontFamily: 'Lato',
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: AppSizes.spacing4),
-                  Text(
-                    '₹ ${price.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize12,
-                      fontWeight: AppTypography.medium,
-                      color: AppColors.textSecondary,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTrendingSkeleton() {
-    return Padding(
-      padding: EdgeInsets.only(left: AppSizes.p20),
-      child: Container(
-        width: 160,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppSizes.radius4),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: AppSizes.shadowBlur10,
-              offset: const Offset(0, AppSizes.spacing4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              height: 100,
-              decoration: BoxDecoration(
-                color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(AppSizes.radius4),
-                  topRight: Radius.circular(AppSizes.radius4),
-                ),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.all(AppSizes.spacing8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: 12, width: 100),
-                  SizedBox(height: AppSizes.spacing4),
-                  SizedBox(height: 10, width: 60),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // Widget _buildTrendingNow() {
+  //   final trendingState = ref.watch(trendingProvider);
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       Padding(
+  //         padding: EdgeInsets.only(left: AppSizes.p20),
+  //         child: const Text(
+  //           AppStrings.trendingNow,
+  //           style: TextStyle(
+  //             fontSize: AppTypography.fontSize16,
+  //             fontWeight: AppTypography.bold,
+  //             color: AppColors.textPrimary,
+  //             fontFamily: 'Lato',
+  //           ),
+  //         ),
+  //       ),
+  //       const SizedBox(height: AppSizes.spacing16),
+  //       SizedBox(
+  //         height: 160,
+  //         child: trendingState.when(
+  //           loading: () => ListView.builder(
+  //             scrollDirection: Axis.horizontal,
+  //             itemCount: 3,
+  //             itemBuilder: (context, index) => _buildTrendingSkeleton(),
+  //           ),
+  //           error: (e, _) => Padding(
+  //             padding: EdgeInsets.symmetric(horizontal: AppSizes.p20),
+  //             child: Text(
+  //               e.toString(),
+  //               style: const TextStyle(color: AppColors.errorColor),
+  //             ),
+  //           ),
+  //           data: (items) => ListView.builder(
+  //             scrollDirection: Axis.horizontal,
+  //             itemCount: items.length,
+  //             itemBuilder: (context, index) => _buildTrendingItem(
+  //               items[index].itemName,
+  //               items[index].avgPrice,
+  //             ),
+  //           ),
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
+  //
+  // Widget _buildTrendingItem(String title, double price) {
+  //   return Padding(
+  //     padding: EdgeInsets.only(left: AppSizes.p20),
+  //     child: Container(
+  //       width: 160,
+  //       decoration: BoxDecoration(
+  //         color: Colors.white,
+  //         borderRadius: BorderRadius.circular(AppSizes.radius4),
+  //         boxShadow: [
+  //           BoxShadow(
+  //             color: Colors.black.withValues(alpha: 0.05),
+  //             blurRadius: AppSizes.shadowBlur10,
+  //             offset: const Offset(0, AppSizes.spacing4),
+  //           ),
+  //         ],
+  //       ),
+  //       child: Column(
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           Container(
+  //             width: double.infinity,
+  //             height: 100,
+  //             decoration: BoxDecoration(
+  //               color: AppColors.primaryGreen.withValues(alpha: 0.1),
+  //               borderRadius: const BorderRadius.only(
+  //                 topLeft: Radius.circular(AppSizes.radius4),
+  //                 topRight: Radius.circular(AppSizes.radius4),
+  //               ),
+  //             ),
+  //             child: ClipRRect(
+  //               borderRadius: const BorderRadius.only(
+  //                 topLeft: Radius.circular(AppSizes.radius4),
+  //                 topRight: Radius.circular(AppSizes.radius4),
+  //               ),
+  //               child: Image.network(
+  //                 'https://img.freepik.com/free-photo/top-view-table-full-food_23-2149209253.jpg?semt=ais_hybrid&w=740&q=80',
+  //                 fit: BoxFit.cover,
+  //                 errorBuilder: (context, error, stackTrace) {
+  //                   return Container(
+  //                     color: AppColors.primaryGreen.withValues(alpha: 0.1),
+  //                     child: const Icon(
+  //                       Icons.restaurant,
+  //                       size: AppSizes.icon48,
+  //                       color: AppColors.primaryGreen,
+  //                     ),
+  //                   );
+  //                 },
+  //               ),
+  //             ),
+  //           ),
+  //           Padding(
+  //             padding: const EdgeInsets.all(AppSizes.spacing8),
+  //             child: Column(
+  //               crossAxisAlignment: CrossAxisAlignment.start,
+  //               children: [
+  //                 Text(
+  //                   title,
+  //                   style: const TextStyle(
+  //                     fontSize: AppTypography.fontSize14,
+  //                     fontWeight: AppTypography.semiBold,
+  //                     color: AppColors.textPrimary,
+  //                     fontFamily: 'Lato',
+  //                   ),
+  //                   maxLines: 1,
+  //                   overflow: TextOverflow.ellipsis,
+  //                 ),
+  //                 const SizedBox(height: AppSizes.spacing4),
+  //                 Text(
+  //                   '₹ ${price.toStringAsFixed(0)}',
+  //                   style: const TextStyle(
+  //                     fontSize: AppTypography.fontSize12,
+  //                     fontWeight: AppTypography.medium,
+  //                     color: AppColors.textSecondary,
+  //                     fontFamily: 'Lato',
+  //                   ),
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
+  //
+  // Widget _buildTrendingSkeleton() {
+  //   return Padding(
+  //     padding: EdgeInsets.only(left: AppSizes.p20),
+  //     child: Container(
+  //       width: 160,
+  //       decoration: BoxDecoration(
+  //         color: Colors.white,
+  //         borderRadius: BorderRadius.circular(AppSizes.radius4),
+  //         boxShadow: [
+  //           BoxShadow(
+  //             color: Colors.black.withValues(alpha: 0.05),
+  //             blurRadius: AppSizes.shadowBlur10,
+  //             offset: const Offset(0, AppSizes.spacing4),
+  //           ),
+  //         ],
+  //       ),
+  //       child: Column(
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           Container(
+  //             width: double.infinity,
+  //             height: 100,
+  //             decoration: BoxDecoration(
+  //               color: AppColors.primaryGreen.withValues(alpha: 0.1),
+  //               borderRadius: const BorderRadius.only(
+  //                 topLeft: Radius.circular(AppSizes.radius4),
+  //                 topRight: Radius.circular(AppSizes.radius4),
+  //               ),
+  //             ),
+  //           ),
+  //           const Padding(
+  //             padding: EdgeInsets.all(AppSizes.spacing8),
+  //             child: Column(
+  //               crossAxisAlignment: CrossAxisAlignment.start,
+  //               children: [
+  //                 SizedBox(height: 12, width: 100),
+  //                 SizedBox(height: AppSizes.spacing4),
+  //                 SizedBox(height: 10, width: 60),
+  //               ],
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 }

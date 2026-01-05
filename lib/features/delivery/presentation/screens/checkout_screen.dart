@@ -23,21 +23,78 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String _selectedDeliveryDate = 'Tomorrow';
 
-  // Mock coupon balance
-  final double _couponBalance = 2399.0;
+  @override
+  void initState() {
+    super.initState();
+    // Load wallet data when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(walletProvider.notifier).loadWalletBalance();
+    });
+  }
+
+  /// Check if order can be placed
+  /// Requirements:
+  /// 1. Must have active subscription
+  /// 2. Subtotal must be less than or equal to coupon balance
+  bool _canPlaceOrder(double subTotal, WalletState walletState) {
+    final hasActiveSubscription = walletState.hasActiveSubscription;
+    final couponBalance = walletState.wallet?.couponBalance ?? 0.0;
+    final hasSufficientBalance = subTotal <= couponBalance;
+
+    debugPrint('[CheckoutScreen] Can place order check:');
+    debugPrint('  - Active subscription: $hasActiveSubscription');
+    debugPrint('  - Coupon balance: ₹$couponBalance');
+    debugPrint('  - Subtotal: ₹$subTotal');
+    debugPrint('  - Sufficient balance: $hasSufficientBalance');
+    debugPrint('  - Can place order: ${hasActiveSubscription && hasSufficientBalance}');
+
+    return hasActiveSubscription && hasSufficientBalance;
+  }
+
+  /// Get error message when order cannot be placed
+  String _getOrderValidationMessage(double subTotal, WalletState walletState) {
+    final hasActiveSubscription = walletState.hasActiveSubscription;
+    final couponBalance = walletState.wallet?.couponBalance ?? 0.0;
+    final hasSufficientBalance = subTotal <= couponBalance;
+
+    if (!hasActiveSubscription && !hasSufficientBalance) {
+      return 'No active subscription and insufficient coupon balance';
+    } else if (!hasActiveSubscription) {
+      return 'No active subscription. Please subscribe to place orders.';
+    } else if (!hasSufficientBalance) {
+      return 'Insufficient coupon balance. Required: ₹${subTotal.toStringAsFixed(2)}, Available: ₹${couponBalance.toStringAsFixed(2)}';
+    }
+    return '';
+  }
+
+  /// Format date string to readable format
+  String _formatDateString(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${date.day} ${months[date.month - 1]} ${date.year}';
+    } catch (e) {
+      // If parsing fails, return the original string
+      return dateString;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final cartItems = ref.watch(cartProvider);
     final totalPrice = ref.watch(cartTotalPriceProvider);
+    final walletState = ref.watch(walletProvider);
 
     // Calculate charges
     final gst = totalPrice * 0.05; // 5% GST
     final platformCharge = 7.0;
     final deliveryCharge = 0.0;
     final subTotal = totalPrice + gst + platformCharge + deliveryCharge;
-    final deducted = subTotal > _couponBalance ? _couponBalance : subTotal;
-    final remainingBalance = _couponBalance - deducted;
+
+    // Get coupon balance from wallet
+    final couponBalance = walletState.wallet?.couponBalance ?? 0.0;
+    final deducted = subTotal > couponBalance ? couponBalance : subTotal;
+    final remainingBalance = couponBalance - deducted;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -143,23 +200,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ],
             ),
           ),
-          CircleAvatar(
-            radius: AppSizes.spacing24,
-            backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-            backgroundImage: const NetworkImage(
-              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
-            ),
-            onBackgroundImageError: (exception, stackTrace) {},
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.3),
-                  width: AppSizes.borderThin,
-                ),
-              ),
-            ),
-          ),
+          // CircleAvatar(
+          //   radius: AppSizes.spacing24,
+          //   backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
+          //   backgroundImage: const NetworkImage(
+          //     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
+          //   ),
+          //   onBackgroundImageError: (exception, stackTrace) {},
+          //   child: Container(
+          //     decoration: BoxDecoration(
+          //       shape: BoxShape.circle,
+          //       border: Border.all(
+          //         color: AppColors.primaryGreen.withValues(alpha: 0.3),
+          //         width: AppSizes.borderThin,
+          //       ),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -434,7 +491,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     double remainingBalance,
       )
   {
-    final wallet = ref.watch(walletProvider).wallet;
+    final walletState = ref.watch(walletProvider);
+    final wallet = walletState.wallet;
+    final hasActiveSubscription = walletState.hasActiveSubscription;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -448,6 +508,74 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
         ),
         const SizedBox(height: AppSizes.spacing12),
+
+        // Subscription Status Indicator
+        Container(
+          padding: const EdgeInsets.all(AppSizes.spacing12),
+          margin: const EdgeInsets.only(bottom: AppSizes.spacing12),
+          decoration: BoxDecoration(
+            color: hasActiveSubscription
+                ? AppColors.primaryGreen.withValues(alpha: 0.1)
+                : AppColors.errorColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+            border: Border.all(
+              color: hasActiveSubscription
+                  ? AppColors.primaryGreen
+                  : AppColors.errorColor,
+              width: AppSizes.borderMedium,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                hasActiveSubscription
+                    ? Icons.check_circle
+                    : Icons.cancel,
+                color: hasActiveSubscription
+                    ? AppColors.primaryGreen
+                    : AppColors.errorColor,
+                size: AppSizes.icon24,
+              ),
+              const SizedBox(width: AppSizes.spacing12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasActiveSubscription
+                          ? 'Active Subscription'
+                          : 'No Active Subscription',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.semiBold,
+                        color: hasActiveSubscription
+                            ? AppColors.primaryGreen
+                            : AppColors.errorColor,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    if (walletState.subscription != null) ...[
+                      const SizedBox(height: AppSizes.spacing4),
+                      Text(
+                        hasActiveSubscription
+                            ? 'Valid till ${_formatDateString(walletState.subscription!.endDate)} (${walletState.subscription!.remainingDays} days left)'
+                            : 'Subscribe to place orders',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          fontWeight: AppTypography.regular,
+                          color: hasActiveSubscription
+                              ? AppColors.textSecondary
+                              : AppColors.errorColor,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
 
         // Item total, GST, Platform Charge, and Delivery Charge
         Container(
@@ -557,6 +685,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Widget _buildConfirmOrderButton() {
     final cartItems = ref.watch(cartProvider);
     final totalPrice = ref.watch(cartTotalPriceProvider);
+    final walletState = ref.watch(walletProvider);
 
     // Calculate total with GST, platform charge, and delivery charge
     final gst = totalPrice * 0.05; // 5% GST
@@ -564,29 +693,88 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final deliveryCharge = 0.0;
     final grandTotal = totalPrice + gst + platformCharge + deliveryCharge;
 
-    return SizedBox(
-      width: double.infinity,
-      height: AppSizes.buttonHeight,
-      child: ElevatedButton(
-        onPressed: cartItems.isEmpty ? null : () {
-          _showOrderConfirmationModal(cartItems, grandTotal);
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primaryGreen,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radius8),
+    // Check if order can be placed
+    final canPlaceOrder = _canPlaceOrder(grandTotal, walletState);
+    final validationMessage = _getOrderValidationMessage(grandTotal, walletState);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Show validation message if button is disabled
+        if (!canPlaceOrder && cartItems.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.all(AppSizes.spacing12),
+            margin: const EdgeInsets.only(bottom: AppSizes.spacing12),
+            decoration: BoxDecoration(
+              color: AppColors.errorColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+              border: Border.all(
+                color: AppColors.errorColor.withValues(alpha: 0.3),
+                width: AppSizes.borderThin,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: AppColors.errorColor,
+                  size: AppSizes.icon20,
+                ),
+                const SizedBox(width: AppSizes.spacing8),
+                Expanded(
+                  child: Text(
+                    validationMessage,
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      fontWeight: AppTypography.medium,
+                      color: AppColors.errorColor,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // Confirm Order Button
+        SizedBox(
+          width: double.infinity,
+          height: AppSizes.buttonHeight,
+          child: ElevatedButton(
+            onPressed: (cartItems.isEmpty || !canPlaceOrder)
+                ? null
+                : () {
+                    _showOrderConfirmationModal(cartItems, grandTotal);
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              disabledBackgroundColor: AppColors.textSecondary.withValues(alpha: 0.3),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+            ),
+            child: walletState.isLoading
+                ? const SizedBox(
+                    height: AppSizes.icon20,
+                    width: AppSizes.icon20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Text(
+                    AppStrings.confirmOrder,
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize16,
+                      fontWeight: AppTypography.semiBold,
+                      color: Colors.white,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
           ),
         ),
-        child: const Text(
-          AppStrings.confirmOrder,
-          style: TextStyle(
-            fontSize: AppTypography.fontSize16,
-            fontWeight: AppTypography.semiBold,
-            color: Colors.white,
-            fontFamily: 'Lato',
-          ),
-        ),
-      ),
+      ],
     );
   }
 

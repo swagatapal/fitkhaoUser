@@ -614,6 +614,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             final stepStatus = s.$1;
             final currentStatusIndex = _getStatusIndex(widget.order.orderStatus);
             final stepIndex = _getStatusIndex(stepStatus);
+            print(currentStatusIndex);
+            print(stepIndex);
             final isCompleted = currentStatusIndex > stepIndex;
             final isCurrent = widget.order.orderStatus.toLowerCase() == stepStatus.toLowerCase();
             final isLast = index == steps.length - 1;
@@ -745,8 +747,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         return 2;
       case 'assigned':
         return 3;
-      case 'delivered':
+      case 'out_for_delivery':
         return 4;
+      case 'delivered':
+        return 5;
       default:
         return 0;
     }
