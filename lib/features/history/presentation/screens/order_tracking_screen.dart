@@ -576,8 +576,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     final steps = [
       ('pending', 'Order Placed', 'We received your order'),
       ('confirmed', 'Order Confirmed', 'Kitchen confirmed your order'),
-      ('preparing', 'Preparing Order', 'Chef is preparing your meal'),
-      ('out-for-delivery', 'Out for Delivery', 'Rider is on the way'),
+      ('prepared', 'Preparing Order', 'Chef is preparing your meal'),
+      ('out_for_delivery', 'Out for Delivery', 'Rider is on the way'),
       ('delivered', 'Delivered', 'Enjoy your meal!'),
     ];
 
