@@ -108,7 +108,7 @@ class AuthState {
     this.targetCarbs,
     this.targetKCalories,
     this.lastUpdatedTargetKCal,
-    this.selectedGoal = '',
+    this.selectedGoal = 'regular-bmi-maintenance',
     this.profession = "type-1",
     this.profileUpdatedAt,
   });
