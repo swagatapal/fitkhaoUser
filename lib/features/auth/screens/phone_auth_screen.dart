@@ -193,7 +193,10 @@ Future<void> getPhoneNumber() async {
       result = await _phoneNumberHintPlugin.requestHint(
               ) ??
           '';
-      _phoneController.text = result;
+      final phone = removeFirstThreeChars(result);
+      _phoneController.text = phone;
+      ref.read(authProvider.notifier).updatePhoneNumber(phone);
+
     } on PlatformException {
       result = 'Failed to get hint.';
     }
@@ -206,6 +209,13 @@ Future<void> getPhoneNumber() async {
     setState(() {
       _result = result ?? '';
     });
+  }
+
+  String removeFirstThreeChars(String input) {
+    if (input.length <= 3) {
+      return '';
+    }
+    return input.substring(3);
   }
 
   @override
