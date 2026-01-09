@@ -43,9 +43,10 @@ class NutritionNotifier extends StateNotifier<NutritionState> {
 
   /// Get daily nutrition summary
   Future<void> getDailyNutritionSummary({String? date}) async {
-    // Use today's date if not provided
-    final targetDate = date ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
-
+    // Use tomorrow's date (current date + 1 day) if not provided
+    final targetDate = DateFormat('yyyy-MM-dd').format(
+      DateTime.now().add(const Duration(days: 1)),
+    );
 
     debugPrint('[NutritionNotifier] Fetching nutrition summary for: $targetDate');
 
