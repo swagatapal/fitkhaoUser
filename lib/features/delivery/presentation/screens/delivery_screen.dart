@@ -55,9 +55,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   Future<void> _loadTrending() async {
     final notifier = ref.read(trendingProvider.notifier);
     await notifier.load(
-      kitchenId: '691249acdcddaf162cea0e7a',
+      kitchenId: '69275ba5c538faaf25e2acd1',
       timeSlot: 'morning',
-      limit: 5,
+      limit: 10,
     );
   }
 
