@@ -9,6 +9,7 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/trending_provider.dart';
 import '../../providers/serviceability_provider.dart';
+import '../../providers/nutrition_provider.dart';
 import '../widgets/membership_popup.dart';
 import 'menu_list_screen.dart';
 
@@ -33,6 +34,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       _loadWalletBalance();
       _loadTrending();
       _checkServiceability();
+      _loadNutritionProgress();
     });
   }
 
@@ -48,6 +50,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       _loadProfileData(),
       _loadWalletBalance(),
       _checkServiceability(),
+      _loadNutritionProgress(),
       //_loadTrending(),
     ]);
   }
@@ -93,6 +96,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         longitude: authState.longitude!,
       );
     }
+  }
+
+  /// Load nutrition progress data
+  Future<void> _loadNutritionProgress() async {
+    final progressNotifier = ref.read(nutritionProgressProvider.notifier);
+    await progressNotifier.getDailyNutritionProgress();
   }
 
   /// Show membership popup on first load
@@ -211,7 +220,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       if (_shouldShowTodaysGoal()) const SizedBox(height: AppSizes.spacing12),
                       // const SizedBox(height: AppSizes.spacing24),
                       // _buildCompleteYourMealButton(),
-                      const SizedBox(height: AppSizes.spacing16),
+                     // const SizedBox(height: AppSizes.spacing16),
                       _buildBrowseByCategories(),
                     ],
                   ),
@@ -624,7 +633,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   Widget _buildTodaysGoalSection() {
     final authState = ref.watch(authProvider);
-    final targetKCalories = authState.targetKCalories ?? 0;
     final targetProtein = authState.targetProtein ?? 0;
     final targetFat = authState.targetFat ?? 0;
     final targetCarbs = authState.targetCarbs ?? 0;
@@ -674,109 +682,47 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             ),
           ],
         ),
-        const SizedBox(height: AppSizes.spacing16),
+        const SizedBox(height: AppSizes.spacing12),
 
-        // Daily Calorie Goal
-        Container(
-          padding: const EdgeInsets.all(AppSizes.spacing16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.primaryGreen.withValues(alpha: 0.1),
-                AppColors.primaryGreen.withValues(alpha: 0.05),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(AppSizes.radius8),
-            border: Border.all(
-              color: AppColors.primaryGreen.withValues(alpha: 0.3),
-              width: 1,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Daily Calorie Target',
-                    style: TextStyle(
-                      fontSize: AppTypography.fontSize14,
-                      fontWeight: AppTypography.medium,
-                      color: AppColors.textSecondary,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.spacing4),
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(
-                        fontSize: AppTypography.fontSize24,
-                        fontWeight: AppTypography.bold,
-                        color: AppColors.primaryGreen,
-                        fontFamily: 'Lato',
-                      ),
-                      children: [
-                        TextSpan(text: targetKCalories.toStringAsFixed(0)),
-                        const TextSpan(
-                          text: ' kcal',
-                          style: TextStyle(
-                            fontSize: AppTypography.fontSize14,
-                            fontWeight: AppTypography.medium,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              Icon(
-                Icons.local_fire_department,
-                color: AppColors.primaryGreen,
-                size: AppSizes.icon48,
-              ),
-            ],
-          ),
-        ),
+        // Nutrition Progress Section
+        _buildNutritionProgressSection(),
 
-        const SizedBox(height: AppSizes.spacing16),
+        //const SizedBox(height: AppSizes.spacing16),
 
         // Macronutrient Breakdown
-        Row(
-          children: [
-            Expanded(
-              child: _buildMacroCard(
-                label: 'Protein',
-                value: targetProtein,
-                unit: 'g',
-                color: const Color(0xFF4A7C3E),
-                icon: Icons.fitness_center,
-              ),
-            ),
-            const SizedBox(width: AppSizes.spacing12),
-            Expanded(
-              child: _buildMacroCard(
-                label: 'Carbs',
-                value: targetCarbs,
-                unit: 'g',
-                color: const Color(0xFFC66301),
-                icon: Icons.bakery_dining,
-              ),
-            ),
-            const SizedBox(width: AppSizes.spacing12),
-            Expanded(
-              child: _buildMacroCard(
-                label: 'Fat',
-                value: targetFat,
-                unit: 'g',
-                color: const Color(0xFF6BA84F),
-                icon: Icons.water_drop,
-              ),
-            ),
-          ],
-        ),
+        // Row(
+        //   children: [
+        //     Expanded(
+        //       child: _buildMacroCard(
+        //         label: 'Protein',
+        //         value: targetProtein,
+        //         unit: 'g',
+        //         color: const Color(0xFF4A7C3E),
+        //         icon: Icons.fitness_center,
+        //       ),
+        //     ),
+        //     const SizedBox(width: AppSizes.spacing12),
+        //     Expanded(
+        //       child: _buildMacroCard(
+        //         label: 'Carbs',
+        //         value: targetCarbs,
+        //         unit: 'g',
+        //         color: const Color(0xFFC66301),
+        //         icon: Icons.bakery_dining,
+        //       ),
+        //     ),
+        //     const SizedBox(width: AppSizes.spacing12),
+        //     Expanded(
+        //       child: _buildMacroCard(
+        //         label: 'Fat',
+        //         value: targetFat,
+        //         unit: 'g',
+        //         color: const Color(0xFF6BA84F),
+        //         icon: Icons.water_drop,
+        //       ),
+        //     ),
+        //   ],
+        // ),
       ],
     );
   }
@@ -857,6 +803,346 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildNutritionProgressSection() {
+    final progressState = ref.watch(nutritionProgressProvider);
+
+    if (progressState.isLoading) {
+      return Container(
+        height: 200,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+          border: Border.all(
+            color: AppColors.primaryGreen.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primaryGreen,
+          ),
+        ),
+      );
+    }
+
+    if (progressState.progressData == null) {
+      return const SizedBox.shrink();
+    }
+
+    final data = progressState.progressData!;
+    final targets = data.targets;
+    final progress = data.progress;
+
+    return Column(
+      children: [
+        // Calories Progress Card
+        Container(
+          padding: const EdgeInsets.all(AppSizes.spacing12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primaryGreen.withValues(alpha: 0.1),
+                AppColors.primaryGreen.withValues(alpha: 0.05),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+            border: Border.all(
+              color: AppColors.primaryGreen.withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Daily Calories',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize14,
+                          fontWeight: AppTypography.medium,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      const SizedBox(height: AppSizes.spacing4),
+                      RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontSize: AppTypography.fontSize20,
+                            fontWeight: AppTypography.bold,
+                            color: AppColors.primaryGreen,
+                            fontFamily: 'Lato',
+                          ),
+                          children: [
+                            TextSpan(text: progress.calories.consumed.toStringAsFixed(0)),
+                            const TextSpan(
+                              text: ' / ',
+                              style: TextStyle(
+                                fontSize: AppTypography.fontSize16,
+                                fontWeight: AppTypography.medium,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            TextSpan(
+                              text: targets.calories.toStringAsFixed(0),
+                              style: const TextStyle(
+                                fontSize: AppTypography.fontSize18,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const TextSpan(
+                              text: ' kcal',
+                              style: TextStyle(
+                                fontSize: AppTypography.fontSize14,
+                                fontWeight: AppTypography.medium,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSizes.spacing12,
+                      vertical: AppSizes.spacing4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getProgressColor(progress.calories.percentage),
+                      borderRadius: BorderRadius.circular(AppSizes.radius20),
+                    ),
+                    child: Text(
+                      '${progress.calories.percentage}%',
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.bold,
+                        color: Colors.white,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSizes.spacing12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppSizes.radius4),
+                child: LinearProgressIndicator(
+                  value: progress.calories.percentage / 100,
+                  minHeight: 8,
+                  backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _getProgressColor(progress.calories.percentage),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSizes.spacing8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Remaining: ${progress.calories.remaining.toStringAsFixed(0)} kcal',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      fontWeight: AppTypography.medium,
+                      color: AppColors.textSecondary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const Icon(
+                    Icons.local_fire_department,
+                    color: AppColors.primaryGreen,
+                    size: AppSizes.icon20,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSizes.spacing12),
+
+        // Macronutrients Progress
+        Row(
+          children: [
+            Expanded(
+              child: _buildMacroProgressCard(
+                label: 'Protein',
+                consumed: progress.protein.consumed,
+                target: targets.protein,
+                percentage: progress.protein.percentage,
+                unit: 'g',
+                color: const Color(0xFF4A7C3E),
+                icon: Icons.fitness_center,
+              ),
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+            Expanded(
+              child: _buildMacroProgressCard(
+                label: 'Carbs',
+                consumed: progress.carbs.consumed,
+                target: targets.carbs,
+                percentage: progress.carbs.percentage,
+                unit: 'g',
+                color: const Color(0xFFC66301),
+                icon: Icons.bakery_dining,
+              ),
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+            Expanded(
+              child: _buildMacroProgressCard(
+                label: 'Fat',
+                consumed: progress.fat.consumed,
+                target: targets.fat,
+                percentage: progress.fat.percentage,
+                unit: 'g',
+                color: const Color(0xFF6BA84F),
+                icon: Icons.water_drop,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMacroProgressCard({
+    required String label,
+    required double consumed,
+    required double target,
+    required int percentage,
+    required String unit,
+    required Color color,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spacing8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: AppSizes.shadowBlur10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Row(
+          //   mainAxisAlignment: MainAxisAlignment.center,
+          //   children: [
+          //     Icon(
+          //       icon,
+          //       color: color,
+          //       size: AppSizes.icon16,
+          //     ),
+          //     const SizedBox(width: AppSizes.spacing4),
+          //     Text(
+          //       label,
+          //       style: TextStyle(
+          //         fontSize: AppTypography.fontSize12,
+          //         fontWeight: AppTypography.semiBold,
+          //         color: AppColors.textPrimary,
+          //         fontFamily: 'Lato',
+          //       ),
+          //     ),
+          //   ],
+          // ),
+          // const SizedBox(height: AppSizes.spacing8),
+
+          // Circular progress indicator
+          SizedBox(
+            height: 50,
+            width: 50,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator(
+                  value: percentage / 100,
+                  strokeWidth: 6,
+                  backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _getProgressColor(percentage),
+                  ),
+                ),
+                Text(
+                  '$percentage%',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize10,
+                    fontWeight: AppTypography.semiBold,
+                    color: color,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+         // const SizedBox(height: AppSizes.spacing8),
+
+          // Consumed / Target
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              RichText(
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.bold,
+                    color: color,
+                    fontFamily: 'Lato',
+                  ),
+                  children: [
+                    TextSpan(text: consumed.toStringAsFixed(1)),
+                    TextSpan(
+                      text: unit,
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize10,
+                        fontWeight: AppTypography.medium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                ' /${target.toStringAsFixed(0)}$unit',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize10,
+                  fontWeight: AppTypography.semiBold,
+                  color: AppColors.textSecondary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getProgressColor(int percentage) {
+    if (percentage >= 100) {
+      return const Color(0xFFD32F2F); // Red for exceeded
+    } else if (percentage >= 80) {
+      return const Color(0xFFFF9800); // Orange for warning
+    } else if (percentage >= 50) {
+      return const Color(0xFF4A7C3E); // Green for good progress
+    } else {
+      return const Color(0xFF6BA84F); // Light green for low progress
+    }
   }
 
   Widget _buildCompleteYourMealButton() {
