@@ -8,6 +8,7 @@ import '../../../../shared/widgets/primary_button.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/trending_provider.dart';
+import '../../providers/serviceability_provider.dart';
 import '../widgets/membership_popup.dart';
 import 'menu_list_screen.dart';
 
@@ -31,6 +32,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       _loadProfileData();
       _loadWalletBalance();
       _loadTrending();
+      _checkServiceability();
     });
   }
 
@@ -45,6 +47,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     await Future.wait([
       _loadProfileData(),
       _loadWalletBalance(),
+      _checkServiceability(),
       //_loadTrending(),
     ]);
   }
@@ -75,6 +78,20 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       if (!walletState.hasActiveSubscription) {
         _showMembershipPopup();
       }
+    }
+  }
+
+  /// Check if delivery is serviceable for user's location
+  Future<void> _checkServiceability() async {
+    final authState = ref.read(authProvider);
+
+    // Only check if we have valid coordinates
+    if (authState.latitude != null && authState.longitude != null) {
+      final serviceabilityNotifier = ref.read(serviceabilityProvider.notifier);
+      await serviceabilityNotifier.checkServiceability(
+        latitude: authState.latitude!,
+        longitude: authState.longitude!,
+      );
     }
   }
 
@@ -183,6 +200,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       const SizedBox(height: AppSizes.spacing16),
                       _buildHeader(),
                       const SizedBox(height: AppSizes.spacing8),
+                      _buildServiceabilityBanner(),
                       _trackSubscription(),
                       // const SizedBox(height: AppSizes.spacing16),
                       // _buildSearchBar(),
@@ -209,6 +227,76 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildServiceabilityBanner() {
+    final serviceabilityState = ref.watch(serviceabilityProvider);
+
+    // Only show banner if serviceability check is complete and location is not serviceable
+    if (serviceabilityState.isServiceable == false) {
+      return Container(
+        width: MediaQuery.of(context).size.width,
+        margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.spacing16,
+          vertical: AppSizes.spacing12,
+        ),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFD32F2F), Color(0xFFC62828)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.warning_rounded,
+              color: Colors.white,
+              size: AppSizes.icon24,
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Delivery Not Available',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.bold,
+                      color: Colors.white,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.spacing4),
+                  Text(
+                    'Sorry, we cannot deliver food to your current address. Please check if you are in a serviceable area.',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      fontWeight: AppTypography.regular,
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Don't show anything if serviceable or still checking
+    return const SizedBox.shrink();
   }
 
   Widget _trackSubscription(){
@@ -784,6 +872,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   }
 
   Widget _buildBrowseByCategories() {
+    final serviceabilityState = ref.read(serviceabilityProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -797,19 +886,41 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           ),
         ),
         const SizedBox(height: AppSizes.spacing16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Stack(
           children: [
-            _buildCategoryCard(AppStrings.breakfast),
-            _buildCategoryCard(AppStrings.lunch),
-            _buildCategoryCard(AppStrings.dinner),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildCategoryCard(AppStrings.breakfast, "https://img.freepik.com/premium-photo/breakfast-buffet-full-continental-english_79295-5883.jpg?semt=ais_hybrid&w=740&q=80"),
+                _buildCategoryCard(AppStrings.lunch,"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQUfmoU1yzh652_lP_nyxMeEFMqA6_QaYb-5A&s"),
+                _buildCategoryCard(AppStrings.dinner,"https://media.istockphoto.com/id/868408746/photo/assorted-indian-dish.jpg?s=612x612&w=0&k=20&c=XLsAk571Z2kEe_x6TnXWSzsG95-2agp-TcYswQrKHuo="),
+              ],
+            ),
+            Visibility(
+              visible: serviceabilityState.isServiceable == false?true:false,
+              child: Container(
+                height: MediaQuery.of(context).size.height*0.2,
+                width: MediaQuery.of(context).size.width,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(8)
+                ),
+                child: Center(
+                  child: Text("Delivery Not Available", style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textWhite
+                  ),),
+                ),
+              ),
+            )
           ],
         ),
       ],
     );
   }
 
-  Widget _buildCategoryCard(String category) {
+  Widget _buildCategoryCard(String category, String categoryImage) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -854,7 +965,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                   topRight: Radius.circular(AppSizes.radius4),
                 ),
                 child: Image.network(
-                  'https://www.shutterstock.com/image-photo/fried-salmon-steak-cooked-green-600nw-2489026949.jpg',
+                  categoryImage,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(

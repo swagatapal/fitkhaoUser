@@ -832,12 +832,12 @@ class _MenuListScreenState extends ConsumerState<MenuListScreen> {
                       fontFamily: 'Lato',
                     ),
                   ),
-                  const SizedBox(width: AppSizes.spacing4),
-                  const Icon(
-                    Icons.delete_outline,
-                    color: AppColors.primaryGreen,
-                    size: AppSizes.icon16,
-                  ),
+                  // const SizedBox(width: AppSizes.spacing4),
+                  // const Icon(
+                  //   Icons.delete_outline,
+                  //   color: AppColors.primaryGreen,
+                  //   size: AppSizes.icon16,
+                  // ),
                 ],
               ),
             ),
