@@ -63,61 +63,67 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   const SizedBox(height: AppSizes.spacing12),
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: AppSizes.screenPaddingHorizontal),
+                      horizontal: AppSizes.screenPaddingHorizontal,
+                    ),
                     child: _buildSegmentedControl(context),
                   ),
                   const SizedBox(height: AppSizes.spacing12),
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: AppSizes.screenPaddingHorizontal),
+                      horizontal: AppSizes.screenPaddingHorizontal,
+                    ),
                     child: _buildSearchBar(),
                   ),
                   const SizedBox(height: AppSizes.spacing8),
 
-                   Expanded(
-                      child: Material(
-                        color: AppColors.textWhite,
-                        child: historyState.isLoading && historyState.orders.isEmpty
-                            ? _buildLoadingState()
-                            : historyState.error != null && historyState.orders.isEmpty
-                                ? _buildErrorState(historyState.error!, historyNotifier)
-                                : orders.isEmpty
-                                    ? _buildEmptyState()
-                                    : RefreshIndicator(
-                                        onRefresh: () => historyNotifier.refresh(),
-                                        child: ListView.separated(
-                                          padding: const EdgeInsets.only(
-                                            left: AppSizes.screenPaddingHorizontal,
-                                            right: AppSizes.screenPaddingHorizontal,
-                                            bottom: AppSizes.spacing24,
-                                          ),
-                                          itemCount: orders.length,
-                                          separatorBuilder: (_, __) =>
-                                              const SizedBox(height: AppSizes.spacing12),
-                                          itemBuilder: (context, index) {
-                                            final order = orders[index];
-                                            return _OrderCard(
-                                              order: order,
-                                              isUpcoming:
-                                                  _selected == _HistoryFilter.upcoming,
-                                              onTap: () {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        OrderTrackingScreen(order: order),
-                                                  ),
-                                                );
-                                              },
-                                            );
-                                          },
+                  Expanded(
+                    child: Material(
+                      color: AppColors.textWhite,
+                      child:
+                          historyState.isLoading && historyState.orders.isEmpty
+                          ? _buildLoadingState()
+                          : historyState.error != null &&
+                                historyState.orders.isEmpty
+                          ? _buildErrorState(
+                              historyState.error!,
+                              historyNotifier,
+                            )
+                          : orders.isEmpty
+                          ? _buildEmptyState()
+                          : RefreshIndicator(
+                              onRefresh: () => historyNotifier.refresh(),
+                              child: ListView.separated(
+                                padding: const EdgeInsets.only(
+                                  left: AppSizes.screenPaddingHorizontal,
+                                  right: AppSizes.screenPaddingHorizontal,
+                                  bottom: AppSizes.spacing24,
+                                ),
+                                itemCount: orders.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: AppSizes.spacing12),
+                                itemBuilder: (context, index) {
+                                  final order = orders[index];
+                                  return _OrderCard(
+                                    order: order,
+                                    isUpcoming:
+                                        _selected == _HistoryFilter.upcoming,
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              OrderTrackingScreen(order: order),
                                         ),
-                                      ),
-                      ),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
                     ),
+                  ),
 
                   const SizedBox(height: AppSizes.spacing48),
-
                 ],
               ),
             ),
@@ -129,9 +135,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   Widget _buildLoadingState() {
     return const Center(
-      child: CircularProgressIndicator(
-        color: AppColors.primaryGreen,
-      ),
+      child: CircularProgressIndicator(color: AppColors.primaryGreen),
     );
   }
 
@@ -177,8 +181,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFEFF5EC),
         borderRadius: BorderRadius.circular(
-            context.responsiveSpacing(AppSizes.radius50)),
-        border: Border.all(color: AppColors.primaryGreen, width: AppSizes.borderThin),
+          context.responsiveSpacing(AppSizes.radius50),
+        ),
+        border: Border.all(
+          color: AppColors.primaryGreen,
+          width: AppSizes.borderThin,
+        ),
       ),
       child: Row(
         children: [
@@ -428,9 +436,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(
-          child: CircularProgressIndicator(
-            color: AppColors.primaryGreen,
-          ),
+          child: CircularProgressIndicator(color: AppColors.primaryGreen),
         ),
       );
 
@@ -492,7 +498,12 @@ class _SegmentChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _SegmentChip({required this.label, required this.selected, required this.onTap});
+
+  const _SegmentChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -507,7 +518,8 @@ class _SegmentChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? AppColors.primaryGreen : Colors.transparent,
             borderRadius: BorderRadius.circular(
-                context.responsiveSpacing(AppSizes.spacing30)),
+              context.responsiveSpacing(AppSizes.spacing30),
+            ),
           ),
           child: Center(
             child: Text(
@@ -530,7 +542,12 @@ class _OrderCard extends StatelessWidget {
   final OrderHistory order;
   final bool isUpcoming;
   final VoidCallback onTap;
-  const _OrderCard({required this.order, required this.isUpcoming, required this.onTap});
+
+  const _OrderCard({
+    required this.order,
+    required this.isUpcoming,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -551,7 +568,7 @@ class _OrderCard extends StatelessWidget {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(AppSizes.p16),
+          padding: const EdgeInsets.all(AppSizes.p12),
           child: Row(
             children: [
               // Kitchen logo/icon placeholder
@@ -564,12 +581,13 @@ class _OrderCard extends StatelessWidget {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(AppSizes.radius4),
-                  child: Image.network("https://media.istockphoto.com/id/877317520/photo/burgers-on-the-dark-rustic-background.jpg?s=612x612&w=0&k=20&c=3wXk0Lh-aKBjzvqqmujDOhUXEaydf4M__eT9xzyxM_A=",
+                  child: Image.network(
+                    "https://media.istockphoto.com/id/877317520/photo/burgers-on-the-dark-rustic-background.jpg?s=612x612&w=0&k=20&c=3wXk0Lh-aKBjzvqqmujDOhUXEaydf4M__eT9xzyxM_A=",
                     width: 70,
                     height: 70,
                     fit: BoxFit.cover,
                   ),
-                )
+                ),
               ),
               const SizedBox(width: AppSizes.spacing12),
               Expanded(
@@ -579,24 +597,31 @@ class _OrderCard extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            order.kitchen.name,
-                            style: const TextStyle(
-                              fontSize: AppTypography.fontSize16,
-                              fontWeight: AppTypography.semiBold,
-                              color: AppColors.textPrimary,
-                              fontFamily: AppTypography.fontFamily,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: order.items.map((item) {
+                              return Text(
+                                item.itemName,
+                                style: const TextStyle(
+                                  fontSize: AppTypography.fontSize14,
+                                  fontWeight: AppTypography.semiBold,
+                                  color: AppColors.textPrimary,
+                                  fontFamily: AppTypography.fontFamily,
+                                ),
+                              );
+                            }).toList(),
                           ),
                         ),
-                        const Icon(Icons.chevron_right, color: AppColors.darkGreen),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: AppColors.darkGreen,
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 4),
                     Text(
-                      'Order #${order.orderNumber} • ${order.items.length} items',
+                      'Order #${order.orderNumber} • ${order.items.length} items • (${order.kitchen.name} kitchen)',
                       style: const TextStyle(
-                        fontSize: AppTypography.fontSize13,
+                        fontSize: AppTypography.fontSize12,
                         color: AppColors.textSecondary,
                         fontFamily: AppTypography.fontFamily,
                       ),
@@ -604,7 +629,10 @@ class _OrderCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        _statusPill(_getStatusText(order.orderStatus), _getStatusColor(order.orderStatus)),
+                        _statusPill(
+                          _getStatusText(order.orderStatus),
+                          _getStatusColor(order.orderStatus),
+                        ),
                         const Spacer(),
                         Text(
                           _formatDate(order.createdAt),
@@ -615,10 +643,10 @@ class _OrderCard extends StatelessWidget {
                           ),
                         ),
                       ],
-                    )
+                    ),
                   ],
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -628,7 +656,10 @@ class _OrderCard extends StatelessWidget {
 
   static Widget _statusPill(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.p10, vertical: AppSizes.p4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.p10,
+        vertical: AppSizes.p4,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppSizes.radius4),
@@ -671,12 +702,13 @@ class _OrderCard extends StatelessWidget {
         return Colors.orange;
       case 'confirmed':
       case 'preparing':
+        return Colors.orange;
+      case 'prepared':
         return AppColors.primaryGreen;
-      case 'out_for_delivery':
       case 'out-for-delivery':
         return Colors.blue;
       case 'delivered':
-        return AppColors.successColor;
+        return AppColors.textSecondary;
       case 'cancelled':
         return AppColors.errorColor;
       default:

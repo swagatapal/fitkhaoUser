@@ -216,23 +216,23 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               ],
             ),
           ),
-          CircleAvatar(
-            radius: AppSizes.spacing24,
-            backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-            backgroundImage: const NetworkImage(
-              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
-            ),
-            onBackgroundImageError: (exception, stackTrace) {},
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.3),
-                  width: AppSizes.borderThin,
-                ),
-              ),
-            ),
-          ),
+          // CircleAvatar(
+          //   radius: AppSizes.spacing24,
+          //   backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
+          //   backgroundImage: const NetworkImage(
+          //     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
+          //   ),
+          //   onBackgroundImageError: (exception, stackTrace) {},
+          //   child: Container(
+          //     decoration: BoxDecoration(
+          //       shape: BoxShape.circle,
+          //       border: Border.all(
+          //         color: AppColors.primaryGreen.withValues(alpha: 0.3),
+          //         width: AppSizes.borderThin,
+          //       ),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );

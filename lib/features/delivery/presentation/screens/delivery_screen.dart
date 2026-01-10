@@ -206,7 +206,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: AppSizes.spacing16),
+                      const SizedBox(height: AppSizes.spacing4),
                       _buildHeader(),
                       const SizedBox(height: AppSizes.spacing8),
                       _buildServiceabilityBanner(),
@@ -358,7 +358,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               Text(
                 '${AppStrings.greetings} ${ref.watch(authProvider).name.isNotEmpty ? ref.watch(authProvider).name : 'User'},',
                 style: const TextStyle(
-                  fontSize: AppTypography.fontSize24,
+                  fontSize: AppTypography.fontSize20,
                   fontWeight: AppTypography.bold,
                   color: AppColors.textPrimary,
                   fontFamily: 'Lato',
@@ -376,7 +376,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                   Text(
                     _getUserLocation(),
                     style: const TextStyle(
-                      fontSize: AppTypography.fontSize14,
+                      fontSize: AppTypography.fontSize13,
                       fontWeight: AppTypography.regular,
                       color: AppColors.textSecondary,
                       fontFamily: 'Lato',
@@ -1162,16 +1162,22 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          AppStrings.browseByCategories,
-          style: TextStyle(
-            fontSize: AppTypography.fontSize16,
-            fontWeight: AppTypography.bold,
-            color: AppColors.textPrimary,
-            fontFamily: 'Lato',
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              AppStrings.browseByCategories,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize16,
+                fontWeight: AppTypography.bold,
+                color: AppColors.textPrimary,
+                fontFamily: 'Lato',
+              ),
+            ),
+            Icon(Icons.shopping_cart, color: AppColors.darkGreen,size: 20,)
+          ],
         ),
-        const SizedBox(height: AppSizes.spacing16),
+        const SizedBox(height: AppSizes.spacing12),
         Stack(
           children: [
             Row(
