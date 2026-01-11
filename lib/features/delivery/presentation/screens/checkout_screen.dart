@@ -29,26 +29,61 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // Load wallet data when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(walletProvider.notifier).loadWalletBalance();
+
+      // Check if ordering time has passed and show blocking popup
+      if (_isOrderingTimePassed()) {
+        _showOrderingTimeBlockedDialog();
+      }
     });
+  }
+
+  /// Check if current time is after 10 PM (22:00)
+  bool _isOrderingTimePassed() {
+    final now = DateTime.now();
+    final orderDeadline = DateTime(now.year, now.month, now.day, 22, 0); // 10 PM
+    return now.isAfter(orderDeadline);
+  }
+
+  /// Get time remaining until 10 PM
+  String _getTimeRemainingText() {
+    final now = DateTime.now();
+    final orderDeadline = DateTime(now.year, now.month, now.day, 22, 0); // 10 PM
+
+    if (now.isAfter(orderDeadline)) {
+      return 'Order time has passed';
+    }
+
+    final difference = orderDeadline.difference(now);
+    final hours = difference.inHours;
+    final minutes = difference.inMinutes.remainder(60);
+
+    if (hours > 0) {
+      return '$hours hr ${minutes} min left';
+    } else {
+      return '$minutes min left';
+    }
   }
 
   /// Check if order can be placed
   /// Requirements:
   /// 1. Must have active subscription
   /// 2. Subtotal must be less than or equal to coupon balance
+  /// 3. Current time must be before 10 PM
   bool _canPlaceOrder(double subTotal, WalletState walletState) {
     final hasActiveSubscription = walletState.hasActiveSubscription;
     final couponBalance = walletState.wallet?.couponBalance ?? 0.0;
     final hasSufficientBalance = subTotal <= couponBalance;
+    final isWithinOrderingTime = !_isOrderingTimePassed();
 
     debugPrint('[CheckoutScreen] Can place order check:');
     debugPrint('  - Active subscription: $hasActiveSubscription');
     debugPrint('  - Coupon balance: ₹$couponBalance');
     debugPrint('  - Subtotal: ₹$subTotal');
     debugPrint('  - Sufficient balance: $hasSufficientBalance');
-    debugPrint('  - Can place order: ${hasActiveSubscription && hasSufficientBalance}');
+    debugPrint('  - Within ordering time: $isWithinOrderingTime');
+    debugPrint('  - Can place order: ${hasActiveSubscription && hasSufficientBalance && isWithinOrderingTime}');
 
-    return hasActiveSubscription && hasSufficientBalance;
+    return hasActiveSubscription && hasSufficientBalance && isWithinOrderingTime;
   }
 
   /// Get error message when order cannot be placed
@@ -57,7 +92,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final couponBalance = walletState.wallet?.couponBalance ?? 0.0;
     final hasSufficientBalance = subTotal <= couponBalance;
 
-    if (!hasActiveSubscription && !hasSufficientBalance) {
+    if (_isOrderingTimePassed()) {
+      return 'Ordering time has passed. Orders are accepted until 10:00 PM only.';
+    } else if (!hasActiveSubscription && !hasSufficientBalance) {
       return 'No active subscription and insufficient coupon balance';
     } else if (!hasActiveSubscription) {
       return 'No active subscription. Please subscribe to place orders.';
@@ -111,13 +148,22 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: AppSizes.spacing20),
-                      _buildFitKhaoLogo(),
-                      const SizedBox(height: AppSizes.spacing20),
+                      const SizedBox(height: AppSizes.spacing16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildFitKhaoLogo(),
+                          const SizedBox(width: AppSizes.spacing12),
+                          Expanded(
+                            child: _buildOrderTimeAlert(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSizes.spacing16),
                       _buildCartItems(cartItems),
-                      const SizedBox(height: AppSizes.spacing24),
+                      const SizedBox(height: AppSizes.spacing20),
                       _buildDeliveryDateSection(),
-                      const SizedBox(height: AppSizes.spacing24),
+                      const SizedBox(height: AppSizes.spacing20),
                       _buildPaymentSummary(
                         totalPrice,
                         gst,
@@ -224,6 +270,252 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   Widget _buildFitKhaoLogo() {
     return LogoWidget();
+  }
+
+  Widget _buildOrderTimeAlert() {
+    final now = DateTime.now();
+    final orderDeadline = DateTime(now.year, now.month, now.day, 22, 0); // 10 PM
+    final isTimePassed = now.isAfter(orderDeadline);
+    final difference = orderDeadline.difference(now);
+    final hours = difference.inHours;
+    final minutes = difference.inMinutes.remainder(60);
+
+    // Determine urgency level
+    final isUrgent = difference.inMinutes <= 60 && !isTimePassed; // Less than 1 hour
+    final isWarning = difference.inHours <= 3 && !isTimePassed; // Less than 3 hours
+
+    Color backgroundColor;
+    Color borderColor;
+    Color textColor;
+    Color iconColor;
+    IconData icon;
+    String message;
+    String timeText;
+
+    if (isTimePassed) {
+      backgroundColor = const Color(0xFFD32F2F).withValues(alpha: 0.1);
+      borderColor = const Color(0xFFD32F2F);
+      textColor = const Color(0xFFD32F2F);
+      iconColor = const Color(0xFFD32F2F);
+      icon = Icons.block;
+      message = 'Ordering Closed';
+      timeText = 'Orders accepted until 10:00 PM';
+    } else if (isUrgent) {
+      backgroundColor = const Color(0xFFFF6B6B).withValues(alpha: 0.15);
+      borderColor = const Color(0xFFFF6B6B);
+      textColor = const Color(0xFFD32F2F);
+      iconColor = const Color(0xFFFF6B6B);
+      icon = Icons.access_time_filled;
+      message = 'Order Soon!';
+      timeText = hours > 0 ? '$hours hr $minutes min left' : '$minutes min left';
+    } else if (isWarning) {
+      backgroundColor = const Color(0xFFFF9800).withValues(alpha: 0.1);
+      borderColor = const Color(0xFFFF9800);
+      textColor = const Color(0xFFFF9800);
+      iconColor = const Color(0xFFFF9800);
+      icon = Icons.schedule;
+      message = 'Place Order Before 10 PM';
+      timeText = '$hours hr $minutes min left';
+    } else {
+      backgroundColor = AppColors.primaryGreen.withValues(alpha: 0.1);
+      borderColor = AppColors.primaryGreen;
+      textColor = AppColors.primaryGreen;
+      iconColor = AppColors.primaryGreen;
+      icon = Icons.check_circle_outline;
+      message = 'Place Order Before 10 PM';
+      timeText = '$hours hr $minutes min left';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spacing4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            backgroundColor,
+            backgroundColor.withValues(alpha: backgroundColor.a * 0.5),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(
+          color: borderColor,
+          width: 2,
+        ),
+        // boxShadow: [
+        //   BoxShadow(
+        //     color: borderColor.withValues(alpha: 0.2),
+        //     blurRadius: 8,
+        //     offset: const Offset(0, 2),
+        //   ),
+        // ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSizes.spacing4),
+            decoration: BoxDecoration(
+              color: borderColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppSizes.radius6),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: AppSizes.icon16,
+            ),
+          ),
+          const SizedBox(width: AppSizes.spacing12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize10,
+                    fontWeight: AppTypography.semiBold,
+                    color: textColor,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: AppSizes.spacing2),
+                Text(
+                  timeText,
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    fontWeight: AppTypography.extraBold,
+                    color: textColor.withValues(alpha: 0.8),
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isUrgent && !isTimePassed)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.spacing8,
+                vertical: AppSizes.spacing4,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF6B6B),
+                borderRadius: BorderRadius.circular(AppSizes.radius12),
+              ),
+              child: const Text(
+                'URGENT',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize10,
+                  fontWeight: AppTypography.bold,
+                  color: Colors.white,
+                  fontFamily: 'Lato',
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showOrderingTimeBlockedDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => WillPopScope(
+        onWillPop: () async => false,
+        child: Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radius16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSizes.spacing24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppSizes.spacing20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD32F2F).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.access_time,
+                    size: AppSizes.icon60,
+                    color: Color(0xFFD32F2F),
+                  ),
+                ),
+                const SizedBox(height: AppSizes.spacing20),
+                const Text(
+                  'Ordering Time Has Passed',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize20,
+                    fontWeight: AppTypography.bold,
+                    color: Color(0xFFD32F2F),
+                    fontFamily: 'Lato',
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSizes.spacing12),
+                const Text(
+                  'We accept orders until 10:00 PM only.',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.regular,
+                    color: AppColors.textSecondary,
+                    fontFamily: 'Lato',
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSizes.spacing8),
+                Container(
+                  padding: const EdgeInsets.all(AppSizes.spacing12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                  child: const Text(
+                    'Please come back tomorrow between 6:00 AM - 10:00 PM to place your order.',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize13,
+                      fontWeight: AppTypography.medium,
+                      color: AppColors.primaryGreen,
+                      fontFamily: 'Lato',
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: AppSizes.spacing24),
+                SizedBox(
+                  width: double.infinity,
+                  height: AppSizes.buttonHeight,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      context.pop();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD32F2F),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppSizes.radius8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Go Back',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize16,
+                        fontWeight: AppTypography.semiBold,
+                        color: Colors.white,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildCartItems(List<CartItem> cartItems) {
