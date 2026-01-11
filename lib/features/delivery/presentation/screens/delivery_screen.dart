@@ -10,6 +10,7 @@ import '../../providers/wallet_provider.dart';
 import '../../providers/trending_provider.dart';
 import '../../providers/serviceability_provider.dart';
 import '../../providers/nutrition_provider.dart';
+import '../../providers/cart_provider.dart';
 import '../widgets/membership_popup.dart';
 import 'menu_list_screen.dart';
 
@@ -1174,7 +1175,49 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 fontFamily: 'Lato',
               ),
             ),
-            Icon(Icons.shopping_cart, color: AppColors.darkGreen,size: 20,)
+            Consumer(
+              builder: (context, ref, child) {
+                final totalItems = ref.watch(cartTotalItemsProvider);
+
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(
+                      Icons.shopping_cart,
+                      color: AppColors.darkGreen,
+                      size: 20,
+                    ),
+                    if (totalItems > 0)
+                      Positioned(
+                        right: -AppSizes.spacing6,
+                        top: -AppSizes.spacing4,
+                        child: Container(
+                          padding: const EdgeInsets.all(AppSizes.spacing4),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primaryGreen,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: AppSizes.spacing16,
+                            minHeight: AppSizes.spacing16,
+                          ),
+                          child: Center(
+                            child: Text(
+                              totalItems.toString(),
+                              style: const TextStyle(
+                                fontSize: AppTypography.fontSize10,
+                                fontWeight: AppTypography.bold,
+                                color: Colors.white,
+                                fontFamily: 'Lato',
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            )
           ],
         ),
         const SizedBox(height: AppSizes.spacing12),
