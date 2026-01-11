@@ -514,7 +514,10 @@ class _MenuListScreenState extends ConsumerState<MenuListScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          category,
+          category == "Lean Mass Gain"? "High Protein Meals":
+          category == "BMI Maintenance"? "Balanced Meals":
+          category == "Fat Loss"? "High Fibre Meals":"Others"
+          ,
           style: const TextStyle(
             fontSize: AppTypography.fontSize18,
             fontWeight: AppTypography.bold,
