@@ -1,3 +1,4 @@
+import 'package:fitkhao_user/features/delivery/presentation/widgets/assign_meal_list_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -222,7 +223,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       // const SizedBox(height: AppSizes.spacing24),
                       // _buildCompleteYourMealButton(),
                      // const SizedBox(height: AppSizes.spacing16),
-                      _buildBrowseByCategories(),
+                     // _buildBrowseByCategories(),
+                      MealPlanWidget(userId: '693c20761cf6bf526e184835')
                     ],
                   ),
                 ),
@@ -374,13 +376,17 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                     color: AppColors.primaryGreen,
                   ),
                   const SizedBox(width: AppSizes.spacing4),
-                  Text(
-                    _getUserLocation(),
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize13,
-                      fontWeight: AppTypography.regular,
-                      color: AppColors.textSecondary,
-                      fontFamily: 'Lato',
+                  Expanded(
+                    child: Text(
+                      _getUserLocation(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize13,
+                        fontWeight: AppTypography.regular,
+                        color: AppColors.textSecondary,
+                        fontFamily: 'Lato',
+                      ),
                     ),
                   ),
                 ],
@@ -1512,4 +1518,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   //     ),
   //   );
   // }
+
+
+
 }
