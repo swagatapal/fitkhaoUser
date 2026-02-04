@@ -483,7 +483,7 @@ class _RechargeTopupModalState extends ConsumerState<RechargeTopupModal> {
                     borderRadius: BorderRadius.circular(AppSizes.radius4),
                   ),
                   child: DropdownButtonFormField<String>(
-                    initialValue: _selectedPaymentMethod,
+                    //initialValue: _selectedPaymentMethod,
                     decoration: InputDecoration(
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: AppSizes.spacing16,

@@ -312,7 +312,7 @@ class _OrderConfirmationModalState
                     borderRadius: BorderRadius.circular(AppSizes.radius4),
                   ),
                   child: DropdownButtonFormField<String>(
-                    initialValue: _selectedDeliverySlot,
+                    //initialValue: _selectedDeliverySlot,
                     decoration: InputDecoration(
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: AppSizes.spacing16,
