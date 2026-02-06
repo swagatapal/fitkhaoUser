@@ -678,7 +678,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 borderRadius: BorderRadius.circular(AppSizes.radius4),
               ),
               child: Text(
-                "Lat updated $formattedDate",
+                "Last updated $formattedDate",
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize12,
                   fontWeight: AppTypography.medium,

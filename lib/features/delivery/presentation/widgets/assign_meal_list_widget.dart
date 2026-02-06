@@ -450,7 +450,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           const SizedBox(height: 16),
           _buildTabBarView(),
           // const SizedBox(height: 16),
-          // _buildNutritionSummary(),
+           _buildNutritionSummary(),
         ],
       ),
     );
@@ -934,91 +934,91 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     });
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.darkGreen,
-            AppColors.primaryGreen,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryGreen.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.assessment_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-              SizedBox(width: 12),
-              Text(
-                'Daily Nutrition Summary',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: _buildSummaryItem(
-                  'Calories',
-                  totalKcal.toStringAsFixed(0),
-                  'kcal',
-                  Icons.local_fire_department_rounded,
-                ),
-              ),
-              Expanded(
-                child: _buildSummaryItem(
-                  'Protein',
-                  totalProtein.toStringAsFixed(1),
-                  'g',
-                  Icons.fitness_center_rounded,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildSummaryItem(
-                  'Fat',
-                  totalFat.toStringAsFixed(1),
-                  'g',
-                  Icons.opacity_rounded,
-                ),
-              ),
-              Expanded(
-                child: _buildSummaryItem(
-                  'Carbs',
-                  totalCarbs.toStringAsFixed(1),
-                  'g',
-                  Icons.grain_rounded,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+      // padding: const EdgeInsets.all(16),
+      // decoration: BoxDecoration(
+      //   gradient: LinearGradient(
+      //     begin: Alignment.topLeft,
+      //     end: Alignment.bottomRight,
+      //     colors: [
+      //       AppColors.darkGreen,
+      //       AppColors.primaryGreen,
+      //     ],
+      //   ),
+      //   borderRadius: BorderRadius.circular(8),
+      //   boxShadow: [
+      //     BoxShadow(
+      //       color: AppColors.primaryGreen.withOpacity(0.3),
+      //       blurRadius: 20,
+      //       offset: const Offset(0, 10),
+      //     ),
+      //   ],
+      // ),
+      // child: Column(
+      //   crossAxisAlignment: CrossAxisAlignment.start,
+      //   mainAxisSize: MainAxisSize.min,
+      //   children: [
+      //     const Row(
+      //       children: [
+      //         Icon(
+      //           Icons.assessment_rounded,
+      //           color: Colors.white,
+      //           size: 24,
+      //         ),
+      //         SizedBox(width: 12),
+      //         Text(
+      //           'Daily Nutrition Summary',
+      //           style: TextStyle(
+      //             fontSize: 18,
+      //             fontWeight: FontWeight.bold,
+      //             color: Colors.white,
+      //           ),
+      //         ),
+      //       ],
+      //     ),
+      //     const SizedBox(height: 20),
+      //     Row(
+      //       children: [
+      //         Expanded(
+      //           child: _buildSummaryItem(
+      //             'Calories',
+      //             totalKcal.toStringAsFixed(0),
+      //             'kcal',
+      //             Icons.local_fire_department_rounded,
+      //           ),
+      //         ),
+      //         Expanded(
+      //           child: _buildSummaryItem(
+      //             'Protein',
+      //             totalProtein.toStringAsFixed(1),
+      //             'g',
+      //             Icons.fitness_center_rounded,
+      //           ),
+      //         ),
+      //       ],
+      //     ),
+      //     const SizedBox(height: 12),
+      //     Row(
+      //       children: [
+      //         Expanded(
+      //           child: _buildSummaryItem(
+      //             'Fat',
+      //             totalFat.toStringAsFixed(1),
+      //             'g',
+      //             Icons.opacity_rounded,
+      //           ),
+      //         ),
+      //         Expanded(
+      //           child: _buildSummaryItem(
+      //             'Carbs',
+      //             totalCarbs.toStringAsFixed(1),
+      //             'g',
+      //             Icons.grain_rounded,
+      //           ),
+      //         ),
+      //       ],
+      //     ),
+      //   ],
+      // ),
     );
   }
 
