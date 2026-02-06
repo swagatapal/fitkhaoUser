@@ -1,4 +1,5 @@
 class AuthState {
+  final String? userId;
   final String phoneNumber;
   final String countryCode;
   final bool isTermsAccepted;
@@ -62,6 +63,7 @@ class AuthState {
   final DateTime? profileUpdatedAt;
 
   const AuthState({
+    this.userId,
     this.phoneNumber = '',
     this.countryCode = '+91',
     this.isTermsAccepted = false,
@@ -114,6 +116,7 @@ class AuthState {
   });
 
   AuthState copyWith({
+    String? userId,
     String? phoneNumber,
     String? countryCode,
     bool? isTermsAccepted,
@@ -165,6 +168,7 @@ class AuthState {
     DateTime? profileUpdatedAt,
   }) {
     return AuthState(
+      userId: userId?? this.userId,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       countryCode: countryCode ?? this.countryCode,
       isTermsAccepted: isTermsAccepted ?? this.isTermsAccepted,

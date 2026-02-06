@@ -26,6 +26,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   bool _hasShownMembershipPopup = false;
+  String userId = "";
 
   @override
   void initState() {
@@ -163,6 +164,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   /// Check if nutritional targets are available to show Today's Goal section
   bool _shouldShowTodaysGoal() {
     final authState = ref.watch(authProvider);
+    userId = authState.userId??"";
     return authState.targetProtein != null &&
         authState.targetFat != null &&
         authState.targetCarbs != null &&
@@ -224,7 +226,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       // _buildCompleteYourMealButton(),
                      // const SizedBox(height: AppSizes.spacing16),
                      // _buildBrowseByCategories(),
-                      MealPlanWidget(userId: '693c20761cf6bf526e184835')
+                      MealPlanWidget(userId: userId)
                     ],
                   ),
                 ),

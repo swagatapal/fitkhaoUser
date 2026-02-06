@@ -220,7 +220,7 @@ class _MealPlanWidgetState extends State<MealPlanWidget>
 
       final response = await http.get(
         Uri.parse(
-            'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net/api/user/${widget.userId}/meal-plan-details'),
+            'https://fitkhaodev-dtambvcxh2c2c7f3.centralindia-01.azurewebsites.net/api/user/${widget.userId}/meal-plan-details'),
       );
 
       if (response.statusCode == 200) {
@@ -850,32 +850,32 @@ class _MealPlanWidgetState extends State<MealPlanWidget>
             ),
           ],
         ),
-        if (dish.marketPrice > 0) ...[
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Text(
-                '₹${dish.marketPrice.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primaryGreen,
-                ),
-              ),
-              if (dish.costPrice > 0) ...[
-                const SizedBox(width: 8),
-                Text(
-                  '₹${dish.costPrice.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    decoration: TextDecoration.lineThrough,
-                    color: Color(0xFF9CA3AF),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
+        // if (dish.marketPrice > 0) ...[
+        //   const SizedBox(height: 12),
+        //   Row(
+        //     children: [
+        //       Text(
+        //         '₹${dish.marketPrice.toStringAsFixed(0)}',
+        //         style: TextStyle(
+        //           fontSize: 18,
+        //           fontWeight: FontWeight.bold,
+        //           color: AppColors.primaryGreen,
+        //         ),
+        //       ),
+        //       if (dish.costPrice > 0) ...[
+        //         const SizedBox(width: 8),
+        //         Text(
+        //           '₹${dish.costPrice.toStringAsFixed(0)}',
+        //           style: const TextStyle(
+        //             fontSize: 14,
+        //             decoration: TextDecoration.lineThrough,
+        //             color: Color(0xFF9CA3AF),
+        //           ),
+        //         ),
+        //       ],
+        //     ],
+        //   ),
+        // ],
       ],
     );
   }

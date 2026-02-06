@@ -12,7 +12,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Timer? _resendTimer;
   final AuthRepository _authRepository;
 
-  AuthNotifier(this._authRepository) : super(const AuthState());
+  AuthNotifier(this._authRepository) : super( AuthState());
 
   @override
   void dispose() {
@@ -340,6 +340,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = data?['user'] as Map<String, dynamic>?;
       final profile = user?['profile'] as Map<String, dynamic>?;
 
+      final userId = user?['id'] as String? ??'';
+
       if (success && profile != null) {
         // Extract profile data
         final name = profile['name'] as String? ?? '';
@@ -430,6 +432,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
         // Update state with fetched data
         state = state.copyWith(
+          userId: userId,
           name: name,
           imgUrl: imgUrl,
           gender: gender,
@@ -668,7 +671,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       // Reset state
       _resendTimer?.cancel();
-      state = const AuthState();
+      state =  AuthState();
 
       debugPrint('[AuthNotifier] User logged out successfully');
       return true;
@@ -684,7 +687,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void reset() {
     _resendTimer?.cancel();
-    state = const AuthState();
+    state =  AuthState();
   }
 }
 
