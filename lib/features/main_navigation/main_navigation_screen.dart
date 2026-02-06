@@ -25,11 +25,11 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     switch (_selectedIndex) {
       case 0:
         return const DeliveryScreen();
+      // case 1:
+      //   return const DashboardScreen();
       case 1:
-        return const DashboardScreen();
-      case 2:
         return const DetailedHealthInfoScreen();
-      case 3:
+      case 2:
         return const HistoryScreen();
       default:
         return const DeliveryScreen();
@@ -105,23 +105,23 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                 label: 'Menu',
                 index: 0,
               ),
-              _buildNavItem(
-                context: context,
-                icon: Icons.settings_system_daydream_sharp,
-                label: 'Dashboard',
-                index: 1,
-              ),
+              // _buildNavItem(
+              //   context: context,
+              //   icon: Icons.settings_system_daydream_sharp,
+              //   label: 'Dashboard',
+              //   index: 1,
+              // ),
               _buildNavItem(
                 context: context,
                 icon: Icons.person,
                 label: 'Profile',
-                index: 2,
+                index: 1,
               ),
               _buildNavItem(
                 context: context,
                 icon: Icons.history,
                 label: 'History',
-                index: 3,
+                index: 2,
               ),
             ],
           ),

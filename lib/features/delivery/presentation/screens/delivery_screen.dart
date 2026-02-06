@@ -14,6 +14,7 @@ import '../../providers/nutrition_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/meal_plan_nutrition_provider.dart';
 import '../widgets/membership_popup.dart';
+import '../widgets/delivery_slot_selector.dart';
 import 'menu_list_screen.dart';
 
 class DeliveryScreen extends ConsumerStatefulWidget {
@@ -221,6 +222,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       const SizedBox(height: AppSizes.spacing12),
                       _buildDailyGoalCard(),
                       const SizedBox(height: AppSizes.spacing12),
+                      const DeliverySlotSelector(),
                       if (_shouldShowTodaysGoal()) _buildTodaysGoalSection(),
                       if (_shouldShowTodaysGoal()) const SizedBox(height: AppSizes.spacing12),
                       // const SizedBox(height: AppSizes.spacing24),
