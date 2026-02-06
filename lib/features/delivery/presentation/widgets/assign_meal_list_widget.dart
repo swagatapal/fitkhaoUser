@@ -1,8 +1,10 @@
 import 'package:fitkhao_user/core/constants/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import '../../providers/meal_plan_nutrition_provider.dart';
 
 // Model Classes (keep all the model classes as they are)
 class MealPlanResponse {
@@ -169,7 +171,7 @@ class NutritionalValue {
 }
 
 // Main Widget - NO SCAFFOLD
-class MealPlanWidget extends StatefulWidget {
+class MealPlanWidget extends ConsumerStatefulWidget {
   final String userId;
 
   const MealPlanWidget({
@@ -178,10 +180,10 @@ class MealPlanWidget extends StatefulWidget {
   });
 
   @override
-  State<MealPlanWidget> createState() => _MealPlanWidgetState();
+  ConsumerState<MealPlanWidget> createState() => _MealPlanWidgetState();
 }
 
-class _MealPlanWidgetState extends State<MealPlanWidget>
+class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     with TickerProviderStateMixin {
   MealPlanResponse? mealPlanResponse;
   DayMeal? selectedDayMeal;
@@ -447,8 +449,8 @@ class _MealPlanWidgetState extends State<MealPlanWidget>
           _buildTabBar(),
           const SizedBox(height: 16),
           _buildTabBarView(),
-          const SizedBox(height: 16),
-          _buildNutritionSummary(),
+          // const SizedBox(height: 16),
+          // _buildNutritionSummary(),
         ],
       ),
     );
@@ -829,24 +831,24 @@ class _MealPlanWidgetState extends State<MealPlanWidget>
           runSpacing: 8,
           children: [
             _buildNutrientChip(
-              Icons.local_fire_department_rounded,
+              //Icons.local_fire_department_rounded,
               '${dish.nutritionalValue.kcal.toStringAsFixed(0)} kcal',
-              const Color(0xFFFF6B6B),
+              const Color(0xFFeb3434),
             ),
             _buildNutrientChip(
-              Icons.fitness_center_rounded,
-              '${dish.nutritionalValue.protein.toStringAsFixed(1)}g P',
-              const Color(0xFF4ECDC4),
+              //Icons.fitness_center_rounded,
+              '${dish.nutritionalValue.protein.toStringAsFixed(1)}g Protein',
+              const Color(0xFF0e9630),
             ),
             _buildNutrientChip(
-              Icons.opacity_rounded,
-              '${dish.nutritionalValue.fat.toStringAsFixed(1)}g F',
-              const Color(0xFFFFA07A),
+              //Icons.opacity_rounded,
+              '${dish.nutritionalValue.fat.toStringAsFixed(1)}g Fats',
+              const Color(0xFF0e9196),
             ),
             _buildNutrientChip(
-              Icons.grain_rounded,
-              '${dish.nutritionalValue.carbs.toStringAsFixed(1)}g C',
-              const Color(0xFF95E1D3),
+              //Icons.grain_rounded,
+              '${dish.nutritionalValue.carbs.toStringAsFixed(1)}g Carbohydrates',
+              const Color(0xFF300e96),
             ),
           ],
         ),
@@ -880,7 +882,7 @@ class _MealPlanWidgetState extends State<MealPlanWidget>
     );
   }
 
-  Widget _buildNutrientChip(IconData icon, String label, Color color) {
+  Widget _buildNutrientChip( String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -890,12 +892,6 @@ class _MealPlanWidgetState extends State<MealPlanWidget>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 14,
-            color: color,
-          ),
-          const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
@@ -924,6 +920,18 @@ class _MealPlanWidgetState extends State<MealPlanWidget>
         totalCarbs += dish.nutritionalValue.carbs;
       }
     }
+
+    // Update the provider with calculated nutrition values
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(mealPlanNutritionProvider.notifier).state = MealPlanNutrition(
+          totalKcal: totalKcal,
+          totalProtein: totalProtein,
+          totalFat: totalFat,
+          totalCarbs: totalCarbs,
+        );
+      }
+    });
 
     return Container(
       padding: const EdgeInsets.all(16),

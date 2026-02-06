@@ -12,6 +12,7 @@ import '../../providers/trending_provider.dart';
 import '../../providers/serviceability_provider.dart';
 import '../../providers/nutrition_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/meal_plan_nutrition_provider.dart';
 import '../widgets/membership_popup.dart';
 import 'menu_list_screen.dart';
 
@@ -642,9 +643,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   Widget _buildTodaysGoalSection() {
     final authState = ref.watch(authProvider);
-    final targetProtein = authState.targetProtein ?? 0;
-    final targetFat = authState.targetFat ?? 0;
-    final targetCarbs = authState.targetCarbs ?? 0;
     final lastUpdated = authState.lastUpdatedTargetKCal;
 
     // Format last updated date
@@ -816,6 +814,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   Widget _buildNutritionProgressSection() {
     final progressState = ref.watch(nutritionProgressProvider);
+    final mealPlanNutrition = ref.watch(mealPlanNutritionProvider);
 
     if (progressState.isLoading) {
       return Container(
@@ -973,6 +972,37 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                   ),
                 ],
               ),
+              if (mealPlanNutrition.totalKcal > 0) ...[
+                const SizedBox(height: AppSizes.spacing8),
+                Container(
+                  padding: const EdgeInsets.all(AppSizes.spacing8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSizes.radius4),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.restaurant_menu,
+                        color: AppColors.primaryGreen,
+                        size: AppSizes.icon16,
+                      ),
+                      const SizedBox(width: AppSizes.spacing8),
+                      Expanded(
+                        child: Text(
+                          'Meal Plan: ${mealPlanNutrition.totalKcal.toStringAsFixed(0)} kcal',
+                          style: const TextStyle(
+                            fontSize: AppTypography.fontSize12,
+                            fontWeight: AppTypography.semiBold,
+                            color: AppColors.primaryGreen,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -987,8 +1017,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 consumed: progress.protein.consumed,
                 target: targets.protein,
                 percentage: progress.protein.percentage,
+                mealPlanValue: mealPlanNutrition.totalProtein,
                 unit: 'g',
-                color: const Color(0xFF4A7C3E),
+                color: const Color(0xFF0e9630),
                 icon: Icons.fitness_center,
               ),
             ),
@@ -999,8 +1030,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 consumed: progress.carbs.consumed,
                 target: targets.carbs,
                 percentage: progress.carbs.percentage,
+                mealPlanValue: mealPlanNutrition.totalCarbs,
                 unit: 'g',
-                color: const Color(0xFFC66301),
+                color: const Color(0xFF300e96),
                 icon: Icons.bakery_dining,
               ),
             ),
@@ -1011,8 +1043,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 consumed: progress.fat.consumed,
                 target: targets.fat,
                 percentage: progress.fat.percentage,
+                mealPlanValue: mealPlanNutrition.totalFat,
                 unit: 'g',
-                color: const Color(0xFF6BA84F),
+                color: const Color(0xFF0e9196),
                 icon: Icons.water_drop,
               ),
             ),
@@ -1027,6 +1060,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     required double consumed,
     required double target,
     required int percentage,
+    required double mealPlanValue,
     required String unit,
     required Color color,
     required IconData icon,
@@ -1137,6 +1171,28 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               ),
             ],
           ),
+          if (mealPlanValue > 0) ...[
+            const SizedBox(height: AppSizes.spacing4),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.spacing6,
+                vertical: AppSizes.spacing2,
+              ),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppSizes.radius4),
+              ),
+              child: Text(
+                'Plan: ${mealPlanValue.toStringAsFixed(1)}$unit',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize10,
+                  fontWeight: AppTypography.semiBold,
+                  color: color,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
