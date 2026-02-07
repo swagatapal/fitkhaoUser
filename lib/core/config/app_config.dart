@@ -40,6 +40,9 @@ class AppConfig {
   static const String walletTransactionsPath = '/api/wallet/transactions';
   static const String uploadImagePath = '/api/upload/image';
 
+  /// Delivery Slots
+  static const String deliverySlotListPath = '/api/delivery-slot/list';
+
   /// Analytics base (trending)
   static const String trendingPath = '/api/analytics/trending/';
 }
