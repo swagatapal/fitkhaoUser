@@ -113,3 +113,89 @@ class DeliverySlotApiModel {
     }
   }
 }
+
+// ── Confirm Delivery Slot Models ──
+
+/// Request model for confirming delivery slots
+class ConfirmDeliverySlotRequest {
+  final String deliveryDate;
+  final List<ConfirmSlotItem> slots;
+  final ConfirmDeliveryAddress deliveryAddress;
+  final String paymentMethod;
+
+  const ConfirmDeliverySlotRequest({
+    required this.deliveryDate,
+    required this.slots,
+    required this.deliveryAddress,
+    required this.paymentMethod,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'deliveryDate': deliveryDate,
+      'slots': slots.map((s) => s.toJson()).toList(),
+      'deliveryAddress': deliveryAddress.toJson(),
+      'paymentMethod': paymentMethod,
+    };
+  }
+}
+
+/// Individual slot with selected category IDs
+class ConfirmSlotItem {
+  final String slotId;
+  final List<String> categoryIds;
+
+  const ConfirmSlotItem({
+    required this.slotId,
+    required this.categoryIds,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'slotId': slotId,
+      'categoryIds': categoryIds,
+    };
+  }
+}
+
+/// Delivery address for confirm request
+class ConfirmDeliveryAddress {
+  final String buildingName;
+  final String street;
+  final String pincode;
+  final String contactNumber;
+
+  const ConfirmDeliveryAddress({
+    required this.buildingName,
+    required this.street,
+    required this.pincode,
+    required this.contactNumber,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'buildingName': buildingName,
+      'street': street,
+      'pincode': pincode,
+      'contactNumber': contactNumber,
+    };
+  }
+}
+
+/// Response model for confirm delivery slots API
+class ConfirmDeliverySlotResponse {
+  final bool success;
+  final String message;
+
+  const ConfirmDeliverySlotResponse({
+    required this.success,
+    required this.message,
+  });
+
+  factory ConfirmDeliverySlotResponse.fromJson(Map<String, dynamic> json) {
+    return ConfirmDeliverySlotResponse(
+      success: json['success'] as bool? ?? false,
+      message: json['message'] as String? ?? '',
+    );
+  }
+}

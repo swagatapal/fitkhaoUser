@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/providers/providers.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../models/delivery_slot_model.dart';
 import '../../providers/delivery_slot_provider.dart';
+import '../../providers/meal_category_provider.dart';
 
 /// Local model for tracking meal selections per slot
 class SlotMealSelection {
@@ -12,23 +15,24 @@ class SlotMealSelection {
   final String slotName;
   final String timeRange;
   final String slotType;
-  final List<String> selectedMeals;
+  /// Selected category IDs (maps to MealCategoryItem.id)
+  final List<String> selectedCategoryIds;
 
   SlotMealSelection({
     required this.slotId,
     required this.slotName,
     required this.timeRange,
     required this.slotType,
-    this.selectedMeals = const [],
+    this.selectedCategoryIds = const [],
   });
 
-  SlotMealSelection copyWith({List<String>? selectedMeals}) {
+  SlotMealSelection copyWith({List<String>? selectedCategoryIds}) {
     return SlotMealSelection(
       slotId: slotId,
       slotName: slotName,
       timeRange: timeRange,
       slotType: slotType,
-      selectedMeals: selectedMeals ?? this.selectedMeals,
+      selectedCategoryIds: selectedCategoryIds ?? this.selectedCategoryIds,
     );
   }
 }
@@ -52,6 +56,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
   late Animation<double> _slideAnimation;
   late Animation<double> _fadeAnimation;
   bool _slotsInitialized = false;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -123,28 +128,35 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
     });
   }
 
-  /// Get available meals for a specific slot based on time
-  List<String> _getAvailableMealsForSlot(String slotType) {
+  /// Get available meal categories for a slot based on its type
+  /// Morning: all categories, Afternoon: no Breakfast, Night: no Breakfast/Lunch
+  List<MealCategoryItem> _getAvailableCategoriesForSlot(String slotType) {
+    final allCategories = ref.read(mealCategoryListProvider);
+    if (allCategories.isEmpty) return [];
+
     switch (slotType) {
       case 'morning':
-        // Morning: All 5 meal types
-        return ['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Smoothie'];
+        return allCategories;
       case 'afternoon':
-        // Afternoon: 4 options (NO Breakfast)
-        return ['Lunch', 'Dinner', 'Snacks', 'Smoothie'];
+        return allCategories
+            .where((c) => c.name.toLowerCase() != 'breakfast')
+            .toList();
       case 'night':
-        // Night: 3 options (NO Breakfast, NO Lunch)
-        return ['Dinner', 'Snacks', 'Smoothie'];
+        return allCategories
+            .where((c) =>
+                c.name.toLowerCase() != 'breakfast' &&
+                c.name.toLowerCase() != 'lunch')
+            .toList();
       default:
         return [];
     }
   }
 
-  /// Check if a meal type is already selected in ANY slot
-  bool _isMealAlreadySelected(String meal) {
+  /// Check if a category is already selected in ANY slot
+  bool _isCategoryAlreadySelected(String categoryId) {
     final selections = ref.read(slotMealSelectionProvider);
     for (var sel in selections) {
-      if (sel.selectedMeals.contains(meal)) {
+      if (sel.selectedCategoryIds.contains(categoryId)) {
         return true;
       }
     }
@@ -154,49 +166,53 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
   /// Get total selected meal count across all slots
   int _getTotalSelectedMeals() {
     final selections = ref.watch(slotMealSelectionProvider);
-    return selections.fold(0, (sum, sel) => sum + sel.selectedMeals.length);
+    return selections.fold(
+        0, (sum, sel) => sum + sel.selectedCategoryIds.length);
   }
 
-  /// Toggle meal selection for a slot
-  void _toggleMealSelection(String slotId, String meal) {
+  /// Toggle meal category selection for a slot
+  void _toggleMealSelection(String slotId, MealCategoryItem category) {
     final selections = ref.read(slotMealSelectionProvider);
     final index = selections.indexWhere((s) => s.slotId == slotId);
 
     if (index == -1) return;
 
     final sel = selections[index];
-    final updatedMeals = List<String>.from(sel.selectedMeals);
+    final updatedIds = List<String>.from(sel.selectedCategoryIds);
 
-    if (updatedMeals.contains(meal)) {
-      updatedMeals.remove(meal);
+    if (updatedIds.contains(category.id)) {
+      updatedIds.remove(category.id);
     } else {
-      // Check if this meal type is already selected in another slot
-      if (_isMealAlreadySelected(meal)) {
-        _showMealAlreadySelectedSnackbar(meal);
+      // Check if this category is already selected in another slot
+      if (_isCategoryAlreadySelected(category.id)) {
+        _showMealAlreadySelectedSnackbar(category.name);
         return;
       }
 
-      // Check if we can add more (max 5 meals total: 1 each of 5 types)
+      // Check max total
+      final allCategories = ref.read(mealCategoryListProvider);
       final totalMeals = _getTotalSelectedMeals();
-      if (totalMeals >= 5) {
+      if (totalMeals >= allCategories.length) {
         _showMaxSelectionSnackbar();
         return;
       }
 
-      updatedMeals.add(meal);
+      updatedIds.add(category.id);
     }
 
     final updatedSelections = List<SlotMealSelection>.from(selections);
-    updatedSelections[index] = sel.copyWith(selectedMeals: updatedMeals);
+    updatedSelections[index] = sel.copyWith(selectedCategoryIds: updatedIds);
     ref.read(slotMealSelectionProvider.notifier).state = updatedSelections;
   }
 
   void _showMaxSelectionSnackbar() {
+    final allCategories = ref.read(mealCategoryListProvider);
+    final names = allCategories.map((c) => c.name).join(', ');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          'All meal types selected! (1 of each: Breakfast, Lunch, Dinner, Snacks, Smoothie)',
-          style: TextStyle(fontFamily: 'Lato'),
+        content: Text(
+          'All meal types selected! ($names)',
+          style: const TextStyle(fontFamily: 'Lato'),
         ),
         backgroundColor: const Color(0xFFFF9800),
         behavior: SnackBarBehavior.floating,
@@ -223,7 +239,14 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
     );
   }
 
-  void _saveSlotSelections() {
+  /// Get delivery date (tomorrow) formatted as yyyy-MM-dd
+  String _getDeliveryDate() {
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    return '${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Submit delivery slot selections to API
+  Future<void> _saveSlotSelections() async {
     final totalMeals = _getTotalSelectedMeals();
     if (totalMeals == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -242,20 +265,91 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
       return;
     }
 
-    // TODO: Save selections to backend
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Delivery slots saved! ($totalMeals meals selected)',
-          style: const TextStyle(fontFamily: 'Lato'),
+    setState(() => _isSubmitting = true);
+
+    try {
+      final selections = ref.read(slotMealSelectionProvider);
+      final authState = ref.read(authProvider);
+
+      // Build slots list (only slots with selections)
+      final confirmSlots = selections
+          .where((sel) => sel.selectedCategoryIds.isNotEmpty)
+          .map((sel) => ConfirmSlotItem(
+                slotId: sel.slotId,
+                categoryIds: sel.selectedCategoryIds,
+              ))
+          .toList();
+
+      // Build request
+      final request = ConfirmDeliverySlotRequest(
+        deliveryDate: _getDeliveryDate(),
+        slots: confirmSlots,
+        deliveryAddress: ConfirmDeliveryAddress(
+          buildingName: authState.buildingNameNumber,
+          street: authState.street,
+          pincode: authState.pincode,
+          contactNumber: authState.phoneNumber,
         ),
-        backgroundColor: AppColors.primaryGreen,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radius8),
+        paymentMethod: 'wallet',
+      );
+
+      // Call API
+      final repo = ref.read(deliverySlotRepositoryProvider);
+      final response = await repo.confirmDeliverySlots(request: request);
+
+      if (!mounted) return;
+
+      if (response.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response.message.isNotEmpty
+                  ? response.message
+                  : 'Delivery slots confirmed! ($totalMeals meals selected)',
+              style: const TextStyle(fontFamily: 'Lato'),
+            ),
+            backgroundColor: AppColors.primaryGreen,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response.message.isNotEmpty
+                  ? response.message
+                  : 'Failed to confirm delivery slots',
+              style: const TextStyle(fontFamily: 'Lato'),
+            ),
+            backgroundColor: const Color(0xFFD32F2F),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Error: ${e.toString()}',
+            style: const TextStyle(fontFamily: 'Lato'),
+          ),
+          backgroundColor: const Color(0xFFD32F2F),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   Color _getMealColor(String meal) {
@@ -283,7 +377,9 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
 
     final slotState = ref.watch(deliverySlotApiProvider);
     final mealSelections = ref.watch(slotMealSelectionProvider);
+    final mealCategories = ref.watch(mealCategoryListProvider);
     final totalSelected = _getTotalSelectedMeals();
+    final totalCategories = mealCategories.length;
 
     // Show loading state
     if (slotState.isLoading) {
@@ -313,7 +409,8 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6A1B9A)),
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(Color(0xFF6A1B9A)),
                 ),
               ),
               SizedBox(height: AppSizes.spacing12),
@@ -346,7 +443,8 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
         ),
         child: Row(
           children: [
-            const Icon(Icons.error_outline, color: Color(0xFFD32F2F), size: AppSizes.icon20),
+            const Icon(Icons.error_outline,
+                color: Color(0xFFD32F2F), size: AppSizes.icon20),
             const SizedBox(width: AppSizes.spacing12),
             Expanded(
               child: Text(
@@ -376,8 +474,12 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
       );
     }
 
-    // No slots available
-    if (slotState.slots.isEmpty) {
+    // No slots or no meal categories yet
+    if (slotState.slots.isEmpty || mealCategories.isEmpty) {
+      // Initialize slots even if categories aren't ready yet
+      if (slotState.slots.isNotEmpty) {
+        _initializeMealSelections(slotState.slots);
+      }
       return const SizedBox.shrink();
     }
 
@@ -478,18 +580,18 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                             vertical: AppSizes.spacing4,
                           ),
                           decoration: BoxDecoration(
-                            color: totalSelected >= 5
+                            color: totalSelected >= totalCategories
                                 ? Colors.white
                                 : Colors.white.withValues(alpha: 0.2),
                             borderRadius:
                                 BorderRadius.circular(AppSizes.radius20),
                           ),
                           child: Text(
-                            '$totalSelected/5',
+                            '$totalSelected/$totalCategories',
                             style: TextStyle(
                               fontSize: AppTypography.fontSize14,
                               fontWeight: AppTypography.bold,
-                              color: totalSelected >= 5
+                              color: totalSelected >= totalCategories
                                   ? const Color(0xFF6A1B9A)
                                   : Colors.white,
                               fontFamily: 'Lato',
@@ -524,37 +626,50 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                           width: double.infinity,
                           height: AppSizes.buttonHeight,
                           child: ElevatedButton(
-                            onPressed: _saveSlotSelections,
+                            onPressed:
+                                _isSubmitting ? null : _saveSlotSelections,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF6A1B9A),
+                              disabledBackgroundColor:
+                                  const Color(0xFF6A1B9A).withValues(alpha: 0.5),
                               shape: RoundedRectangleBorder(
                                 borderRadius:
                                     BorderRadius.circular(AppSizes.radius8),
                               ),
                               elevation: 0,
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.check_circle_outline,
-                                  color: Colors.white,
-                                  size: AppSizes.icon20,
-                                ),
-                                const SizedBox(width: AppSizes.spacing8),
-                                Text(
-                                  totalSelected > 0
-                                      ? 'Confirm $totalSelected Slot${totalSelected > 1 ? 's' : ''}'
-                                      : 'Select Meals',
-                                  style: const TextStyle(
-                                    fontSize: AppTypography.fontSize16,
-                                    fontWeight: AppTypography.semiBold,
-                                    color: Colors.white,
-                                    fontFamily: 'Lato',
+                            child: _isSubmitting
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.check_circle_outline,
+                                        color: Colors.white,
+                                        size: AppSizes.icon20,
+                                      ),
+                                      const SizedBox(width: AppSizes.spacing8),
+                                      Text(
+                                        totalSelected > 0
+                                            ? 'Confirm $totalSelected Slot${totalSelected > 1 ? 's' : ''}'
+                                            : 'Select Meals',
+                                        style: const TextStyle(
+                                          fontSize: AppTypography.fontSize16,
+                                          fontWeight: AppTypography.semiBold,
+                                          color: Colors.white,
+                                          fontFamily: 'Lato',
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
                       ],
@@ -570,7 +685,8 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
   }
 
   Widget _buildSlotCard(SlotMealSelection sel) {
-    final hasSelections = sel.selectedMeals.isNotEmpty;
+    final hasSelections = sel.selectedCategoryIds.isNotEmpty;
+    final availableCategories = _getAvailableCategoriesForSlot(sel.slotType);
 
     return Container(
       decoration: BoxDecoration(
@@ -673,7 +789,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                       borderRadius: BorderRadius.circular(AppSizes.radius12),
                     ),
                     child: Text(
-                      '${sel.selectedMeals.length} meal${sel.selectedMeals.length > 1 ? 's' : ''}',
+                      '${sel.selectedCategoryIds.length} meal${sel.selectedCategoryIds.length > 1 ? 's' : ''}',
                       style: const TextStyle(
                         fontSize: AppTypography.fontSize12,
                         fontWeight: AppTypography.bold,
@@ -692,17 +808,18 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
             child: Wrap(
               spacing: AppSizes.spacing8,
               runSpacing: AppSizes.spacing8,
-              children:
-                  _getAvailableMealsForSlot(sel.slotType).map((meal) {
-                final isSelected = sel.selectedMeals.contains(meal);
-                final isAlreadySelected = _isMealAlreadySelected(meal);
+              children: availableCategories.map((category) {
+                final isSelected =
+                    sel.selectedCategoryIds.contains(category.id);
+                final isAlreadySelected =
+                    _isCategoryAlreadySelected(category.id);
                 final isDisabled = isAlreadySelected && !isSelected;
-                final mealColor = _getMealColor(meal);
+                final mealColor = _getMealColor(category.name);
 
                 return GestureDetector(
                   onTap: isDisabled
                       ? null
-                      : () => _toggleMealSelection(sel.slotId, meal),
+                      : () => _toggleMealSelection(sel.slotId, category),
                   child: Opacity(
                     opacity: isDisabled ? 0.4 : 1.0,
                     child: AnimatedContainer(
@@ -750,7 +867,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                               ),
                             ),
                           Text(
-                            meal,
+                            category.name,
                             style: TextStyle(
                               fontSize: AppTypography.fontSize13,
                               fontWeight: isSelected

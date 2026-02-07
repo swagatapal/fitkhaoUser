@@ -50,4 +50,42 @@ class DeliverySlotRepository {
       throw NetworkException(message: message, originalError: e);
     }
   }
+
+  /// Confirm delivery slot selections
+  Future<ConfirmDeliverySlotResponse> confirmDeliverySlots({
+    required ConfirmDeliverySlotRequest request,
+  }) async {
+    debugPrint('[DeliverySlotRepository] Confirming delivery slots via API...');
+
+    try {
+      // Get auth token
+      final token = _localStorage.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+          message: 'Authentication required. Please login again.',
+        );
+      }
+
+      // Prepare headers with Bearer token
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+
+      // Make POST request
+      final json = await _apiClient.postJson(
+        AppConfig.deliverySlotConfirmPath,
+        body: request.toJson(),
+        headers: headers,
+      );
+
+      debugPrint('[DeliverySlotRepository] Confirm slots response: $json');
+
+      return ConfirmDeliverySlotResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[DeliverySlotRepository] Confirm slots error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
 }

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../../providers/meal_plan_nutrition_provider.dart';
+import '../../providers/meal_category_provider.dart';
 
 // Model Classes (keep all the model classes as they are)
 class MealPlanResponse {
@@ -241,6 +242,9 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           );
         }
 
+        // Publish meal categories to provider for DeliverySlotSelector
+        _publishMealCategories();
+
         setState(() {
           isLoading = false;
         });
@@ -289,6 +293,32 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     }
 
     return nearest;
+  }
+
+  /// Extract unique meal categories from the meal plan and publish to provider
+  void _publishMealCategories() {
+    if (mealPlanResponse == null) return;
+
+    final categoryMap = <String, MealCategoryItem>{};
+
+    for (var day in mealPlanResponse!.data.mealPlan.days) {
+      for (var meal in day.meals) {
+        if (!categoryMap.containsKey(meal.category.id)) {
+          categoryMap[meal.category.id] = MealCategoryItem(
+            id: meal.category.id,
+            name: meal.category.dishCategory,
+            isActive: meal.category.isActive,
+          );
+        }
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(mealCategoryListProvider.notifier).state =
+            categoryMap.values.toList();
+      }
+    });
   }
 
   Color _getCategoryColor(String category) {
