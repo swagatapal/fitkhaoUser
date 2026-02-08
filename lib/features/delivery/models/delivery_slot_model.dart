@@ -45,6 +45,7 @@ class DeliverySlotListData {
 /// Individual delivery slot from API
 class DeliverySlotApiModel {
   final String id;
+  final String slotName;
   final String slotStartTime;
   final String slotEndTime;
   final bool isActive;
@@ -53,6 +54,7 @@ class DeliverySlotApiModel {
 
   const DeliverySlotApiModel({
     required this.id,
+    required this.slotName,
     required this.slotStartTime,
     required this.slotEndTime,
     required this.isActive,
@@ -63,6 +65,7 @@ class DeliverySlotApiModel {
   factory DeliverySlotApiModel.fromJson(Map<String, dynamic> json) {
     return DeliverySlotApiModel(
       id: json['_id'] as String? ?? '',
+      slotName: json['slotName'] as String? ?? '',
       slotStartTime: json['slotStartTime'] as String? ?? '',
       slotEndTime: json['slotEndTime'] as String? ?? '',
       isActive: json['isActive'] as bool? ?? false,
@@ -74,26 +77,17 @@ class DeliverySlotApiModel {
   /// Get formatted time range (e.g., "8:00 AM - 9:00 AM")
   String get timeRange => '$slotStartTime - $slotEndTime';
 
-  /// Determine slot type based on start time
+  /// Determine slot type based on slot name from API
   String get slotType {
+    final name = slotName.toLowerCase();
+    if (name.contains('morning')) return 'morning';
+    if (name.contains('afternoon')) return 'afternoon';
+    if (name.contains('night') || name.contains('evening')) return 'night';
+    // Fallback to time-based detection
     final hour = _parseHour(slotStartTime);
     if (hour >= 5 && hour < 11) return 'morning';
     if (hour >= 11 && hour < 17) return 'afternoon';
     return 'night';
-  }
-
-  /// Get slot display name
-  String get slotName {
-    switch (slotType) {
-      case 'morning':
-        return 'Morning Slot';
-      case 'afternoon':
-        return 'Afternoon Slot';
-      case 'night':
-        return 'Night Slot';
-      default:
-        return 'Slot';
-    }
   }
 
   /// Parse hour from time string like "8:00 AM" or "12:00 PM"
