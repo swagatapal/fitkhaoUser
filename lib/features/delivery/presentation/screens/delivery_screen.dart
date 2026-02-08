@@ -37,7 +37,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProfileData();
       _loadWalletBalance();
-      _loadTrending();
+      //_loadTrending();
       _checkServiceability();
       _loadNutritionProgress();
     });

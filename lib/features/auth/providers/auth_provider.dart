@@ -341,6 +341,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final profile = user?['profile'] as Map<String, dynamic>?;
 
       final userId = user?['id'] as String? ??'';
+      final mobileNumber = user?['mobileNumber'] as String? ?? '';
 
       if (success && profile != null) {
         // Extract profile data
@@ -433,6 +434,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         // Update state with fetched data
         state = state.copyWith(
           userId: userId,
+          phoneNumber: mobileNumber.isNotEmpty ? mobileNumber : null,
           name: name,
           imgUrl: imgUrl,
           gender: gender,
