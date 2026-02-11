@@ -95,7 +95,7 @@ class _DetailedHealthInfoScreenState
     if (lastUpdate == null) return true;
     final now = DateTime.now();
     final daysSinceLastUpdate = now.difference(lastUpdate).inDays;
-    return daysSinceLastUpdate >= 21;
+    return daysSinceLastUpdate >= 15;
   }
 
   /// Get days remaining until next profile update
@@ -103,7 +103,7 @@ class _DetailedHealthInfoScreenState
     if (lastUpdate == null) return 0;
     final now = DateTime.now();
     final daysSinceLastUpdate = now.difference(lastUpdate).inDays;
-    final daysRemaining = 21 - daysSinceLastUpdate;
+    final daysRemaining = 15 - daysSinceLastUpdate;
     return daysRemaining > 0 ? daysRemaining : 0;
   }
 
@@ -705,9 +705,11 @@ class _DetailedHealthInfoScreenState
                       // Save Button
                       PrimaryButton(
                         text: _getSaveButtonText(),
-                        onPressed: _isFormValid && !authState.isLoading && _canUpdateProfile(_lastProfileUpdate)
-                            ? _handleSave
-                            : null,
+                        onPressed:
+                        //_isFormValid && !authState.isLoading && _canUpdateProfile(_lastProfileUpdate)
+                           // ?
+                        _handleSave,
+                           // : null,
                         textColor: Colors.white,
                         height: context.inputHeight,
                         isLoading: authState.isLoading,

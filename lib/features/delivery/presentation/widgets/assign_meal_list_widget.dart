@@ -1,3 +1,4 @@
+import 'package:fitkhao_user/core/config/app_config.dart';
 import 'package:fitkhao_user/core/constants/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -223,7 +224,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
 
       final response = await http.get(
         Uri.parse(
-            'https://fitkhaodev-dtambvcxh2c2c7f3.centralindia-01.azurewebsites.net/api/user/${widget.userId}/meal-plan-details'),
+            '${AppConfig.baseApiUrl}/api/user/${widget.userId}/meal-plan-details'),
       );
 
       if (response.statusCode == 200) {
