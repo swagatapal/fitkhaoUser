@@ -252,7 +252,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       _buildHeader(),
                       const SizedBox(height: AppSizes.spacing8),
                       _buildServiceabilityBanner(),
-                      _trackSubscription(),
+                      //_trackSubscription(),
                       // const SizedBox(height: AppSizes.spacing16),
                       // _buildSearchBar(),
                       const SizedBox(height: AppSizes.spacing12),

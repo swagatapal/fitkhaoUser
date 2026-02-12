@@ -194,6 +194,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   TabController? _tabController;
+  final ScrollController _dateScrollController = ScrollController();
 
   @override
   void initState() {
@@ -212,6 +213,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
   void dispose() {
     _animationController.dispose();
     _tabController?.dispose();
+    _dateScrollController.dispose();
     super.dispose();
   }
 
@@ -250,6 +252,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           isLoading = false;
         });
         _animationController.forward();
+        _scrollToSelectedDate();
       } else {
         setState(() {
           error = 'Failed to load meal plan';
@@ -262,6 +265,30 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
         isLoading = false;
       });
     }
+  }
+
+  /// Scroll the date selector so that the selected date is visible
+  void _scrollToSelectedDate() {
+    if (mealPlanResponse == null || selectedDayMeal == null) return;
+
+    final days = mealPlanResponse!.data.mealPlan.days;
+    final selectedIndex = days.indexWhere((d) => d.date == selectedDayMeal!.date);
+    if (selectedIndex < 0) return;
+
+    // Each date item is 60 wide + 12 margin = 72 per item
+    const itemWidth = 72.0;
+    final targetOffset = selectedIndex * itemWidth;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_dateScrollController.hasClients) {
+        final maxScroll = _dateScrollController.position.maxScrollExtent;
+        _dateScrollController.animateTo(
+          targetOffset.clamp(0.0, maxScroll),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
   }
 
   DayMeal? _findNearestDayMeal() {
@@ -555,6 +582,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     return SizedBox(
       height: 80,
       child: ListView.builder(
+        controller: _dateScrollController,
         scrollDirection: Axis.horizontal,
         itemCount: days.length,
         itemBuilder: (context, index) {
