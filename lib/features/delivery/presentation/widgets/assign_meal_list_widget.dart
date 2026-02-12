@@ -1,12 +1,16 @@
 import 'package:fitkhao_user/core/config/app_config.dart';
 import 'package:fitkhao_user/core/constants/app_colors.dart';
+import 'package:fitkhao_user/core/constants/app_sizes.dart';
+import 'package:fitkhao_user/core/constants/app_typography.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../../providers/meal_plan_nutrition_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../../providers/meal_category_provider.dart';
+import 'membership_popup.dart';
 
 // Model Classes (keep all the model classes as they are)
 class MealPlanResponse {
@@ -50,9 +54,7 @@ class MealPlan {
   factory MealPlan.fromJson(Map<String, dynamic> json) {
     return MealPlan(
       id: json['_id'],
-      days: (json['days'] as List)
-          .map((day) => DayMeal.fromJson(day))
-          .toList(),
+      days: (json['days'] as List).map((day) => DayMeal.fromJson(day)).toList(),
     );
   }
 }
@@ -89,7 +91,7 @@ class MealCategory {
     return MealCategory(
       category: Category.fromJson(json['category']),
       dishes:
-      (json['dishes'] as List).map((dish) => Dish.fromJson(dish)).toList(),
+          (json['dishes'] as List).map((dish) => Dish.fromJson(dish)).toList(),
     );
   }
 }
@@ -272,7 +274,8 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     if (mealPlanResponse == null || selectedDayMeal == null) return;
 
     final days = mealPlanResponse!.data.mealPlan.days;
-    final selectedIndex = days.indexWhere((d) => d.date == selectedDayMeal!.date);
+    final selectedIndex =
+        days.indexWhere((d) => d.date == selectedDayMeal!.date);
     if (selectedIndex < 0) return;
 
     // Each date item is 60 wide + 12 margin = 72 per item
@@ -349,6 +352,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     });
   }
 
+  // ignore: unused_element
   Color _getCategoryColor(String category) {
     switch (category.toLowerCase()) {
       case 'breakfast':
@@ -388,10 +392,105 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
         if (isLoading)
           _buildLoadingState()
         else if (error != null)
-          _buildErrorState()
+          _isNullStringTypeError(error)
+              ? _buildMealPlanContactAdminState()
+              : _buildErrorState()
         else
           _buildMealPlanContent(),
       ],
+    );
+  }
+
+  bool _isNullStringTypeError(String? message) {
+    if (message == null) return false;
+    final lower = message.toLowerCase();
+    return lower.contains("null is not a subtype of type 'string'") ||
+        lower.contains('null is not a subtype of string') ||
+        lower.contains("type 'null' is not a subtype of type 'string'") ||
+        lower.contains("type 'null' is not a subtype of string");
+  }
+
+  void _showSubscriptionPlans() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.transparent,
+      builder: (context) => MembershipPopup(
+        subscription: ref.read(walletProvider).subscription,
+      ),
+    );
+  }
+
+  Widget _buildMealPlanContactAdminState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSizes.spacing16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(color: AppColors.borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.support_agent_rounded,
+            size: 52,
+            color: AppColors.primaryGreen,
+          ),
+          const SizedBox(height: AppSizes.spacing12),
+          const Text(
+            'Meal plan is not available',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize16,
+              fontWeight: AppTypography.semiBold,
+              color: AppColors.textPrimary,
+              fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: AppSizes.spacing8),
+          const Text(
+            'Please contact admin to get your meal plan.\n'
+            'Take a subscription plan to receive a call from our team.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize13,
+              color: AppColors.textSecondary,
+              fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: AppSizes.spacing16),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              onPressed: _showSubscriptionPlans,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radius4),
+                ),
+              ),
+              child: const Text(
+                'Take Subscription Plan',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.semiBold,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -409,7 +508,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -417,7 +516,8 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
               ),
               child: CircularProgressIndicator(
                 strokeWidth: 3,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
               ),
             ),
             const SizedBox(height: 24),
@@ -445,7 +545,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -472,7 +572,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                 backgroundColor: AppColors.primaryGreen,
                 foregroundColor: Colors.white,
                 padding:
-                const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -508,7 +608,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           const SizedBox(height: 16),
           _buildTabBarView(),
           // const SizedBox(height: 16),
-           _buildNutritionSummary(),
+          _buildNutritionSummary(),
         ],
       ),
     );
@@ -530,7 +630,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -611,10 +711,10 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
               decoration: BoxDecoration(
                 gradient: isSelected
                     ? LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.darkGreen, AppColors.primaryGreen],
-                )
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [AppColors.darkGreen, AppColors.primaryGreen],
+                      )
                     : null,
                 color: isSelected ? null : Colors.white,
                 borderRadius: BorderRadius.circular(8),
@@ -622,8 +722,8 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                   color: isToday
                       ? AppColors.darkGreen
                       : isSelected
-                      ? Colors.transparent
-                      : const Color(0xFFE5E7EB),
+                          ? Colors.transparent
+                          : const Color(0xFFE5E7EB),
                   width: isToday ? 2 : 1,
                 ),
               ),
@@ -635,9 +735,8 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: isSelected
-                          ? Colors.white70
-                          : const Color(0xFF9CA3AF),
+                      color:
+                          isSelected ? Colors.white70 : const Color(0xFF9CA3AF),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -646,7 +745,8 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.white : const Color(0xFF1F2937),
+                      color:
+                          isSelected ? Colors.white : const Color(0xFF1F2937),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -655,9 +755,8 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: isSelected
-                          ? Colors.white70
-                          : const Color(0xFF6B7280),
+                      color:
+                          isSelected ? Colors.white70 : const Color(0xFF6B7280),
                     ),
                   ),
                 ],
@@ -690,7 +789,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primaryGreen.withOpacity(0.3),
+              color: AppColors.primaryGreen.withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -709,7 +808,6 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           fontWeight: FontWeight.w600,
         ),
         tabs: selectedDayMeal!.meals.map((mealCategory) {
-          final icon = _getCategoryIcon(mealCategory.category.dishCategory);
           return Tab(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -752,7 +850,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -767,7 +865,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryGreen.withOpacity(0.1),
+                  color: AppColors.primaryGreen.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -805,7 +903,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           const SizedBox(height: 20),
           ...List.generate(
             mealCategory.dishes.length,
-                (dishIndex) {
+            (dishIndex) {
               final dish = mealCategory.dishes[dishIndex];
               return Column(
                 mainAxisSize: MainAxisSize.min,
@@ -845,8 +943,8 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
               ),
               decoration: BoxDecoration(
                 color: dish.dishType.toLowerCase() == 'veg'
-                    ? const Color(0xFF10B981).withOpacity(0.1)
-                    : const Color(0xFFEF4444).withOpacity(0.1),
+                    ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                    : const Color(0xFFEF4444).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: dish.dishType.toLowerCase() == 'veg'
@@ -941,11 +1039,11 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     );
   }
 
-  Widget _buildNutrientChip( String label, Color color) {
+  Widget _buildNutrientChip(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -993,101 +1091,102 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     });
 
     return Container(
-      // padding: const EdgeInsets.all(16),
-      // decoration: BoxDecoration(
-      //   gradient: LinearGradient(
-      //     begin: Alignment.topLeft,
-      //     end: Alignment.bottomRight,
-      //     colors: [
-      //       AppColors.darkGreen,
-      //       AppColors.primaryGreen,
-      //     ],
-      //   ),
-      //   borderRadius: BorderRadius.circular(8),
-      //   boxShadow: [
-      //     BoxShadow(
-      //       color: AppColors.primaryGreen.withOpacity(0.3),
-      //       blurRadius: 20,
-      //       offset: const Offset(0, 10),
-      //     ),
-      //   ],
-      // ),
-      // child: Column(
-      //   crossAxisAlignment: CrossAxisAlignment.start,
-      //   mainAxisSize: MainAxisSize.min,
-      //   children: [
-      //     const Row(
-      //       children: [
-      //         Icon(
-      //           Icons.assessment_rounded,
-      //           color: Colors.white,
-      //           size: 24,
-      //         ),
-      //         SizedBox(width: 12),
-      //         Text(
-      //           'Daily Nutrition Summary',
-      //           style: TextStyle(
-      //             fontSize: 18,
-      //             fontWeight: FontWeight.bold,
-      //             color: Colors.white,
-      //           ),
-      //         ),
-      //       ],
-      //     ),
-      //     const SizedBox(height: 20),
-      //     Row(
-      //       children: [
-      //         Expanded(
-      //           child: _buildSummaryItem(
-      //             'Calories',
-      //             totalKcal.toStringAsFixed(0),
-      //             'kcal',
-      //             Icons.local_fire_department_rounded,
-      //           ),
-      //         ),
-      //         Expanded(
-      //           child: _buildSummaryItem(
-      //             'Protein',
-      //             totalProtein.toStringAsFixed(1),
-      //             'g',
-      //             Icons.fitness_center_rounded,
-      //           ),
-      //         ),
-      //       ],
-      //     ),
-      //     const SizedBox(height: 12),
-      //     Row(
-      //       children: [
-      //         Expanded(
-      //           child: _buildSummaryItem(
-      //             'Fat',
-      //             totalFat.toStringAsFixed(1),
-      //             'g',
-      //             Icons.opacity_rounded,
-      //           ),
-      //         ),
-      //         Expanded(
-      //           child: _buildSummaryItem(
-      //             'Carbs',
-      //             totalCarbs.toStringAsFixed(1),
-      //             'g',
-      //             Icons.grain_rounded,
-      //           ),
-      //         ),
-      //       ],
-      //     ),
-      //   ],
-      // ),
-    );
+        // padding: const EdgeInsets.all(16),
+        // decoration: BoxDecoration(
+        //   gradient: LinearGradient(
+        //     begin: Alignment.topLeft,
+        //     end: Alignment.bottomRight,
+        //     colors: [
+        //       AppColors.darkGreen,
+        //       AppColors.primaryGreen,
+        //     ],
+        //   ),
+        //   borderRadius: BorderRadius.circular(8),
+        //   boxShadow: [
+        //     BoxShadow(
+        //       color: AppColors.primaryGreen.withOpacity(0.3),
+        //       blurRadius: 20,
+        //       offset: const Offset(0, 10),
+        //     ),
+        //   ],
+        // ),
+        // child: Column(
+        //   crossAxisAlignment: CrossAxisAlignment.start,
+        //   mainAxisSize: MainAxisSize.min,
+        //   children: [
+        //     const Row(
+        //       children: [
+        //         Icon(
+        //           Icons.assessment_rounded,
+        //           color: Colors.white,
+        //           size: 24,
+        //         ),
+        //         SizedBox(width: 12),
+        //         Text(
+        //           'Daily Nutrition Summary',
+        //           style: TextStyle(
+        //             fontSize: 18,
+        //             fontWeight: FontWeight.bold,
+        //             color: Colors.white,
+        //           ),
+        //         ),
+        //       ],
+        //     ),
+        //     const SizedBox(height: 20),
+        //     Row(
+        //       children: [
+        //         Expanded(
+        //           child: _buildSummaryItem(
+        //             'Calories',
+        //             totalKcal.toStringAsFixed(0),
+        //             'kcal',
+        //             Icons.local_fire_department_rounded,
+        //           ),
+        //         ),
+        //         Expanded(
+        //           child: _buildSummaryItem(
+        //             'Protein',
+        //             totalProtein.toStringAsFixed(1),
+        //             'g',
+        //             Icons.fitness_center_rounded,
+        //           ),
+        //         ),
+        //       ],
+        //     ),
+        //     const SizedBox(height: 12),
+        //     Row(
+        //       children: [
+        //         Expanded(
+        //           child: _buildSummaryItem(
+        //             'Fat',
+        //             totalFat.toStringAsFixed(1),
+        //             'g',
+        //             Icons.opacity_rounded,
+        //           ),
+        //         ),
+        //         Expanded(
+        //           child: _buildSummaryItem(
+        //             'Carbs',
+        //             totalCarbs.toStringAsFixed(1),
+        //             'g',
+        //             Icons.grain_rounded,
+        //           ),
+        //         ),
+        //       ],
+        //     ),
+        //   ],
+        // ),
+        );
   }
 
+  // ignore: unused_element
   Widget _buildSummaryItem(
       String label, String value, String unit, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.only(right: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

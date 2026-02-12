@@ -307,6 +307,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       );
     }
 
+    if (_isNullStringTypeError(profileError)) {
+      return _buildMealPlanContactAdminState();
+    }
+
     if (userId.trim().isEmpty) {
       final message = profileError?.trim().isNotEmpty == true
           ? profileError!.trim()
@@ -360,6 +364,74 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return MealPlanWidget(
       key: ValueKey(userId),
       userId: userId,
+    );
+  }
+
+  bool _isNullStringTypeError(String? message) {
+    if (message == null) return false;
+    final lower = message.toLowerCase();
+    return lower.contains("null is not a subtype of type 'string'") ||
+        lower.contains('null is not a subtype of string') ||
+        lower.contains("type 'null' is not a subtype of type 'string'") ||
+        lower.contains("type 'null' is not a subtype of string");
+  }
+
+  Widget _buildMealPlanContactAdminState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSizes.spacing16),
+      margin: const EdgeInsets.only(top: AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(color: AppColors.borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: AppSizes.shadowBlur10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.support_agent_rounded,
+            size: 52,
+            color: AppColors.primaryGreen,
+          ),
+          const SizedBox(height: AppSizes.spacing12),
+          const Text(
+            'Meal plan is not available',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize16,
+              fontWeight: AppTypography.semiBold,
+              color: AppColors.textPrimary,
+              fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: AppSizes.spacing8),
+          const Text(
+            'Please contact admin to get your meal plan.\n'
+            'Take a subscription plan to receive a call from our team.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize13,
+              color: AppColors.textSecondary,
+              fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: AppSizes.spacing16),
+          PrimaryButton(
+            text: 'Take Subscription Plan',
+            onPressed: _showMembershipPopupOnDemand,
+            backgroundColor: AppColors.primaryGreen,
+            textColor: Colors.white,
+            height: 44,
+          ),
+        ],
+      ),
     );
   }
 
@@ -433,6 +505,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return const SizedBox.shrink();
   }
 
+  // ignore: unused_element
   Widget _trackSubscription() {
     final subscription = ref.watch(walletProvider).subscription;
     final wallet = ref.watch(walletProvider).wallet;

@@ -345,15 +345,15 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          '₹${item.subtotal.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: AppTypography.fontSize14,
-                            fontWeight: AppTypography.bold,
-                            color: AppColors.primaryGreen,
-                            fontFamily: AppTypography.fontFamily,
-                          ),
-                        ),
+                        // Text(
+                        //   '₹${item.subtotal.toStringAsFixed(0)}',
+                        //   style: const TextStyle(
+                        //     fontSize: AppTypography.fontSize14,
+                        //     fontWeight: AppTypography.bold,
+                        //     color: AppColors.primaryGreen,
+                        //     fontFamily: AppTypography.fontFamily,
+                        //   ),
+                        // ),
                       ],
                     ),
                   ],
