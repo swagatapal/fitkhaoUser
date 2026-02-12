@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -57,6 +58,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
   late Animation<double> _fadeAnimation;
   bool _slotsInitialized = false;
   bool _isSubmitting = false;
+  bool _isConfirmedToday = false;
 
   @override
   void initState() {
@@ -110,6 +112,19 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
     if (_slotsInitialized) return;
     _slotsInitialized = true;
 
+    // Check if slots were already confirmed for tomorrow
+    final savedSelections = _loadConfirmedSlots(apiSlots);
+    if (savedSelections != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _isConfirmedToday = true);
+          ref.read(slotMealSelectionProvider.notifier).state = savedSelections;
+          _animationController.forward();
+        }
+      });
+      return;
+    }
+
     final selections = apiSlots.map((slot) {
       return SlotMealSelection(
         slotId: slot.id,
@@ -126,6 +141,59 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
         _animationController.forward();
       }
     });
+  }
+
+  /// Load previously confirmed slots from local storage if date matches tomorrow
+  List<SlotMealSelection>? _loadConfirmedSlots(List<DeliverySlotApiModel> apiSlots) {
+    final localStorage = ref.read(localStorageProvider).valueOrNull;
+    if (localStorage == null) return null;
+
+    final savedDate = localStorage.getConfirmedSlotsDate();
+    final deliveryDate = _getDeliveryDate();
+
+    if (savedDate != deliveryDate) return null;
+
+    final savedJson = localStorage.getConfirmedSlots();
+    if (savedJson == null) return null;
+
+    try {
+      final List<dynamic> decoded = jsonDecode(savedJson);
+      // Build selections using API slots as base, overlay saved category IDs
+      return apiSlots.map((slot) {
+        final saved = decoded.firstWhere(
+          (s) => s['slotId'] == slot.id,
+          orElse: () => null,
+        );
+        final categoryIds = saved != null
+            ? List<String>.from(saved['categoryIds'] ?? [])
+            : <String>[];
+        return SlotMealSelection(
+          slotId: slot.id,
+          slotName: slot.slotName,
+          timeRange: slot.timeRange,
+          slotType: slot.slotType,
+          selectedCategoryIds: categoryIds,
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('[DeliverySlotSelector] Error loading confirmed slots: $e');
+      return null;
+    }
+  }
+
+  /// Persist confirmed slot selections to local storage
+  Future<void> _persistConfirmedSlots() async {
+    final localStorage = ref.read(localStorageProvider).valueOrNull;
+    if (localStorage == null) return;
+
+    final selections = ref.read(slotMealSelectionProvider);
+    final jsonList = selections.map((sel) => {
+      'slotId': sel.slotId,
+      'categoryIds': sel.selectedCategoryIds,
+    }).toList();
+
+    await localStorage.saveConfirmedSlots(jsonEncode(jsonList));
+    await localStorage.saveConfirmedSlotsDate(_getDeliveryDate());
   }
 
   /// Get available meal categories for a slot based on its type
@@ -172,6 +240,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
 
   /// Toggle meal category selection for a slot
   void _toggleMealSelection(String slotId, MealCategoryItem category) {
+    if (_isConfirmedToday) return;
     final selections = ref.read(slotMealSelectionProvider);
     final index = selections.indexWhere((s) => s.slotId == slotId);
 
@@ -300,6 +369,11 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
       if (!mounted) return;
 
       if (response.success) {
+        // Persist confirmed slots locally
+        await _persistConfirmedSlots();
+        if (!mounted) return;
+        setState(() => _isConfirmedToday = true);
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -602,6 +676,46 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                     ),
                   ),
 
+                  // Confirmed banner
+                  if (_isConfirmedToday)
+                    Container(
+                      margin: const EdgeInsets.fromLTRB(
+                        AppSizes.spacing16,
+                        AppSizes.spacing16,
+                        AppSizes.spacing16,
+                        0,
+                      ),
+                      padding: const EdgeInsets.all(AppSizes.spacing12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppSizes.radius8),
+                        border: Border.all(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            color: AppColors.primaryGreen,
+                            size: AppSizes.icon20,
+                          ),
+                          const SizedBox(width: AppSizes.spacing10),
+                          const Expanded(
+                            child: Text(
+                              'You have already confirmed your delivery slots for tomorrow. You can update once per day.',
+                              style: TextStyle(
+                                fontSize: AppTypography.fontSize13,
+                                fontWeight: AppTypography.medium,
+                                color: AppColors.textPrimary,
+                                fontFamily: 'Lato',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   // Slot Cards
                   Padding(
                     padding: const EdgeInsets.all(AppSizes.spacing16),
@@ -626,12 +740,16 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                           width: double.infinity,
                           height: AppSizes.buttonHeight,
                           child: ElevatedButton(
-                            onPressed:
-                                _isSubmitting ? null : _saveSlotSelections,
+                            onPressed: _isConfirmedToday || _isSubmitting
+                                ? null
+                                : _saveSlotSelections,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF6A1B9A),
-                              disabledBackgroundColor:
-                                  const Color(0xFF6A1B9A).withValues(alpha: 0.5),
+                              backgroundColor: _isConfirmedToday
+                                  ? Colors.grey
+                                  : const Color(0xFF6A1B9A),
+                              disabledBackgroundColor: _isConfirmedToday
+                                  ? Colors.grey.withValues(alpha: 0.5)
+                                  : const Color(0xFF6A1B9A).withValues(alpha: 0.5),
                               shape: RoundedRectangleBorder(
                                 borderRadius:
                                     BorderRadius.circular(AppSizes.radius8),
@@ -651,16 +769,20 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                                 : Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(
-                                        Icons.check_circle_outline,
+                                      Icon(
+                                        _isConfirmedToday
+                                            ? Icons.lock_rounded
+                                            : Icons.check_circle_outline,
                                         color: Colors.white,
                                         size: AppSizes.icon20,
                                       ),
                                       const SizedBox(width: AppSizes.spacing8),
                                       Text(
-                                        totalSelected > 0
-                                            ? 'Confirm $totalSelected Slot${totalSelected > 1 ? 's' : ''}'
-                                            : 'Select Meals',
+                                        _isConfirmedToday
+                                            ? 'Already Confirmed'
+                                            : totalSelected > 0
+                                                ? 'Confirm $totalSelected Slot${totalSelected > 1 ? 's' : ''}'
+                                                : 'Select Meals',
                                         style: const TextStyle(
                                           fontSize: AppTypography.fontSize16,
                                           fontWeight: AppTypography.semiBold,
@@ -813,7 +935,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                     sel.selectedCategoryIds.contains(category.id);
                 final isAlreadySelected =
                     _isCategoryAlreadySelected(category.id);
-                final isDisabled = isAlreadySelected && !isSelected;
+                final isDisabled = _isConfirmedToday || (isAlreadySelected && !isSelected);
                 final mealColor = _getMealColor(category.name);
 
                 return GestureDetector(
@@ -821,7 +943,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                       ? null
                       : () => _toggleMealSelection(sel.slotId, category),
                   child: Opacity(
-                    opacity: isDisabled ? 0.4 : 1.0,
+                    opacity: isDisabled && !isSelected ? 0.4 : 1.0,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(
