@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "349432574858",
+    "project_id": "fitkhao-f0135",
+    "storage_bucket": "fitkhao-f0135.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:349432574858:android:d2e449f614d7cd0d530e73",
+        "android_client_info": {
+          "package_name": "com.fitkhao.fitkhao_user"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzWEt7cbt0Bh40O2PrYTnB-DTObZF7D5Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
