@@ -637,10 +637,10 @@ class _DetailedHealthInfoScreenState
                       PrimaryButton(
                         text: _getSaveButtonText(),
                         onPressed:
-                       // _isFormValid && !authState.isLoading && _canUpdateProfile(_lastProfileUpdate)
-                        //    ?
-                        _handleSave,
-                        //    : null,
+                        _isFormValid && !authState.isLoading && _canUpdateProfile(_lastProfileUpdate)
+                            ?
+                        _handleSave
+                           : null,
                         textColor: Colors.white,
                         height: context.inputHeight,
                         isLoading: authState.isLoading,
