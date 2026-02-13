@@ -193,3 +193,126 @@ class ConfirmDeliverySlotResponse {
     );
   }
 }
+
+// ── Combined Delivery Slots API (GET /api/delivery-slots?date=) ──
+
+/// Response for the combined delivery slots API
+class DeliverySlotsResponse {
+  final bool success;
+  final String message;
+  final DeliverySlotsData? data;
+
+  const DeliverySlotsResponse({
+    required this.success,
+    required this.message,
+    this.data,
+  });
+
+  factory DeliverySlotsResponse.fromJson(Map<String, dynamic> json) {
+    return DeliverySlotsResponse(
+      success: json['success'] as bool? ?? false,
+      message: json['message'] as String? ?? '',
+      data: json['data'] != null
+          ? DeliverySlotsData.fromJson(json['data'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+}
+
+/// Combined data: slots, meals, previous selections, window info
+class DeliverySlotsData {
+  final String deliveryDate;
+  final SelectionWindow selectionWindow;
+  final bool isWithinWindow;
+  final bool alreadyConfirmed;
+  final List<PreviousSlotSelection> previousSelection;
+  final List<AvailableMealCategory> availableMeals;
+  final List<DeliverySlotApiModel> slots;
+
+  const DeliverySlotsData({
+    required this.deliveryDate,
+    required this.selectionWindow,
+    required this.isWithinWindow,
+    required this.alreadyConfirmed,
+    required this.previousSelection,
+    required this.availableMeals,
+    required this.slots,
+  });
+
+  factory DeliverySlotsData.fromJson(Map<String, dynamic> json) {
+    return DeliverySlotsData(
+      deliveryDate: json['deliveryDate'] as String? ?? '',
+      selectionWindow: json['selectionWindow'] != null
+          ? SelectionWindow.fromJson(json['selectionWindow'] as Map<String, dynamic>)
+          : const SelectionWindow(start: '18:00', end: '23:59'),
+      isWithinWindow: json['isWithinWindow'] as bool? ?? false,
+      alreadyConfirmed: json['alreadyConfirmed'] as bool? ?? false,
+      previousSelection: (json['previousSelection'] as List<dynamic>?)
+              ?.map((e) => PreviousSlotSelection.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      availableMeals: (json['availableMeals'] as List<dynamic>?)
+              ?.map((e) => AvailableMealCategory.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      slots: (json['slots'] as List<dynamic>?)
+              ?.map((e) => DeliverySlotApiModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+    );
+  }
+}
+
+/// Time window for slot selection
+class SelectionWindow {
+  final String start;
+  final String end;
+
+  const SelectionWindow({required this.start, required this.end});
+
+  factory SelectionWindow.fromJson(Map<String, dynamic> json) {
+    return SelectionWindow(
+      start: json['start'] as String? ?? '18:00',
+      end: json['end'] as String? ?? '23:59',
+    );
+  }
+}
+
+/// Previously confirmed slot selection
+class PreviousSlotSelection {
+  final String slotId;
+  final List<String> categoryIds;
+
+  const PreviousSlotSelection({
+    required this.slotId,
+    required this.categoryIds,
+  });
+
+  factory PreviousSlotSelection.fromJson(Map<String, dynamic> json) {
+    return PreviousSlotSelection(
+      slotId: json['slotId'] as String? ?? '',
+      categoryIds: (json['categoryIds'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+    );
+  }
+}
+
+/// Available meal category from the combined API
+class AvailableMealCategory {
+  final String categoryId;
+  final String categoryName;
+
+  const AvailableMealCategory({
+    required this.categoryId,
+    required this.categoryName,
+  });
+
+  factory AvailableMealCategory.fromJson(Map<String, dynamic> json) {
+    return AvailableMealCategory(
+      categoryId: json['categoryId'] as String? ?? '',
+      categoryName: json['categoryName'] as String? ?? '',
+    );
+  }
+}

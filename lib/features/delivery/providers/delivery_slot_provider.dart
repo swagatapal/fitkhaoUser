@@ -9,22 +9,42 @@ class DeliverySlotState {
   final List<DeliverySlotApiModel> slots;
   final bool isLoading;
   final String? error;
+  final bool alreadyConfirmed;
+  final List<PreviousSlotSelection> previousSelection;
+  final List<AvailableMealCategory> availableMeals;
+  final bool isWithinWindow;
+  final String deliveryDate;
 
   const DeliverySlotState({
     this.slots = const [],
     this.isLoading = false,
     this.error,
+    this.alreadyConfirmed = false,
+    this.previousSelection = const [],
+    this.availableMeals = const [],
+    this.isWithinWindow = false,
+    this.deliveryDate = '',
   });
 
   DeliverySlotState copyWith({
     List<DeliverySlotApiModel>? slots,
     bool? isLoading,
     String? error,
+    bool? alreadyConfirmed,
+    List<PreviousSlotSelection>? previousSelection,
+    List<AvailableMealCategory>? availableMeals,
+    bool? isWithinWindow,
+    String? deliveryDate,
   }) {
     return DeliverySlotState(
       slots: slots ?? this.slots,
       isLoading: isLoading ?? this.isLoading,
       error: error ?? this.error,
+      alreadyConfirmed: alreadyConfirmed ?? this.alreadyConfirmed,
+      previousSelection: previousSelection ?? this.previousSelection,
+      availableMeals: availableMeals ?? this.availableMeals,
+      isWithinWindow: isWithinWindow ?? this.isWithinWindow,
+      deliveryDate: deliveryDate ?? this.deliveryDate,
     );
   }
 }
@@ -35,33 +55,43 @@ class DeliverySlotNotifier extends StateNotifier<DeliverySlotState> {
 
   DeliverySlotNotifier(this._repository) : super(const DeliverySlotState());
 
-  /// Load delivery slots from API
+  /// Load delivery slots using the combined API with date parameter
   Future<void> loadDeliverySlots() async {
     debugPrint('[DeliverySlotNotifier] Loading delivery slots...');
 
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final response = await _repository.getDeliverySlots();
+      // Calculate tomorrow's date
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final date =
+          '${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}';
+
+      final response = await _repository.getDeliverySlotsWithSelections(date: date);
 
       if (response.success && response.data != null) {
-        // Only keep active slots and sort by time
-        final activeSlots = response.data!.slots
-            .where((slot) => slot.isActive)
-            .toList();
+        final data = response.data!;
 
-        // Sort: morning first, afternoon second, night last
-        activeSlots.sort((a, b) {
-          const order = {'morning': 0, 'afternoon': 1, 'night': 2};
-          return (order[a.slotType] ?? 3).compareTo(order[b.slotType] ?? 3);
+        // Sort slots by time
+        final sortedSlots = List<DeliverySlotApiModel>.from(data.slots);
+        sortedSlots.sort((a, b) {
+          final hourA = _parseHour(a.slotStartTime);
+          final hourB = _parseHour(b.slotStartTime);
+          return hourA.compareTo(hourB);
         });
 
         state = DeliverySlotState(
-          slots: activeSlots,
+          slots: sortedSlots,
           isLoading: false,
           error: null,
+          alreadyConfirmed: data.alreadyConfirmed,
+          previousSelection: data.previousSelection,
+          availableMeals: data.availableMeals,
+          isWithinWindow: data.isWithinWindow,
+          deliveryDate: data.deliveryDate,
         );
-        debugPrint('[DeliverySlotNotifier] Loaded ${activeSlots.length} active slots');
+        debugPrint(
+            '[DeliverySlotNotifier] Loaded ${sortedSlots.length} slots, alreadyConfirmed: ${data.alreadyConfirmed}');
       } else {
         state = state.copyWith(
           isLoading: false,
@@ -76,6 +106,21 @@ class DeliverySlotNotifier extends StateNotifier<DeliverySlotState> {
         isLoading: false,
         error: 'Failed to load delivery slots',
       );
+    }
+  }
+
+  /// Parse hour from time string like "8:00 AM" or "12:00 PM"
+  int _parseHour(String time) {
+    try {
+      final parts = time.trim().split(' ');
+      final timeParts = parts[0].split(':');
+      int hour = int.parse(timeParts[0]);
+      final period = parts.length > 1 ? parts[1].toUpperCase() : '';
+      if (period == 'PM' && hour != 12) hour += 12;
+      if (period == 'AM' && hour == 12) hour = 0;
+      return hour;
+    } catch (_) {
+      return 0;
     }
   }
 

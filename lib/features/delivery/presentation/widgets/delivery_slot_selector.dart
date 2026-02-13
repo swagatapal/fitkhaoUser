@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -8,7 +7,6 @@ import '../../../../core/providers/providers.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../models/delivery_slot_model.dart';
 import '../../providers/delivery_slot_provider.dart';
-import '../../providers/meal_category_provider.dart';
 
 /// Local model for tracking meal selections per slot
 class SlotMealSelection {
@@ -58,7 +56,6 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
   late Animation<double> _fadeAnimation;
   bool _slotsInitialized = false;
   bool _isSubmitting = false;
-  bool _isConfirmedToday = false;
 
   @override
   void initState() {
@@ -86,13 +83,6 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
     super.dispose();
   }
 
-  /// Check if current time is between 6 PM and 11:59 PM
-  bool _shouldShowSelector() {
-    final now = DateTime.now();
-    final hour = now.hour;
-    return hour >= 18 && hour < 24; // 6 PM to 11:59 PM
-  }
-
   /// Get icon for slot type
   IconData _getSlotIcon(String slotType) {
     switch (slotType) {
@@ -107,30 +97,29 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
     }
   }
 
-  /// Initialize meal selection state from API slots
-  void _initializeMealSelections(List<DeliverySlotApiModel> apiSlots) {
+  /// Initialize meal selection state from API slots and previous selections
+  void _initializeMealSelections(DeliverySlotState slotState) {
     if (_slotsInitialized) return;
     _slotsInitialized = true;
 
-    // Check if slots were already confirmed for tomorrow
-    final savedSelections = _loadConfirmedSlots(apiSlots);
-    if (savedSelections != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() => _isConfirmedToday = true);
-          ref.read(slotMealSelectionProvider.notifier).state = savedSelections;
-          _animationController.forward();
-        }
-      });
-      return;
-    }
+    final apiSlots = slotState.slots;
+    final previousSelections = slotState.previousSelection;
 
     final selections = apiSlots.map((slot) {
+      // Check if this slot has previous selections
+      final previous = previousSelections
+          .where((p) => p.slotId == slot.id)
+          .toList();
+      final categoryIds = previous.isNotEmpty
+          ? List<String>.from(previous.first.categoryIds)
+          : <String>[];
+
       return SlotMealSelection(
         slotId: slot.id,
-        slotName: slot.slotName,
+        slotName: slot.slotName.isNotEmpty ? slot.slotName : _getSlotNameFromTime(slot.slotStartTime),
         timeRange: slot.timeRange,
         slotType: slot.slotType,
+        selectedCategoryIds: categoryIds,
       );
     }).toList();
 
@@ -143,63 +132,32 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
     });
   }
 
-  /// Load previously confirmed slots from local storage if date matches tomorrow
-  List<SlotMealSelection>? _loadConfirmedSlots(List<DeliverySlotApiModel> apiSlots) {
-    final localStorage = ref.read(localStorageProvider).valueOrNull;
-    if (localStorage == null) return null;
+  /// Generate slot name from start time if API doesn't provide slotName
+  String _getSlotNameFromTime(String startTime) {
+    final hour = _parseHour(startTime);
+    if (hour >= 5 && hour < 11) return 'Morning Slot';
+    if (hour >= 11 && hour < 17) return 'Afternoon Slot';
+    return 'Night Slot';
+  }
 
-    final savedDate = localStorage.getConfirmedSlotsDate();
-    final deliveryDate = _getDeliveryDate();
-
-    if (savedDate != deliveryDate) return null;
-
-    final savedJson = localStorage.getConfirmedSlots();
-    if (savedJson == null) return null;
-
+  /// Parse hour from time string like "8:00 AM" or "12:00 PM"
+  int _parseHour(String time) {
     try {
-      final List<dynamic> decoded = jsonDecode(savedJson);
-      // Build selections using API slots as base, overlay saved category IDs
-      return apiSlots.map((slot) {
-        final saved = decoded.firstWhere(
-          (s) => s['slotId'] == slot.id,
-          orElse: () => null,
-        );
-        final categoryIds = saved != null
-            ? List<String>.from(saved['categoryIds'] ?? [])
-            : <String>[];
-        return SlotMealSelection(
-          slotId: slot.id,
-          slotName: slot.slotName,
-          timeRange: slot.timeRange,
-          slotType: slot.slotType,
-          selectedCategoryIds: categoryIds,
-        );
-      }).toList();
-    } catch (e) {
-      debugPrint('[DeliverySlotSelector] Error loading confirmed slots: $e');
-      return null;
+      final parts = time.trim().split(' ');
+      final timeParts = parts[0].split(':');
+      int hour = int.parse(timeParts[0]);
+      final period = parts.length > 1 ? parts[1].toUpperCase() : '';
+      if (period == 'PM' && hour != 12) hour += 12;
+      if (period == 'AM' && hour == 12) hour = 0;
+      return hour;
+    } catch (_) {
+      return 0;
     }
   }
 
-  /// Persist confirmed slot selections to local storage
-  Future<void> _persistConfirmedSlots() async {
-    final localStorage = ref.read(localStorageProvider).valueOrNull;
-    if (localStorage == null) return;
-
-    final selections = ref.read(slotMealSelectionProvider);
-    final jsonList = selections.map((sel) => {
-      'slotId': sel.slotId,
-      'categoryIds': sel.selectedCategoryIds,
-    }).toList();
-
-    await localStorage.saveConfirmedSlots(jsonEncode(jsonList));
-    await localStorage.saveConfirmedSlotsDate(_getDeliveryDate());
-  }
-
-  /// Get available meal categories for a slot based on its type
-  /// Morning: all categories, Afternoon: no Breakfast, Night: no Breakfast/Lunch
-  List<MealCategoryItem> _getAvailableCategoriesForSlot(String slotType) {
-    final allCategories = ref.read(mealCategoryListProvider);
+  /// Get available meal categories for a slot from the API response
+  List<AvailableMealCategory> _getAvailableCategoriesForSlot(String slotType, DeliverySlotState slotState) {
+    final allCategories = slotState.availableMeals;
     if (allCategories.isEmpty) return [];
 
     switch (slotType) {
@@ -207,13 +165,13 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
         return allCategories;
       case 'afternoon':
         return allCategories
-            .where((c) => c.name.toLowerCase() != 'breakfast')
+            .where((c) => c.categoryName.toLowerCase() != 'breakfast')
             .toList();
       case 'night':
         return allCategories
             .where((c) =>
-                c.name.toLowerCase() != 'breakfast' &&
-                c.name.toLowerCase() != 'lunch')
+                c.categoryName.toLowerCase() != 'breakfast' &&
+                c.categoryName.toLowerCase() != 'lunch')
             .toList();
       default:
         return [];
@@ -239,8 +197,8 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
   }
 
   /// Toggle meal category selection for a slot
-  void _toggleMealSelection(String slotId, MealCategoryItem category) {
-    if (_isConfirmedToday) return;
+  void _toggleMealSelection(String slotId, AvailableMealCategory category, DeliverySlotState slotState) {
+    if (slotState.alreadyConfirmed) return;
     final selections = ref.read(slotMealSelectionProvider);
     final index = selections.indexWhere((s) => s.slotId == slotId);
 
@@ -249,24 +207,23 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
     final sel = selections[index];
     final updatedIds = List<String>.from(sel.selectedCategoryIds);
 
-    if (updatedIds.contains(category.id)) {
-      updatedIds.remove(category.id);
+    if (updatedIds.contains(category.categoryId)) {
+      updatedIds.remove(category.categoryId);
     } else {
       // Check if this category is already selected in another slot
-      if (_isCategoryAlreadySelected(category.id)) {
-        _showMealAlreadySelectedSnackbar(category.name);
+      if (_isCategoryAlreadySelected(category.categoryId)) {
+        _showMealAlreadySelectedSnackbar(category.categoryName);
         return;
       }
 
       // Check max total
-      final allCategories = ref.read(mealCategoryListProvider);
       final totalMeals = _getTotalSelectedMeals();
-      if (totalMeals >= allCategories.length) {
-        _showMaxSelectionSnackbar();
+      if (totalMeals >= slotState.availableMeals.length) {
+        _showMaxSelectionSnackbar(slotState);
         return;
       }
 
-      updatedIds.add(category.id);
+      updatedIds.add(category.categoryId);
     }
 
     final updatedSelections = List<SlotMealSelection>.from(selections);
@@ -274,9 +231,8 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
     ref.read(slotMealSelectionProvider.notifier).state = updatedSelections;
   }
 
-  void _showMaxSelectionSnackbar() {
-    final allCategories = ref.read(mealCategoryListProvider);
-    final names = allCategories.map((c) => c.name).join(', ');
+  void _showMaxSelectionSnackbar(DeliverySlotState slotState) {
+    final names = slotState.availableMeals.map((c) => c.categoryName).join(', ');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -369,10 +325,12 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
       if (!mounted) return;
 
       if (response.success) {
-        // Persist confirmed slots locally
-        await _persistConfirmedSlots();
+        // Reload slots from API to get updated state (alreadyConfirmed = true)
+        await ref.read(deliverySlotApiProvider.notifier).refresh();
         if (!mounted) return;
-        setState(() => _isConfirmedToday = true);
+
+        // Reset initialization flag so selections rebuild with API data
+        _slotsInitialized = false;
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -445,15 +403,16 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
 
   @override
   Widget build(BuildContext context) {
-    if (!_shouldShowSelector()) {
-      return const SizedBox.shrink();
-    }
-
     final slotState = ref.watch(deliverySlotApiProvider);
     final mealSelections = ref.watch(slotMealSelectionProvider);
-    final mealCategories = ref.watch(mealCategoryListProvider);
     final totalSelected = _getTotalSelectedMeals();
-    final totalCategories = mealCategories.length;
+    final totalCategories = slotState.availableMeals.length;
+    final isConfirmed = slotState.alreadyConfirmed;
+
+    // Don't show if not within selection window (from API)
+    if (!slotState.isLoading && !slotState.isWithinWindow && slotState.slots.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     // Show loading state
     if (slotState.isLoading) {
@@ -549,16 +508,12 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
     }
 
     // No slots or no meal categories yet
-    if (slotState.slots.isEmpty || mealCategories.isEmpty) {
-      // Initialize slots even if categories aren't ready yet
-      if (slotState.slots.isNotEmpty) {
-        _initializeMealSelections(slotState.slots);
-      }
+    if (slotState.slots.isEmpty || slotState.availableMeals.isEmpty) {
       return const SizedBox.shrink();
     }
 
     // Initialize meal selections from API data (once)
-    _initializeMealSelections(slotState.slots);
+    _initializeMealSelections(slotState);
 
     // Don't render until selections are initialized
     if (mealSelections.isEmpty) {
@@ -677,7 +632,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                   ),
 
                   // Confirmed banner
-                  if (_isConfirmedToday)
+                  if (isConfirmed)
                     Container(
                       margin: const EdgeInsets.fromLTRB(
                         AppSizes.spacing16,
@@ -728,7 +683,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                             children: [
                               if (index > 0)
                                 const SizedBox(height: AppSizes.spacing12),
-                              _buildSlotCard(sel),
+                              _buildSlotCard(sel, slotState),
                             ],
                           );
                         }),
@@ -740,14 +695,14 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                           width: double.infinity,
                           height: AppSizes.buttonHeight,
                           child: ElevatedButton(
-                            onPressed: _isConfirmedToday || _isSubmitting
+                            onPressed: isConfirmed || _isSubmitting
                                 ? null
                                 : _saveSlotSelections,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: _isConfirmedToday
+                              backgroundColor: isConfirmed
                                   ? Colors.grey
                                   : const Color(0xFF6A1B9A),
-                              disabledBackgroundColor: _isConfirmedToday
+                              disabledBackgroundColor: isConfirmed
                                   ? Colors.grey.withValues(alpha: 0.5)
                                   : const Color(0xFF6A1B9A).withValues(alpha: 0.5),
                               shape: RoundedRectangleBorder(
@@ -770,7 +725,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(
-                                        _isConfirmedToday
+                                        isConfirmed
                                             ? Icons.lock_rounded
                                             : Icons.check_circle_outline,
                                         color: Colors.white,
@@ -778,7 +733,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                                       ),
                                       const SizedBox(width: AppSizes.spacing8),
                                       Text(
-                                        _isConfirmedToday
+                                        isConfirmed
                                             ? 'Already Confirmed'
                                             : totalSelected > 0
                                                 ? 'Confirm $totalSelected Slot${totalSelected > 1 ? 's' : ''}'
@@ -806,9 +761,10 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
     );
   }
 
-  Widget _buildSlotCard(SlotMealSelection sel) {
+  Widget _buildSlotCard(SlotMealSelection sel, DeliverySlotState slotState) {
     final hasSelections = sel.selectedCategoryIds.isNotEmpty;
-    final availableCategories = _getAvailableCategoriesForSlot(sel.slotType);
+    final availableCategories = _getAvailableCategoriesForSlot(sel.slotType, slotState);
+    final isConfirmed = slotState.alreadyConfirmed;
 
     return Container(
       decoration: BoxDecoration(
@@ -932,16 +888,16 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
               runSpacing: AppSizes.spacing8,
               children: availableCategories.map((category) {
                 final isSelected =
-                    sel.selectedCategoryIds.contains(category.id);
+                    sel.selectedCategoryIds.contains(category.categoryId);
                 final isAlreadySelected =
-                    _isCategoryAlreadySelected(category.id);
-                final isDisabled = _isConfirmedToday || (isAlreadySelected && !isSelected);
-                final mealColor = _getMealColor(category.name);
+                    _isCategoryAlreadySelected(category.categoryId);
+                final isDisabled = isConfirmed || (isAlreadySelected && !isSelected);
+                final mealColor = _getMealColor(category.categoryName);
 
                 return GestureDetector(
                   onTap: isDisabled
                       ? null
-                      : () => _toggleMealSelection(sel.slotId, category),
+                      : () => _toggleMealSelection(sel.slotId, category, slotState),
                   child: Opacity(
                     opacity: isDisabled && !isSelected ? 0.4 : 1.0,
                     child: AnimatedContainer(
@@ -989,7 +945,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                               ),
                             ),
                           Text(
-                            category.name,
+                            category.categoryName,
                             style: TextStyle(
                               fontSize: AppTypography.fontSize13,
                               fontWeight: isSelected

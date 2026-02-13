@@ -27,8 +27,7 @@ class LocalStorageService {
   static const String _keyOnboardingComplete = 'onboarding_complete';
   static const String _keyThemeMode = 'theme_mode';
   static const String _keyLanguage = 'language';
-  static const String _keyConfirmedSlots = 'confirmed_delivery_slots';
-  static const String _keyConfirmedSlotsDate = 'confirmed_delivery_slots_date';
+
 
   /// Save auth token
   Future<bool> saveAuthToken(String token) async {
@@ -240,42 +239,6 @@ class LocalStorageService {
     }
   }
 
-  /// Save confirmed delivery slots JSON
-  Future<bool> saveConfirmedSlots(String jsonData) async {
-    try {
-      return await _preferences!.setString(_keyConfirmedSlots, jsonData);
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Get confirmed delivery slots JSON
-  String? getConfirmedSlots() {
-    try {
-      return _preferences!.getString(_keyConfirmedSlots);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /// Save the delivery date for which slots were confirmed
-  Future<bool> saveConfirmedSlotsDate(String date) async {
-    try {
-      return await _preferences!.setString(_keyConfirmedSlotsDate, date);
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Get the delivery date for which slots were confirmed
-  String? getConfirmedSlotsDate() {
-    try {
-      return _preferences!.getString(_keyConfirmedSlotsDate);
-    } catch (e) {
-      return null;
-    }
-  }
-
   /// Clear all user data (on logout)
   Future<bool> clearUserData() async {
     try {
@@ -285,8 +248,6 @@ class LocalStorageService {
       await _preferences!.remove(_keyUserPhone);
       await _preferences!.remove(_keyUserName);
       await _preferences!.remove(_keyUserEmail);
-      await _preferences!.remove(_keyConfirmedSlots);
-      await _preferences!.remove(_keyConfirmedSlotsDate);
       await _preferences!.setBool(_keyIsLoggedIn, false);
       return true;
     } catch (e) {

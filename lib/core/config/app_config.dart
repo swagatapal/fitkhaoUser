@@ -44,6 +44,7 @@ class AppConfig {
   /// Delivery Slots
   static const String deliverySlotListPath = '/api/delivery-slot/list';
   static const String deliverySlotConfirmPath = '/api/delivery-slots/confirm';
+  static const String deliverySlotsPath = '/api/delivery-slots';
 
   /// Analytics base (trending)
   static const String trendingPath = '/api/analytics/trending/';

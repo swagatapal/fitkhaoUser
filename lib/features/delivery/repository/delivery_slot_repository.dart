@@ -16,12 +16,11 @@ class DeliverySlotRepository {
   })  : _apiClient = apiClient,
         _localStorage = localStorage;
 
-  /// Fetch delivery slots from API
+  /// Fetch delivery slots from API (old endpoint)
   Future<DeliverySlotListResponse> getDeliverySlots() async {
     debugPrint('[DeliverySlotRepository] Fetching delivery slots via API...');
 
     try {
-      // Get auth token
       final token = _localStorage.getAuthToken();
       if (token == null || token.isEmpty) {
         throw AuthException(
@@ -29,13 +28,11 @@ class DeliverySlotRepository {
         );
       }
 
-      // Prepare headers with Bearer token
       final headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       };
 
-      // Make GET request
       final json = await _apiClient.getJson(
         AppConfig.deliverySlotListPath,
         headers: headers,
@@ -46,6 +43,40 @@ class DeliverySlotRepository {
       return DeliverySlotListResponse.fromJson(json);
     } catch (e) {
       debugPrint('[DeliverySlotRepository] Delivery slots error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
+  /// Fetch combined delivery slots with previous selections and available meals
+  Future<DeliverySlotsResponse> getDeliverySlotsWithSelections({
+    required String date,
+  }) async {
+    debugPrint('[DeliverySlotRepository] Fetching delivery slots for date: $date');
+
+    try {
+      final token = _localStorage.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+          message: 'Authentication required. Please login again.',
+        );
+      }
+
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+
+      final json = await _apiClient.getJson(
+        '${AppConfig.deliverySlotsPath}?date=$date',
+        headers: headers,
+      );
+
+      debugPrint('[DeliverySlotRepository] Combined slots response: $json');
+
+      return DeliverySlotsResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[DeliverySlotRepository] Combined slots error: $e');
       final message = ExceptionHandler.getErrorMessage(e);
       throw NetworkException(message: message, originalError: e);
     }
