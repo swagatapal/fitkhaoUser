@@ -250,18 +250,23 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
         // Publish meal categories to provider for DeliverySlotSelector
         _publishMealCategories();
 
+        // Mark meal plan as available
+        ref.read(mealPlanAvailableProvider.notifier).state = true;
+
         setState(() {
           isLoading = false;
         });
         _animationController.forward();
         _scrollToSelectedDate();
       } else {
+        ref.read(mealPlanAvailableProvider.notifier).state = false;
         setState(() {
           error = 'Failed to load meal plan';
           isLoading = false;
         });
       }
     } catch (e) {
+      ref.read(mealPlanAvailableProvider.notifier).state = false;
       setState(() {
         error = 'Error: ${e.toString()}';
         isLoading = false;

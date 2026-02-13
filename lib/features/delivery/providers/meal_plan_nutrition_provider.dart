@@ -24,3 +24,6 @@ class MealPlanNutrition {
 /// Provider to share meal plan nutrition data across widgets
 final mealPlanNutritionProvider =
     StateProvider<MealPlanNutrition>((ref) => const MealPlanNutrition.empty());
+
+/// Provider to track if meal plan is available (loaded successfully)
+final mealPlanAvailableProvider = StateProvider<bool>((ref) => false);
