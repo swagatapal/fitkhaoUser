@@ -109,7 +109,7 @@ class _DetailedHealthInfoScreenState
   /// Get button text based on update restriction
   String _getSaveButtonText() {
     if (_daysUntilNextUpdate > 0) {
-      return 'You can update after $_daysUntilNextUpdate ${_daysUntilNextUpdate == 1 ? 'day' : 'days'}';
+      return 'We will connect after $_daysUntilNextUpdate ${_daysUntilNextUpdate == 1 ? 'day' : 'days'}';
     }
     return AppStrings.save;
   }
