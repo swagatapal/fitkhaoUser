@@ -401,18 +401,24 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
     }
   }
 
+  /// Check if current time is between 4 PM and 8 PM
+  bool _isWithinTimeWindow() {
+    final now = DateTime.now();
+    return now.hour >= 16 && now.hour < 20; // 4 PM to 7:59 PM
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Only show between 4 PM and 8 PM
+    if (!_isWithinTimeWindow()) {
+      return const SizedBox.shrink();
+    }
+
     final slotState = ref.watch(deliverySlotApiProvider);
     final mealSelections = ref.watch(slotMealSelectionProvider);
     final totalSelected = _getTotalSelectedMeals();
     final totalCategories = slotState.availableMeals.length;
     final isConfirmed = slotState.alreadyConfirmed;
-
-    // Don't show if not within selection window (from API)
-    if (!slotState.isLoading && !slotState.isWithinWindow && slotState.slots.isEmpty) {
-      return const SizedBox.shrink();
-    }
 
     // Show loading state
     if (slotState.isLoading) {
