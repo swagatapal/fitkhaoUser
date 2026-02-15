@@ -12,6 +12,29 @@ import '../../providers/wallet_provider.dart';
 import '../../providers/meal_category_provider.dart';
 import 'membership_popup.dart';
 
+// Safe JSON helpers (local to this widget file)
+String _string(dynamic value) => value?.toString() ?? '';
+
+bool _bool(dynamic value) => value == true;
+
+double _double(dynamic value) {
+  if (value is num) return value.toDouble();
+  return double.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+DateTime _date(dynamic value) {
+  final parsed = DateTime.tryParse(value?.toString() ?? '');
+  return parsed ?? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+}
+
+Map<String, dynamic> _map(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return const <String, dynamic>{};
+}
+
+List<dynamic> _list(dynamic value) => value is List ? value : const <dynamic>[];
+
 // Model Classes (keep all the model classes as they are)
 class MealPlanResponse {
   final bool success;
@@ -26,9 +49,9 @@ class MealPlanResponse {
 
   factory MealPlanResponse.fromJson(Map<String, dynamic> json) {
     return MealPlanResponse(
-      success: json['success'],
-      message: json['message'],
-      data: MealPlanData.fromJson(json['data']),
+      success: _bool(json['success']),
+      message: _string(json['message']),
+      data: MealPlanData.fromJson(_map(json['data'])),
     );
   }
 }
@@ -40,7 +63,7 @@ class MealPlanData {
 
   factory MealPlanData.fromJson(Map<String, dynamic> json) {
     return MealPlanData(
-      mealPlan: MealPlan.fromJson(json['mealPlan']),
+      mealPlan: MealPlan.fromJson(_map(json['mealPlan'])),
     );
   }
 }
@@ -53,8 +76,11 @@ class MealPlan {
 
   factory MealPlan.fromJson(Map<String, dynamic> json) {
     return MealPlan(
-      id: json['_id'],
-      days: (json['days'] as List).map((day) => DayMeal.fromJson(day)).toList(),
+      id: _string(json['_id']),
+      days: _list(json['days'])
+          .whereType<Map>()
+          .map((day) => DayMeal.fromJson(Map<String, dynamic>.from(day)))
+          .toList(),
     );
   }
 }
@@ -72,10 +98,15 @@ class DayMeal {
 
   factory DayMeal.fromJson(Map<String, dynamic> json) {
     return DayMeal(
-      date: DateTime.parse(json['date']),
-      isDeleted: json['isDeleted'],
-      meals: (json['meals'] as List)
-          .map((meal) => MealCategory.fromJson(meal))
+      date: _date(json['date']),
+      isDeleted: _bool(json['isDeleted']),
+      meals: _list(json['meals'])
+          .whereType<Map>()
+          .map((meal) => MealCategory.fromJson(Map<String, dynamic>.from(meal)))
+          // Backend sometimes returns placeholder meals like:
+          // { "category": {}, "dishes": [] }
+          // Filter those out so UI/parsing never crashes.
+          .where((meal) => !meal.isPlaceholder)
           .toList(),
     );
   }
@@ -87,11 +118,16 @@ class MealCategory {
 
   MealCategory({required this.category, required this.dishes});
 
+  bool get isPlaceholder =>
+      category.dishCategory.trim().isEmpty && dishes.isEmpty;
+
   factory MealCategory.fromJson(Map<String, dynamic> json) {
     return MealCategory(
-      category: Category.fromJson(json['category']),
-      dishes:
-          (json['dishes'] as List).map((dish) => Dish.fromJson(dish)).toList(),
+      category: Category.fromJson(_map(json['category'])),
+      dishes: _list(json['dishes'])
+          .whereType<Map>()
+          .map((dish) => Dish.fromJson(Map<String, dynamic>.from(dish)))
+          .toList(),
     );
   }
 }
@@ -109,9 +145,9 @@ class Category {
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
-      id: json['_id'],
-      dishCategory: json['dishCategory'],
-      isActive: json['isActive'],
+      id: _string(json['_id']),
+      dishCategory: _string(json['dishCategory']),
+      isActive: _bool(json['isActive']),
     );
   }
 }
@@ -139,14 +175,15 @@ class Dish {
 
   factory Dish.fromJson(Map<String, dynamic> json) {
     return Dish(
-      id: json['_id'],
-      dishCode: json['dishCode'],
-      dishName: json['dishName'],
-      dishType: json['dishType'],
-      nutritionalValue: NutritionalValue.fromJson(json['nutritionalValue']),
-      costPrice: (json['costPrice'] ?? 0).toDouble(),
-      marketPrice: (json['marketPrice'] ?? 0).toDouble(),
-      isActive: json['isActive'],
+      id: _string(json['_id']),
+      dishCode: _string(json['dishCode']),
+      dishName: _string(json['dishName']),
+      dishType: _string(json['dishType']),
+      nutritionalValue:
+          NutritionalValue.fromJson(_map(json['nutritionalValue'])),
+      costPrice: _double(json['costPrice']),
+      marketPrice: _double(json['marketPrice']),
+      isActive: _bool(json['isActive']),
     );
   }
 }
@@ -166,10 +203,10 @@ class NutritionalValue {
 
   factory NutritionalValue.fromJson(Map<String, dynamic> json) {
     return NutritionalValue(
-      kcal: (json['kcal'] ?? 0).toDouble(),
-      protein: (json['protein'] ?? 0).toDouble(),
-      fat: (json['fat'] ?? 0).toDouble(),
-      carbs: (json['carbs'] ?? 0).toDouble(),
+      kcal: _double(json['kcal']),
+      protein: _double(json['protein']),
+      fat: _double(json['fat']),
+      carbs: _double(json['carbs']),
     );
   }
 }
@@ -305,29 +342,44 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
       return null;
     }
 
+    final days = mealPlanResponse!.data.mealPlan.days
+        .where((d) => !d.isDeleted)
+        .toList();
+    if (days.isEmpty) return null;
+
     final today = DateTime.now();
     final todayDate = DateTime(today.year, today.month, today.day);
 
-    // First, try to find exact match
-    for (var day in mealPlanResponse!.data.mealPlan.days) {
+    // Prefer an exact match that actually has meals
+    for (var day in days) {
       final dayDate = DateTime(day.date.year, day.date.month, day.date.day);
-      if (dayDate.isAtSameMomentAs(todayDate)) {
+      if (dayDate.isAtSameMomentAs(todayDate) && day.meals.isNotEmpty) {
         return day;
       }
     }
 
-    // If no exact match, find nearest date
+    // Otherwise, find the nearest day that has meals
+    DayMeal? nearestWithMeals;
+    Duration? smallestWithMealsDiff;
+    for (var day in days.where((d) => d.meals.isNotEmpty)) {
+      final diff = day.date.difference(todayDate).abs();
+      if (smallestWithMealsDiff == null || diff < smallestWithMealsDiff) {
+        smallestWithMealsDiff = diff;
+        nearestWithMeals = day;
+      }
+    }
+    if (nearestWithMeals != null) return nearestWithMeals;
+
+    // Fallback: nearest date (even if no meals)
     DayMeal? nearest;
     Duration? smallestDiff;
-
-    for (var day in mealPlanResponse!.data.mealPlan.days) {
+    for (var day in days) {
       final diff = day.date.difference(todayDate).abs();
       if (smallestDiff == null || diff < smallestDiff) {
         smallestDiff = diff;
         nearest = day;
       }
     }
-
     return nearest;
   }
 
@@ -339,10 +391,14 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
 
     for (var day in mealPlanResponse!.data.mealPlan.days) {
       for (var meal in day.meals) {
-        if (!categoryMap.containsKey(meal.category.id)) {
-          categoryMap[meal.category.id] = MealCategoryItem(
-            id: meal.category.id,
-            name: meal.category.dishCategory,
+        final id = meal.category.id.trim();
+        final name = meal.category.dishCategory.trim();
+        if (id.isEmpty || name.isEmpty) continue;
+
+        if (!categoryMap.containsKey(id)) {
+          categoryMap[id] = MealCategoryItem(
+            id: id,
+            name: name,
             isActive: meal.category.isActive,
           );
         }
@@ -589,6 +645,61 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     );
   }
 
+  Widget _buildNoMealsForSelectedDate() {
+    final day = selectedDayMeal;
+    final dateLabel =
+        day == null ? '' : DateFormat('EEE, d MMM').format(day.date);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.event_busy_rounded,
+            size: 48,
+            color: AppColors.primaryGreen,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'No meals planned',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            dateLabel.isEmpty
+                ? 'No meal categories are available for this day.'
+                : 'No meal categories are available for $dateLabel.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF6B7280),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMealPlanContent() {
     if (selectedDayMeal == null) {
       return const Center(
@@ -598,6 +709,8 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
         ),
       );
     }
+
+    final hasMeals = selectedDayMeal!.meals.isNotEmpty;
 
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -609,9 +722,12 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           const SizedBox(height: 16),
           _buildDateSelector(),
           const SizedBox(height: 20),
-          _buildTabBar(),
-          const SizedBox(height: 16),
-          _buildTabBarView(),
+          if (hasMeals) ...[
+            _buildTabBar(),
+            const SizedBox(height: 16),
+            _buildTabBarView(),
+          ] else
+            _buildNoMealsForSelectedDate(),
           // const SizedBox(height: 16),
           _buildNutritionSummary(),
         ],
@@ -701,10 +817,14 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
               setState(() {
                 selectedDayMeal = day;
                 _tabController?.dispose();
-                _tabController = TabController(
-                  length: day.meals.length,
-                  vsync: this,
-                );
+                if (day.meals.isNotEmpty) {
+                  _tabController = TabController(
+                    length: day.meals.length,
+                    vsync: this,
+                  );
+                } else {
+                  _tabController = null;
+                }
                 _animationController.reset();
                 _animationController.forward();
               });
@@ -813,6 +933,9 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           fontWeight: FontWeight.w600,
         ),
         tabs: selectedDayMeal!.meals.map((mealCategory) {
+          final label = mealCategory.category.dishCategory.trim().isNotEmpty
+              ? mealCategory.category.dishCategory
+              : 'Meal';
           return Tab(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -821,7 +944,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                 // const SizedBox(width: 6),
                 Flexible(
                   child: Text(
-                    mealCategory.category.dishCategory,
+                    label,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -848,6 +971,10 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
   }
 
   Widget _buildMealCategoryContent(MealCategory mealCategory) {
+    final title = mealCategory.category.dishCategory.trim().isNotEmpty
+        ? mealCategory.category.dishCategory
+        : 'Meal';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -874,7 +1001,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  _getCategoryIcon(mealCategory.category.dishCategory),
+                  _getCategoryIcon(title),
                   color: AppColors.primaryGreen,
                   size: 22,
                 ),
@@ -885,7 +1012,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      mealCategory.category.dishCategory,
+                      title,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
