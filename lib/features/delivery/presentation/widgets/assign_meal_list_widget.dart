@@ -287,8 +287,9 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
         // Publish meal categories to provider for DeliverySlotSelector
         _publishMealCategories();
 
-        // Mark meal plan as available
-        ref.read(mealPlanAvailableProvider.notifier).state = true;
+        // Mark meal plan as available only if it has actual days with meals
+        final hasMealData = mealPlanResponse!.data.mealPlan.days.isNotEmpty;
+        ref.read(mealPlanAvailableProvider.notifier).state = hasMealData;
 
         setState(() {
           isLoading = false;
