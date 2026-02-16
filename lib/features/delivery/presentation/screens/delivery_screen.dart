@@ -13,6 +13,7 @@ import '../../providers/nutrition_provider.dart';
 import '../../providers/meal_plan_nutrition_provider.dart';
 import '../widgets/membership_popup.dart';
 import '../widgets/delivery_slot_selector.dart';
+import '../widgets/location_view_sheet.dart';
 
 class DeliveryScreen extends ConsumerStatefulWidget {
   const DeliveryScreen({super.key});
@@ -143,6 +144,26 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         }
       });
     }
+  }
+
+  /// Open bottom sheet showing user's location on map
+  void _openLocationMap() {
+    final authState = ref.read(authProvider);
+    final lat = authState.latitude;
+    final lng = authState.longitude;
+
+    if (lat == null || lng == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => LocationViewSheet(
+        latitude: lat,
+        longitude: lng,
+        address: _getUserLocation(),
+      ),
+    );
   }
 
   /// Show membership popup when button is clicked
@@ -553,15 +574,18 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                   ),
                   const SizedBox(width: AppSizes.spacing4),
                   Expanded(
-                    child: Text(
-                      _getUserLocation(),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: AppTypography.fontSize13,
-                        fontWeight: AppTypography.regular,
-                        color: AppColors.textSecondary,
-                        fontFamily: 'Lato',
+                    child: GestureDetector(
+                      onTap: _openLocationMap,
+                      child: Text(
+                        _getUserLocation(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: AppTypography.fontSize13,
+                          fontWeight: AppTypography.regular,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
                       ),
                     ),
                   ),
