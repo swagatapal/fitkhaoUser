@@ -14,6 +14,7 @@ class SlotMealSelection {
   final String slotName;
   final String timeRange;
   final String slotType;
+
   /// Selected category IDs (maps to MealCategoryItem.id)
   final List<String> selectedCategoryIds;
 
@@ -107,16 +108,17 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
 
     final selections = apiSlots.map((slot) {
       // Check if this slot has previous selections
-      final previous = previousSelections
-          .where((p) => p.slotId == slot.id)
-          .toList();
+      final previous =
+          previousSelections.where((p) => p.slotId == slot.id).toList();
       final categoryIds = previous.isNotEmpty
           ? List<String>.from(previous.first.categoryIds)
           : <String>[];
 
       return SlotMealSelection(
         slotId: slot.id,
-        slotName: slot.slotName.isNotEmpty ? slot.slotName : _getSlotNameFromTime(slot.slotStartTime),
+        slotName: slot.slotName.isNotEmpty
+            ? slot.slotName
+            : _getSlotNameFromTime(slot.slotStartTime),
         timeRange: slot.timeRange,
         slotType: slot.slotType,
         selectedCategoryIds: categoryIds,
@@ -156,7 +158,8 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
   }
 
   /// Get available meal categories for a slot from the API response
-  List<AvailableMealCategory> _getAvailableCategoriesForSlot(String slotType, DeliverySlotState slotState) {
+  List<AvailableMealCategory> _getAvailableCategoriesForSlot(
+      String slotType, DeliverySlotState slotState) {
     final allCategories = slotState.availableMeals;
     if (allCategories.isEmpty) return [];
 
@@ -197,7 +200,8 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
   }
 
   /// Toggle meal category selection for a slot
-  void _toggleMealSelection(String slotId, AvailableMealCategory category, DeliverySlotState slotState) {
+  void _toggleMealSelection(String slotId, AvailableMealCategory category,
+      DeliverySlotState slotState) {
     if (slotState.alreadyConfirmed) return;
     final selections = ref.read(slotMealSelectionProvider);
     final index = selections.indexWhere((s) => s.slotId == slotId);
@@ -232,7 +236,8 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
   }
 
   void _showMaxSelectionSnackbar(DeliverySlotState slotState) {
-    final names = slotState.availableMeals.map((c) => c.categoryName).join(', ');
+    final names =
+        slotState.availableMeals.map((c) => c.categoryName).join(', ');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -404,7 +409,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
   /// Check if current time is between 4 PM and 8 PM
   bool _isWithinTimeWindow() {
     final now = DateTime.now();
-    return now.hour >= 16 && now.hour < 20; // 4 PM to 7:59 PM
+    return now.hour >= 6 && now.hour < 20; // 4 PM to 7:59 PM
   }
 
   @override
@@ -448,8 +453,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(Color(0xFF6A1B9A)),
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6A1B9A)),
                 ),
               ),
               SizedBox(height: AppSizes.spacing12),
@@ -694,7 +698,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                           );
                         }),
 
-                        const SizedBox(height: AppSizes.spacing16),
+                        const SizedBox(height: AppSizes.spacing12),
 
                         // Save Button
                         SizedBox(
@@ -710,7 +714,8 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                                   : const Color(0xFF6A1B9A),
                               disabledBackgroundColor: isConfirmed
                                   ? Colors.grey.withValues(alpha: 0.5)
-                                  : const Color(0xFF6A1B9A).withValues(alpha: 0.5),
+                                  : const Color(0xFF6A1B9A)
+                                      .withValues(alpha: 0.5),
                               shape: RoundedRectangleBorder(
                                 borderRadius:
                                     BorderRadius.circular(AppSizes.radius8),
@@ -755,6 +760,43 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                                   ),
                           ),
                         ),
+                        const SizedBox(height: AppSizes.spacing12),
+                        // cancel button
+                        // SizedBox(
+                        //   width: double.infinity,
+                        //   height: AppSizes.buttonHeight,
+                        //   child: ElevatedButton(
+                        //     onPressed:(){},
+                        //     style: ElevatedButton.styleFrom(
+                        //       backgroundColor:  Colors.red,
+                        //       shape: RoundedRectangleBorder(
+                        //         borderRadius:
+                        //         BorderRadius.circular(AppSizes.radius8),
+                        //       ),
+                        //       elevation: 0,
+                        //     ),
+                        //     child:  Row(
+                        //       mainAxisAlignment: MainAxisAlignment.center,
+                        //       children: [
+                        //         Icon(
+                        //           Icons.close,
+                        //           color: Colors.white,
+                        //           size: AppSizes.icon20,
+                        //         ),
+                        //         const SizedBox(width: AppSizes.spacing8),
+                        //         Text(
+                        //          'Cancel slots',
+                        //           style: const TextStyle(
+                        //             fontSize: AppTypography.fontSize16,
+                        //             fontWeight: AppTypography.semiBold,
+                        //             color: Colors.white,
+                        //             fontFamily: 'Lato',
+                        //           ),
+                        //         ),
+                        //       ],
+                        //     ),
+                        //   ),
+                        // ),
                       ],
                     ),
                   ),
@@ -769,7 +811,8 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
 
   Widget _buildSlotCard(SlotMealSelection sel, DeliverySlotState slotState) {
     final hasSelections = sel.selectedCategoryIds.isNotEmpty;
-    final availableCategories = _getAvailableCategoriesForSlot(sel.slotType, slotState);
+    final availableCategories =
+        _getAvailableCategoriesForSlot(sel.slotType, slotState);
     final isConfirmed = slotState.alreadyConfirmed;
 
     return Container(
@@ -897,13 +940,15 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                     sel.selectedCategoryIds.contains(category.categoryId);
                 final isAlreadySelected =
                     _isCategoryAlreadySelected(category.categoryId);
-                final isDisabled = isConfirmed || (isAlreadySelected && !isSelected);
+                final isDisabled =
+                    isConfirmed || (isAlreadySelected && !isSelected);
                 final mealColor = _getMealColor(category.categoryName);
 
                 return GestureDetector(
                   onTap: isDisabled
                       ? null
-                      : () => _toggleMealSelection(sel.slotId, category, slotState),
+                      : () =>
+                          _toggleMealSelection(sel.slotId, category, slotState),
                   child: Opacity(
                     opacity: isDisabled && !isSelected ? 0.4 : 1.0,
                     child: AnimatedContainer(
@@ -926,8 +971,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                             : isDisabled
                                 ? Colors.grey.withValues(alpha: 0.2)
                                 : mealColor.withValues(alpha: 0.1),
-                        borderRadius:
-                            BorderRadius.circular(AppSizes.radius20),
+                        borderRadius: BorderRadius.circular(AppSizes.radius20),
                         border: Border.all(
                           color: isSelected
                               ? mealColor
