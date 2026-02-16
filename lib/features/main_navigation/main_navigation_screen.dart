@@ -2,12 +2,17 @@ import 'package:fitkhao_user/features/profile/presentation/screens/detailed_heal
 import 'package:fitkhao_user/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:fitkhao_user/features/delivery/presentation/screens/delivery_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../core/constants/app_typography.dart';
 import '../../core/utils/responsive_utils.dart';
 import '../history/presentation/screens/history_screen.dart';
+
+/// Provider to control the bottom navigation tab index
+final mainNavIndexProvider = StateProvider<int>((ref) => 0);
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
@@ -19,6 +24,7 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
 
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   int _selectedIndex = 0;
+  DateTime? currentBackPressTime;
 
   // Build the current screen based on selected index
   Widget _getCurrentScreen() {
@@ -40,26 +46,51 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     setState(() {
       _selectedIndex = index;
     });
+    ref.read(mainNavIndexProvider.notifier).state = index;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        top: false,
-        child: Stack(
-          children: [
-            // Display only the currently selected screen
-            _getCurrentScreen(),
-        
-            // Floating Bottom Navigation Bar
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: _buildBottomNavigationBar(context),
-            ),
-          ],
+    // Listen for external tab change requests
+    ref.listen<int>(mainNavIndexProvider, (prev, next) {
+      if (next != _selectedIndex) {
+        setState(() {
+          _selectedIndex = next;
+        });
+      }
+    });
+
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        DateTime now = DateTime.now();
+        if (didPop ||
+            currentBackPressTime == null ||
+            now.difference(currentBackPressTime!) > Duration(seconds: 2)) {
+          currentBackPressTime = now;
+          Fluttertoast.showToast(msg: 'Tap back again to Exit');
+          // return false;
+        } else {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        body: SafeArea(
+          top: false,
+          child: Stack(
+            children: [
+              // Display only the currently selected screen
+              _getCurrentScreen(),
+
+              // Floating Bottom Navigation Bar
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: _buildBottomNavigationBar(context),
+              ),
+            ],
+          ),
         ),
       ),
     );

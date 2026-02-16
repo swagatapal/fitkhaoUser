@@ -14,6 +14,7 @@ import '../../providers/meal_plan_nutrition_provider.dart';
 import '../widgets/membership_popup.dart';
 import '../widgets/delivery_slot_selector.dart';
 import '../widgets/location_view_sheet.dart';
+import '../../../main_navigation/main_navigation_screen.dart';
 
 class DeliveryScreen extends ConsumerStatefulWidget {
   const DeliveryScreen({super.key});
@@ -597,7 +598,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         Column(
           children: [
             // Profile Avatar
-            _buildProfileAvatar(),
+            GestureDetector(
+              onTap: () {
+                ref.read(mainNavIndexProvider.notifier).state = 1;
+              },
+              child: _buildProfileAvatar(),
+            ),
             const SizedBox(height: AppSizes.spacing4),
             // FitKhao Plus Badge
             GestureDetector(
