@@ -701,14 +701,87 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     );
   }
 
+  Widget _buildNoMealPlanState() {
+    final walletState = ref.watch(walletProvider);
+    final hasSubscription = walletState.hasActiveSubscription;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSizes.spacing16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(color: AppColors.borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.restaurant_menu_rounded,
+            size: 52,
+            color: AppColors.primaryGreen,
+          ),
+          const SizedBox(height: AppSizes.spacing12),
+          if (!hasSubscription) ...[
+            const Text(
+              'No Active Subscription',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize16,
+                fontWeight: AppTypography.semiBold,
+                color: AppColors.textPrimary,
+                fontFamily: 'Lato',
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacing8),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                onPressed: _showSubscriptionPlans,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                ),
+                child: const Text(
+                  'Take Subscription Plan',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.semiBold,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacing12),
+          ],
+          const Text(
+            "Don't worry, our nutritionist team will contact you soon",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize14,
+              fontWeight: AppTypography.medium,
+              color: AppColors.textSecondary,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMealPlanContent() {
     if (selectedDayMeal == null) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Text('No meal plan available'),
-        ),
-      );
+      return _buildNoMealPlanState();
     }
 
     final hasMeals = selectedDayMeal!.meals.isNotEmpty;
