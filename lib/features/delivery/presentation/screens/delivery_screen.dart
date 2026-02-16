@@ -30,6 +30,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   bool _hasShownMembershipPopup = false;
   bool _isProfileLoading = true;
+  bool _profileImageError = false;
 
   @override
   void initState() {
@@ -546,6 +547,48 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
+  Widget _buildProfileAvatar() {
+    final authState = ref.watch(authProvider);
+    final imgUrl = authState.imgUrl;
+    final hasValidUrl = imgUrl != null && imgUrl.isNotEmpty && !_profileImageError;
+    final userName = authState.name;
+    final firstLetter = userName.isNotEmpty ? userName[0].toUpperCase() : 'U';
+
+    if (hasValidUrl) {
+      return CircleAvatar(
+        radius: AppSizes.spacing28,
+        backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
+        backgroundImage: NetworkImage(imgUrl),
+        onBackgroundImageError: (exception, stackTrace) {
+          setState(() => _profileImageError = true);
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: AppColors.primaryGreen.withValues(alpha: 0.3),
+              width: AppSizes.borderThin,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return CircleAvatar(
+      radius: AppSizes.spacing28,
+      backgroundColor: AppColors.primaryGreen,
+      child: Text(
+        firstLetter,
+        style: const TextStyle(
+          fontSize: AppTypography.fontSize20,
+          fontWeight: AppTypography.bold,
+          color: Colors.white,
+          fontFamily: 'Lato',
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -593,24 +636,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         Column(
           children: [
             // Profile Avatar
-            CircleAvatar(
-              radius: AppSizes.spacing28,
-              backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-              backgroundImage: NetworkImage(
-                ref.watch(authProvider).imgUrl ??
-                    "https://i.sstatic.net/l60Hf.png",
-              ),
-              onBackgroundImageError: (exception, stackTrace) {},
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.3),
-                    width: AppSizes.borderThin,
-                  ),
-                ),
-              ),
-            ),
+            _buildProfileAvatar(),
             const SizedBox(height: AppSizes.spacing4),
             // FitKhao Plus Badge
             GestureDetector(
@@ -1434,364 +1460,5 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
-  // ignore: unused_element
-  Widget _buildBrowseByCategories() {
-    final serviceabilityState = ref.read(serviceabilityProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              AppStrings.browseByCategories,
-              style: TextStyle(
-                fontSize: AppTypography.fontSize16,
-                fontWeight: AppTypography.bold,
-                color: AppColors.textPrimary,
-                fontFamily: 'Lato',
-              ),
-            ),
-            Consumer(
-              builder: (context, ref, child) {
-                final totalItems = ref.watch(cartTotalItemsProvider);
 
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Icon(
-                      Icons.shopping_cart,
-                      color: AppColors.darkGreen,
-                      size: 20,
-                    ),
-                    if (totalItems > 0)
-                      Positioned(
-                        right: -AppSizes.spacing6,
-                        top: -AppSizes.spacing4,
-                        child: Container(
-                          padding: const EdgeInsets.all(AppSizes.spacing4),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primaryGreen,
-                            shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: AppSizes.spacing16,
-                            minHeight: AppSizes.spacing16,
-                          ),
-                          child: Center(
-                            child: Text(
-                              totalItems.toString(),
-                              style: const TextStyle(
-                                fontSize: AppTypography.fontSize10,
-                                fontWeight: AppTypography.bold,
-                                color: Colors.white,
-                                fontFamily: 'Lato',
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              },
-            )
-          ],
-        ),
-        const SizedBox(height: AppSizes.spacing12),
-        Stack(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildCategoryCard(AppStrings.breakfast,
-                    "https://img.freepik.com/premium-photo/breakfast-buffet-full-continental-english_79295-5883.jpg?semt=ais_hybrid&w=740&q=80"),
-                _buildCategoryCard(AppStrings.lunch,
-                    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQUfmoU1yzh652_lP_nyxMeEFMqA6_QaYb-5A&s"),
-                _buildCategoryCard(AppStrings.dinner,
-                    "https://media.istockphoto.com/id/868408746/photo/assorted-indian-dish.jpg?s=612x612&w=0&k=20&c=XLsAk571Z2kEe_x6TnXWSzsG95-2agp-TcYswQrKHuo="),
-              ],
-            ),
-            Visibility(
-              visible:
-                  serviceabilityState.isServiceable == false ? true : false,
-              child: Container(
-                height: MediaQuery.of(context).size.height * 0.2,
-                width: MediaQuery.of(context).size.width,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    "Delivery Not Available",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textWhite),
-                  ),
-                ),
-              ),
-            )
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryCard(String category, String categoryImage) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MenuListScreen(mealType: category),
-          ),
-        );
-      },
-      child: Container(
-        width: (MediaQuery.of(context).size.width -
-                (AppSizes.screenPaddingHorizontal * 2) -
-                (AppSizes.spacing16 * 2)) /
-            3,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppSizes.radius4),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: AppSizes.shadowBlur10,
-              offset: const Offset(0, AppSizes.spacing4),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              height: AppSizes.containerHeightMedium,
-              decoration: BoxDecoration(
-                color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(AppSizes.radius4),
-                  topRight: Radius.circular(AppSizes.radius4),
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(AppSizes.radius4),
-                  topRight: Radius.circular(AppSizes.radius4),
-                ),
-                child: Image.network(
-                  categoryImage,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                      child: const Icon(
-                        Icons.restaurant,
-                        size: AppSizes.icon48,
-                        color: AppColors.primaryGreen,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(AppSizes.spacing8),
-              child: Text(
-                category,
-                style: const TextStyle(
-                  fontSize: AppTypography.fontSize14,
-                  fontWeight: AppTypography.semiBold,
-                  color: AppColors.textPrimary,
-                  fontFamily: 'Lato',
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Widget _buildTrendingNow() {
-  //   final trendingState = ref.watch(trendingProvider);
-  //   return Column(
-  //     crossAxisAlignment: CrossAxisAlignment.start,
-  //     children: [
-  //       Padding(
-  //         padding: EdgeInsets.only(left: AppSizes.p20),
-  //         child: const Text(
-  //           AppStrings.trendingNow,
-  //           style: TextStyle(
-  //             fontSize: AppTypography.fontSize16,
-  //             fontWeight: AppTypography.bold,
-  //             color: AppColors.textPrimary,
-  //             fontFamily: 'Lato',
-  //           ),
-  //         ),
-  //       ),
-  //       const SizedBox(height: AppSizes.spacing16),
-  //       SizedBox(
-  //         height: 160,
-  //         child: trendingState.when(
-  //           loading: () => ListView.builder(
-  //             scrollDirection: Axis.horizontal,
-  //             itemCount: 3,
-  //             itemBuilder: (context, index) => _buildTrendingSkeleton(),
-  //           ),
-  //           error: (e, _) => Padding(
-  //             padding: EdgeInsets.symmetric(horizontal: AppSizes.p20),
-  //             child: Text(
-  //               e.toString(),
-  //               style: const TextStyle(color: AppColors.errorColor),
-  //             ),
-  //           ),
-  //           data: (items) => ListView.builder(
-  //             scrollDirection: Axis.horizontal,
-  //             itemCount: items.length,
-  //             itemBuilder: (context, index) => _buildTrendingItem(
-  //               items[index].itemName,
-  //               items[index].avgPrice,
-  //             ),
-  //           ),
-  //         ),
-  //       ),
-  //     ],
-  //   );
-  // }
-  //
-  // Widget _buildTrendingItem(String title, double price) {
-  //   return Padding(
-  //     padding: EdgeInsets.only(left: AppSizes.p20),
-  //     child: Container(
-  //       width: 160,
-  //       decoration: BoxDecoration(
-  //         color: Colors.white,
-  //         borderRadius: BorderRadius.circular(AppSizes.radius4),
-  //         boxShadow: [
-  //           BoxShadow(
-  //             color: Colors.black.withValues(alpha: 0.05),
-  //             blurRadius: AppSizes.shadowBlur10,
-  //             offset: const Offset(0, AppSizes.spacing4),
-  //           ),
-  //         ],
-  //       ),
-  //       child: Column(
-  //         crossAxisAlignment: CrossAxisAlignment.start,
-  //         children: [
-  //           Container(
-  //             width: double.infinity,
-  //             height: 100,
-  //             decoration: BoxDecoration(
-  //               color: AppColors.primaryGreen.withValues(alpha: 0.1),
-  //               borderRadius: const BorderRadius.only(
-  //                 topLeft: Radius.circular(AppSizes.radius4),
-  //                 topRight: Radius.circular(AppSizes.radius4),
-  //               ),
-  //             ),
-  //             child: ClipRRect(
-  //               borderRadius: const BorderRadius.only(
-  //                 topLeft: Radius.circular(AppSizes.radius4),
-  //                 topRight: Radius.circular(AppSizes.radius4),
-  //               ),
-  //               child: Image.network(
-  //                 'https://img.freepik.com/free-photo/top-view-table-full-food_23-2149209253.jpg?semt=ais_hybrid&w=740&q=80',
-  //                 fit: BoxFit.cover,
-  //                 errorBuilder: (context, error, stackTrace) {
-  //                   return Container(
-  //                     color: AppColors.primaryGreen.withValues(alpha: 0.1),
-  //                     child: const Icon(
-  //                       Icons.restaurant,
-  //                       size: AppSizes.icon48,
-  //                       color: AppColors.primaryGreen,
-  //                     ),
-  //                   );
-  //                 },
-  //               ),
-  //             ),
-  //           ),
-  //           Padding(
-  //             padding: const EdgeInsets.all(AppSizes.spacing8),
-  //             child: Column(
-  //               crossAxisAlignment: CrossAxisAlignment.start,
-  //               children: [
-  //                 Text(
-  //                   title,
-  //                   style: const TextStyle(
-  //                     fontSize: AppTypography.fontSize14,
-  //                     fontWeight: AppTypography.semiBold,
-  //                     color: AppColors.textPrimary,
-  //                     fontFamily: 'Lato',
-  //                   ),
-  //                   maxLines: 1,
-  //                   overflow: TextOverflow.ellipsis,
-  //                 ),
-  //                 const SizedBox(height: AppSizes.spacing4),
-  //                 Text(
-  //                   '₹ ${price.toStringAsFixed(0)}',
-  //                   style: const TextStyle(
-  //                     fontSize: AppTypography.fontSize12,
-  //                     fontWeight: AppTypography.medium,
-  //                     color: AppColors.textSecondary,
-  //                     fontFamily: 'Lato',
-  //                   ),
-  //                 ),
-  //               ],
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
-  //
-  // Widget _buildTrendingSkeleton() {
-  //   return Padding(
-  //     padding: EdgeInsets.only(left: AppSizes.p20),
-  //     child: Container(
-  //       width: 160,
-  //       decoration: BoxDecoration(
-  //         color: Colors.white,
-  //         borderRadius: BorderRadius.circular(AppSizes.radius4),
-  //         boxShadow: [
-  //           BoxShadow(
-  //             color: Colors.black.withValues(alpha: 0.05),
-  //             blurRadius: AppSizes.shadowBlur10,
-  //             offset: const Offset(0, AppSizes.spacing4),
-  //           ),
-  //         ],
-  //       ),
-  //       child: Column(
-  //         crossAxisAlignment: CrossAxisAlignment.start,
-  //         children: [
-  //           Container(
-  //             width: double.infinity,
-  //             height: 100,
-  //             decoration: BoxDecoration(
-  //               color: AppColors.primaryGreen.withValues(alpha: 0.1),
-  //               borderRadius: const BorderRadius.only(
-  //                 topLeft: Radius.circular(AppSizes.radius4),
-  //                 topRight: Radius.circular(AppSizes.radius4),
-  //               ),
-  //             ),
-  //           ),
-  //           const Padding(
-  //             padding: EdgeInsets.all(AppSizes.spacing8),
-  //             child: Column(
-  //               crossAxisAlignment: CrossAxisAlignment.start,
-  //               children: [
-  //                 SizedBox(height: 12, width: 100),
-  //                 SizedBox(height: AppSizes.spacing4),
-  //                 SizedBox(height: 10, width: 60),
-  //               ],
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
 }
