@@ -8,15 +8,11 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../shared/widgets/primary_button.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../providers/wallet_provider.dart';
-import '../../providers/trending_provider.dart';
 import '../../providers/serviceability_provider.dart';
 import '../../providers/nutrition_provider.dart';
-import '../../providers/cart_provider.dart';
 import '../../providers/meal_plan_nutrition_provider.dart';
 import '../widgets/membership_popup.dart';
 import '../widgets/delivery_slot_selector.dart';
-
-import 'menu_list_screen.dart';
 
 class DeliveryScreen extends ConsumerStatefulWidget {
   const DeliveryScreen({super.key});
@@ -66,7 +62,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       walletFuture,
       nutritionFuture,
       _checkServiceability(),
-      //_loadTrending(),
     ]);
   }
 
@@ -90,18 +85,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       walletFuture,
       nutritionFuture,
       _checkServiceability(),
-      //_loadTrending(),
     ]);
-  }
-
-  // ignore: unused_element
-  Future<void> _loadTrending() async {
-    final notifier = ref.read(trendingProvider.notifier);
-    await notifier.load(
-      kitchenId: '69275ba5c538faaf25e2acd1',
-      timeSlot: 'morning',
-      limit: 10,
-    );
   }
 
   /// Load user profile data
@@ -254,9 +238,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       _buildHeader(),
                       const SizedBox(height: AppSizes.spacing8),
                       _buildServiceabilityBanner(),
-                      //_trackSubscription(),
-                      // const SizedBox(height: AppSizes.spacing16),
-                      // _buildSearchBar(),
                       const SizedBox(height: AppSizes.spacing12),
                       _buildDailyGoalCard(),
                       const SizedBox(height: AppSizes.spacing12),
@@ -265,16 +246,11 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       if (showTodaysGoal) _buildTodaysGoalSection(),
                       if (showTodaysGoal)
                         const SizedBox(height: AppSizes.spacing12),
-                      // const SizedBox(height: AppSizes.spacing24),
-                      // _buildCompleteYourMealButton(),
-                      // const SizedBox(height: AppSizes.spacing16),
-                      // _buildBrowseByCategories(),
                       _buildMealPlanSection(userId, authState.errorMessage),
                     ],
                   ),
                 ),
                 const SizedBox(height: AppSizes.spacing16),
-                // _buildTrendingNow(),
                 const SizedBox(height: AppSizes.spacing32),
                 const SizedBox(height: AppSizes.spacing32),
                 const SizedBox(height: AppSizes.spacing32),
@@ -508,45 +484,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return const SizedBox.shrink();
   }
 
-  // ignore: unused_element
-  Widget _trackSubscription() {
-    final subscription = ref.watch(walletProvider).subscription;
-    final wallet = ref.watch(walletProvider).wallet;
-    if (subscription == null) return const SizedBox.shrink();
-    return Container(
-      width: MediaQuery.of(context).size.width,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.spacing12,
-        vertical: AppSizes.spacing6,
-      ),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4A7C3E), Color(0xFF6BA84F)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.radius20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryGreen.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Text(
-        'Available balance : ${wallet?.couponBalance.toStringAsFixed(2)} (${subscription.remainingDays} Days Remaining)',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: AppTypography.fontSize12,
-          fontWeight: AppTypography.semiBold,
-          color: Colors.white.withValues(alpha: 0.9),
-          fontFamily: 'Lato',
-        ),
-      ),
-    );
-  }
-
   Widget _buildProfileAvatar() {
     final authState = ref.watch(authProvider);
     final imgUrl = authState.imgUrl;
@@ -689,64 +626,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
-  // ignore: unused_element
-  Widget _buildSearchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radius4),
-        border: Border.all(
-          color: AppColors.textWhite,
-          width: AppSizes.borderMedium,
-        ),
-      ),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: AppStrings.searchFood,
-          hintStyle: const TextStyle(
-            fontSize: AppTypography.fontSize14,
-            color: AppColors.textSecondary,
-            fontFamily: 'Lato',
-          ),
-          prefixIcon: const Icon(
-            Icons.search,
-            color: AppColors.textSecondary,
-            size: AppSizes.icon24,
-          ),
-          suffixIcon: IconButton(
-            icon: const Icon(
-              Icons.mic,
-              color: AppColors.primaryGreen,
-              size: AppSizes.icon24,
-            ),
-            onPressed: () {
-              // TODO: Implement voice search
-            },
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppSizes.spacing16,
-            vertical: AppSizes.spacing12,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radius4),
-            borderSide: const BorderSide(
-              color: AppColors.borderColor,
-              width: AppSizes.borderMedium,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radius4),
-            borderSide: const BorderSide(
-              color: AppColors.primaryGreen,
-              width: AppSizes.borderMedium,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildDailyGoalCard() {
     return Container(
@@ -968,84 +847,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
-  // ignore: unused_element
-  Widget _buildMacroCard({
-    required String label,
-    required double value,
-    required String unit,
-    required Color color,
-    required IconData icon,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.spacing8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: AppSizes.shadowBlur10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Icon(
-          //   icon,
-          //   color: color,
-          //   size: AppSizes.icon24,
-          // ),
-          // const SizedBox(height: AppSizes.spacing8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                color: color,
-                size: AppSizes.icon16,
-              ),
-              const SizedBox(width: AppSizes.spacing4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: AppTypography.fontSize12,
-                  fontWeight: AppTypography.medium,
-                  color: AppColors.textSecondary,
-                  fontFamily: 'Lato',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.spacing4),
-          RichText(
-            text: TextSpan(
-              style: TextStyle(
-                fontSize: AppTypography.fontSize18,
-                fontWeight: AppTypography.bold,
-                color: color,
-                fontFamily: 'Lato',
-              ),
-              children: [
-                TextSpan(text: value.toStringAsFixed(0)),
-                TextSpan(
-                  text: unit,
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize12,
-                    fontWeight: AppTypography.medium,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildNutritionProgressSection() {
     final progressState = ref.watch(nutritionProgressProvider);
@@ -1447,18 +1248,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     }
   }
 
-  // ignore: unused_element
-  Widget _buildCompleteYourMealButton() {
-    return PrimaryButton(
-      text: AppStrings.completeYourMeal,
-      onPressed: () {
-        // TODO: Navigate to meal selection
-      },
-      backgroundColor: AppColors.primaryGreen,
-      textColor: Colors.white,
-      height: AppSizes.buttonHeight,
-    );
-  }
 
 
 }
