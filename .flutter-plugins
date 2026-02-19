@@ -12,6 +12,7 @@ firebase_messaging_web=/Users/devantitsolutions/.pub-cache/hosted/pub.dev/fireba
 flutter_local_notifications=/Users/devantitsolutions/.pub-cache/hosted/pub.dev/flutter_local_notifications-18.0.1/
 flutter_local_notifications_linux=/Users/devantitsolutions/.pub-cache/hosted/pub.dev/flutter_local_notifications_linux-5.0.0/
 flutter_plugin_android_lifecycle=/Users/devantitsolutions/.pub-cache/hosted/pub.dev/flutter_plugin_android_lifecycle-2.0.29/
+fluttertoast=/Users/devantitsolutions/.pub-cache/hosted/pub.dev/fluttertoast-9.0.0/
 geocoding=/Users/devantitsolutions/.pub-cache/hosted/pub.dev/geocoding-3.0.0/
 geocoding_android=/Users/devantitsolutions/.pub-cache/hosted/pub.dev/geocoding_android-3.3.1/
 geocoding_ios=/Users/devantitsolutions/.pub-cache/hosted/pub.dev/geocoding_ios-3.1.0/

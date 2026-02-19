@@ -54,17 +54,33 @@ class _DetailedHealthInfoScreenState
   DateTime? _lastProfileUpdate;
   int _daysUntilNextUpdate = 0;
 
+  final ScrollController _scrollController = ScrollController();
+  bool _isCollapsed = false;
+
+  // Header fully collapses when scroll offset exceeds this threshold
+  static const double _collapseThreshold = 200.0;
+
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     // Load profile data when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProfileData();
     });
   }
 
+  void _onScroll() {
+    final collapsed = _scrollController.offset > _collapseThreshold;
+    if (collapsed != _isCollapsed) {
+      setState(() => _isCollapsed = collapsed);
+    }
+  }
+
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _ageController.dispose();
     _heightController.dispose();
     _weightController.dispose();
@@ -373,307 +389,321 @@ class _DetailedHealthInfoScreenState
     final spacing20 = context.responsiveSpacing(20.0);
     final spacing24 = context.responsiveSpacing(24.0);
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: authState.isLoading && !_isInitialized
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
-                    strokeWidth: 3,
-                  ),
-                  const SizedBox(height: AppSizes.spacing16),
-                  Text(
-                    'Loading your profile...',
-                    style: TextStyle(
-                      fontSize: context.responsiveFontSize(14.0),
-                      color: AppColors.textSecondary,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : Stack(
-        children: [
-          // Main Column with Fixed Image and Scrollable Content
-          Column(
+    if (authState.isLoading && !_isInitialized) {
+      return Scaffold(
+        //backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Fixed Image Section at Top
-              _buildImageSection(),
-
-              //  SizedBox(height: 20,),
-              // Scrollable Content Below Image
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.all(spacing20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Select type of Physical Activity",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w400,
-                          color: Color(0xFF2B292A),
-                          fontFamily: "Lato",
-                        ),
-                      ),
-                      SizedBox(height: spacing12),
-
-                      // Body Details Section
-                      _buildSectionTitle(AppStrings.bodyDetails),
-                      SizedBox(height: spacing12),
-                      _buildNumberField(
-                        label: AppStrings.ageDetails,
-                        controller: _ageController,
-                        onChanged: (value) => setState(() => _age = value),
-                      ),
-                      SizedBox(height: spacing12),
-                      _buildNumberField(
-                        label: AppStrings.heightInCms,
-                        controller: _heightController,
-                        onChanged: (value) => setState(() => _heightCm = value),
-                      ),
-                      SizedBox(height: spacing12),
-                      _buildNumberField(
-                        label: AppStrings.weightInKg,
-                        controller: _weightController,
-                        onChanged: (value) => setState(() => _weightKg = value),
-                      ),
-                      SizedBox(height: spacing16),
-
-                      // Goal Selection Section
-                      Row(
-                        children: [
-                          const Text(
-                            "Select Goal",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w400,
-                              color: Color(0xFF2B292A),
-                              fontFamily: "Lato",
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Text(
-                            "*",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.red,
-                              fontFamily: "Lato",
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: spacing12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildGoalOption(
-                              title: 'Fat Loss',
-                              value: 'fat-loss',
-                            ),
-                          ),
-                          SizedBox(width: spacing12),
-                          Expanded(
-                            child: _buildGoalOption(
-                              title: 'Lean Mass Gain',
-                              value: 'lean-mass-gain',
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: spacing12),
-                      _buildGoalOption(
-                        title: 'Regular BMI Maintenance',
-                        value: 'regular-bmi-maintenance',
-                      ),
-                      SizedBox(height: spacing16),
-
-                      // Physical Activity Section
-                      _buildSectionTitle(AppStrings.professionPhysicalWork),
-                      SizedBox(height: spacing16),
-                      _buildActivityOption(
-                        title: AppStrings.sedentary,
-                        description: AppStrings.sedentaryDesc,
-                        value: 'sedentary',
-                      ),
-                      SizedBox(height: spacing12),
-                      _buildActivityOption(
-                        title: AppStrings.moderate,
-                        description: AppStrings.moderateDesc,
-                        value: 'moderate',
-                      ),
-                      SizedBox(height: spacing12),
-                      _buildActivityOption(
-                        title: AppStrings.heavy,
-                        description: AppStrings.heavyDesc,
-                        value: 'heavy',
-                      ),
-                      SizedBox(height: spacing16),
-
-                      // Exercise Section
-                      _buildSectionTitle(AppStrings.exercise),
-                      SizedBox(height: spacing16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildExerciseToggle(
-                              label: AppStrings.iExercise,
-                              icon: Icons.fitness_center,
-                              isSelected: _doesExercise,
-                              onTap: () => setState(() => _doesExercise = true),
-                            ),
-                          ),
-                          SizedBox(width: spacing12),
-                          Expanded(
-                            child: _buildExerciseToggle(
-                              label: AppStrings.iDontExerciseShort,
-                              icon: Icons.event_busy,
-                              isSelected: !_doesExercise,
-                              onTap: () =>
-                                  setState(() => _doesExercise = false),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      // Exercise Details (shown only if exercises)
-                      if (_doesExercise) ...[
-                        SizedBox(height: spacing16),
-                        _buildNumberField(
-                          label: AppStrings.howManyDaysWeek,
-                          controller: _daysController,
-                          onChanged: (value) =>
-                              setState(() => _exerciseDaysPerWeek = value),
-                          maxValue: 7,
-                        ),
-                        SizedBox(height: spacing12),
-                        _buildNumberField(
-                          label: AppStrings.durationInHrs,
-                          controller: _durationController,
-                          onChanged: (value) =>
-                              setState(() => _exerciseDurationHrs = value),
-                          maxValue: 24,
-                        ),
-                        SizedBox(height: spacing16),
-                        _buildSectionTitle(AppStrings.typeOfExercise),
-                        SizedBox(height: spacing12),
-                        _buildExerciseTypeOption(
-                          title: AppStrings.aerobic,
-                          description: AppStrings.aerobicDesc,
-                          value: 'aerobic',
-                          icon: Icons.directions_run,
-                        ),
-                        SizedBox(height: spacing12),
-                        _buildExerciseTypeOption(
-                          title: AppStrings.strengthTraining,
-                          description: AppStrings.strengthTrainingDesc,
-                          value: 'strength',
-                          icon: Icons.fitness_center,
-                        ),
-                        SizedBox(height: spacing12),
-                        _buildExerciseTypeOption(
-                          title: AppStrings.flexibilityExercise,
-                          description: AppStrings.flexibilityExerciseDesc,
-                          value: 'flexibility',
-                          icon: Icons.self_improvement,
-                        ),
-                      ],
-
-                      SizedBox(height: spacing20),
-
-                      // Physiological Status Section
-                      Text(
-                        AppStrings.selectPhysiologicalStatus,
-                        style: TextStyle(
-                          fontFamily: "Lato",
-                          fontSize: 18,
-                          fontWeight: FontWeight.w400,
-                          color: Color(0xFF2B292A),
-                        ),
-                      ),
-                      SizedBox(height: spacing12),
-                      Text(
-                        AppStrings.physiologicalConditions,
-                        style: TextStyle(
-                          fontSize: context.responsiveFontSize(14.0),
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.textPrimary,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                      SizedBox(height: spacing12),
-
-                      // Dynamic physiological conditions from API
-                      _buildDynamicConditions(),
-
-                      SizedBox(height: spacing24),
-
-                      // Regular Status Section
-                      _buildSectionTitle(AppStrings.areYouRegularly),
-                      SizedBox(height: spacing16),
-                      _buildRegularStatusOption(
-                        AppStrings.constipated,
-                        'constipated',
-                      ),
-                      SizedBox(height: spacing12),
-                      _buildRegularStatusOption(
-                        AppStrings.diarrhoeal,
-                        'diarrhoeal',
-                      ),
-                      SizedBox(height: spacing12),
-                      _buildRegularStatusOption(AppStrings.both, 'both'),
-                      SizedBox(height: spacing12),
-                      _buildRegularStatusOption(AppStrings.none, 'none'),
-
-                      SizedBox(height: spacing24),
-
-                      // Save Button
-                      PrimaryButton(
-                        text: _getSaveButtonText(),
-                        onPressed:
-                        //_isFormValid && !authState.isLoading && _canUpdateProfile(_lastProfileUpdate)
-                          //  ?
-                        _handleSave,
-                         //  : null,
-                        textColor: Colors.white,
-                        height: context.inputHeight,
-                        isLoading: authState.isLoading,
-                      ),
-                      SizedBox(height: context.responsiveSpacing(100.0)),
-                    ],
-                  ),
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+                strokeWidth: 3,
+              ),
+              const SizedBox(height: AppSizes.spacing16),
+              Text(
+                'Loading your profile...',
+                style: TextStyle(
+                  fontSize: context.responsiveFontSize(14.0),
+                  color: AppColors.textSecondary,
+                  fontFamily: 'Lato',
                 ),
               ),
             ],
           ),
+        ),
+      );
+    }
 
-          // Fixed Edit Button Overlay
-          Positioned(
-            top: 70,
-            right: 30,
-            child: GestureDetector(
-              onTap: () => context.push(RouteNames.editPersonalProfile),
-              child: Container(
-                width: AppSizes.iconContainerSize,
-                height: AppSizes.iconContainerSize,
-                decoration: BoxDecoration(
-                  color: Color(0xFF5D9E40),
-                  borderRadius: BorderRadius.circular(AppSizes.radius15),
-                ),
-                child: Center(
-                  child: Image.asset(
-                    "assets/images/edit_user.png",
-                    height: AppSizes.icon16,
-                    width: AppSizes.icon19,
+    return Scaffold(
+      //backgroundColor: Colors.white,
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          // ── Collapsing header with parallax ──
+          SliverAppBar(
+            expandedHeight: 270,
+            pinned: true,
+            backgroundColor: const Color(0xFF4A7D33),
+            automaticallyImplyLeading: false,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            actions: [
+              // Circular profile avatar — fades in when header collapses
+              AnimatedOpacity(
+                opacity: _isCollapsed ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 250),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 6, bottom: 6),
+                  child: CircleAvatar(
+                    radius: 24,
+                    backgroundColor: AppColors.primaryGreen,
+                    backgroundImage: (_uploadedImageUrl != null &&
+                            _uploadedImageUrl!.isNotEmpty)
+                        ? NetworkImage(_uploadedImageUrl!)
+                        : const NetworkImage("https://i.sstatic.net/l60Hf.png"),
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
+              // Edit button — always visible
+              Padding(
+                padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+                child: GestureDetector(
+                  onTap: () => context.push(RouteNames.editPersonalProfile),
+                  child: Container(
+                    width: AppSizes.iconContainerSize,
+                    height: AppSizes.iconContainerSize,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF5D9E40),
+                      borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    ),
+                    child: Center(
+                      child: Image.asset(
+                        "assets/images/edit_user.png",
+                        height: AppSizes.icon16,
+                        width: AppSizes.icon19,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              collapseMode: CollapseMode.parallax,
+              background: _buildImageSection(),
+            ),
+          ),
+
+          // ── Scrollable form content ──
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(spacing20, spacing20, spacing20, 0),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                Text(
+                  "Select type of Physical Activity",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w400,
+                    color: const Color(0xFF2B292A),
+                    fontFamily: "Lato",
+                  ),
+                ),
+                SizedBox(height: spacing12),
+
+                // Body Details Section
+                _buildSectionTitle(AppStrings.bodyDetails),
+                SizedBox(height: spacing12),
+                _buildNumberField(
+                  label: AppStrings.ageDetails,
+                  controller: _ageController,
+                  onChanged: (value) => setState(() => _age = value),
+                ),
+                SizedBox(height: spacing12),
+                _buildNumberField(
+                  label: AppStrings.heightInCms,
+                  controller: _heightController,
+                  onChanged: (value) => setState(() => _heightCm = value),
+                ),
+                SizedBox(height: spacing12),
+                _buildNumberField(
+                  label: AppStrings.weightInKg,
+                  controller: _weightController,
+                  onChanged: (value) => setState(() => _weightKg = value),
+                ),
+                SizedBox(height: spacing16),
+
+                // Goal Selection Section
+                Row(
+                  children: [
+                    const Text(
+                      "Select Goal",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF2B292A),
+                        fontFamily: "Lato",
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Text(
+                      "*",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.red,
+                        fontFamily: "Lato",
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: spacing12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildGoalOption(
+                        title: 'Fat Loss',
+                        value: 'fat-loss',
+                      ),
+                    ),
+                    SizedBox(width: spacing12),
+                    Expanded(
+                      child: _buildGoalOption(
+                        title: 'Lean Mass Gain',
+                        value: 'lean-mass-gain',
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: spacing12),
+                _buildGoalOption(
+                  title: 'Regular BMI Maintenance',
+                  value: 'regular-bmi-maintenance',
+                ),
+                SizedBox(height: spacing16),
+
+                // Physical Activity Section
+                _buildSectionTitle(AppStrings.professionPhysicalWork),
+                SizedBox(height: spacing16),
+                _buildActivityOption(
+                  title: AppStrings.sedentary,
+                  description: AppStrings.sedentaryDesc,
+                  value: 'sedentary',
+                ),
+                SizedBox(height: spacing12),
+                _buildActivityOption(
+                  title: AppStrings.moderate,
+                  description: AppStrings.moderateDesc,
+                  value: 'moderate',
+                ),
+                SizedBox(height: spacing12),
+                _buildActivityOption(
+                  title: AppStrings.heavy,
+                  description: AppStrings.heavyDesc,
+                  value: 'heavy',
+                ),
+                SizedBox(height: spacing16),
+
+                // Exercise Section
+                _buildSectionTitle(AppStrings.exercise),
+                SizedBox(height: spacing16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildExerciseToggle(
+                        label: AppStrings.iExercise,
+                        icon: Icons.fitness_center,
+                        isSelected: _doesExercise,
+                        onTap: () => setState(() => _doesExercise = true),
+                      ),
+                    ),
+                    SizedBox(width: spacing12),
+                    Expanded(
+                      child: _buildExerciseToggle(
+                        label: AppStrings.iDontExerciseShort,
+                        icon: Icons.event_busy,
+                        isSelected: !_doesExercise,
+                        onTap: () => setState(() => _doesExercise = false),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Exercise Details (shown only if exercises)
+                if (_doesExercise) ...[
+                  SizedBox(height: spacing16),
+                  _buildNumberField(
+                    label: AppStrings.howManyDaysWeek,
+                    controller: _daysController,
+                    onChanged: (value) =>
+                        setState(() => _exerciseDaysPerWeek = value),
+                    maxValue: 7,
+                  ),
+                  SizedBox(height: spacing12),
+                  _buildNumberField(
+                    label: AppStrings.durationInHrs,
+                    controller: _durationController,
+                    onChanged: (value) =>
+                        setState(() => _exerciseDurationHrs = value),
+                    maxValue: 24,
+                  ),
+                  SizedBox(height: spacing16),
+                  _buildSectionTitle(AppStrings.typeOfExercise),
+                  SizedBox(height: spacing12),
+                  _buildExerciseTypeOption(
+                    title: AppStrings.aerobic,
+                    description: AppStrings.aerobicDesc,
+                    value: 'aerobic',
+                    icon: Icons.directions_run,
+                  ),
+                  SizedBox(height: spacing12),
+                  _buildExerciseTypeOption(
+                    title: AppStrings.strengthTraining,
+                    description: AppStrings.strengthTrainingDesc,
+                    value: 'strength',
+                    icon: Icons.fitness_center,
+                  ),
+                  SizedBox(height: spacing12),
+                  _buildExerciseTypeOption(
+                    title: AppStrings.flexibilityExercise,
+                    description: AppStrings.flexibilityExerciseDesc,
+                    value: 'flexibility',
+                    icon: Icons.self_improvement,
+                  ),
+                ],
+
+                SizedBox(height: spacing20),
+
+                // Physiological Status Section
+                Text(
+                  AppStrings.selectPhysiologicalStatus,
+                  style: const TextStyle(
+                    fontFamily: "Lato",
+                    fontSize: 18,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF2B292A),
+                  ),
+                ),
+                SizedBox(height: spacing12),
+                Text(
+                  AppStrings.physiologicalConditions,
+                  style: TextStyle(
+                    fontSize: context.responsiveFontSize(14.0),
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                SizedBox(height: spacing12),
+
+                // Dynamic physiological conditions from API
+                _buildDynamicConditions(),
+
+                SizedBox(height: spacing24),
+
+                // Regular Status Section
+                _buildSectionTitle(AppStrings.areYouRegularly),
+                SizedBox(height: spacing16),
+                _buildRegularStatusOption(AppStrings.constipated, 'constipated'),
+                SizedBox(height: spacing12),
+                _buildRegularStatusOption(AppStrings.diarrhoeal, 'diarrhoeal'),
+                SizedBox(height: spacing12),
+                _buildRegularStatusOption(AppStrings.both, 'both'),
+                SizedBox(height: spacing12),
+                _buildRegularStatusOption(AppStrings.none, 'none'),
+
+                SizedBox(height: spacing24),
+
+                // Save Button
+                PrimaryButton(
+                  text: _getSaveButtonText(),
+                  onPressed: _handleSave,
+                  textColor: Colors.white,
+                  height: context.inputHeight,
+                  isLoading: authState.isLoading,
+                ),
+                SizedBox(height: context.responsiveSpacing(100.0)),
+              ]),
             ),
           ),
         ],
@@ -682,77 +712,69 @@ class _DetailedHealthInfoScreenState
   }
 
   Widget _buildImageSection() {
-    return SizedBox(
-      width: double.infinity,
-      height: 310,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Green gradient background with pattern
-          Container(
+    return Stack(
+      fit: StackFit.expand,
+      clipBehavior: Clip.none,
+      children: [
+        // Green gradient background with pattern
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF4A7D33), Color(0xFF4A7D33)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Image.asset(
+            "assets/images/header_bg.png",
             width: double.infinity,
-            height: AppSizes.containerHeightLarge,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF4A7D33), Color(0xFF4A7D33)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: SafeArea(
-              child: Image.asset(
-                "assets/images/header_bg.png",
-                width: MediaQuery.of(context).size.width,
-                height: AppSizes.containerHeightLarge,
-                fit: BoxFit.cover,
-              ),
-            ),
+            fit: BoxFit.cover,
           ),
+        ),
 
-          // Centered profile image
-          Positioned(
-            top: AppSizes.headerHeight,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                width: AppSizes.containerWidthLarge,
-                height: AppSizes.containerHeightXLarge,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppSizes.radius16),
-                  color: _uploadedImageUrl == null || _uploadedImageUrl!.isEmpty
-                      ? AppColors.primaryGreen.withValues(alpha: 0.1)
-                      : Colors.transparent,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppSizes.radius16),
-                  child: _uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty
-                      ? Image.network(
-                          _uploadedImageUrl!,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Center(
-                              child: CircularProgressIndicator(
-                                value: loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded /
-                                        loadingProgress.expectedTotalBytes!
-                                    : null,
-                                color: AppColors.primaryGreen,
-                              ),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return Image.network("https://i.sstatic.net/l60Hf.png", fit: BoxFit.cover,);
-                          },
-                        )
-                      : Image.network("https://i.sstatic.net/l60Hf.png", fit: BoxFit.cover,)
-                ),
+        // Centered profile image
+        Positioned(
+          top: AppSizes.headerHeight,
+          left: 0,
+          right: 0,
+          child: Center(
+            child: Container(
+              width: AppSizes.containerWidthLarge,
+              height: AppSizes.containerHeightMLarge,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppSizes.radius16),
+                color: _uploadedImageUrl == null || _uploadedImageUrl!.isEmpty
+                    ? AppColors.primaryGreen.withValues(alpha: 0.1)
+                    : Colors.transparent,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppSizes.radius12),
+                child: _uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty
+                    ? Image.network(
+                        _uploadedImageUrl!,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                              color: AppColors.primaryGreen,
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Image.network("https://i.sstatic.net/l60Hf.png", fit: BoxFit.cover);
+                        },
+                      )
+                    : Image.network("https://i.sstatic.net/l60Hf.png", fit: BoxFit.cover),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

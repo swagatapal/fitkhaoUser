@@ -154,6 +154,7 @@ class AppSizes {
   static const double containerHeightSmall70 = 70.0;
   static const double containerHeightMedium = 96.0;
   static const double containerHeightLarge = 150.0;
+  static const double containerHeightMLarge = 220.0;
   static const double containerHeightXLarge = 250.0;
   static const double containerHeight381 = 381.0;
 

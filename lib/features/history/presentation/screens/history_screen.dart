@@ -53,7 +53,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final filteredOrders = _filterOrders(orders, _searchQuery);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      //backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [

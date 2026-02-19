@@ -240,7 +240,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final showTodaysGoal = _shouldShowTodaysGoal();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+     // backgroundColor: AppColors.background,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _onRefresh,
