@@ -266,6 +266,36 @@ class AuthRepository {
     }
   }
 
+  /// Fetch profession groups from API
+  Future<Map<String, dynamic>> getProfessions() async {
+    debugPrint('[AuthRepository] Fetching professions...');
+
+    try {
+      final token = getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+          message: 'Authentication required. Please login again.',
+        );
+      }
+
+      final headers = {
+        'Authorization': 'Bearer $token',
+      };
+
+      final json = await _apiClient.getJson(
+        AppConfig.professionPath,
+        headers: headers,
+      );
+
+      debugPrint('[AuthRepository] Professions response: $json');
+      return json;
+    } catch (e) {
+      debugPrint('[AuthRepository] Professions error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw AuthException(message: message, originalError: e);
+    }
+  }
+
   /// Register device for push notifications
   Future<Map<String, dynamic>> registerDevice({
     required String deviceToken,

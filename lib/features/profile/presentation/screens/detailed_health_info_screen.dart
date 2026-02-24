@@ -12,6 +12,7 @@ import '../../../../shared/widgets/primary_button.dart';
 import '../../../auth/models/auth_state.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../provider/physiological_category_provider.dart';
+import '../../provider/profession_provider.dart';
 
 class DetailedHealthInfoScreen extends ConsumerStatefulWidget {
   const DetailedHealthInfoScreen({super.key});
@@ -95,9 +96,12 @@ class _DetailedHealthInfoScreenState
     final categoryNotifier = ref.read(physiologicalCategoryProvider.notifier);
     final authNotifier = ref.read(authProvider.notifier);
 
+    final professionNotifier = ref.read(professionProvider.notifier);
+
     await Future.wait([
       categoryNotifier.loadCategories(),
       authNotifier.loadProfile(),
+      professionNotifier.loadProfessions(),
     ]);
 
     if (mounted) {
@@ -197,26 +201,27 @@ class _DetailedHealthInfoScreenState
 
   /// Map profession from API format to UI format
   /// type-1 → sedentary, type-2 → moderate, type-3 → heavy
+  /// Also accepts professionGroup values directly (sedentary/moderate/heavy)
   String _mapProfessionFromApi(String apiValue) {
     switch (apiValue.toLowerCase()) {
       case 'type-1':
+      case 'sedentary':
         return 'sedentary';
       case 'type-2':
+      case 'moderate':
         return 'moderate';
       case 'type-3':
+      case 'heavy':
         return 'heavy';
       default:
-        // If it's already in UI format or unknown, check if it matches UI values
-        if (apiValue.toLowerCase() == 'sedentary' ||
-            apiValue.toLowerCase() == 'moderate' ||
-            apiValue.toLowerCase() == 'heavy') {
-          return apiValue.toLowerCase();
-        }
-        return 'sedentary'; // default
+        // Fall back to first available profession group if loaded
+        final professions = ref.read(professionProvider).professions;
+        if (professions.isNotEmpty) return professions.first.value;
+        return 'sedentary';
     }
   }
 
-  /// Map profession from UI format to API format
+  /// Map profession from UI format (professionGroup lowercase) to API format
   /// sedentary → type-1, moderate → type-2, heavy → type-3
   String _mapProfessionToApi(String uiValue) {
     switch (uiValue.toLowerCase()) {
@@ -227,7 +232,11 @@ class _DetailedHealthInfoScreenState
       case 'heavy':
         return 'type-3';
       default:
-        return 'type-1'; // default
+        // Try to match by sortOrder from loaded professions
+        final professions = ref.read(professionProvider).professions;
+        final match = professions.indexWhere((p) => p.value == uiValue.toLowerCase());
+        if (match >= 0) return 'type-${match + 1}';
+        return 'type-1';
     }
   }
 
@@ -565,23 +574,7 @@ class _DetailedHealthInfoScreenState
                 // Physical Activity Section
                 _buildSectionTitle(AppStrings.professionPhysicalWork),
                 SizedBox(height: spacing16),
-                _buildActivityOption(
-                  title: AppStrings.sedentary,
-                  description: AppStrings.sedentaryDesc,
-                  value: 'sedentary',
-                ),
-                SizedBox(height: spacing12),
-                _buildActivityOption(
-                  title: AppStrings.moderate,
-                  description: AppStrings.moderateDesc,
-                  value: 'moderate',
-                ),
-                SizedBox(height: spacing12),
-                _buildActivityOption(
-                  title: AppStrings.heavy,
-                  description: AppStrings.heavyDesc,
-                  value: 'heavy',
-                ),
+                _buildDynamicProfessions(spacing12),
                 SizedBox(height: spacing16),
 
                 // Exercise Section
@@ -936,6 +929,44 @@ class _DetailedHealthInfoScreenState
           ],
         ),
       ),
+    );
+  }
+
+  /// Build dynamic profession/physical activity options from API
+  Widget _buildDynamicProfessions(double spacing) {
+    final professionState = ref.watch(professionProvider);
+
+    if (professionState.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16.0),
+        child: Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primaryGreen,
+            strokeWidth: 2,
+          ),
+        ),
+      );
+    }
+
+    if (professionState.professions.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final children = <Widget>[];
+    for (int i = 0; i < professionState.professions.length; i++) {
+      final group = professionState.professions[i];
+      if (i > 0) children.add(SizedBox(height: spacing));
+      children.add(
+        _buildActivityOption(
+          title: group.professionGroup,
+          description: group.professions.join(', '),
+          value: group.value,
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
     );
   }
 
