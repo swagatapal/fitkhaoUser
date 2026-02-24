@@ -41,6 +41,7 @@ class AppConfig {
   static const String uploadImagePath = '/api/upload/image';
   static const String physiologicalCategoriesPath = '/api/adm/physiological-category';
   static const String professionPath = '/api/adm/profession';
+  static const String exercisePath = '/api/adm/exercise';
 
   /// Delivery Slots
   static const String deliverySlotListPath = '/api/delivery-slot/list';

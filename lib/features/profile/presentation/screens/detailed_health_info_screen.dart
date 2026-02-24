@@ -12,6 +12,7 @@ import '../../../../shared/widgets/primary_button.dart';
 import '../../../auth/models/auth_state.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../provider/physiological_category_provider.dart';
+import '../../provider/exercise_provider.dart';
 import '../../provider/profession_provider.dart';
 
 class DetailedHealthInfoScreen extends ConsumerStatefulWidget {
@@ -30,9 +31,13 @@ class _DetailedHealthInfoScreenState
   String _weightKg = '';
   String _activityLevel = 'sedentary'; // sedentary, moderate, heavy
   bool _doesExercise = true;
-  String _exerciseDaysPerWeek = '';
-  String _exerciseDurationHrs = '';
-  String _exerciseType = 'aerobic'; // aerobic, strength, flexibility
+  // Multi-select exercise types (stores lowercased exerciseGroup values)
+  final Set<String> _selectedExerciseTypes = {};
+  // Per-exercise-type days/duration state & controllers
+  final Map<String, String> _daysPerExercise = {};
+  final Map<String, String> _durationPerExercise = {};
+  final Map<String, TextEditingController> _daysCtrlMap = {};
+  final Map<String, TextEditingController> _durationCtrlMap = {};
 
   // Physiological conditions (stores API condition codes like 't2dm', 'hypertension', etc.)
   final Set<String> _selectedConditionCodes = {};
@@ -47,8 +52,6 @@ class _DetailedHealthInfoScreenState
   final TextEditingController _ageController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
   final TextEditingController _weightController = TextEditingController();
-  final TextEditingController _daysController = TextEditingController();
-  final TextEditingController _durationController = TextEditingController();
 
   bool _isInitialized = false;
   String? _uploadedImageUrl;
@@ -85,8 +88,12 @@ class _DetailedHealthInfoScreenState
     _ageController.dispose();
     _heightController.dispose();
     _weightController.dispose();
-    _daysController.dispose();
-    _durationController.dispose();
+    for (final c in _daysCtrlMap.values) {
+      c.dispose();
+    }
+    for (final c in _durationCtrlMap.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -97,11 +104,13 @@ class _DetailedHealthInfoScreenState
     final authNotifier = ref.read(authProvider.notifier);
 
     final professionNotifier = ref.read(professionProvider.notifier);
+    final exerciseNotifier = ref.read(exerciseProvider.notifier);
 
     await Future.wait([
       categoryNotifier.loadCategories(),
       authNotifier.loadProfile(),
       professionNotifier.loadProfessions(),
+      exerciseNotifier.loadExercises(),
     ]);
 
     if (mounted) {
@@ -167,21 +176,26 @@ class _DetailedHealthInfoScreenState
 
       // Exercise info
       _doesExercise = authState.doesExercise;
-      if (authState.exerciseDaysPerWeek != null &&
-          authState.exerciseDaysPerWeek! > 0) {
-        _exerciseDaysPerWeek = authState.exerciseDaysPerWeek!.toString();
-        _daysController.text = _exerciseDaysPerWeek;
-      }
-      if (authState.exerciseDurationHours != null &&
-          authState.exerciseDurationHours! > 0) {
-        _exerciseDurationHrs = authState.exerciseDurationHours!.toStringAsFixed(
-          0,
-        );
-        _durationController.text = _exerciseDurationHrs;
-      }
 
-      // Exercise type - map from API format (type-1, type-2, type-3) to UI format
-      _exerciseType = _mapExerciseTypeFromApi(authState.exerciseType);
+      // Exercise types — parse comma-separated API codes into multi-select set
+      _selectedExerciseTypes.clear();
+      _selectedExerciseTypes.addAll(_mapExerciseTypesFromApi(authState.exerciseType));
+
+      // Pre-populate per-exercise days/duration from stored single values
+      final storedDays = authState.exerciseDaysPerWeek;
+      final storedDuration = authState.exerciseDurationHours;
+      for (final exerciseValue in _selectedExerciseTypes) {
+        _ensureExerciseControllers(exerciseValue);
+        if (storedDays != null && storedDays > 0) {
+          _daysPerExercise[exerciseValue] = storedDays.toString();
+          _daysCtrlMap[exerciseValue]!.text = storedDays.toString();
+        }
+        if (storedDuration != null && storedDuration > 0) {
+          final durationStr = storedDuration.toStringAsFixed(0);
+          _durationPerExercise[exerciseValue] = durationStr;
+          _durationCtrlMap[exerciseValue]!.text = durationStr;
+        }
+      }
 
       // Health conditions — use selectedConditionCodes from API
       _selectedConditionCodes.clear();
@@ -240,40 +254,62 @@ class _DetailedHealthInfoScreenState
     }
   }
 
-  /// Map exercise type from API format to UI format
-  /// type-1 → aerobic, type-2 → strength, type-3 → flexibility
-  String _mapExerciseTypeFromApi(String apiValue) {
-    switch (apiValue.toLowerCase()) {
-      case 'type-1':
-        return 'aerobic';
-      case 'type-2':
-        return 'strength';
-      case 'type-3':
-        return 'flexibility';
-      default:
-        // If it's already in UI format or unknown
-        if (apiValue.toLowerCase() == 'aerobic' ||
-            apiValue.toLowerCase() == 'strength' ||
-            apiValue.toLowerCase() == 'flexibility') {
-          return apiValue.toLowerCase();
+  /// Map comma-separated API exercise codes to a set of UI values (exerciseGroup lowercase)
+  /// e.g. "type-1,type-2" → {'aerobic', 'strength training'}
+  Set<String> _mapExerciseTypesFromApi(String apiValue) {
+    if (apiValue.isEmpty) return {};
+    final exercises = ref.read(exerciseProvider).exercises;
+    return apiValue.split(',').map((code) {
+      final trimmed = code.trim().toLowerCase();
+      if (exercises.isNotEmpty) {
+        final index = int.tryParse(trimmed.replaceAll('type-', ''));
+        if (index != null) {
+          final match = exercises.firstWhere(
+            (e) => e.sortOrder == index,
+            orElse: () => exercises.first,
+          );
+          return match.value;
         }
-        return 'aerobic'; // default
+        // Already a UI value (exerciseGroup lowercase)
+        final direct = exercises.firstWhere(
+          (e) => e.value == trimmed,
+          orElse: () => exercises.first,
+        );
+        return direct.value;
+      }
+      // Legacy fallback
+      switch (trimmed) {
+        case 'type-1': return 'aerobic';
+        case 'type-2': return 'strength training';
+        case 'type-3': return 'flexibility exercise';
+        default: return trimmed;
+      }
+    }).where((v) => v.isNotEmpty).toSet();
+  }
+
+  /// Map a single UI exercise value (exerciseGroup lowercase) to API format code
+  String _mapExerciseTypeToApi(String uiValue) {
+    final exercises = ref.read(exerciseProvider).exercises;
+    if (exercises.isNotEmpty) {
+      final match = exercises.firstWhere(
+        (e) => e.value == uiValue.toLowerCase(),
+        orElse: () => exercises.first,
+      );
+      return 'type-${match.sortOrder}';
+    }
+    // Legacy fallback
+    switch (uiValue.toLowerCase()) {
+      case 'aerobic': return 'type-1';
+      case 'strength training': return 'type-2';
+      case 'flexibility exercise': return 'type-3';
+      default: return 'type-1';
     }
   }
 
-  /// Map exercise type from UI format to API format
-  /// aerobic → type-1, strength → type-2, flexibility → type-3
-  String _mapExerciseTypeToApi(String uiValue) {
-    switch (uiValue.toLowerCase()) {
-      case 'aerobic':
-        return 'type-1';
-      case 'strength':
-        return 'type-2';
-      case 'flexibility':
-        return 'type-3';
-      default:
-        return 'type-1'; // default
-    }
+  /// Lazily create days/duration controllers for an exercise type
+  void _ensureExerciseControllers(String value) {
+    _daysCtrlMap.putIfAbsent(value, () => TextEditingController());
+    _durationCtrlMap.putIfAbsent(value, () => TextEditingController());
   }
 
   bool get _isFormValid {
@@ -289,8 +325,18 @@ class _DetailedHealthInfoScreenState
     final parsedAge = _age.isNotEmpty ? double.tryParse(_age) : null;
     final parsedHeight = _heightCm.isNotEmpty ? double.tryParse(_heightCm) : null;
     final parsedWeight = _weightKg.isNotEmpty ? double.tryParse(_weightKg) : null;
-    final parsedExerciseDays = _exerciseDaysPerWeek.isNotEmpty ? int.tryParse(_exerciseDaysPerWeek) : null;
-    final parsedExerciseDuration = _exerciseDurationHrs.isNotEmpty ? double.tryParse(_exerciseDurationHrs) : null;
+    // Sum days across all selected exercise types (capped at 7) and sum durations
+    int totalDays = 0;
+    double totalDuration = 0;
+    for (final exerciseValue in _selectedExerciseTypes) {
+      final d = int.tryParse(_daysPerExercise[exerciseValue] ?? '');
+      final h = double.tryParse(_durationPerExercise[exerciseValue] ?? '');
+      if (d != null) totalDays += d;
+      if (h != null) totalDuration += h;
+    }
+    if (totalDays > 7) totalDays = 7;
+    final parsedExerciseDays = totalDays > 0 ? totalDays : null;
+    final parsedExerciseDuration = totalDuration > 0 ? totalDuration : null;
 
     // Calculate dateOfBirth from age if age is provided
     DateTime? dateOfBirth;
@@ -314,7 +360,9 @@ class _DetailedHealthInfoScreenState
 
     // Map UI values to API format before saving
     final professionApiFormat = _mapProfessionToApi(_activityLevel);
-    final exerciseTypeApiFormat = _mapExerciseTypeToApi(_exerciseType);
+    final exerciseTypeApiFormat = _selectedExerciseTypes.isNotEmpty
+        ? _selectedExerciseTypes.map(_mapExerciseTypeToApi).join(',')
+        : '';
 
     // Save selected condition codes and health info to provider
     authNotifier.saveSelectedConditions(_selectedConditionCodes.toList());
@@ -602,47 +650,12 @@ class _DetailedHealthInfoScreenState
                   ],
                 ),
 
-                // Exercise Details (shown only if exercises)
+                // Exercise type list + inline days/duration per selected type
                 if (_doesExercise) ...[
-                  SizedBox(height: spacing16),
-                  _buildNumberField(
-                    label: AppStrings.howManyDaysWeek,
-                    controller: _daysController,
-                    onChanged: (value) =>
-                        setState(() => _exerciseDaysPerWeek = value),
-                    maxValue: 7,
-                  ),
-                  SizedBox(height: spacing12),
-                  _buildNumberField(
-                    label: AppStrings.durationInHrs,
-                    controller: _durationController,
-                    onChanged: (value) =>
-                        setState(() => _exerciseDurationHrs = value),
-                    maxValue: 24,
-                  ),
                   SizedBox(height: spacing16),
                   _buildSectionTitle(AppStrings.typeOfExercise),
                   SizedBox(height: spacing12),
-                  _buildExerciseTypeOption(
-                    title: AppStrings.aerobic,
-                    description: AppStrings.aerobicDesc,
-                    value: 'aerobic',
-                    icon: Icons.directions_run,
-                  ),
-                  SizedBox(height: spacing12),
-                  _buildExerciseTypeOption(
-                    title: AppStrings.strengthTraining,
-                    description: AppStrings.strengthTrainingDesc,
-                    value: 'strength',
-                    icon: Icons.fitness_center,
-                  ),
-                  SizedBox(height: spacing12),
-                  _buildExerciseTypeOption(
-                    title: AppStrings.flexibilityExercise,
-                    description: AppStrings.flexibilityExerciseDesc,
-                    value: 'flexibility',
-                    icon: Icons.self_improvement,
-                  ),
+                  _buildDynamicExerciseTypes(spacing12),
                 ],
 
                 SizedBox(height: spacing20),
@@ -1106,70 +1119,154 @@ class _DetailedHealthInfoScreenState
     );
   }
 
+  /// Build dynamic exercise type options from API (multi-select)
+  Widget _buildDynamicExerciseTypes(double spacing) {
+    final exerciseState = ref.watch(exerciseProvider);
+
+    if (exerciseState.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16.0),
+        child: Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primaryGreen,
+            strokeWidth: 2,
+          ),
+        ),
+      );
+    }
+
+    if (exerciseState.exercises.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final children = <Widget>[];
+    for (int i = 0; i < exerciseState.exercises.length; i++) {
+      final group = exerciseState.exercises[i];
+      if (i > 0) children.add(SizedBox(height: spacing));
+      children.add(
+        _buildExerciseTypeOption(
+          title: group.exerciseGroup,
+          description: group.exercises.join(', '),
+          value: group.value,
+          daysCtrl: _daysCtrlMap[group.value],
+          durationCtrl: _durationCtrlMap[group.value],
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
+  }
+
   Widget _buildExerciseTypeOption({
     required String title,
     required String description,
     required String value,
-    required IconData icon,
+    TextEditingController? daysCtrl,
+    TextEditingController? durationCtrl,
   }) {
-    final isSelected = _exerciseType == value;
-    return GestureDetector(
-      onTap: () => setState(() => _exerciseType = value),
-      child: Container(
-        padding: EdgeInsets.all(context.responsiveSpacing(12.0)),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(context.responsiveSpacing(4.0)),
-          border: Border.all(
-            color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
-            width: AppSizes.borderMedium,
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              isSelected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              color: isSelected
-                  ? AppColors.primaryGreen
-                  : AppColors.textSecondary,
-              size: AppSizes.icon20,
-            ),
-            SizedBox(width: context.responsiveSpacing(AppSizes.spacing12)),
-            Icon(icon, color: AppColors.primaryGreen, size: AppSizes.icon20),
-            SizedBox(width: context.responsiveSpacing(AppSizes.spacing8)),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: context.responsiveFontSize(14.0),
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                  SizedBox(height: context.responsiveSpacing(4.0)),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: context.responsiveFontSize(12.0),
-                      color: AppColors.textSecondary,
-                      fontFamily: 'Lato',
-                      height: 1.4,
-                    ),
-                  ),
-                ],
+    final isSelected = _selectedExerciseTypes.contains(value);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: () => setState(() {
+            if (isSelected) {
+              _selectedExerciseTypes.remove(value);
+            } else {
+              _selectedExerciseTypes.add(value);
+              _ensureExerciseControllers(value);
+            }
+          }),
+          child: Container(
+            padding: EdgeInsets.all(context.responsiveSpacing(12.0)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius:
+                  BorderRadius.circular(context.responsiveSpacing(4.0)),
+              border: Border.all(
+                color:
+                    isSelected ? AppColors.primaryGreen : AppColors.borderColor,
+                width: AppSizes.borderMedium,
               ),
             ),
-          ],
-        ),
-      ),
-    );
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Checkbox-style indicator for multi-select
+                Container(
+                  width: AppSizes.checkboxSize,
+                  height: AppSizes.checkboxSize,
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primaryGreen : Colors.white,
+                    borderRadius: BorderRadius.circular(AppSizes.radius4),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primaryGreen
+                          : AppColors.borderColor,
+                      width: AppSizes.borderMedium,
+                    ),
+                  ),
+                  child: isSelected
+                      ? const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: AppSizes.icon14,
+                        )
+                      : null,
+                ),
+                SizedBox(
+                    width: context.responsiveSpacing(AppSizes.spacing12)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: context.responsiveFontSize(14.0),
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      SizedBox(height: context.responsiveSpacing(4.0)),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: context.responsiveFontSize(12.0),
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                          height: 1.4,
+                        ),
+                      ),
+                    ],          // inner Column children
+                  ),            // inner Column
+                ),              // Expanded
+              ],                // Row children
+            ),                  // Row
+          ),                    // Container
+        ),                      // GestureDetector
+        // Inline days/duration fields — shown when this exercise type is selected
+        if (isSelected && daysCtrl != null) ...[
+          SizedBox(height: context.responsiveSpacing(12.0)),
+          _buildNumberField(
+            label: AppStrings.howManyDaysWeek,
+            controller: daysCtrl,
+            onChanged: (v) => setState(() => _daysPerExercise[value] = v),
+            maxValue: 7,
+          ),
+          SizedBox(height: context.responsiveSpacing(8.0)),
+          _buildNumberField(
+            label: AppStrings.durationInHrs,
+            controller: durationCtrl!,
+            onChanged: (v) => setState(() => _durationPerExercise[value] = v),
+            maxValue: 24,
+          ),
+        ],
+      ],                        // outer Column children
+    );                          // Column / return
   }
 
   Widget _buildRegularStatusOption(String label, String value) {

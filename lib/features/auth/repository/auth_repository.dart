@@ -296,6 +296,36 @@ class AuthRepository {
     }
   }
 
+  /// Fetch exercise groups from API
+  Future<Map<String, dynamic>> getExercises() async {
+    debugPrint('[AuthRepository] Fetching exercises...');
+
+    try {
+      final token = getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+          message: 'Authentication required. Please login again.',
+        );
+      }
+
+      final headers = {
+        'Authorization': 'Bearer $token',
+      };
+
+      final json = await _apiClient.getJson(
+        AppConfig.exercisePath,
+        headers: headers,
+      );
+
+      debugPrint('[AuthRepository] Exercises response: $json');
+      return json;
+    } catch (e) {
+      debugPrint('[AuthRepository] Exercises error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw AuthException(message: message, originalError: e);
+    }
+  }
+
   /// Register device for push notifications
   Future<Map<String, dynamic>> registerDevice({
     required String deviceToken,
