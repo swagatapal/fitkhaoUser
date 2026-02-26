@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fitkhao_user/features/delivery/presentation/widgets/assign_meal_list_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -747,15 +749,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         ),
                       ),
                       const SizedBox(height: AppSizes.spacing2),
-                      const Text(
-                        AppStrings.targetDailyKcal,
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize12,
-                          fontWeight: AppTypography.regular,
-                          color: Colors.white,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
+                      const _RotatingTipWidget(),
                     ],
                   ),
                 ),
@@ -1277,7 +1271,74 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       return const Color(0xFF6BA84F); // Light green for low progress
     }
   }
+}
 
+/// Auto-rotating nutrition tip widget — cycles through tips every 2 seconds
+/// with a smooth fade + slide-up transition.
+class _RotatingTipWidget extends StatefulWidget {
+  const _RotatingTipWidget();
 
+  @override
+  State<_RotatingTipWidget> createState() => _RotatingTipWidgetState();
+}
 
+class _RotatingTipWidgetState extends State<_RotatingTipWidget> {
+  static const List<String> _tips = [
+    'Target 1/3 of your daily Kcal through Breakfast.',
+    'Stay hydrated — drink at least 8 glasses of water daily.',
+    'Protein helps build & repair muscles. Include it in every meal.',
+    'Eat mindfully — chew slowly and savour every bite.',
+    'Colorful vegetables are packed with vitamins & antioxidants.',
+    'A balanced diet fuels both your body and your mind.',
+    'Sleep well — poor sleep can increase hunger hormones.',
+    'Healthy fats like nuts & avocados support brain function.',
+    'Small, frequent meals can keep your metabolism active.',
+    'Consistency beats perfection — every healthy choice counts.',
+  ];
+
+  int _currentIndex = 0;
+  late final Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (mounted) {
+        setState(() => _currentIndex = (_currentIndex + 1) % _tips.length);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 500),
+      transitionBuilder: (child, animation) {
+        final offsetAnimation = Tween<Offset>(
+          begin: const Offset(0.0, 0.4),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(position: offsetAnimation, child: child),
+        );
+      },
+      child: Text(
+        _tips[_currentIndex],
+        key: ValueKey(_currentIndex),
+        style: const TextStyle(
+          fontSize: AppTypography.fontSize12,
+          fontWeight: AppTypography.regular,
+          color: Colors.white,
+          fontFamily: 'Lato',
+        ),
+      ),
+    );
+  }
 }
