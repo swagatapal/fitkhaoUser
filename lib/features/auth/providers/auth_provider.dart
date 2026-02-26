@@ -289,11 +289,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required double height,
     required double weight,
     required double age,
-    required String physicalActivityLevel,
+    required String professionGroupId,
     required bool doesExercise,
-    int? exerciseDaysPerWeek,
-    double? exerciseDurationHours,
-    required String exerciseType,
+    required List<Map<String, dynamic>> exercises,
     required bool pregnancy,
     String? pregnancyStage,
     required bool lactation,
@@ -311,11 +309,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       height: height,
       weight: weight,
       age: age,
-      physicalActivityLevel: physicalActivityLevel,
+      professionGroupId: professionGroupId,
       doesExercise: doesExercise,
-      exerciseDaysPerWeek: exerciseDaysPerWeek,
-      exerciseDurationHours: exerciseDurationHours,
-      exerciseType: exerciseType,
+      exercises: exercises,
       pregnancy: pregnancy,
       pregnancyStage: pregnancyStage,
       lactation: lactation,
@@ -367,11 +363,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final weight = (profile['weight'] as num?)?.toDouble() ?? 0.0;
         final height = (profile['height'] as num?)?.toDouble() ?? 0.0;
         final doesWorkout = profile['doesWorkout'] as bool? ?? false;
-        final workoutDaysPerWeek = profile['workoutDaysPerWeek'] as int? ?? 0;
-        final workoutHoursPerDay = (profile['workoutHoursPerDay'] as num?)?.toDouble() ?? 0.0;
-        final exerciseType = profile['exerciseType'] as String? ?? 'type-1';
-        final profession = profile['profession'] as String? ?? 'type-1';
+        final professionGroupId = profile['professionGroupId'] as String? ?? '';
         final selectedGoal = profile['selectedGoal'] as String? ?? 'regular-bmi-maintenance';
+
+        // Parse exercises array: [{exerciseGroupId, daysPerWeek, hoursPerDay}]
+        final rawExercises = profile['exercises'] as List<dynamic>? ?? [];
+        final exercises = rawExercises
+            .whereType<Map<String, dynamic>>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
 
         // Extract nutritional targets
         final targetProtein = (profile['targetProtein'] as num?)?.toDouble();
@@ -462,10 +462,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
           }
         }
 
-        // Extract digestive issues
-        final digestiveIssues = profile['digestiveIssues'] as Map<String, dynamic>?;
-        final regularlyConstipated = digestiveIssues?['regularlyConstipated'] as bool? ?? false;
-        final diarrhoeal = digestiveIssues?['diarrhoeal'] as bool? ?? false;
+        // Extract digestive issues (new key: regularlyDiarrhoeal)
+        final digestiveIssues =
+            profile['digestiveIssues'] as Map<String, dynamic>?;
+        final regularlyConstipated =
+            digestiveIssues?['regularlyConstipated'] as bool? ?? false;
+        final regularlyDiarrhoeal =
+            digestiveIssues?['regularlyDiarrhoeal'] as bool? ??
+                digestiveIssues?['diarrhoeal'] as bool? ?? // legacy fallback
+                false;
         final both = digestiveIssues?['both'] as bool? ?? false;
 
         // Map digestive issues to regularityStatus
@@ -474,11 +479,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
           regularityStatus = 'Both';
         } else if (regularlyConstipated) {
           regularityStatus = 'Constipated';
-        } else if (diarrhoeal) {
+        } else if (regularlyDiarrhoeal) {
           regularityStatus = 'Diarrhoeal';
         }
 
-        // Extract profile updatedAt timestamp
+        // Extract profile updatedAt and isUpdateable from data level
         DateTime? profileUpdatedAt;
         final updatedAtStr = user['updatedAt'] as String?;
         if (updatedAtStr != null && updatedAtStr.isNotEmpty) {
@@ -488,6 +493,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
             debugPrint('[AuthNotifier] Error parsing profileUpdatedAt: $e');
           }
         }
+        final isUpdateable = user['isUpdateable'] as bool? ?? true;
 
         // Update state with fetched data
         state = state.copyWith(
@@ -501,10 +507,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
           weight: weight > 0 ? weight : null,
           age: double.parse(age.toString()),
           doesExercise: doesWorkout,
-          exerciseDaysPerWeek: workoutDaysPerWeek > 0 ? workoutDaysPerWeek : null,
-          exerciseDurationHours: workoutHoursPerDay > 0 ? workoutHoursPerDay : null,
-          exerciseType: exerciseType,
-          physicalActivityLevel: profession,
+          professionGroupId: professionGroupId,
+          exercises: exercises,
+          isUpdateable: isUpdateable,
           buildingNameNumber: buildingName,
           street: street,
           pincode: pincode,
@@ -526,7 +531,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
           targetKCalories: targetKCalories,
           lastUpdatedTargetKCal: lastUpdatedTargetKCal,
           selectedGoal: selectedGoal,
-          profession: profession,
           profileUpdatedAt: profileUpdatedAt,
           isLoading: false,
           errorMessage: null,
@@ -631,11 +635,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final message = response['message'] as String?;
 
       if (success) {
+        // Parse isUpdateable from response data
+        final responseData = response['data'] as Map<String, dynamic>?;
+        final isUpdateable = responseData?['isUpdateable'] as bool? ?? true;
+
         state = state.copyWith(
           isLoading: false,
+          isUpdateable: isUpdateable,
           errorMessage: null,
         );
-        debugPrint('[AuthNotifier] Profile updated successfully');
+        debugPrint('[AuthNotifier] Profile updated successfully, isUpdateable: $isUpdateable');
         return true;
       } else {
         state = state.copyWith(

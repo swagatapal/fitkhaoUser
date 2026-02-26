@@ -10,17 +10,17 @@ class ProfileUpdateRequest {
   final String? gender; // male|female
   final double? weight; // kg
   final double? height; // cm
-  final String? selectedGoal; // e.g., fat-loss | maintenance
+  final String? selectedGoal;
   final bool? doesWorkout;
-  final int? workoutDaysPerWeek;
-  final double? workoutHoursPerDay;
-  final String? exerciseType; // type-1 | type-2 etc
-  final String? profession; // optional
+  /// MongoDB _id of the selected ProfessionGroup
+  final String? professionGroupId;
+  /// Per-exercise data: [{exerciseGroupId, daysPerWeek, hoursPerDay}]
+  final List<Map<String, dynamic>>? exercises;
   final Address? address;
   final List<Map<String, dynamic>>? specialConditions;
   final DigestiveIssues? digestiveIssues;
   final String? selectedKitchenId;
-  final String? imgUrl; // Profile image URL
+  final String? imgUrl;
   final bool isUpdateable;
 
   const ProfileUpdateRequest({
@@ -32,10 +32,8 @@ class ProfileUpdateRequest {
     this.height,
     this.selectedGoal,
     this.doesWorkout,
-    this.workoutDaysPerWeek,
-    this.workoutHoursPerDay,
-    this.exerciseType,
-    this.profession,
+    this.professionGroupId,
+    this.exercises,
     this.address,
     this.specialConditions,
     this.digestiveIssues,
@@ -48,33 +46,33 @@ class ProfileUpdateRequest {
   static DigestiveIssues _mapRegularityStatusToDigestiveIssues(String status) {
     final lower = status.toLowerCase();
 
-    if (lower.contains('both') || (lower.contains('constipat') && lower.contains('diarrh'))) {
+    if (lower.contains('both') ||
+        (lower.contains('constipat') && lower.contains('diarrh'))) {
       return const DigestiveIssues(
         regularlyConstipated: true,
-        diarrhoeal: true,
+        regularlyDiarrhoeal: true,
         none: false,
         both: true,
       );
     } else if (lower.contains('constipat')) {
       return const DigestiveIssues(
         regularlyConstipated: true,
-        diarrhoeal: false,
+        regularlyDiarrhoeal: false,
         none: false,
         both: false,
       );
     } else if (lower.contains('diarrh')) {
       return const DigestiveIssues(
         regularlyConstipated: false,
-        diarrhoeal: true,
+        regularlyDiarrhoeal: true,
         none: false,
         both: false,
       );
     }
 
-    // Default: None
     return const DigestiveIssues(
       regularlyConstipated: false,
-      diarrhoeal: false,
+      regularlyDiarrhoeal: false,
       none: true,
       both: false,
     );
@@ -85,7 +83,6 @@ class ProfileUpdateRequest {
     List<String> selectedCodes,
     List<PhysiologicalCategory> availableCategories,
   ) {
-    // If we have available categories, build from them
     if (availableCategories.isNotEmpty) {
       return availableCategories.map((cat) {
         return {
@@ -95,7 +92,6 @@ class ProfileUpdateRequest {
       }).toList();
     }
 
-    // Fallback: just send the selected codes as true
     return selectedCodes.map((code) {
       return {
         'code': code,
@@ -112,23 +108,25 @@ class ProfileUpdateRequest {
     if (s.dateOfBirth != null) {
       final now = DateTime.now();
       int years = now.year - s.dateOfBirth!.year;
-      final hasHadBirthdayThisYear = (now.month > s.dateOfBirth!.month) ||
-          (now.month == s.dateOfBirth!.month && now.day >= s.dateOfBirth!.day);
+      final hasHadBirthdayThisYear =
+          (now.month > s.dateOfBirth!.month) ||
+          (now.month == s.dateOfBirth!.month &&
+              now.day >= s.dateOfBirth!.day);
       if (!hasHadBirthdayThisYear) years -= 1;
       computedAge = max(0, years);
     }
 
-    // Build specialConditions as array format
     final specialConditionsArray = _buildSpecialConditionsArray(
       s.selectedConditionCodes,
       availableCategories,
     );
 
-    // Map regularityStatus to digestiveIssues
-    final digestive = _mapRegularityStatusToDigestiveIssues(s.regularityStatus);
+    final digestive =
+        _mapRegularityStatusToDigestiveIssues(s.regularityStatus);
 
     final addr = Address(
-      buildingName: s.buildingNameNumber.isNotEmpty ? s.buildingNameNumber : null,
+      buildingName:
+          s.buildingNameNumber.isNotEmpty ? s.buildingNameNumber : null,
       street: s.street.isNotEmpty ? s.street : null,
       pincode: s.pincode.isNotEmpty ? s.pincode : null,
       latitude: s.latitude,
@@ -142,12 +140,13 @@ class ProfileUpdateRequest {
       gender: s.gender.isNotEmpty ? s.gender : null,
       weight: s.weight,
       height: s.height,
-      selectedGoal: s.selectedGoal.isNotEmpty ? s.selectedGoal : "regular-bmi-maintenance",
+      selectedGoal: s.selectedGoal.isNotEmpty
+          ? s.selectedGoal
+          : 'regular-bmi-maintenance',
       doesWorkout: s.doesExercise,
-      workoutDaysPerWeek: s.exerciseDaysPerWeek,
-      workoutHoursPerDay: s.exerciseDurationHours,
-      exerciseType: s.exerciseType,
-      profession: s.physicalActivityLevel.isNotEmpty ? s.physicalActivityLevel : null,
+      professionGroupId:
+          s.professionGroupId.isNotEmpty ? s.professionGroupId : null,
+      exercises: s.exercises.isNotEmpty ? s.exercises : null,
       address: addr,
       specialConditions: specialConditionsArray,
       digestiveIssues: digestive,
@@ -160,7 +159,7 @@ class ProfileUpdateRequest {
 
   /// Always include all fields as backend expects full object.
   Map<String, dynamic> toFullJson() {
-    final map = {
+    final map = <String, dynamic>{
       'name': name ?? '',
       'imgUrl': imgUrl ?? '',
       'age': age ?? 0,
@@ -171,20 +170,19 @@ class ProfileUpdateRequest {
       'address': (address ?? const Address()).toFullJson(),
       'selectedKitchenId': selectedKitchenId ?? '',
       'selectedGoal': selectedGoal ?? '',
-      'profession': profession ?? 'type-1',
-      'workoutDaysPerWeek': workoutDaysPerWeek ?? 0,
-      'workoutHoursPerDay': workoutHoursPerDay ?? 0,
-      'exerciseType': exerciseType ?? '',
+      'professionGroupId': professionGroupId ?? '',
+      'exercises': exercises ?? [],
       'specialConditions': specialConditions ?? [],
-      'digestiveIssues': (digestiveIssues ?? const DigestiveIssues(
-        regularlyConstipated: false,
-        diarrhoeal: false,
-        none: false,
-        both: false,
-      )).toFullJson(),
+      'digestiveIssues': (digestiveIssues ??
+              const DigestiveIssues(
+                regularlyConstipated: false,
+                regularlyDiarrhoeal: false,
+                none: false,
+                both: false,
+              ))
+          .toFullJson(),
       'isUpdateable': isUpdateable,
     };
-    // Only include email if it's not empty to avoid backend validation error
     if (email != null && email!.isNotEmpty) {
       map['email'] = email!;
     }
@@ -222,13 +220,13 @@ class Address {
 
 class DigestiveIssues {
   final bool regularlyConstipated;
-  final bool diarrhoeal;
+  final bool regularlyDiarrhoeal;
   final bool none;
   final bool both;
 
   const DigestiveIssues({
     required this.regularlyConstipated,
-    required this.diarrhoeal,
+    required this.regularlyDiarrhoeal,
     required this.none,
     required this.both,
   });
@@ -238,7 +236,7 @@ class DigestiveIssues {
   Map<String, dynamic> toFullJson() {
     return {
       'regularlyConstipated': regularlyConstipated,
-      'diarrhoeal': diarrhoeal,
+      'regularlyDiarrhoeal': regularlyDiarrhoeal,
       'none': none,
       'both': both,
     };

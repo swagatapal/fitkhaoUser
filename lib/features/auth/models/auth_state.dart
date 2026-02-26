@@ -34,10 +34,13 @@ class AuthState {
   final bool doesExercise;
 
   // Detailed health information
-  final String physicalActivityLevel;
-  final int? exerciseDaysPerWeek;
-  final double? exerciseDurationHours;
-  final String exerciseType;
+  /// MongoDB _id of the selected ProfessionGroup
+  final String professionGroupId;
+  /// Per-exercise data: [{exerciseGroupId, daysPerWeek, hoursPerDay}]
+  final List<Map<String, dynamic>> exercises;
+  /// Server-driven flag — false means user must contact nutritionist to update
+  final bool isUpdateable;
+
   final bool pregnancy;
   final String? pregnancyStage; // P1, P2, P3
   final bool lactation;
@@ -57,7 +60,6 @@ class AuthState {
   final double? targetKCalories;
   final DateTime? lastUpdatedTargetKCal;
   final String selectedGoal;
-  final String profession;
 
   // Selected physiological condition codes (from API)
   final List<String> selectedConditionCodes;
@@ -93,10 +95,9 @@ class AuthState {
     this.bmi,
     this.healthScore,
     this.doesExercise = false,
-    this.physicalActivityLevel = '',
-    this.exerciseDaysPerWeek,
-    this.exerciseDurationHours,
-    this.exerciseType = 'type-1',
+    this.professionGroupId = '',
+    this.exercises = const [],
+    this.isUpdateable = true,
     this.pregnancy = false,
     this.pregnancyStage,
     this.lactation = false,
@@ -114,7 +115,6 @@ class AuthState {
     this.targetKCalories,
     this.lastUpdatedTargetKCal,
     this.selectedGoal = 'regular-bmi-maintenance',
-    this.profession = "type-1",
     this.selectedConditionCodes = const [],
     this.profileUpdatedAt,
   });
@@ -147,10 +147,9 @@ class AuthState {
     double? bmi,
     int? healthScore,
     bool? doesExercise,
-    String? physicalActivityLevel,
-    int? exerciseDaysPerWeek,
-    double? exerciseDurationHours,
-    String? exerciseType,
+    String? professionGroupId,
+    List<Map<String, dynamic>>? exercises,
+    bool? isUpdateable,
     bool? pregnancy,
     String? pregnancyStage,
     bool? lactation,
@@ -168,12 +167,11 @@ class AuthState {
     double? targetKCalories,
     DateTime? lastUpdatedTargetKCal,
     String? selectedGoal,
-    String? profession,
     List<String>? selectedConditionCodes,
     DateTime? profileUpdatedAt,
   }) {
     return AuthState(
-      userId: userId?? this.userId,
+      userId: userId ?? this.userId,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       countryCode: countryCode ?? this.countryCode,
       isTermsAccepted: isTermsAccepted ?? this.isTermsAccepted,
@@ -200,10 +198,9 @@ class AuthState {
       bmi: bmi ?? this.bmi,
       healthScore: healthScore ?? this.healthScore,
       doesExercise: doesExercise ?? this.doesExercise,
-      physicalActivityLevel: physicalActivityLevel ?? this.physicalActivityLevel,
-      exerciseDaysPerWeek: exerciseDaysPerWeek ?? this.exerciseDaysPerWeek,
-      exerciseDurationHours: exerciseDurationHours ?? this.exerciseDurationHours,
-      exerciseType: exerciseType ?? this.exerciseType,
+      professionGroupId: professionGroupId ?? this.professionGroupId,
+      exercises: exercises ?? this.exercises,
+      isUpdateable: isUpdateable ?? this.isUpdateable,
       pregnancy: pregnancy ?? this.pregnancy,
       pregnancyStage: pregnancyStage ?? this.pregnancyStage,
       lactation: lactation ?? this.lactation,
@@ -219,10 +216,11 @@ class AuthState {
       targetFat: targetFat ?? this.targetFat,
       targetCarbs: targetCarbs ?? this.targetCarbs,
       targetKCalories: targetKCalories ?? this.targetKCalories,
-      lastUpdatedTargetKCal: lastUpdatedTargetKCal ?? this.lastUpdatedTargetKCal,
+      lastUpdatedTargetKCal:
+          lastUpdatedTargetKCal ?? this.lastUpdatedTargetKCal,
       selectedGoal: selectedGoal ?? this.selectedGoal,
-      profession: profession??this.profession,
-      selectedConditionCodes: selectedConditionCodes ?? this.selectedConditionCodes,
+      selectedConditionCodes:
+          selectedConditionCodes ?? this.selectedConditionCodes,
       profileUpdatedAt: profileUpdatedAt ?? this.profileUpdatedAt,
     );
   }

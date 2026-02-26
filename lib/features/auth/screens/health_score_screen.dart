@@ -43,11 +43,11 @@ class _HealthScoreScreenState extends ConsumerState<HealthScoreScreen> {
     debugPrint('Height: ${authState.height} cm');
     debugPrint('Weight: ${authState.weight} kg');
     debugPrint('Does Exercise: ${authState.doesExercise}');
-    debugPrint('Exercise Days/Week: ${authState.exerciseDaysPerWeek}');
-    debugPrint('Exercise Hours/Day: ${authState.exerciseDurationHours}');
-    debugPrint('Exercise Type: ${authState.exerciseType}');
-    debugPrint('Physical Activity Level: ${authState.physicalActivityLevel}');
-    debugPrint('BMI: ${authState.bmi}');
+    // debugPrint('Exercise Days/Week: ${authState.exerciseDaysPerWeek}');
+    // debugPrint('Exercise Hours/Day: ${authState.exerciseDurationHours}');
+    // debugPrint('Exercise Type: ${authState.exerciseType}');
+    // debugPrint('Physical Activity Level: ${authState.physicalActivityLevel}');
+    // debugPrint('BMI: ${authState.bmi}');
     debugPrint('Health Score: ${authState.healthScore}');
     debugPrint('========================================');
     debugPrint('ADDRESS:');

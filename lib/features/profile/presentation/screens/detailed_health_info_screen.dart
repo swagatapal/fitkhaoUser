@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
-import '../../../../core/constants/app_typography.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../../shared/widgets/primary_button.dart';
@@ -55,8 +54,6 @@ class _DetailedHealthInfoScreenState
 
   bool _isInitialized = false;
   String? _uploadedImageUrl;
-  DateTime? _lastProfileUpdate;
-  int _daysUntilNextUpdate = 0;
 
   final ScrollController _scrollController = ScrollController();
   bool _isCollapsed = false;
@@ -118,28 +115,7 @@ class _DetailedHealthInfoScreenState
     }
   }
 
-  /// Check if user can update profile (21 days restriction)
-  bool _canUpdateProfile(DateTime? lastUpdate) {
-    if (lastUpdate == null) return true;
-    final now = DateTime.now();
-    final daysSinceLastUpdate = now.difference(lastUpdate).inDays;
-    return daysSinceLastUpdate >= 15;
-  }
-
-  /// Get days remaining until next profile update
-  int _getDaysUntilNextUpdate(DateTime? lastUpdate) {
-    if (lastUpdate == null) return 0;
-    final now = DateTime.now();
-    final daysSinceLastUpdate = now.difference(lastUpdate).inDays;
-    final daysRemaining = 15 - daysSinceLastUpdate;
-    return daysRemaining > 0 ? daysRemaining : 0;
-  }
-
-  /// Get button text based on update restriction
   String _getSaveButtonText() {
-    if (_daysUntilNextUpdate > 0) {
-      return 'We will connect after $_daysUntilNextUpdate ${_daysUntilNextUpdate == 1 ? 'day' : 'days'}';
-    }
     return AppStrings.save;
   }
 
@@ -148,10 +124,6 @@ class _DetailedHealthInfoScreenState
     final authState = ref.read(authProvider);
 
     setState(() {
-      // Load profile update timestamp and calculate days until next update
-      _lastProfileUpdate = authState.profileUpdatedAt;
-      _daysUntilNextUpdate = _getDaysUntilNextUpdate(_lastProfileUpdate);
-
       // Basic info
       // Load existing profile image URL from server
       if (authState.imgUrl != null && authState.imgUrl!.isNotEmpty) {
@@ -171,29 +143,45 @@ class _DetailedHealthInfoScreenState
         _weightController.text = _weightKg;
       }
 
-      // Activity level - map from API format (type-1, type-2, type-3) to UI format
-      _activityLevel = _mapProfessionFromApi(authState.physicalActivityLevel);
+      // Activity level — find profession group by MongoDB _id
+      if (authState.professionGroupId.isNotEmpty) {
+        final professions = ref.read(professionProvider).professions;
+        final matchList = professions
+            .where((p) => p.id == authState.professionGroupId)
+            .toList();
+        if (matchList.isNotEmpty) {
+          _activityLevel = matchList.first.value;
+        } else if (professions.isNotEmpty) {
+          _activityLevel = professions.first.value;
+        }
+      }
 
       // Exercise info
       _doesExercise = authState.doesExercise;
 
-      // Exercise types — parse comma-separated API codes into multi-select set
+      // Populate exercise types from exercises array [{exerciseGroupId, daysPerWeek, hoursPerDay}]
       _selectedExerciseTypes.clear();
-      _selectedExerciseTypes.addAll(_mapExerciseTypesFromApi(authState.exerciseType));
-
-      // Pre-populate per-exercise days/duration from stored single values
-      final storedDays = authState.exerciseDaysPerWeek;
-      final storedDuration = authState.exerciseDurationHours;
-      for (final exerciseValue in _selectedExerciseTypes) {
-        _ensureExerciseControllers(exerciseValue);
-        if (storedDays != null && storedDays > 0) {
-          _daysPerExercise[exerciseValue] = storedDays.toString();
-          _daysCtrlMap[exerciseValue]!.text = storedDays.toString();
-        }
-        if (storedDuration != null && storedDuration > 0) {
-          final durationStr = storedDuration.toStringAsFixed(0);
-          _durationPerExercise[exerciseValue] = durationStr;
-          _durationCtrlMap[exerciseValue]!.text = durationStr;
+      final exerciseGroups = ref.read(exerciseProvider).exercises;
+      for (final ex in authState.exercises) {
+        final groupId = ex['exerciseGroupId'] as String? ?? '';
+        if (groupId.isEmpty) continue;
+        final exMatchList = exerciseGroups.where((g) => g.id == groupId).toList();
+        if (exMatchList.isNotEmpty) {
+          final exMatch = exMatchList.first;
+          _selectedExerciseTypes.add(exMatch.value);
+          _ensureExerciseControllers(exMatch.value);
+          final days = ex['daysPerWeek'];
+          final duration = ex['hoursPerDay'];
+          if (days != null) {
+            final daysStr = days.toString();
+            _daysPerExercise[exMatch.value] = daysStr;
+            _daysCtrlMap[exMatch.value]!.text = daysStr;
+          }
+          if (duration != null) {
+            final durStr = duration.toString();
+            _durationPerExercise[exMatch.value] = durStr;
+            _durationCtrlMap[exMatch.value]!.text = durStr;
+          }
         }
       }
 
@@ -211,99 +199,6 @@ class _DetailedHealthInfoScreenState
 
       _isInitialized = true;
     });
-  }
-
-  /// Map profession from API format to UI format
-  /// type-1 → sedentary, type-2 → moderate, type-3 → heavy
-  /// Also accepts professionGroup values directly (sedentary/moderate/heavy)
-  String _mapProfessionFromApi(String apiValue) {
-    switch (apiValue.toLowerCase()) {
-      case 'type-1':
-      case 'sedentary':
-        return 'sedentary';
-      case 'type-2':
-      case 'moderate':
-        return 'moderate';
-      case 'type-3':
-      case 'heavy':
-        return 'heavy';
-      default:
-        // Fall back to first available profession group if loaded
-        final professions = ref.read(professionProvider).professions;
-        if (professions.isNotEmpty) return professions.first.value;
-        return 'sedentary';
-    }
-  }
-
-  /// Map profession from UI format (professionGroup lowercase) to API format
-  /// sedentary → type-1, moderate → type-2, heavy → type-3
-  String _mapProfessionToApi(String uiValue) {
-    switch (uiValue.toLowerCase()) {
-      case 'sedentary':
-        return 'type-1';
-      case 'moderate':
-        return 'type-2';
-      case 'heavy':
-        return 'type-3';
-      default:
-        // Try to match by sortOrder from loaded professions
-        final professions = ref.read(professionProvider).professions;
-        final match = professions.indexWhere((p) => p.value == uiValue.toLowerCase());
-        if (match >= 0) return 'type-${match + 1}';
-        return 'type-1';
-    }
-  }
-
-  /// Map comma-separated API exercise codes to a set of UI values (exerciseGroup lowercase)
-  /// e.g. "type-1,type-2" → {'aerobic', 'strength training'}
-  Set<String> _mapExerciseTypesFromApi(String apiValue) {
-    if (apiValue.isEmpty) return {};
-    final exercises = ref.read(exerciseProvider).exercises;
-    return apiValue.split(',').map((code) {
-      final trimmed = code.trim().toLowerCase();
-      if (exercises.isNotEmpty) {
-        final index = int.tryParse(trimmed.replaceAll('type-', ''));
-        if (index != null) {
-          final match = exercises.firstWhere(
-            (e) => e.sortOrder == index,
-            orElse: () => exercises.first,
-          );
-          return match.value;
-        }
-        // Already a UI value (exerciseGroup lowercase)
-        final direct = exercises.firstWhere(
-          (e) => e.value == trimmed,
-          orElse: () => exercises.first,
-        );
-        return direct.value;
-      }
-      // Legacy fallback
-      switch (trimmed) {
-        case 'type-1': return 'aerobic';
-        case 'type-2': return 'strength training';
-        case 'type-3': return 'flexibility exercise';
-        default: return trimmed;
-      }
-    }).where((v) => v.isNotEmpty).toSet();
-  }
-
-  /// Map a single UI exercise value (exerciseGroup lowercase) to API format code
-  String _mapExerciseTypeToApi(String uiValue) {
-    final exercises = ref.read(exerciseProvider).exercises;
-    if (exercises.isNotEmpty) {
-      final match = exercises.firstWhere(
-        (e) => e.value == uiValue.toLowerCase(),
-        orElse: () => exercises.first,
-      );
-      return 'type-${match.sortOrder}';
-    }
-    // Legacy fallback
-    switch (uiValue.toLowerCase()) {
-      case 'aerobic': return 'type-1';
-      case 'strength training': return 'type-2';
-      case 'flexibility exercise': return 'type-3';
-      default: return 'type-1';
-    }
   }
 
   /// Lazily create days/duration controllers for an exercise type
@@ -325,18 +220,21 @@ class _DetailedHealthInfoScreenState
     final parsedAge = _age.isNotEmpty ? double.tryParse(_age) : null;
     final parsedHeight = _heightCm.isNotEmpty ? double.tryParse(_heightCm) : null;
     final parsedWeight = _weightKg.isNotEmpty ? double.tryParse(_weightKg) : null;
-    // Sum days across all selected exercise types (capped at 7) and sum durations
-    int totalDays = 0;
-    double totalDuration = 0;
-    for (final exerciseValue in _selectedExerciseTypes) {
-      final d = int.tryParse(_daysPerExercise[exerciseValue] ?? '');
-      final h = double.tryParse(_durationPerExercise[exerciseValue] ?? '');
-      if (d != null) totalDays += d;
-      if (h != null) totalDuration += h;
+    // Build exercises array for new API format [{exerciseGroupId, daysPerWeek, hoursPerDay}]
+    final exerciseGroups = ref.read(exerciseProvider).exercises;
+    final exercisesList = <Map<String, dynamic>>[];
+    if (_doesExercise) {
+      for (final exerciseValue in _selectedExerciseTypes) {
+        final matchList = exerciseGroups.where((g) => g.value == exerciseValue).toList();
+        if (matchList.isNotEmpty) {
+          exercisesList.add({
+            'exerciseGroupId': matchList.first.id,
+            'daysPerWeek': int.tryParse(_daysPerExercise[exerciseValue] ?? '') ?? 0,
+            'hoursPerDay': double.tryParse(_durationPerExercise[exerciseValue] ?? '') ?? 0.0,
+          });
+        }
+      }
     }
-    if (totalDays > 7) totalDays = 7;
-    final parsedExerciseDays = totalDays > 0 ? totalDays : null;
-    final parsedExerciseDuration = totalDuration > 0 ? totalDuration : null;
 
     // Calculate dateOfBirth from age if age is provided
     DateTime? dateOfBirth;
@@ -358,11 +256,10 @@ class _DetailedHealthInfoScreenState
       );
     }
 
-    // Map UI values to API format before saving
-    final professionApiFormat = _mapProfessionToApi(_activityLevel);
-    final exerciseTypeApiFormat = _selectedExerciseTypes.isNotEmpty
-        ? _selectedExerciseTypes.map(_mapExerciseTypeToApi).join(',')
-        : '';
+    // Get professionGroupId from the selected activity level
+    final professions = ref.read(professionProvider).professions;
+    final selectedProfessionList = professions.where((p) => p.value == _activityLevel).toList();
+    final professionGroupId = selectedProfessionList.isNotEmpty ? selectedProfessionList.first.id : '';
 
     // Save selected condition codes and health info to provider
     authNotifier.saveSelectedConditions(_selectedConditionCodes.toList());
@@ -371,15 +268,9 @@ class _DetailedHealthInfoScreenState
       height: parsedHeight ?? authState.height ?? 0,
       weight: parsedWeight ?? authState.weight ?? 0,
       age: parsedAge ?? authState.age ?? 0,
-      physicalActivityLevel: professionApiFormat,
+      professionGroupId: professionGroupId,
       doesExercise: _doesExercise,
-      exerciseDaysPerWeek: _doesExercise && parsedExerciseDays != null
-          ? parsedExerciseDays
-          : null,
-      exerciseDurationHours: _doesExercise && parsedExerciseDuration != null
-          ? parsedExerciseDuration
-          : null,
-      exerciseType: exerciseTypeApiFormat,
+      exercises: exercisesList,
       pregnancy: _selectedConditionCodes.contains('p123'),
       lactation: _selectedConditionCodes.contains('l12'),
       diabetes: _selectedConditionCodes.contains('t2dm'),
@@ -700,10 +591,38 @@ class _DetailedHealthInfoScreenState
 
                 SizedBox(height: spacing24),
 
+                // Contact Nutritionist banner when profile updates are locked
+                if (!authState.isUpdateable) ...[
+                  Container(
+                    padding: EdgeInsets.all(context.responsiveSpacing(12.0)),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Profile updates are locked. Please contact your nutritionist to update.',
+                            style: TextStyle(
+                              fontSize: context.responsiveFontSize(13.0),
+                              color: Colors.orange.shade800,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: context.responsiveSpacing(12.0)),
+                ],
                 // Save Button
                 PrimaryButton(
                   text: _getSaveButtonText(),
-                  onPressed: _handleSave,
+                  onPressed: authState.isUpdateable ? _handleSave : null,
                   textColor: Colors.white,
                   height: context.inputHeight,
                   isLoading: authState.isLoading,
