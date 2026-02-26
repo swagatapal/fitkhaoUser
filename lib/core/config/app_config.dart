@@ -42,6 +42,7 @@ class AppConfig {
   static const String physiologicalCategoriesPath = '/api/adm/physiological-category';
   static const String professionPath = '/api/adm/profession';
   static const String exercisePath = '/api/adm/exercise';
+  static const String userHistoryPath = '/api/user/history';
 
   /// Delivery Slots
   static const String deliverySlotListPath = '/api/delivery-slot/list';

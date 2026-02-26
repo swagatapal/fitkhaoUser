@@ -25,6 +25,7 @@ class RouteNames {
   static const String editProfile = '/edit-profile';
   static const String editPersonalProfile = '/edit-personal-profile';
   static const String preferencesSaved = '/preferences-saved';
+  static const String profileHistory = '/profile-history';
   static const String addresses = '/addresses';
   static const String addAddress = '/add-address';
 

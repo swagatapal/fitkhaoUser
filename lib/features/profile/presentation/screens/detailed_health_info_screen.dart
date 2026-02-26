@@ -394,6 +394,26 @@ class _DetailedHealthInfoScreenState
                 ),
               ),
               const SizedBox(width: 8),
+
+              // profile history
+              Padding(
+                padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+                child: GestureDetector(
+                  onTap: () => context.push(RouteNames.profileHistory),
+                  child: Container(
+                    width: AppSizes.iconContainerSize,
+                    height: AppSizes.iconContainerSize,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF5D9E40),
+                      borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    ),
+                    child: Center(
+                      child: Icon(Icons.history, color: Colors.white,)
+                    ),
+                  ),
+                ),
+              ),
+              
               // Edit button — always visible
               Padding(
                 padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
@@ -415,7 +435,9 @@ class _DetailedHealthInfoScreenState
                     ),
                   ),
                 ),
-              ),
+              ),  
+              
+              
             ],
             flexibleSpace: FlexibleSpaceBar(
               collapseMode: CollapseMode.parallax,
