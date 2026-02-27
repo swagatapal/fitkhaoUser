@@ -157,6 +157,7 @@ class Dish {
   final String dishCode;
   final String dishName;
   final String dishType;
+  final String remarks;
   final NutritionalValue nutritionalValue;
   final double costPrice;
   final double marketPrice;
@@ -167,6 +168,7 @@ class Dish {
     required this.dishCode,
     required this.dishName,
     required this.dishType,
+    required this.remarks,
     required this.nutritionalValue,
     required this.costPrice,
     required this.marketPrice,
@@ -179,6 +181,7 @@ class Dish {
       dishCode: _string(json['dishCode']),
       dishName: _string(json['dishName']),
       dishType: _string(json['dishType']),
+      remarks: _string(json['remarks']),
       nutritionalValue:
           NutritionalValue.fromJson(_map(json['nutritionalValue'])),
       costPrice: _double(json['costPrice']),
@@ -1142,51 +1145,60 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                 ),
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: dish.dishType.toLowerCase() == 'veg'
-                    ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                    : const Color(0xFFEF4444).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: dish.dishType.toLowerCase() == 'veg'
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFFEF4444),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: dish.dishType.toLowerCase() == 'veg'
-                          ? const Color(0xFF10B981)
-                          : const Color(0xFFEF4444),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    dish.dishType,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: dish.dishType.toLowerCase() == 'veg'
-                          ? const Color(0xFF10B981)
-                          : const Color(0xFFEF4444),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // Container(
+            //   padding: const EdgeInsets.symmetric(
+            //     horizontal: 10,
+            //     vertical: 4,
+            //   ),
+            //   decoration: BoxDecoration(
+            //     color: dish.dishType.toLowerCase() == 'veg'
+            //         ? const Color(0xFF10B981).withValues(alpha: 0.1)
+            //         : const Color(0xFFEF4444).withValues(alpha: 0.1),
+            //     borderRadius: BorderRadius.circular(8),
+            //     border: Border.all(
+            //       color: dish.dishType.toLowerCase() == 'veg'
+            //           ? const Color(0xFF10B981)
+            //           : const Color(0xFFEF4444),
+            //       width: 1,
+            //     ),
+            //   ),
+            //   child: Row(
+            //     mainAxisSize: MainAxisSize.min,
+            //     children: [
+            //       Container(
+            //         width: 8,
+            //         height: 8,
+            //         decoration: BoxDecoration(
+            //           color: dish.dishType.toLowerCase() == 'veg'
+            //               ? const Color(0xFF10B981)
+            //               : const Color(0xFFEF4444),
+            //           shape: BoxShape.circle,
+            //         ),
+            //       ),
+            //       const SizedBox(width: 6),
+            //       Text(
+            //         dish.dishType,
+            //         style: TextStyle(
+            //           fontSize: 11,
+            //           fontWeight: FontWeight.bold,
+            //           color: dish.dishType.toLowerCase() == 'veg'
+            //               ? const Color(0xFF10B981)
+            //               : const Color(0xFFEF4444),
+            //         ),
+            //       ),
+            //     ],
+            //   ),
+            // ),
           ],
+        ),
+        dish.remarks==""?SizedBox.shrink():
+        Text(
+          dish.remarks,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF1F2937),
+          ),
         ),
         const SizedBox(height: 12),
         Wrap(
