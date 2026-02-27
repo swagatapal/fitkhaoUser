@@ -152,11 +152,25 @@ class Category {
   }
 }
 
+class DishType {
+  final String id;
+  final String dishType;
+
+  DishType({required this.id, required this.dishType});
+
+  factory DishType.fromJson(Map<String, dynamic> json) {
+    return DishType(
+      id: _string(json['_id']),
+      dishType: _string(json['dishType']),
+    );
+  }
+}
+
 class Dish {
   final String id;
   final String dishCode;
   final String dishName;
-  final String dishType;
+  final List<DishType> dishType;
   final String remarks;
   final NutritionalValue nutritionalValue;
   final double costPrice;
@@ -175,12 +189,25 @@ class Dish {
     required this.isActive,
   });
 
+  /// Returns the first dish type label, e.g. "Veg" or "Non-Veg"
+  String get dishTypeLabel =>
+      dishType.isNotEmpty ? dishType.first.dishType : '';
+
   factory Dish.fromJson(Map<String, dynamic> json) {
+    final rawDishType = json['dishType'];
+    List<DishType> parsedDishType = [];
+    if (rawDishType is List) {
+      parsedDishType = rawDishType
+          .whereType<Map<String, dynamic>>()
+          .map(DishType.fromJson)
+          .toList();
+    }
+
     return Dish(
       id: _string(json['_id']),
       dishCode: _string(json['dishCode']),
       dishName: _string(json['dishName']),
-      dishType: _string(json['dishType']),
+      dishType: parsedDishType,
       remarks: _string(json['remarks']),
       nutritionalValue:
           NutritionalValue.fromJson(_map(json['nutritionalValue'])),
@@ -1145,50 +1172,51 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                 ),
               ),
             ),
-            // Container(
-            //   padding: const EdgeInsets.symmetric(
-            //     horizontal: 10,
-            //     vertical: 4,
-            //   ),
-            //   decoration: BoxDecoration(
-            //     color: dish.dishType.toLowerCase() == 'veg'
-            //         ? const Color(0xFF10B981).withValues(alpha: 0.1)
-            //         : const Color(0xFFEF4444).withValues(alpha: 0.1),
-            //     borderRadius: BorderRadius.circular(8),
-            //     border: Border.all(
-            //       color: dish.dishType.toLowerCase() == 'veg'
-            //           ? const Color(0xFF10B981)
-            //           : const Color(0xFFEF4444),
-            //       width: 1,
-            //     ),
-            //   ),
-            //   child: Row(
-            //     mainAxisSize: MainAxisSize.min,
-            //     children: [
-            //       Container(
-            //         width: 8,
-            //         height: 8,
-            //         decoration: BoxDecoration(
-            //           color: dish.dishType.toLowerCase() == 'veg'
-            //               ? const Color(0xFF10B981)
-            //               : const Color(0xFFEF4444),
-            //           shape: BoxShape.circle,
-            //         ),
-            //       ),
-            //       const SizedBox(width: 6),
-            //       Text(
-            //         dish.dishType,
-            //         style: TextStyle(
-            //           fontSize: 11,
-            //           fontWeight: FontWeight.bold,
-            //           color: dish.dishType.toLowerCase() == 'veg'
-            //               ? const Color(0xFF10B981)
-            //               : const Color(0xFFEF4444),
-            //         ),
-            //       ),
-            //     ],
-            //   ),
-            // ),
+            if (dish.dishTypeLabel.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: dish.dishTypeLabel.toLowerCase() == 'veg'
+                      ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                      : const Color(0xFFEF4444).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: dish.dishTypeLabel.toLowerCase() == 'veg'
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFEF4444),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: dish.dishTypeLabel.toLowerCase() == 'veg'
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFEF4444),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      dish.dishTypeLabel,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: dish.dishTypeLabel.toLowerCase() == 'veg'
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFEF4444),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
         dish.remarks==""?SizedBox.shrink():
