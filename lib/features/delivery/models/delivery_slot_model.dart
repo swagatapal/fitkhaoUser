@@ -219,7 +219,7 @@ class DeliverySlotsResponse {
   }
 }
 
-/// Combined data: slots, meals, previous selections, window info
+/// Combined data: slots, meals, previous selections, window info, history
 class DeliverySlotsData {
   final String deliveryDate;
   final SelectionWindow selectionWindow;
@@ -228,6 +228,7 @@ class DeliverySlotsData {
   final List<PreviousSlotSelection> previousSelection;
   final List<AvailableMealCategory> availableMeals;
   final List<DeliverySlotApiModel> slots;
+  final List<SlotHistoryEntry> history;
 
   const DeliverySlotsData({
     required this.deliveryDate,
@@ -237,6 +238,7 @@ class DeliverySlotsData {
     required this.previousSelection,
     required this.availableMeals,
     required this.slots,
+    this.history = const [],
   });
 
   factory DeliverySlotsData.fromJson(Map<String, dynamic> json) {
@@ -257,6 +259,10 @@ class DeliverySlotsData {
           [],
       slots: (json['slots'] as List<dynamic>?)
               ?.map((e) => DeliverySlotApiModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      history: (json['history'] as List<dynamic>?)
+              ?.map((e) => SlotHistoryEntry.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
     );
@@ -292,6 +298,84 @@ class PreviousSlotSelection {
     return PreviousSlotSelection(
       slotId: json['slotId'] as String? ?? '',
       categoryIds: (json['categoryIds'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+    );
+  }
+}
+
+// ── Slot Booking History Models ──
+
+/// One entry in the 7-day booking history returned by the API
+class SlotHistoryEntry {
+  final String deliveryDate;
+  final String status;
+  final DateTime? confirmedAt;
+  final List<SlotHistorySlot> slots;
+
+  const SlotHistoryEntry({
+    required this.deliveryDate,
+    required this.status,
+    this.confirmedAt,
+    required this.slots,
+  });
+
+  bool get isConfirmed => status == 'confirmed' && slots.isNotEmpty;
+
+  /// Short day name — e.g. "Mon", "Tue"
+  String get dayName {
+    final date = DateTime.tryParse(deliveryDate);
+    if (date == null) return '';
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return days[date.weekday - 1];
+  }
+
+  /// Full day name — e.g. "Monday"
+  String get fullDayName {
+    final date = DateTime.tryParse(deliveryDate);
+    if (date == null) return '';
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return days[date.weekday - 1];
+  }
+
+  /// Formatted date — e.g. "25 Feb"
+  String get formattedDate {
+    final date = DateTime.tryParse(deliveryDate);
+    if (date == null) return deliveryDate;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${date.day} ${months[date.month - 1]}';
+  }
+
+  factory SlotHistoryEntry.fromJson(Map<String, dynamic> json) {
+    final rawSlots = json['slots'] as List<dynamic>? ?? [];
+    return SlotHistoryEntry(
+      deliveryDate: json['deliveryDate'] as String? ?? '',
+      status: json['status'] as String? ?? 'pending',
+      confirmedAt: json['confirmedAt'] != null
+          ? DateTime.tryParse(json['confirmedAt'] as String)
+          : null,
+      slots: rawSlots
+          .whereType<Map<String, dynamic>>()
+          .map(SlotHistorySlot.fromJson)
+          .where((s) => s.slotId.isNotEmpty)
+          .toList(),
+    );
+  }
+}
+
+/// A single slot inside a history entry — uses `_id.slotId` / `_id.categoryIds`
+class SlotHistorySlot {
+  final String slotId;
+  final List<String> categoryIds;
+
+  const SlotHistorySlot({required this.slotId, required this.categoryIds});
+
+  factory SlotHistorySlot.fromJson(Map<String, dynamic> json) {
+    final id = json['_id'] as Map<String, dynamic>?;
+    return SlotHistorySlot(
+      slotId: id?['slotId'] as String? ?? '',
+      categoryIds: (id?['categoryIds'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],

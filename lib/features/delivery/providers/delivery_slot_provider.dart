@@ -14,6 +14,7 @@ class DeliverySlotState {
   final List<AvailableMealCategory> availableMeals;
   final bool isWithinWindow;
   final String deliveryDate;
+  final List<SlotHistoryEntry> history;
 
   const DeliverySlotState({
     this.slots = const [],
@@ -24,6 +25,7 @@ class DeliverySlotState {
     this.availableMeals = const [],
     this.isWithinWindow = false,
     this.deliveryDate = '',
+    this.history = const [],
   });
 
   DeliverySlotState copyWith({
@@ -35,6 +37,7 @@ class DeliverySlotState {
     List<AvailableMealCategory>? availableMeals,
     bool? isWithinWindow,
     String? deliveryDate,
+    List<SlotHistoryEntry>? history,
   }) {
     return DeliverySlotState(
       slots: slots ?? this.slots,
@@ -45,6 +48,7 @@ class DeliverySlotState {
       availableMeals: availableMeals ?? this.availableMeals,
       isWithinWindow: isWithinWindow ?? this.isWithinWindow,
       deliveryDate: deliveryDate ?? this.deliveryDate,
+      history: history ?? this.history,
     );
   }
 }
@@ -89,6 +93,7 @@ class DeliverySlotNotifier extends StateNotifier<DeliverySlotState> {
           availableMeals: data.availableMeals,
           isWithinWindow: data.isWithinWindow,
           deliveryDate: data.deliveryDate,
+          history: data.history,
         );
         debugPrint(
             '[DeliverySlotNotifier] Loaded ${sortedSlots.length} slots, alreadyConfirmed: ${data.alreadyConfirmed}');

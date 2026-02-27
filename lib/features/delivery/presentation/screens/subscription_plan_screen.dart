@@ -197,23 +197,23 @@ class _SubscriptionPlanScreenState
               ],
             ),
           ),
-          CircleAvatar(
-            radius: AppSizes.spacing24,
-            backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-            backgroundImage: const NetworkImage(
-              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
-            ),
-            onBackgroundImageError: (exception, stackTrace) {},
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.3),
-                  width: AppSizes.borderThin,
-                ),
-              ),
-            ),
-          ),
+          // CircleAvatar(
+          //   radius: AppSizes.spacing24,
+          //   backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
+          //   backgroundImage: const NetworkImage(
+          //     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
+          //   ),
+          //   onBackgroundImageError: (exception, stackTrace) {},
+          //   child: Container(
+          //     decoration: BoxDecoration(
+          //       shape: BoxShape.circle,
+          //       border: Border.all(
+          //         color: AppColors.primaryGreen.withValues(alpha: 0.3),
+          //         width: AppSizes.borderThin,
+          //       ),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -284,16 +284,16 @@ class _SubscriptionPlanScreenState
                     ),
                   ),
                   const SizedBox(height: AppSizes.spacing8),
-                  Text(
-                    meals,
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize14,
-                      fontWeight: AppTypography.semiBold,
-                      color: AppColors.textPrimary,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.spacing4),
+                  // Text(
+                  //   meals,
+                  //   style: const TextStyle(
+                  //     fontSize: AppTypography.fontSize14,
+                  //     fontWeight: AppTypography.semiBold,
+                  //     color: AppColors.textPrimary,
+                  //     fontFamily: 'Lato',
+                  //   ),
+                  // ),
+                  // const SizedBox(height: AppSizes.spacing4),
                   Text(
                     subtitle,
                     style: const TextStyle(
@@ -355,8 +355,8 @@ class _SubscriptionPlanScreenState
         const SizedBox(height: AppSizes.spacing8),
         _buildBenefitItem('Customized Meal Preference'),
         const SizedBox(height: AppSizes.spacing8),
-        _buildBenefitItem('3 Meals Per Day'),
-        const SizedBox(height: AppSizes.spacing8),
+        // _buildBenefitItem('3 Meals Per Day'),
+        // const SizedBox(height: AppSizes.spacing8),
         _buildBenefitItem('Free Delivery'),
       ],
     );
@@ -636,7 +636,7 @@ class _SubscriptionPlanScreenState
                 ),
                 child: const Center(
                   child: Text(
-                    'You have already active plan',
+                    'You already have active plan',
                     style: TextStyle(
                       fontSize: AppTypography.fontSize16,
                       fontWeight: AppTypography.bold,

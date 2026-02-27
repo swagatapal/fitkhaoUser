@@ -389,6 +389,56 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
     }
   }
 
+  /// Apply a previous history booking to today's selection state
+  void _applyHistorySelection(SlotHistoryEntry entry) {
+    final currentSelections = ref.read(slotMealSelectionProvider);
+    if (currentSelections.isEmpty) return;
+
+    // Build a map slotId → categoryIds from history
+    final historyMap = <String, List<String>>{
+      for (final s in entry.slots) s.slotId: s.categoryIds,
+    };
+
+    final updated = currentSelections.map((sel) {
+      final cats = historyMap[sel.slotId];
+      return sel.copyWith(selectedCategoryIds: cats ?? []);
+    }).toList();
+
+    ref.read(slotMealSelectionProvider.notifier).state = updated;
+  }
+
+  /// Show modal bottom sheet listing the previous 7-day confirmed bookings
+  void _showPreviousBookingModal(
+      BuildContext context, List<SlotHistoryEntry> history) {
+    final confirmedHistory = history.where((e) => e.isConfirmed).toList();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PreviousBookingModal(
+        history: confirmedHistory,
+        onSelect: (entry) {
+          Navigator.of(context).pop();
+          _applyHistorySelection(entry);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Slots from ${entry.fullDayName}, ${entry.formattedDate} applied!',
+                style: const TextStyle(fontFamily: 'Lato'),
+              ),
+              backgroundColor: const Color(0xFF6A1B9A),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Color _getMealColor(String meal) {
     switch (meal.toLowerCase()) {
       case 'breakfast':
@@ -686,6 +736,75 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
                     padding: const EdgeInsets.all(AppSizes.spacing16),
                     child: Column(
                       children: [
+                        // "Choose from previous booking" button — only when not yet confirmed
+                        if (!isConfirmed && slotState.history.any((e) => e.isConfirmed)) ...[
+                          GestureDetector(
+                            onTap: () => _showPreviousBookingModal(context, slotState.history),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSizes.spacing12,
+                                vertical: AppSizes.spacing10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6A1B9A).withValues(alpha: 0.06),
+                                borderRadius: BorderRadius.circular(AppSizes.radius8),
+                                border: Border.all(
+                                  color: const Color(0xFF6A1B9A).withValues(alpha: 0.35),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF6A1B9A).withValues(alpha: 0.15),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.history_rounded,
+                                      color: Color(0xFF6A1B9A),
+                                      size: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(width: AppSizes.spacing10),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Choose from previous booking',
+                                          style: TextStyle(
+                                            fontSize: AppTypography.fontSize13,
+                                            fontWeight: AppTypography.semiBold,
+                                            color: Color(0xFF6A1B9A),
+                                            fontFamily: 'Lato',
+                                          ),
+                                        ),
+                                        Text(
+                                          'Reuse slots from a past confirmed booking',
+                                          style: TextStyle(
+                                            fontSize: AppTypography.fontSize10,
+                                            color: AppColors.textSecondary,
+                                            fontFamily: 'Lato',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: Color(0xFF6A1B9A),
+                                    size: 20,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: AppSizes.spacing12),
+                        ],
+
                         ...mealSelections.asMap().entries.map((entry) {
                           final index = entry.key;
                           final sel = entry.value;
@@ -1016,5 +1135,311 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
         ],
       ),
     );
+  }
+}
+
+// ─── Previous Booking Modal ───────────────────────────────────────────────────
+
+class _PreviousBookingModal extends StatelessWidget {
+  final List<SlotHistoryEntry> history;
+  final void Function(SlotHistoryEntry) onSelect;
+
+  const _PreviousBookingModal({
+    required this.history,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.75,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Header
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6A1B9A).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.history_rounded,
+                    color: Color(0xFF6A1B9A),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Previous Bookings',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize16,
+                          fontWeight: AppTypography.bold,
+                          color: AppColors.textPrimary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      Text(
+                        'Tap a confirmed booking to reuse those slots',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close_rounded, size: 18, color: AppColors.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1, color: AppColors.dividerColor),
+
+          // Empty state
+          if (history.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  Icon(Icons.event_busy_rounded, size: 48, color: Colors.grey.shade300),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'No confirmed bookings in the last 7 days',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      color: AppColors.textSecondary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Flexible(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shrinkWrap: true,
+                itemCount: history.length,
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 1, indent: 20, endIndent: 20),
+                itemBuilder: (context, index) {
+                  final entry = history[index];
+                  return _HistoryTile(entry: entry, onTap: () => onSelect(entry));
+                },
+              ),
+            ),
+
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryTile extends StatelessWidget {
+  final SlotHistoryEntry entry;
+  final VoidCallback onTap;
+
+  const _HistoryTile({required this.entry, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final totalMeals = entry.slots.fold<int>(
+      0, (sum, s) => sum + s.categoryIds.length,
+    );
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            // Day badge
+            Container(
+              width: 52,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF6A1B9A), Color(0xFF8E24AA)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    entry.dayName,
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize10,
+                      fontWeight: AppTypography.bold,
+                      color: Colors.white,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    entry.formattedDate.split(' ').first,   // day number
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize18,
+                      fontWeight: AppTypography.bold,
+                      color: Colors.white,
+                      fontFamily: 'Lato',
+                      height: 1.0,
+                    ),
+                  ),
+                  Text(
+                    entry.formattedDate.split(' ').last,    // month abbr
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize10,
+                      color: Colors.white70,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 14),
+
+            // Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    entry.fullDayName,
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.semiBold,
+                      color: AppColors.textPrimary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      _miniChip(
+                        icon: Icons.check_circle_rounded,
+                        label: 'Confirmed',
+                        color: AppColors.primaryGreen,
+                      ),
+                      const SizedBox(width: 6),
+                      _miniChip(
+                        icon: Icons.restaurant_rounded,
+                        label: '$totalMeals meal${totalMeals != 1 ? 's' : ''}',
+                        color: const Color(0xFF6A1B9A),
+                      ),
+                    ],
+                  ),
+                  if (entry.confirmedAt != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Booked at ${_formatTime(entry.confirmedAt!)}',
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        color: AppColors.textTertiary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // Arrow
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6A1B9A).withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.arrow_forward_rounded,
+                size: 16,
+                color: Color(0xFF6A1B9A),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _miniChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize10,
+              fontWeight: AppTypography.semiBold,
+              color: color,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(DateTime dt) {
+    final h = dt.toLocal().hour;
+    final m = dt.toLocal().minute.toString().padLeft(2, '0');
+    final period = h >= 12 ? 'PM' : 'AM';
+    final displayH = h % 12 == 0 ? 12 : h % 12;
+    return '$displayH:$m $period';
   }
 }
