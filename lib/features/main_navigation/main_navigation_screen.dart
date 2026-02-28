@@ -78,6 +78,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
         body: SafeArea(
           top: false,
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
               // Display only the currently selected screen
               _getCurrentScreen(),
@@ -87,7 +88,9 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                child: _buildBottomNavigationBar(context),
+                child: SafeArea(
+                    top: false,
+                    child: _buildBottomNavigationBar(context)),
               ),
             ],
           ),
@@ -108,13 +111,13 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFFEFF5EC),
+          color: const Color(0xFFCDEAB4),
           borderRadius: BorderRadius.circular(
             context.responsiveSpacing(AppSizes.radius50),
           ),
           border: Border.all(
             color: AppColors.primaryGreen,
-            width: AppSizes.borderThin,
+            width: AppSizes.borderMedium,
           ),
           boxShadow: [
             BoxShadow(
