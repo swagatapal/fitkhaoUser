@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
+import '../../../../core/constants/app_typography.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../../shared/widgets/primary_button.dart';
@@ -435,8 +436,28 @@ class _DetailedHealthInfoScreenState
                     ),
                   ),
                 ),
-              ),  
-              
+              ),
+
+
+
+              Padding(
+                padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+                child: GestureDetector(
+                  onTap: _showLogoutConfirmation,
+                  child: Container(
+                    width: AppSizes.iconContainerSize,
+                    height: AppSizes.iconContainerSize,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF5D9E40),
+                      borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    ),
+                    child: Center(
+                        child: Icon(Icons.logout_outlined, color: Colors.white)
+                    ),
+                  ),
+                ),
+              ),
+
               
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -656,6 +677,139 @@ class _DetailedHealthInfoScreenState
         ],
       ),
     );
+  }
+
+  /// Show logout confirmation dialog
+  void _showLogoutConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+          ),
+          title: Text(
+            'Logout',
+            style: TextStyle(
+              fontSize: AppTypography.fontSize18,
+              fontWeight: AppTypography.bold,
+              color: AppColors.textPrimary,
+              fontFamily: AppTypography.fontFamily,
+            ),
+          ),
+          content:  Text(
+            'Are you sure you want to logout?',
+            style: TextStyle(
+              fontSize: AppTypography.fontSize14,
+              color: AppColors.textSecondary,
+              fontFamily: AppTypography.fontFamily,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.semiBold,
+                  color: AppColors.textSecondary,
+                  fontFamily: AppTypography.fontFamily,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _handleLogout();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.errorColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radius4),
+                ),
+              ),
+              child: const Text(
+                'Logout',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.semiBold,
+                  color: Colors.white,
+                  fontFamily: AppTypography.fontFamily,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Handle logout process
+  Future<void> _handleLogout() async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: AppColors.primaryGreen),
+        ),
+      );
+
+      // Perform logout
+      final authNotifier = ref.read(authProvider.notifier);
+      final success = await authNotifier.logout();
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (success && mounted) {
+        // Navigate to phone auth screen and clear navigation stack
+        context.go(RouteNames.phoneAuth);
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Logged out successfully'),
+            backgroundColor: AppColors.successColor,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else if (mounted) {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to logout. Please try again.'),
+            backgroundColor: AppColors.errorColor,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still showing
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: AppColors.errorColor,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildImageSection() {
