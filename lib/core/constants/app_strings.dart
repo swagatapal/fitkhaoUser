@@ -88,9 +88,9 @@ class AppStrings {
       'Stone-cutter, Blacksmith, Mine-worker, Wood-cutter, etc.';
   static const String exercise = 'Exercise';
   static const String iDontExerciseShort = "I don't Exercise";
-  static const String howManyDaysWeek = 'How many days a week (in days) *';
-  static const String durationInHrs = 'Duration (in hrs) *';
-  static const String typeOfExercise = 'Type of Exercise *';
+  static const String howManyDaysWeek = 'How many days a week (in days) ';
+  static const String durationInHrs = 'Duration (in hrs) ';
+  static const String typeOfExercise = 'Type of Exercise ';
   static const String aerobic = 'Aerobic';
   static const String aerobicDesc =
       'Things like jogging, swimming, cycling, dancing, and brisk walking.';
@@ -100,7 +100,7 @@ class AppStrings {
   static const String flexibilityExercise = 'Flexibility Exercise';
   static const String flexibilityExerciseDesc = 'Yoga and Pilates';
   static const String selectPhysiologicalStatus = 'Select Physiological Status';
-  static const String physiologicalConditions = 'Physiological Conditions *';
+  static const String physiologicalConditions = 'Physiological Conditions ';
   static const String pregnancy = 'Pregnancy';
   static const String lactation = 'Lactation';
   static const String diabetes = 'Diabetes';
@@ -117,7 +117,7 @@ class AppStrings {
   static const String none = 'None';
   static const String save = 'Save';
   static const String professionPhysicalWork =
-      'Profession/ Physical Work/ Vocation/ Home Maker *';
+      'Profession/ Physical Work/ Vocation/ Home Maker ';
 
   // Edit Profile
   static const String editPersonalProfile = 'Edit Personal Profile';

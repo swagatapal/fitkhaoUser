@@ -516,16 +516,16 @@ class _DetailedHealthInfoScreenState
                         fontFamily: "Lato",
                       ),
                     ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      "*",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.red,
-                        fontFamily: "Lato",
-                      ),
-                    ),
+                    // const SizedBox(width: 4),
+                    // const Text(
+                    //   "*",
+                    //   style: TextStyle(
+                    //     fontSize: 18,
+                    //     fontWeight: FontWeight.w400,
+                    //     color: Colors.red,
+                    //     fontFamily: "Lato",
+                    //   ),
+                    // ),
                   ],
                 ),
                 SizedBox(height: spacing12),
