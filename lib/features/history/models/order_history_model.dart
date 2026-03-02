@@ -283,6 +283,15 @@ class DeliveryAddressHistory {
   }
 }
 
+/// Safely parses the dishType field which can be a String or a List of ID strings.
+/// Returns the string value when it's a plain string (e.g. "Veg", "Non-Veg"),
+/// or null when it's a list of IDs (since names can't be resolved from IDs alone).
+String? _parseFoodType(dynamic value) {
+  if (value is String) return value;
+  if (value is List) return null; // array of IDs — name not resolvable
+  return null;
+}
+
 /// Order history item
 class OrderHistoryItem {
   final String id;
@@ -339,8 +348,9 @@ class OrderHistoryItem {
       nutritionalInfo: json['nutrition'] != null
           ? NutritionalInfo.fromJson(json['nutrition'] as Map<String, dynamic>)
           : null,
-      foodType:
-          json['dishType'] as String? ?? json['foodType'] as String? ?? 'veg',
+      foodType: _parseFoodType(json['dishType']) ??
+          json['foodType'] as String? ??
+          '',
       category: json['category'] as String? ?? '',
       deliveryDate: json['deliveryDate'] as String? ?? '',
       deliverySlot: json['deliverySlot']?.toString() ?? '',
