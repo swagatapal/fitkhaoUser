@@ -1308,7 +1308,7 @@ class _HistoryTile extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    entry.dayName,
+                    entry.bookingDayName,
                     style: const TextStyle(
                       fontSize: AppTypography.fontSize10,
                       fontWeight: AppTypography.bold,
@@ -1318,7 +1318,7 @@ class _HistoryTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    entry.formattedDate.split(' ').first,   // day number
+                    entry.bookingFormattedDate.split(' ').first,   // day number
                     style: const TextStyle(
                       fontSize: AppTypography.fontSize18,
                       fontWeight: AppTypography.bold,
@@ -1328,7 +1328,7 @@ class _HistoryTile extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    entry.formattedDate.split(' ').last,    // month abbr
+                    entry.bookingFormattedDate.split(' ').last,    // month abbr
                     style: const TextStyle(
                       fontSize: AppTypography.fontSize10,
                       color: Colors.white70,
@@ -1347,7 +1347,7 @@ class _HistoryTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    entry.fullDayName,
+                    entry.bookingFullDayName,
                     style: const TextStyle(
                       fontSize: AppTypography.fontSize14,
                       fontWeight: AppTypography.semiBold,
@@ -1436,8 +1436,10 @@ class _HistoryTile extends StatelessWidget {
   }
 
   String _formatTime(DateTime dt) {
-    final h = dt.toLocal().hour;
-    final m = dt.toLocal().minute.toString().padLeft(2, '0');
+    // Convert to IST (UTC+5:30) explicitly
+    final ist = dt.toUtc().add(const Duration(hours: 5, minutes: 30));
+    final h = ist.hour;
+    final m = ist.minute.toString().padLeft(2, '0');
     final period = h >= 12 ? 'PM' : 'AM';
     final displayH = h % 12 == 0 ? 12 : h % 12;
     return '$displayH:$m $period';

@@ -347,6 +347,36 @@ class SlotHistoryEntry {
     return '${date.day} ${months[date.month - 1]}';
   }
 
+  // ── Booking date getters (based on confirmedAt in IST UTC+5:30) ──
+
+  /// confirmedAt converted to Indian Standard Time (UTC+5:30)
+  DateTime? get _confirmedAtIST =>
+      confirmedAt?.toUtc().add(const Duration(hours: 5, minutes: 30));
+
+  /// Short day name of booking date — e.g. "Mon" (falls back to dayName)
+  String get bookingDayName {
+    final date = _confirmedAtIST;
+    if (date == null) return dayName;
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return days[date.weekday - 1];
+  }
+
+  /// Full day name of booking date — e.g. "Monday" (falls back to fullDayName)
+  String get bookingFullDayName {
+    final date = _confirmedAtIST;
+    if (date == null) return fullDayName;
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return days[date.weekday - 1];
+  }
+
+  /// Formatted booking date — e.g. "25 Feb" (falls back to formattedDate)
+  String get bookingFormattedDate {
+    final date = _confirmedAtIST;
+    if (date == null) return formattedDate;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${date.day} ${months[date.month - 1]}';
+  }
+
   factory SlotHistoryEntry.fromJson(Map<String, dynamic> json) {
     final rawSlots = json['slots'] as List<dynamic>? ?? [];
     return SlotHistoryEntry(
