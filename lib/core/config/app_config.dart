@@ -49,6 +49,9 @@ class AppConfig {
   static const String deliverySlotConfirmPath = '/api/delivery-slots/confirm';
   static const String deliverySlotsPath = '/api/delivery-slots';
 
+  /// Subscription plans (public)
+  static const String subscriptionPlansPath = '/api/adm/subscription-plan';
+
   /// Analytics base (trending)
   static const String trendingPath = '/api/analytics/trending/';
 }
