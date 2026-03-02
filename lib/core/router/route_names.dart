@@ -45,4 +45,5 @@ class RouteNames {
   static const String help = '/help';
   static const String termsAndConditions = '/terms-and-conditions';
   static const String privacyPolicy = '/privacy-policy';
+  static const String policy = '/policy';
 }

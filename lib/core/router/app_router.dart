@@ -11,6 +11,7 @@ import '../../features/auth/screens/bmi_analysis_screen.dart';
 import '../../features/auth/screens/health_score_screen.dart';
 import '../../features/profile/presentation/screens/detailed_health_info_screen.dart';
 import '../../features/profile/presentation/screens/profile_history_screen.dart';
+import '../../features/policy/presentation/screens/policy_screen.dart';
 import '../../features/main_navigation/main_navigation_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/preferences_saved_screen.dart';
@@ -150,6 +151,18 @@ class AppRouter {
           key: state.pageKey,
           child: const ProfileHistoryScreen(),
         ),
+      ),
+
+      GoRoute(
+        path: RouteNames.policy,
+        name: RouteNames.policy,
+        pageBuilder: (context, state) {
+          final initialTab = state.extra as int? ?? 0;
+          return MaterialPage(
+            key: state.pageKey,
+            child: PolicyScreen(initialTab: initialTab),
+          );
+        },
       ),
 
       // Home/Dashboard route with main navigation

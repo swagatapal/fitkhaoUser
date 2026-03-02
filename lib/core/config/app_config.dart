@@ -52,6 +52,9 @@ class AppConfig {
   /// Subscription plans (public)
   static const String subscriptionPlansPath = '/api/adm/subscription-plan';
 
+  /// App content — terms & conditions, privacy policy (public)
+  static const String appContentPath = '/api/app-content';
+
   /// Analytics base (trending)
   static const String trendingPath = '/api/analytics/trending/';
 }

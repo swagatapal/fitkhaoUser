@@ -8,6 +8,7 @@ import '../../features/delivery/repository/wallet_repository.dart';
 import '../../features/delivery/repository/order_repository.dart';
 import '../../features/history/repository/order_history_repository.dart';
 import '../../features/delivery/repository/delivery_slot_repository.dart';
+import '../../features/policy/repository/app_content_repository.dart';
 
 /// Provider for LocalStorageService
 final localStorageProvider = FutureProvider<LocalStorageService>((ref) async {
@@ -100,5 +101,12 @@ final deliverySlotRepositoryProvider = Provider<DeliverySlotRepository>((ref) {
   }
 
   return DeliverySlotRepository(apiClient: apiClient, localStorage: localStorage);
+});
+
+/// Provider for AppContentRepository
+/// Handles fetching public app content (terms & conditions, privacy policy)
+final appContentRepositoryProvider = Provider<AppContentRepository>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return AppContentRepository(apiClient: apiClient);
 });
 

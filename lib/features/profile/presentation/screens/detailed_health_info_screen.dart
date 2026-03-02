@@ -262,8 +262,23 @@ class _DetailedHealthInfoScreenState
     final selectedProfessionList = professions.where((p) => p.value == _activityLevel).toList();
     final professionGroupId = selectedProfessionList.isNotEmpty ? selectedProfessionList.first.id : '';
 
+    // Resolve the "General" code — used as the default when nothing is selected
+    String generalCode = '';
+    for (final c in ref.read(physiologicalCategoryProvider).categories) {
+      if (c.name.toLowerCase() == 'general') {
+        generalCode = c.code;
+        break;
+      }
+    }
+
+    // Build effective condition codes: fall back to General if none selected
+    final effectiveCodes = Set<String>.from(_selectedConditionCodes);
+    if (effectiveCodes.isEmpty && generalCode.isNotEmpty) {
+      effectiveCodes.add(generalCode);
+    }
+
     // Save selected condition codes and health info to provider
-    authNotifier.saveSelectedConditions(_selectedConditionCodes.toList());
+    authNotifier.saveSelectedConditions(effectiveCodes.toList());
 
     authNotifier.saveDetailedHealthInfo(
       height: parsedHeight ?? authState.height ?? 0,
@@ -272,12 +287,12 @@ class _DetailedHealthInfoScreenState
       professionGroupId: professionGroupId,
       doesExercise: _doesExercise,
       exercises: exercisesList,
-      pregnancy: _selectedConditionCodes.contains('p123'),
-      lactation: _selectedConditionCodes.contains('l12'),
-      diabetes: _selectedConditionCodes.contains('t2dm'),
-      hypertension: _selectedConditionCodes.contains('hypertension'),
-      cardiacProblem: _selectedConditionCodes.contains('cvd'),
-      kidneyDisease: _selectedConditionCodes.contains('ckd'),
+      pregnancy: effectiveCodes.contains('p123'),
+      lactation: effectiveCodes.contains('l12'),
+      diabetes: effectiveCodes.contains('t2dm'),
+      hypertension: effectiveCodes.contains('hypertension'),
+      cardiacProblem: effectiveCodes.contains('cvd'),
+      kidneyDisease: effectiveCodes.contains('ckd'),
       liverRelatedProblem: false,
       otherConditions: '',
       regularityStatus: _capitalize(_regularlyStatus),
@@ -398,7 +413,7 @@ class _DetailedHealthInfoScreenState
 
               // profile history
               Padding(
-                padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+                padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
                 child: GestureDetector(
                   onTap: () => context.push(RouteNames.profileHistory),
                   child: Container(
@@ -417,7 +432,7 @@ class _DetailedHealthInfoScreenState
               
               // Edit button — always visible
               Padding(
-                padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+                padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
                 child: GestureDetector(
                   onTap: () => context.push(RouteNames.editPersonalProfile),
                   child: Container(
@@ -438,10 +453,29 @@ class _DetailedHealthInfoScreenState
                 ),
               ),
 
+              // terms & condition and privacy policy
+              Padding(
+                padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+                child: GestureDetector(
+                  onTap: () => context.push(RouteNames.policy),
+                  child: Container(
+                    width: AppSizes.iconContainerSize,
+                    height: AppSizes.iconContainerSize,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF5D9E40),
+                      borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    ),
+                    child: Center(
+                        child: Icon(Icons.policy, color: Colors.white,)
+                    ),
+                  ),
+                ),
+              ),
+
 
 
               Padding(
-                padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+                padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
                 child: GestureDetector(
                   onTap: _showLogoutConfirmation,
                   child: Container(
@@ -978,23 +1012,54 @@ class _DetailedHealthInfoScreenState
       return const SizedBox.shrink();
     }
 
+    // Find "General" category code — used as default when nothing else is selected
+    String generalCode = '';
+    for (final c in categoryState.categories) {
+      if (c.name.toLowerCase() == 'general') {
+        generalCode = c.code;
+        break;
+      }
+    }
+
+    // Filter out "General" — it is implicit and should not appear in the UI
+    final displayCategories = categoryState.categories
+        .where((c) => c.name.toLowerCase() != 'general')
+        .toList();
+
+    if (displayCategories.isEmpty) return const SizedBox.shrink();
+
     return Column(
-      children: categoryState.categories.map((category) {
-        return _buildConditionCheckbox(category.name, category.code);
+      children: displayCategories.map((category) {
+        return _buildConditionCheckbox(category.name, category.code,
+            generalCode: generalCode);
       }).toList(),
     );
   }
 
-  /// Checkbox for a dynamic condition code
-  Widget _buildConditionCheckbox(String label, String code) {
+  /// Checkbox for a dynamic condition code.
+  /// [generalCode] is the code for the hidden "General" category — it is
+  /// automatically added when no specific condition remains selected, and
+  /// removed when any specific condition is selected.
+  Widget _buildConditionCheckbox(String label, String code,
+      {String generalCode = ''}) {
     final isChecked = _selectedConditionCodes.contains(code);
     return GestureDetector(
       onTap: () {
         setState(() {
           if (isChecked) {
             _selectedConditionCodes.remove(code);
+            // If nothing specific remains, restore General as the default
+            final hasSpecific =
+                _selectedConditionCodes.any((c) => c != generalCode);
+            if (!hasSpecific && generalCode.isNotEmpty) {
+              _selectedConditionCodes.add(generalCode);
+            }
           } else {
             _selectedConditionCodes.add(code);
+            // Remove General once any specific condition is chosen
+            if (generalCode.isNotEmpty) {
+              _selectedConditionCodes.remove(generalCode);
+            }
           }
         });
       },
