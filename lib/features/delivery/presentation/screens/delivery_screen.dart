@@ -32,6 +32,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   bool _isProfileLoading = true;
   bool _profileImageError = false;
 
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +46,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -242,44 +245,40 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final showTodaysGoal = _shouldShowTodaysGoal();
 
     return Scaffold(
-     // backgroundColor: AppColors.background,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _onRefresh,
           color: AppColors.primaryGreen,
-          child: SingleChildScrollView(
+          child: CustomScrollView(
+            controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSizes.screenPaddingHorizontal,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: AppSizes.spacing4),
-                      _buildHeader(),
-                      const SizedBox(height: AppSizes.spacing8),
-                      _buildServiceabilityBanner(),
-                      const SizedBox(height: AppSizes.spacing12),
-                      _buildDailyGoalCard(),
-                      const SizedBox(height: AppSizes.spacing12),
-                      if (ref.watch(mealPlanAvailableProvider))
-                        const DeliverySlotSelector(),
-                      if (showTodaysGoal) _buildTodaysGoalSection(),
-                      if (showTodaysGoal)
-                        const SizedBox(height: AppSizes.spacing12),
-                      _buildMealPlanSection(userId, authState.errorMessage),
-                    ],
-                  ),
+            slivers: [
+              // ── Sticky collapsible header ──
+              _buildStickyHeader(authState),
+
+              // ── Scrollable content ──
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSizes.screenPaddingHorizontal,
                 ),
-                const SizedBox(height: AppSizes.spacing16),
-                const SizedBox(height: AppSizes.spacing32),
-                const SizedBox(height: AppSizes.spacing32),
-                const SizedBox(height: AppSizes.spacing32),
-              ],
-            ),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    const SizedBox(height: AppSizes.spacing8),
+                    _buildServiceabilityBanner(),
+                    const SizedBox(height: AppSizes.spacing12),
+                    _buildDailyGoalCard(),
+                    const SizedBox(height: AppSizes.spacing12),
+                    if (ref.watch(mealPlanAvailableProvider))
+                      const DeliverySlotSelector(),
+                    if (showTodaysGoal) _buildTodaysGoalSection(),
+                    if (showTodaysGoal)
+                      const SizedBox(height: AppSizes.spacing12),
+                    _buildMealPlanSection(userId, authState.errorMessage),
+                    const SizedBox(height: 120),
+                  ]),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -517,7 +516,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
     if (hasValidUrl) {
       return CircleAvatar(
-        radius: AppSizes.spacing28,
+        radius: AppSizes.spacing24,
         backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
         backgroundImage: NetworkImage(imgUrl),
         onBackgroundImageError: (exception, stackTrace) {
@@ -597,58 +596,71 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             ],
           ),
         ),
-        Column(
+        // Avatar + PLUS badge overlaid at bottom-right (premium ring style)
+        Stack(
+          clipBehavior: Clip.none,
           children: [
-            // Profile Avatar
+            // Gradient membership ring around avatar
             GestureDetector(
-              onTap: () {
-                ref.read(mainNavIndexProvider.notifier).state = 1;
-              },
-              child: _buildProfileAvatar(),
-            ),
-            const SizedBox(height: AppSizes.spacing4),
-            // FitKhao Plus Badge
-            GestureDetector(
-              onTap: _showMembershipPopupOnDemand,
+              onTap: () => ref.read(mainNavIndexProvider.notifier).state = 1,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSizes.spacing12,
-                  vertical: AppSizes.spacing4,
-                ),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF4A7C3E), Color(0xFF6BA84F)],
+                padding: const EdgeInsets.all(2.5),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF3A6B25), Color(0xFF6BA84F)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(AppSizes.radius16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(
-                      'assets/images/buttonshit_logo.png',
-                      height: AppSizes.icon16,
-                      width: AppSizes.icon16,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                  ),
+                  child: _buildProfileAvatar(),
+                ),
+              ),
+            ),
+
+            // PLUS chip — anchored at bottom-right of the ring
+            Positioned(
+              bottom: -4,
+              right: -6,
+              child: GestureDetector(
+                onTap: _showMembershipPopupOnDemand,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF3A6B25), Color(0xFF6BA84F)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    const SizedBox(width: AppSizes.spacing4),
-                    const Text(
-                      'Plus',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize12,
-                        fontWeight: AppTypography.bold,
-                        color: Colors.white,
-                        fontFamily: 'Lato',
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.45),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
+                    ],
+                  ),
+                  child: const Text(
+                    'PLUS',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      fontFamily: 'Lato',
+                      letterSpacing: 0.6,
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -658,6 +670,220 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
+  // ─────────────────────────────────────────────
+  // Sticky collapsible header sliver
+  // ─────────────────────────────────────────────
+
+  Widget _buildStickyHeader(authState) {
+    const double collapsedH = 50.0;
+    // Actual header content height:
+    //   avatar (radius 28 = 56px) + spacing4 + badge (~24px) + 8 top + 8 bottom = 100px
+    const double expandedH = 80.0;
+
+    return SliverAppBar(
+      pinned: true,
+      floating: false,
+      automaticallyImplyLeading: false,
+      expandedHeight: expandedH,
+      toolbarHeight: collapsedH,
+      backgroundColor: Colors.white,
+      elevation: 0,
+      scrolledUnderElevation: 4,
+      shadowColor: Colors.black.withValues(alpha: 0.10),
+      surfaceTintColor: Colors.transparent,
+      flexibleSpace: LayoutBuilder(
+        builder: (context, constraints) {
+          // 1.0 = fully expanded, 0.0 = fully collapsed
+          final expandRatio = ((constraints.maxHeight - collapsedH) /
+                  (expandedH - collapsedH))
+              .clamp(0.0, 1.0);
+
+          return Container(
+            color: Colors.white,
+            child: Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                // ── Full expanded header — fills the entire flex space ──
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: expandRatio,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        AppSizes.screenPaddingHorizontal,
+                        8,
+                        AppSizes.screenPaddingHorizontal,
+                        8,
+                      ),
+                      child: _buildHeader(),
+                    ),
+                  ),
+                ),
+
+                // ── Compact collapsed header — anchored to the bottom ──
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: collapsedH,
+                  child: Opacity(
+                    opacity: (1.0 - expandRatio * 2.5).clamp(0.0, 1.0),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppSizes.screenPaddingHorizontal,
+                      ),
+                      child: _buildCompactHeader(authState),
+                    ),
+                  ),
+                ),
+
+                // ── Bottom divider — fades in as header collapses ──
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: 1,
+                  child: Opacity(
+                    opacity: (1.0 - expandRatio * 2).clamp(0.0, 1.0),
+                    child: ColoredBox(
+                      color: Colors.grey.withValues(alpha: 0.18),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Compact single-row header shown when the SliverAppBar is pinned/collapsed
+  Widget _buildCompactHeader(authState) {
+    final firstName = (authState.name as String).isNotEmpty
+        ? (authState.name as String).split(' ').first
+        : 'User';
+    final imgUrl = authState.imgUrl as String?;
+    final hasValidUrl =
+        imgUrl != null && imgUrl.isNotEmpty && !_profileImageError;
+
+    return Row(
+      children: [
+        // Small avatar
+        GestureDetector(
+          onTap: () => ref.read(mainNavIndexProvider.notifier).state = 1,
+          child: hasValidUrl
+              ? CircleAvatar(
+                  radius: 19,
+                  backgroundImage: NetworkImage(imgUrl),
+                  backgroundColor:
+                      AppColors.primaryGreen.withValues(alpha: 0.1),
+                )
+              : CircleAvatar(
+                  radius: 19,
+                  backgroundColor: AppColors.primaryGreen,
+                  child: Text(
+                    firstName[0].toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+        ),
+        const SizedBox(width: 10),
+
+        // Name + location
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Hey, $firstName! 👋',
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.bold,
+                  color: AppColors.textPrimary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              const SizedBox(height: 2),
+              GestureDetector(
+                onTap: _openLocationMap,
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on,
+                      size: 11,
+                      color: AppColors.primaryGreen,
+                    ),
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: Text(
+                        _getUserLocation(),
+                        style: const TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // FitKhao Plus badge
+        GestureDetector(
+          onTap: _showMembershipPopupOnDemand,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4A7C3E), Color(0xFF6BA84F)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(AppSizes.radius16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.25),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/images/buttonshit_logo.png',
+                  height: 13,
+                  width: 13,
+                ),
+                const SizedBox(width: 4),
+                const Text(
+                  'Plus',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    fontWeight: AppTypography.bold,
+                    color: Colors.white,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildDailyGoalCard() {
     return Container(
