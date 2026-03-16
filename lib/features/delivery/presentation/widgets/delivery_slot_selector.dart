@@ -541,7 +541,8 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
             const SizedBox(width: AppSizes.spacing12),
             Expanded(
               child: Text(
-                slotState.error!,
+                //slotState.error!,
+                "No Meal plan assigned for you please contact with our team",
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize13,
                   color: Color(0xFFD32F2F),
