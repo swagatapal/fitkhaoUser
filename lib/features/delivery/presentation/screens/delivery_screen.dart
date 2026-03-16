@@ -560,13 +560,13 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               Text(
                 '${AppStrings.greetings} ${ref.watch(authProvider).name.isNotEmpty ? ref.watch(authProvider).name : 'User'},',
                 style: const TextStyle(
-                  fontSize: AppTypography.fontSize20,
+                  fontSize: AppTypography.fontSize16,
                   fontWeight: AppTypography.bold,
                   color: AppColors.textPrimary,
                   fontFamily: 'Lato',
                 ),
               ),
-              const SizedBox(height: AppSizes.spacing8),
+              const SizedBox(height: AppSizes.spacing4),
               Row(
                 children: [
                   const Icon(
@@ -583,7 +583,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: AppTypography.fontSize13,
+                          fontSize: AppTypography.fontSize12,
                           fontWeight: AppTypography.regular,
                           color: AppColors.textSecondary,
                           fontFamily: 'Lato',

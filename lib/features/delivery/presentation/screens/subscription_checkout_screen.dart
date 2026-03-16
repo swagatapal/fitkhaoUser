@@ -1,3 +1,4 @@
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -96,6 +97,8 @@ class _SubscriptionCheckoutScreenState
     _showConfirmationDialog();
   }
 
+  final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+
   void _showConfirmationDialog() {
     showDialog(
       context: context,
@@ -177,7 +180,19 @@ class _SubscriptionCheckoutScreenState
                   const SizedBox(width: AppSizes.spacing12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async{
+                        try {
+                          await analytics.logEvent(
+                            name: 'confirm_payment_click',
+                            parameters: {
+                              'screen': 'payment_dialog',
+                              'button_name': 'confirm',
+                            },
+                          );
+                        } catch (e) {
+                          debugPrint('Analytics error: $e');
+                        }
+
                         Navigator.pop(context);
                         _confirmPayment();
                       },
