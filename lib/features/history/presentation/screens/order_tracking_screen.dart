@@ -159,11 +159,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     // if (widget.order.orderStatus != 'delivered' &&
                     //     widget.order.orderStatus != 'cancelled')
                     //   _buildHelpRow(context),
-                    if (_shouldShowCancelButton) ...[
-                      const SizedBox(height: AppSizes.spacing16),
-                      _buildCancelButton(),
-                    ],
-                    const SizedBox(height: AppSizes.spacing20),
+                    // if (_shouldShowCancelButton) ...[
+                    //   const SizedBox(height: AppSizes.spacing16),
+                    //   _buildCancelButton(),
+                    // ],
+                    // const SizedBox(height: AppSizes.spacing20),
                   ],
                 ),
               ),
