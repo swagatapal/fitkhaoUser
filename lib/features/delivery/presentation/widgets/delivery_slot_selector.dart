@@ -51,7 +51,9 @@ class DeliverySlotSelector extends ConsumerStatefulWidget {
 }
 
 class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   late AnimationController _animationController;
   late Animation<double> _slideAnimation;
   late Animation<double> _fadeAnimation;
@@ -72,9 +74,14 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
-    // Fetch delivery slots from API
+    // Fetch delivery slots only if not already loaded — prevents re-fetch
+    // when the SliverList disposes and remounts this widget on scroll.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(deliverySlotApiProvider.notifier).loadDeliverySlots();
+      if (!mounted) return;
+      final current = ref.read(deliverySlotApiProvider);
+      if (current.slots.isEmpty && !current.isLoading) {
+        ref.read(deliverySlotApiProvider.notifier).loadDeliverySlots();
+      }
     });
   }
 
@@ -464,6 +471,7 @@ class _DeliverySlotSelectorState extends ConsumerState<DeliverySlotSelector>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // required by AutomaticKeepAliveClientMixin
     // Only show between 4 PM and 8 PM
     if (!_isWithinTimeWindow()) {
       return const SizedBox.shrink();

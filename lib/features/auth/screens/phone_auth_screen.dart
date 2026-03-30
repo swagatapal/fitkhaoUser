@@ -493,15 +493,10 @@ Future<void> getPhoneNumber() async {
                             SizedBox(height: spacing8 / 2),
                             GestureDetector(
                               onTap: () {
-                                // TODO: Navigate to Terms and Conditions screen
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Terms and Conditions screen will be implemented',
-                                    ),
-                                    backgroundColor: AppColors.primaryGreen,
-                                  ),
-                                );
+
+                                context.push(RouteNames.policy);
+
+
                               },
                               child: Text(
                                 AppStrings.readHere,

@@ -186,28 +186,24 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
-  /// Extract user location from address
-  String _getUserLocation() {
-    final authState = ref.watch(authProvider);
-
-    // Try to get area or street
-    if (authState.street.isNotEmpty) {
-      // If street contains comma, get the first part
-      final parts = authState.street.split(',');
-      final p2 = authState.pincode;
-      final p3 = authState.buildingNameNumber;
-      //String address =
+  /// Compute location string from auth state.
+  /// Accepts the already-read authState — NO ref.watch, safe to call from
+  /// anywhere including LayoutBuilder callbacks.
+  String _computeLocation(authState) {
+    if ((authState.street as String).isNotEmpty) {
+      final parts = (authState.street as String).split(',');
+      final p2 = authState.pincode as String;
+      final p3 = authState.buildingNameNumber as String;
       return "${parts.first.trim()}, $p3, $p2";
     }
-
-    // Fallback to building name
-    if (authState.buildingNameNumber.isNotEmpty) {
-      return authState.buildingNameNumber;
+    if ((authState.buildingNameNumber as String).isNotEmpty) {
+      return authState.buildingNameNumber as String;
     }
-
-    // Final fallback
     return 'Location';
   }
+
+  /// For use in one-shot callbacks (onTap, etc.) — uses ref.read, not ref.watch.
+  String _getUserLocation() => _computeLocation(ref.read(authProvider));
 
   /// Check if nutritional targets are available to show Today's Goal section
   bool _shouldShowTodaysGoal() {
@@ -243,6 +239,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final authState = ref.watch(authProvider);
     final userId = authState.userId ?? '';
     final showTodaysGoal = _shouldShowTodaysGoal();
+    // Pre-compute once here — never call ref.watch inside LayoutBuilder
+    final location = _computeLocation(authState);
 
     return Scaffold(
       body: SafeArea(
@@ -254,7 +252,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               // ── Sticky collapsible header ──
-              _buildStickyHeader(authState),
+              _buildStickyHeader(authState, location),
 
               // ── Scrollable content ──
               SliverPadding(
@@ -549,7 +547,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  /// Pass authState and pre-computed location — NO ref.watch inside, safe for
+  /// use inside LayoutBuilder.builder which runs every scroll frame.
+  Widget _buildHeader(authState, String location) {
+    final name = (authState.name as String);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -558,7 +559,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${AppStrings.greetings} ${ref.watch(authProvider).name.isNotEmpty ? ref.watch(authProvider).name : 'User'},',
+                '${AppStrings.greetings} ${name.isNotEmpty ? name : 'User'},',
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize16,
                   fontWeight: AppTypography.bold,
@@ -579,7 +580,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                     child: GestureDetector(
                       onTap: _openLocationMap,
                       child: Text(
-                        _getUserLocation(),
+                        location,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -674,7 +675,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   // Sticky collapsible header sliver
   // ─────────────────────────────────────────────
 
-  Widget _buildStickyHeader(authState) {
+  Widget _buildStickyHeader(authState, String location) {
     const double collapsedH = 50.0;
     // Actual header content height:
     //   avatar (radius 28 = 56px) + spacing4 + badge (~24px) + 8 top + 8 bottom = 100px
@@ -714,7 +715,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         AppSizes.screenPaddingHorizontal,
                         8,
                       ),
-                      child: _buildHeader(),
+                      child: _buildHeader(authState, location),
                     ),
                   ),
                 ),
@@ -731,7 +732,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       padding: EdgeInsets.symmetric(
                         horizontal: AppSizes.screenPaddingHorizontal,
                       ),
-                      child: _buildCompactHeader(authState),
+                      child: _buildCompactHeader(authState, location),
                     ),
                   ),
                 ),
@@ -758,7 +759,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   }
 
   /// Compact single-row header shown when the SliverAppBar is pinned/collapsed
-  Widget _buildCompactHeader(authState) {
+  Widget _buildCompactHeader(authState, String location) {
     final firstName = (authState.name as String).isNotEmpty
         ? (authState.name as String).split(' ').first
         : 'User';
@@ -822,7 +823,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                     const SizedBox(width: 3),
                     Expanded(
                       child: Text(
-                        _getUserLocation(),
+                        location,
                         style: const TextStyle(
                           fontSize: AppTypography.fontSize12,
                           color: AppColors.textSecondary,

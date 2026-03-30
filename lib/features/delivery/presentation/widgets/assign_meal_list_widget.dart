@@ -241,7 +241,7 @@ class NutritionalValue {
   }
 }
 
-// Main Widget - NO SCAFFOLD
+// Main Widget - NO SCAFFOLD, NO TAB CONTROLLER
 class MealPlanWidget extends ConsumerStatefulWidget {
   final String userId;
 
@@ -255,14 +255,21 @@ class MealPlanWidget extends ConsumerStatefulWidget {
 }
 
 class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   MealPlanResponse? mealPlanResponse;
   DayMeal? selectedDayMeal;
   bool isLoading = true;
   String? error;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  TabController? _tabController;
+
+  // ── REPLACED: TabController removed entirely.
+  //    We now track the selected tab with a plain int index.
+  //    TabController internally registers a ScrollPosition that competes
+  //    with the parent CustomScrollView on every vertical swipe — causing
+  //    the snap-back on dish cards. A plain int has zero scroll side-effects.
+  int _selectedTabIndex = 0;
+
   final ScrollController _dateScrollController = ScrollController();
 
   @override
@@ -281,7 +288,6 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
   @override
   void dispose() {
     _animationController.dispose();
-    _tabController?.dispose();
     _dateScrollController.dispose();
     super.dispose();
   }
@@ -302,22 +308,13 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
         final data = json.decode(response.body);
         mealPlanResponse = MealPlanResponse.fromJson(data);
 
-        // Find nearest date to today
         selectedDayMeal = _findNearestDayMeal();
 
-        // Initialize tab controller
-        if (selectedDayMeal != null && selectedDayMeal!.meals.isNotEmpty) {
-          _tabController?.dispose();
-          _tabController = TabController(
-            length: selectedDayMeal!.meals.length,
-            vsync: this,
-          );
-        }
+        // Reset tab index whenever meal plan reloads
+        _selectedTabIndex = 0;
 
-        // Publish meal categories to provider for DeliverySlotSelector
         _publishMealCategories();
 
-        // Mark meal plan as available only if it has actual days with meals
         final hasMealData = mealPlanResponse!.data.mealPlan.days.isNotEmpty;
         ref.read(mealPlanAvailableProvider.notifier).state = hasMealData;
 
@@ -342,16 +339,14 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     }
   }
 
-  /// Scroll the date selector so that the selected date is visible
   void _scrollToSelectedDate() {
     if (mealPlanResponse == null || selectedDayMeal == null) return;
 
     final days = mealPlanResponse!.data.mealPlan.days;
     final selectedIndex =
-        days.indexWhere((d) => d.date == selectedDayMeal!.date);
+    days.indexWhere((d) => d.date == selectedDayMeal!.date);
     if (selectedIndex < 0) return;
 
-    // Each date item is 60 wide + 12 margin = 72 per item
     const itemWidth = 72.0;
     final targetOffset = selectedIndex * itemWidth;
 
@@ -381,7 +376,6 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     final today = DateTime.now();
     final todayDate = DateTime(today.year, today.month, today.day);
 
-    // Prefer an exact match that actually has meals
     for (var day in days) {
       final dayDate = DateTime(day.date.year, day.date.month, day.date.day);
       if (dayDate.isAtSameMomentAs(todayDate) && day.meals.isNotEmpty) {
@@ -389,7 +383,6 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
       }
     }
 
-    // Otherwise, find the nearest day that has meals
     DayMeal? nearestWithMeals;
     Duration? smallestWithMealsDiff;
     for (var day in days.where((d) => d.meals.isNotEmpty)) {
@@ -401,7 +394,6 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     }
     if (nearestWithMeals != null) return nearestWithMeals;
 
-    // Fallback: nearest date (even if no meals)
     DayMeal? nearest;
     Duration? smallestDiff;
     for (var day in days) {
@@ -414,7 +406,6 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     return nearest;
   }
 
-  /// Extract unique meal categories from the meal plan and publish to provider
   void _publishMealCategories() {
     if (mealPlanResponse == null) return;
 
@@ -442,22 +433,6 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
             categoryMap.values.toList();
       }
     });
-  }
-
-  // ignore: unused_element
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'breakfast':
-        return AppColors.primaryGreen;
-      case 'lunch':
-        return AppColors.primaryGreen;
-      case 'dinner':
-        return AppColors.primaryGreen;
-      case 'snacks':
-        return AppColors.primaryGreen;
-      default:
-        return AppColors.primaryGreen;
-    }
   }
 
   IconData _getCategoryIcon(String category) {
@@ -531,11 +506,8 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
       ),
       child: Column(
         children: [
-          const Icon(
-            Icons.support_agent_rounded,
-            size: 52,
-            color: AppColors.primaryGreen,
-          ),
+          const Icon(Icons.support_agent_rounded,
+              size: 52, color: AppColors.primaryGreen),
           const SizedBox(height: AppSizes.spacing12),
           const Text(
             'Meal plan is not available',
@@ -550,7 +522,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           const SizedBox(height: AppSizes.spacing8),
           const Text(
             'Please contact admin to get your meal plan.\n'
-            'Take a subscription plan to receive a call from our team.',
+                'Take a subscription plan to receive a call from our team.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: AppTypography.fontSize13,
@@ -609,7 +581,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
               child: CircularProgressIndicator(
                 strokeWidth: 3,
                 valueColor:
-                    AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+                AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
               ),
             ),
             const SizedBox(height: 24),
@@ -640,19 +612,13 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                 color: Colors.red.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.error_outline_rounded,
-                size: 64,
-                color: Colors.red,
-              ),
+              child: const Icon(Icons.error_outline_rounded,
+                  size: 64, color: Colors.red),
             ),
             const SizedBox(height: 24),
             Text(
               error ?? 'Something went wrong',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Color(0xFF6B7280),
-              ),
+              style: const TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -664,7 +630,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                 backgroundColor: AppColors.primaryGreen,
                 foregroundColor: Colors.white,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -679,7 +645,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
   Widget _buildNoMealsForSelectedDate() {
     final day = selectedDayMeal;
     final dateLabel =
-        day == null ? '' : DateFormat('EEE, d MMM').format(day.date);
+    day == null ? '' : DateFormat('EEE, d MMM').format(day.date);
 
     return Container(
       width: double.infinity,
@@ -699,20 +665,16 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.event_busy_rounded,
-            size: 48,
-            color: AppColors.primaryGreen,
-          ),
+          const Icon(Icons.event_busy_rounded,
+              size: 48, color: AppColors.primaryGreen),
           const SizedBox(height: 12),
           const Text(
             'No meals planned',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1F2937),
-            ),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1F2937)),
           ),
           const SizedBox(height: 6),
           Text(
@@ -721,10 +683,9 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                 : 'No meal categories are available for $dateLabel.',
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7280),
-              fontWeight: FontWeight.w500,
-            ),
+                fontSize: 13,
+                color: Color(0xFF6B7280),
+                fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -752,11 +713,8 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
       ),
       child: Column(
         children: [
-          const Icon(
-            Icons.restaurant_menu_rounded,
-            size: 52,
-            color: AppColors.primaryGreen,
-          ),
+          const Icon(Icons.restaurant_menu_rounded,
+              size: 52, color: AppColors.primaryGreen),
           const SizedBox(height: AppSizes.spacing12),
           if (!hasSubscription) ...[
             const Text(
@@ -827,12 +785,13 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           _buildDateSelector(),
           const SizedBox(height: 20),
           if (hasMeals) ...[
-            _buildTabBar(),
+            // ── Custom tab bar — pure widget, zero ScrollPosition ──
+            _buildCustomTabBar(),
             const SizedBox(height: 16),
-            _buildTabBarView(),
+            // ── Tab content — direct widget render, no AnimatedBuilder ──
+            _buildCurrentTabContent(),
           ] else
             _buildNoMealsForSelectedDate(),
-          // const SizedBox(height: 16),
           _buildNutritionSummary(),
         ],
       ),
@@ -858,11 +817,8 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.restaurant_menu_rounded,
-              color: Colors.white,
-              size: 24,
-            ),
+            child: const Icon(Icons.restaurant_menu_rounded,
+                color: Colors.white, size: 24),
           ),
           const SizedBox(width: 16),
           const Expanded(
@@ -872,18 +828,14 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                 Text(
                   'My Meal Plan',
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
                 ),
                 SizedBox(height: 4),
                 Text(
                   'Eat healthy, stay healthy',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.white70),
                 ),
               ],
             ),
@@ -906,101 +858,109 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
 
     return SizedBox(
       height: 80,
-      child: ListView.builder(
+      child: SingleChildScrollView(
         controller: _dateScrollController,
         scrollDirection: Axis.horizontal,
-        itemCount: days.length,
-        itemBuilder: (context, index) {
-          final day = days[index];
-          final isSelected = selectedDayMeal?.date == day.date;
-          final dayDate = DateTime(day.date.year, day.date.month, day.date.day);
-          final isToday = dayDate.isAtSameMomentAs(todayDate);
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: List.generate(days.length, (index) {
+            final day = days[index];
+            final isSelected = selectedDayMeal?.date == day.date;
+            final dayDate =
+            DateTime(day.date.year, day.date.month, day.date.day);
+            final isToday = dayDate.isAtSameMomentAs(todayDate);
 
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                selectedDayMeal = day;
-                _tabController?.dispose();
-                if (day.meals.isNotEmpty) {
-                  _tabController = TabController(
-                    length: day.meals.length,
-                    vsync: this,
-                  );
-                } else {
-                  _tabController = null;
-                }
-                _animationController.reset();
-                _animationController.forward();
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: 60,
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                gradient: isSelected
-                    ? LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [AppColors.darkGreen, AppColors.primaryGreen],
-                      )
-                    : null,
-                color: isSelected ? null : Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isToday
-                      ? AppColors.darkGreen
-                      : isSelected
-                          ? Colors.transparent
-                          : const Color(0xFFE5E7EB),
-                  width: isToday ? 2 : 1,
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  selectedDayMeal = day;
+                  // Reset tab index when date changes
+                  _selectedTabIndex = 0;
+                  _animationController.reset();
+                  _animationController.forward();
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width: 60,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  gradient: isSelected
+                      ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.darkGreen, AppColors.primaryGreen],
+                  )
+                      : null,
+                  color: isSelected ? null : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isToday
+                        ? AppColors.darkGreen
+                        : isSelected
+                        ? Colors.transparent
+                        : const Color(0xFFE5E7EB),
+                    width: isToday ? 2 : 1,
+                  ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      DateFormat('EEE').format(day.date),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected
+                            ? Colors.white70
+                            : const Color(0xFF9CA3AF),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('d').format(day.date),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('MMM').format(day.date),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: isSelected
+                            ? Colors.white70
+                            : const Color(0xFF6B7280),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    DateFormat('EEE').format(day.date),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color:
-                          isSelected ? Colors.white70 : const Color(0xFF9CA3AF),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    DateFormat('d').format(day.date),
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color:
-                          isSelected ? Colors.white : const Color(0xFF1F2937),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    DateFormat('MMM').format(day.date),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color:
-                          isSelected ? Colors.white70 : const Color(0xFF6B7280),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+            );
+          }),
+        ),
       ),
     );
   }
 
-  Widget _buildTabBar() {
-    if (_tabController == null || selectedDayMeal == null) {
+  // ── REPLACED: TabBar widget removed.
+  //    The old TabBar used a TabController which internally attaches a
+  //    ScrollController to the tab strip. That controller competes with
+  //    the parent CustomScrollView on every vertical gesture, causing the
+  //    snap-back on the dish cards on every single swipe.
+  //    This custom tab bar is a plain Row of GestureDetectors — it has
+  //    zero scroll context and zero gesture competition.
+  Widget _buildCustomTabBar() {
+    if (selectedDayMeal == null || selectedDayMeal!.meals.isEmpty) {
       return const SizedBox.shrink();
     }
+
+    final meals = selectedDayMeal!.meals;
 
     return Container(
       height: 50,
@@ -1009,69 +969,72 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
         borderRadius: BorderRadius.circular(8),
       ),
       padding: const EdgeInsets.all(2),
-      child: TabBar(
-        controller: _tabController,
-        indicator: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.darkGreen, AppColors.primaryGreen],
-          ),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primaryGreen.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        dividerColor: Colors.transparent,
-        labelColor: Colors.white,
-        unselectedLabelColor: const Color(0xFF6B7280),
-        labelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-        tabs: selectedDayMeal!.meals.map((mealCategory) {
-          final label = mealCategory.category.dishCategory.trim().isNotEmpty
-              ? mealCategory.category.dishCategory
+      child: Row(
+        children: List.generate(meals.length, (index) {
+          final isSelected = _selectedTabIndex == index;
+          final label = meals[index].category.dishCategory.trim().isNotEmpty
+              ? meals[index].category.dishCategory
               : 'Meal';
-          return Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Icon(icon, size: 18),
-                // const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
+
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _selectedTabIndex = index);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  gradient: isSelected
+                      ? LinearGradient(
+                    colors: [AppColors.darkGreen, AppColors.primaryGreen],
+                  )
+                      : null,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: isSelected
+                      ? [
+                    BoxShadow(
+                      color:
+                      AppColors.primaryGreen.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                      : null,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected
+                        ? Colors.white
+                        : const Color(0xFF6B7280),
                   ),
                 ),
-              ],
+              ),
             ),
           );
-        }).toList(),
+        }),
       ),
     );
   }
 
-  Widget _buildTabBarView() {
-    if (_tabController == null || selectedDayMeal == null) {
+  // ── REPLACED: AnimatedBuilder(animation: _tabController!) removed.
+  //    AnimatedBuilder on a TabController re-runs the builder on every
+  //    animation frame of the controller's scroll animation, which was
+  //    re-triggering layout and causing the parent scroll to fight for
+  //    gesture ownership on each frame. Now we just read _selectedTabIndex
+  //    directly — a plain synchronous index lookup, no listeners, no frames.
+  Widget _buildCurrentTabContent() {
+    if (selectedDayMeal == null || selectedDayMeal!.meals.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    return AnimatedBuilder(
-      animation: _tabController!,
-      builder: (context, child) {
-        final index = _tabController!.index;
-        return _buildMealCategoryContent(selectedDayMeal!.meals[index]);
-      },
-    );
+    final safeIndex =
+    _selectedTabIndex.clamp(0, selectedDayMeal!.meals.length - 1);
+    return _buildMealCategoryContent(selectedDayMeal!.meals[safeIndex]);
   }
 
   Widget _buildMealCategoryContent(MealCategory mealCategory) {
@@ -1125,9 +1088,9 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                     ),
                     Text(
                       '${mealCategory.dishes.length} ${mealCategory.dishes.length == 1 ? 'dish' : 'dishes'}',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 13,
-                        color: const Color(0xFF6B7280),
+                        color: Color(0xFF6B7280),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1139,7 +1102,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           const SizedBox(height: 20),
           ...List.generate(
             mealCategory.dishes.length,
-            (dishIndex) {
+                (dishIndex) {
               final dish = mealCategory.dishes[dishIndex];
               return Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1174,10 +1137,8 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
             ),
             if (dish.dishTypeLabel.isNotEmpty)
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: dish.dishTypeLabel.toLowerCase() == 'veg'
                       ? const Color(0xFF10B981).withValues(alpha: 0.1)
@@ -1219,8 +1180,9 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
               ),
           ],
         ),
-        dish.remarks==""?SizedBox.shrink():
-        Text(
+        dish.remarks == ""
+            ? const SizedBox.shrink()
+            : Text(
           dish.remarks,
           style: const TextStyle(
             fontSize: 12,
@@ -1234,53 +1196,23 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
           runSpacing: 8,
           children: [
             _buildNutrientChip(
-              //Icons.local_fire_department_rounded,
               '${dish.nutritionalValue.kcal.toStringAsFixed(0)} kcal',
               const Color(0xFFeb3434),
             ),
             _buildNutrientChip(
-              //Icons.fitness_center_rounded,
               '${dish.nutritionalValue.protein.toStringAsFixed(1)}g Protein',
               const Color(0xFF0e9630),
             ),
             _buildNutrientChip(
-              //Icons.opacity_rounded,
               '${dish.nutritionalValue.fat.toStringAsFixed(1)}g Fats',
               const Color(0xFF0e9196),
             ),
             _buildNutrientChip(
-              //Icons.grain_rounded,
               '${dish.nutritionalValue.carbs.toStringAsFixed(1)}g Carbohydrates',
               const Color(0xFF300e96),
             ),
           ],
         ),
-        // if (dish.marketPrice > 0) ...[
-        //   const SizedBox(height: 12),
-        //   Row(
-        //     children: [
-        //       Text(
-        //         '₹${dish.marketPrice.toStringAsFixed(0)}',
-        //         style: TextStyle(
-        //           fontSize: 18,
-        //           fontWeight: FontWeight.bold,
-        //           color: AppColors.primaryGreen,
-        //         ),
-        //       ),
-        //       if (dish.costPrice > 0) ...[
-        //         const SizedBox(width: 8),
-        //         Text(
-        //           '₹${dish.costPrice.toStringAsFixed(0)}',
-        //           style: const TextStyle(
-        //             fontSize: 14,
-        //             decoration: TextDecoration.lineThrough,
-        //             color: Color(0xFF9CA3AF),
-        //           ),
-        //         ),
-        //       ],
-        //     ],
-        //   ),
-        // ],
       ],
     );
   }
@@ -1309,7 +1241,6 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
   }
 
   Widget _buildNutritionSummary() {
-    // Calculate total nutrition for the selected day
     double totalKcal = 0;
     double totalProtein = 0;
     double totalFat = 0;
@@ -1324,7 +1255,6 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
       }
     }
 
-    // Update the provider with calculated nutrition values
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(mealPlanNutritionProvider.notifier).state = MealPlanNutrition(
@@ -1336,93 +1266,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
       }
     });
 
-    return Container(
-        // padding: const EdgeInsets.all(16),
-        // decoration: BoxDecoration(
-        //   gradient: LinearGradient(
-        //     begin: Alignment.topLeft,
-        //     end: Alignment.bottomRight,
-        //     colors: [
-        //       AppColors.darkGreen,
-        //       AppColors.primaryGreen,
-        //     ],
-        //   ),
-        //   borderRadius: BorderRadius.circular(8),
-        //   boxShadow: [
-        //     BoxShadow(
-        //       color: AppColors.primaryGreen.withOpacity(0.3),
-        //       blurRadius: 20,
-        //       offset: const Offset(0, 10),
-        //     ),
-        //   ],
-        // ),
-        // child: Column(
-        //   crossAxisAlignment: CrossAxisAlignment.start,
-        //   mainAxisSize: MainAxisSize.min,
-        //   children: [
-        //     const Row(
-        //       children: [
-        //         Icon(
-        //           Icons.assessment_rounded,
-        //           color: Colors.white,
-        //           size: 24,
-        //         ),
-        //         SizedBox(width: 12),
-        //         Text(
-        //           'Daily Nutrition Summary',
-        //           style: TextStyle(
-        //             fontSize: 18,
-        //             fontWeight: FontWeight.bold,
-        //             color: Colors.white,
-        //           ),
-        //         ),
-        //       ],
-        //     ),
-        //     const SizedBox(height: 20),
-        //     Row(
-        //       children: [
-        //         Expanded(
-        //           child: _buildSummaryItem(
-        //             'Calories',
-        //             totalKcal.toStringAsFixed(0),
-        //             'kcal',
-        //             Icons.local_fire_department_rounded,
-        //           ),
-        //         ),
-        //         Expanded(
-        //           child: _buildSummaryItem(
-        //             'Protein',
-        //             totalProtein.toStringAsFixed(1),
-        //             'g',
-        //             Icons.fitness_center_rounded,
-        //           ),
-        //         ),
-        //       ],
-        //     ),
-        //     const SizedBox(height: 12),
-        //     Row(
-        //       children: [
-        //         Expanded(
-        //           child: _buildSummaryItem(
-        //             'Fat',
-        //             totalFat.toStringAsFixed(1),
-        //             'g',
-        //             Icons.opacity_rounded,
-        //           ),
-        //         ),
-        //         Expanded(
-        //           child: _buildSummaryItem(
-        //             'Carbs',
-        //             totalCarbs.toStringAsFixed(1),
-        //             'g',
-        //             Icons.grain_rounded,
-        //           ),
-        //         ),
-        //       ],
-        //     ),
-        //   ],
-        // ),
-        );
+    return Container();
   }
 
   // ignore: unused_element
@@ -1441,11 +1285,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                color: Colors.white70,
-                size: 16,
-              ),
+              Icon(icon, color: Colors.white70, size: 16),
               const SizedBox(width: 6),
               Text(
                 label,
@@ -1471,10 +1311,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                 ),
                 TextSpan(
                   text: ' $unit',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.white70,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
                 ),
               ],
             ),
