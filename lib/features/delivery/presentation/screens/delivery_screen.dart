@@ -193,8 +193,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     if ((authState.street as String).isNotEmpty) {
       final parts = (authState.street as String).split(',');
       final p2 = authState.pincode as String;
-      final p3 = authState.buildingNameNumber as String;
-      return "${parts.first.trim()}, $p3, $p2";
+     //  final p3 = authState.buildingNameNumber as String;
+     // return "${parts.first.trim()}, $p3, $p2";
+      return "${parts.join(', ')}, $p2";
     }
     if ((authState.buildingNameNumber as String).isNotEmpty) {
       return authState.buildingNameNumber as String;

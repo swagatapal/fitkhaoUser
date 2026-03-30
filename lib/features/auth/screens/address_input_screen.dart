@@ -86,6 +86,7 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
       }
 
       if (result != null) {
+        print(result.toString());
         final building = (result['building'] as String? ?? '').trim();
         final streetResult = (result['street'] as String? ?? '').trim();
         final fallbackStreet = (result['fullAddress'] as String? ?? '').trim();
