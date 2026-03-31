@@ -7,6 +7,12 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../shared/widgets/logo_widget.dart';
+import '../../../main_navigation/main_navigation_screen.dart';
+import '../../providers/meal_category_provider.dart';
+import '../../providers/meal_plan_nutrition_provider.dart';
+import '../../providers/nutrition_provider.dart';
+import '../../providers/serviceability_provider.dart';
+import '../../providers/wallet_provider.dart';
 
 class SubscriptionCheckoutScreen extends ConsumerStatefulWidget {
   final String planDays; // '7' or '30'
@@ -26,7 +32,8 @@ class SubscriptionCheckoutScreen extends ConsumerStatefulWidget {
 class _SubscriptionCheckoutScreenState
     extends ConsumerState<SubscriptionCheckoutScreen> {
   final TextEditingController _couponController = TextEditingController();
-  String _selectedPaymentMethod = 'UPI'; // 'UPI', 'Net Banking', 'Debit/Credit Card'
+  String _selectedPaymentMethod =
+      'UPI'; // 'UPI', 'Net Banking', 'Debit/Credit Card'
   double _discount = 0.0;
 
   @override
@@ -98,6 +105,25 @@ class _SubscriptionCheckoutScreenState
   }
 
   final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+
+  void _navigateToRefreshedDeliveryScreen() {
+    ref.read(mainNavIndexProvider.notifier).state = 0;
+
+    final deliveryReloadNotifier =
+        ref.read(deliveryScreenReloadProvider.notifier);
+    deliveryReloadNotifier.state = deliveryReloadNotifier.state + 1;
+
+    ref.invalidate(walletProvider);
+    ref.invalidate(serviceabilityProvider);
+    ref.invalidate(nutritionProgressProvider);
+    ref.invalidate(mealPlanAvailableProvider);
+    ref.invalidate(mealPlanNutritionProvider);
+    ref.invalidate(mealCategoryListProvider);
+
+    Navigator.of(context, rootNavigator: true).popUntil(
+      (route) => route.isFirst,
+    );
+  }
 
   void _showConfirmationDialog() {
     showDialog(
@@ -180,7 +206,9 @@ class _SubscriptionCheckoutScreenState
                   const SizedBox(width: AppSizes.spacing12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () async{
+                      onPressed: () async {
+                        final navigator = Navigator.of(context);
+
                         try {
                           await analytics.logEvent(
                             name: 'confirm_payment_click',
@@ -193,7 +221,8 @@ class _SubscriptionCheckoutScreenState
                           debugPrint('Analytics error: $e');
                         }
 
-                        Navigator.pop(context);
+                        if (!mounted) return;
+                        navigator.pop();
                         _confirmPayment();
                       },
                       style: ElevatedButton.styleFrom(
@@ -256,8 +285,8 @@ class _SubscriptionCheckoutScreenState
           _showSuccessDialog();
         } else {
           _showMessage(response.message.isNotEmpty
-            ? response.message
-            : 'Subscription creation failed. Please try again.');
+              ? response.message
+              : 'Subscription creation failed. Please try again.');
         }
       }
     } catch (e) {
@@ -321,7 +350,7 @@ class _SubscriptionCheckoutScreenState
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    _navigateToRefreshedDeliveryScreen();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryGreen,
@@ -470,6 +499,7 @@ class _SubscriptionCheckoutScreenState
   Widget _buildFitKhaoLogo() {
     return LogoWidget();
   }
+
   Widget _buildPaymentSummary() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -683,8 +713,9 @@ class _SubscriptionCheckoutScreenState
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color:
-                      isSelected ? AppColors.primaryGreen : AppColors.borderColor,
+                  color: isSelected
+                      ? AppColors.primaryGreen
+                      : AppColors.borderColor,
                   width: 2,
                 ),
                 color: Colors.white,

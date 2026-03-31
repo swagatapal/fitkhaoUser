@@ -1,5 +1,4 @@
 import 'package:fitkhao_user/features/profile/presentation/screens/detailed_health_info_screen.dart';
-import 'package:fitkhao_user/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:fitkhao_user/features/delivery/presentation/screens/delivery_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +12,7 @@ import '../history/presentation/screens/history_screen.dart';
 
 /// Provider to control the bottom navigation tab index
 final mainNavIndexProvider = StateProvider<int>((ref) => 0);
+final deliveryScreenReloadProvider = StateProvider<int>((ref) => 0);
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({super.key});
@@ -27,10 +27,10 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   DateTime? currentBackPressTime;
 
   // Build the current screen based on selected index
-  Widget _getCurrentScreen() {
+  Widget _getCurrentScreen(int deliveryReloadKey) {
     switch (_selectedIndex) {
       case 0:
-        return const DeliveryScreen();
+        return DeliveryScreen(key: ValueKey('delivery-$deliveryReloadKey'));
       // case 1:
       //   return const DashboardScreen();
       case 1:
@@ -38,7 +38,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       case 2:
         return const HistoryScreen();
       default:
-        return const DeliveryScreen();
+        return DeliveryScreen(key: ValueKey('delivery-$deliveryReloadKey'));
     }
   }
 
@@ -51,6 +51,8 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final deliveryReloadKey = ref.watch(deliveryScreenReloadProvider);
+
     // Listen for external tab change requests
     ref.listen<int>(mainNavIndexProvider, (prev, next) {
       if (next != _selectedIndex) {
@@ -62,7 +64,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         DateTime now = DateTime.now();
         if (didPop ||
             currentBackPressTime == null ||
@@ -81,7 +83,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             clipBehavior: Clip.none,
             children: [
               // Display only the currently selected screen
-              _getCurrentScreen(),
+              _getCurrentScreen(deliveryReloadKey),
 
               // Floating Bottom Navigation Bar
               Positioned(
@@ -89,8 +91,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                 left: 0,
                 right: 0,
                 child: SafeArea(
-                    top: false,
-                    child: _buildBottomNavigationBar(context)),
+                    top: false, child: _buildBottomNavigationBar(context)),
               ),
             ],
           ),
