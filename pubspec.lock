@@ -202,13 +202,13 @@ packages:
     source: hosted
     version: "0.3.4+2"
   crypto:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: crypto
-      sha256: "1e445881f28f22d6140f181e07737b22f1e099a5e1ff94b0af2f9e4a463f4855"
+      sha256: c8ea0233063ba03258fbcf2ca4d6dadfefe14f02fab57702265467a19f27fadf
       url: "https://pub.dev"
     source: hosted
-    version: "3.0.6"
+    version: "3.0.7"
   csslib:
     dependency: transitive
     description:
@@ -1000,6 +1000,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  payu_checkoutpro_flutter:
+    dependency: "direct main"
+    description:
+      name: payu_checkoutpro_flutter
+      sha256: "7b8f9182e157346c49cd05d5518e8aedc529d2632f78ec82b458807a52abb293"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.1"
   permission_handler:
     dependency: "direct main"
     description:

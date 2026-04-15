@@ -73,6 +73,8 @@ dependencies:
   firebase_messaging: ^16.1.0
   flutter_local_notifications: ^18.0.1
   fluttertoast:
+  payu_checkoutpro_flutter: ^1.4.1
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:

@@ -1,7 +1,13 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:payu_checkoutpro_flutter/PayUConstantKeys.dart';
+import 'package:payu_checkoutpro_flutter/payu_checkoutpro_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
@@ -767,7 +773,14 @@ class _SubscriptionCheckoutScreenState
         width: double.infinity,
         height: AppSizes.buttonHeight,
         child: ElevatedButton(
-          onPressed: _processPayment,
+          //onPressed: _processPayment,
+          onPressed: (){
+            Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (context) => const PayUStaticHashTestPage()),
+            );
+
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaryGreen,
             foregroundColor: Colors.white,
@@ -784,6 +797,204 @@ class _SubscriptionCheckoutScreenState
               fontFamily: 'Lato',
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+
+
+class PayUStaticHashTestPage extends StatefulWidget {
+  const PayUStaticHashTestPage({super.key});
+
+  @override
+  State<PayUStaticHashTestPage> createState() => _PayUStaticHashTestPageState();
+}
+
+class _PayUStaticHashTestPageState extends State<PayUStaticHashTestPage>
+    implements PayUCheckoutProProtocol {
+  late PayUCheckoutProFlutter _checkoutPro;
+
+  // Your credentials
+  static const String merchantKey = 'x4JE8Z';
+
+
+  @override
+  void initState() {
+    super.initState();
+    _checkoutPro = PayUCheckoutProFlutter(this);
+  }
+
+  // void _startPayment() {
+  //   final additionalParam = {
+  //     'payment_related_details_for_mobile_sdk': "C79yyUhbHnoH98ge9jLZZHfIMS8d1xdK",
+  //     'vas_for_mobile_sdk': "C79yyUhbHnoH98ge9jLZZHfIMS8d1xdK",
+  //     'payment': "C79yyUhbHnoH98ge9jLZZHfIMS8d1xdK",
+  //     PayUAdditionalParamKeys.udf1: '',
+  //     PayUAdditionalParamKeys.udf2: '',
+  //     PayUAdditionalParamKeys.udf3: '',
+  //     PayUAdditionalParamKeys.udf4: '',
+  //     PayUAdditionalParamKeys.udf5: '',
+  //   };
+  //
+  //   final payUPaymentParams = {
+  //     PayUPaymentParamKey.key: merchantKey,
+  //     PayUPaymentParamKey.amount: amount,
+  //     PayUPaymentParamKey.productInfo: productInfo,
+  //     PayUPaymentParamKey.firstName: firstName,
+  //     PayUPaymentParamKey.email: email,
+  //     PayUPaymentParamKey.phone: phone,
+  //
+  //     // Test URLs from PayU docs
+  //     PayUPaymentParamKey.ios_surl: 'https://cbjs.payu.in/sdk/success',
+  //     PayUPaymentParamKey.ios_furl: 'https://cbjs.payu.in/sdk/failure',
+  //     PayUPaymentParamKey.android_surl: 'https://cbjs.payu.in/sdk/success',
+  //     PayUPaymentParamKey.android_furl: 'https://cbjs.payu.in/sdk/failure',
+  //
+  //     // 1 = test, 0 = production
+  //     PayUPaymentParamKey.environment: '1',
+  //
+  //     PayUPaymentParamKey.userCredential: userCredential,
+  //     PayUPaymentParamKey.transactionId: txnId,
+  //     PayUPaymentParamKey.additionalParam: additionalParam,
+  //   };
+  //
+  //   final payUCheckoutProConfig = {
+  //     PayUCheckoutProConfigKeys.merchantName: 'FitKhao',
+  //     PayUCheckoutProConfigKeys.showExitConfirmationOnCheckoutScreen: true,
+  //     PayUCheckoutProConfigKeys.showExitConfirmationOnPaymentScreen: true,
+  //     PayUCheckoutProConfigKeys.autoSelectOtp: true,
+  //   };
+  //
+  //   _checkoutPro.openCheckoutScreen(
+  //     payUPaymentParams: payUPaymentParams,
+  //     payUCheckoutProConfig: payUCheckoutProConfig,
+  //   );
+  // }
+
+
+  final String payuMerchantKey = 'x4JE8Z';
+  final String payuSalt = 'C79yyUhbHnoH98ge9jLZZHfIMS8d1xdK';
+  final String payuBaseUrl = 'https://test.payu.in/_payment';
+
+  // Generate PayU hash using SHA-512
+  String generatePayUHash(String key, String command, String var1) {
+    final input = '$key|$command|$var1|$payuSalt';
+    final bytes = utf8.encode(input);
+    final digest = sha512.convert(bytes);
+    return digest.toString();
+  }
+
+
+  // Pay Now method
+  Future<bool> payNow() async {
+    // Payment details
+    const String transactionId = 'txnid132735124320';
+    const String amount = '10.00';
+    const String firstName = 'Ashish';
+    const String email = 'test@gmail.com';
+    const String phone = '9876543210';
+    const String productInfo = 'iPhone';
+    const String pg = 'TESTPG';
+    const String bankCode = 'TESTPGNB';
+    const String surl =
+        'https://test-payment-middleware.payu.in/simulatorResponse';
+    const String furl =
+        'https://test-payment-middleware.payu.in/simulatorResponse';
+
+    // Use the command 'payment' for the payment process
+    const String command = 'payment';
+
+    // Generate the hash using the provided method
+    final String hash = generatePayUHash(
+      payuMerchantKey,
+      command,
+      transactionId, // Using transaction ID as var1
+    );
+
+    // Making the payment request
+    final response = await http.post(
+      Uri.parse('https://test.payu.in/_payment'),
+      headers: {
+        'accept': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: {
+        'key': payuMerchantKey,
+        'txnid': transactionId,
+        'amount': amount,
+        'firstname': firstName,
+        'email': email,
+        'phone': phone,
+        'productinfo': productInfo,
+        'pg': pg,
+        'bankcode': bankCode,
+        'surl': surl,
+        'furl': furl,
+        'hash': hash,
+      },
+    );
+
+    // Handle the response
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  @override
+  void generateHash(Map response) {
+    debugPrint('Unexpected dynamic hash request: $response');
+    // This static-hash demo is intended to avoid backend hashing for a quick test.
+    // If PayU asks for more hashes for your flow, move to server-side dynamic hashing.
+  }
+
+  @override
+  void onPaymentSuccess(dynamic response) {
+    debugPrint('PAYMENT SUCCESS => $response');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Payment Success')),
+    );
+  }
+
+  @override
+  void onPaymentFailure(dynamic response) {
+    debugPrint('PAYMENT FAILURE => $response');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Payment Failure')),
+    );
+  }
+
+  @override
+  void onPaymentCancel(Map? response) {
+    debugPrint('PAYMENT CANCELLED => $response');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Payment Cancelled')),
+    );
+  }
+
+  @override
+  void onError(Map? response) {
+    debugPrint('PAYMENT ERROR => $response');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Payment Error: $response')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('PayU Static Hash Test')),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: payNow,
+          child: const Text('Pay 10'),
         ),
       ),
     );
