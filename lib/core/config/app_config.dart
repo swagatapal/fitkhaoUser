@@ -22,8 +22,13 @@ class AppConfig {
 
   /// API
   //static const String baseApiUrl = 'http://10.15.146.1:7071';
-  static const String baseApiUrl = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net';
+  //static const String baseApiUrl = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net';
 
+  // development url
+  static const String baseApiUrl = 'https://fitkhaodev-dtambvcxh2c2c7f3.centralindia-01.azurewebsites.net';
+
+  // production url
+  // static const String baseApiUrl  = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net/';
 
 
 
@@ -39,6 +44,17 @@ class AppConfig {
   static const String walletTransactionsPath = '/api/wallet/transactions';
   static const String uploadImagePath = '/api/upload/image';
 
+  /// Delivery Slots
+  static const String deliverySlotListPath = '/api/delivery-slot/list';
+  static const String deliverySlotConfirmPath = '/api/delivery-slots/confirm';
+  static const String deliverySlotsPath = '/api/delivery-slots';
+
+  /// Subscription plans (public)
+  static const String subscriptionPlansPath = '/api/adm/subscription-plan';
+
+  /// App content — terms & conditions, privacy policy (public)
+  static const String appContentPath = '/api/app-content';
+
   /// Analytics base (trending)
-  static const String trendingPath = '/api/analytics/trending/';
+  //static const String trendingPath = '/api/analytics/trending/';
 }

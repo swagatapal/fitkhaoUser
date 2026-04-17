@@ -33,7 +33,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProfileData();
       _loadWalletBalance();
-      _loadTrending();
       _checkServiceability();
       _loadNutritionProgress();
     });
@@ -56,14 +55,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     ]);
   }
 
-  Future<void> _loadTrending() async {
-    final notifier = ref.read(trendingProvider.notifier);
-    await notifier.load(
-      kitchenId: '69275ba5c538faaf25e2acd1',
-      timeSlot: 'morning',
-      limit: 10,
-    );
-  }
 
   /// Load user profile data
   Future<void> _loadProfileData() async {

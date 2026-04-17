@@ -5,6 +5,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../shared/widgets/logo_widget.dart';
+import '../../models/subscription_plan_model.dart';
+import '../../providers/subscription_plan_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../widgets/recharge_topup_modal.dart';
 import 'subscription_checkout_screen.dart';
@@ -20,15 +22,14 @@ class SubscriptionPlanScreen extends ConsumerStatefulWidget {
 
 class _SubscriptionPlanScreenState
     extends ConsumerState<SubscriptionPlanScreen> {
-  String _selectedPlan = '7'; // '7' or '30' days
+  SubscriptionPlan? _selectedPlan;
 
   @override
   void initState() {
     super.initState();
-    // Load wallet balance to check subscription status
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final walletNotifier = ref.read(walletProvider.notifier);
-      walletNotifier.loadWalletBalance();
+      ref.read(walletProvider.notifier).loadWalletBalance();
+      ref.read(subscriptionPlanProvider.notifier).loadPlans();
     });
   }
 
@@ -57,43 +58,43 @@ class _SubscriptionPlanScreenState
                         _buildActiveSubscriptionCard(),
                         const SizedBox(height: AppSizes.spacing16),
                         // Recharge Top-up button
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => const RechargeTopupModal(),
-                              );
-                            },
-                            icon: const Icon(
-                              Icons.account_balance_wallet,
-                              size: AppSizes.icon20,
-                            ),
-                            label: const Text(
-                              'Recharge Wallet',
-                              style: TextStyle(
-                                fontSize: AppTypography.fontSize16,
-                                fontWeight: AppTypography.semiBold,
-                                fontFamily: 'Lato',
-                              ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.primaryGreen,
-                              side: const BorderSide(
-                                color: AppColors.primaryGreen,
-                                width: 2,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(AppSizes.radius4),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: AppSizes.spacing16,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: AppSizes.spacing24),
+                        // SizedBox(
+                        //   width: double.infinity,
+                        //   child: OutlinedButton.icon(
+                        //     onPressed: () {
+                        //       showDialog(
+                        //         context: context,
+                        //         builder: (context) => const RechargeTopupModal(),
+                        //       );
+                        //     },
+                        //     icon: const Icon(
+                        //       Icons.account_balance_wallet,
+                        //       size: AppSizes.icon20,
+                        //     ),
+                        //     label: const Text(
+                        //       'Recharge Wallet',
+                        //       style: TextStyle(
+                        //         fontSize: AppTypography.fontSize16,
+                        //         fontWeight: AppTypography.semiBold,
+                        //         fontFamily: 'Lato',
+                        //       ),
+                        //     ),
+                        //     style: OutlinedButton.styleFrom(
+                        //       foregroundColor: AppColors.primaryGreen,
+                        //       side: const BorderSide(
+                        //         color: AppColors.primaryGreen,
+                        //         width: 2,
+                        //       ),
+                        //       shape: RoundedRectangleBorder(
+                        //         borderRadius: BorderRadius.circular(AppSizes.radius4),
+                        //       ),
+                        //       padding: const EdgeInsets.symmetric(
+                        //         vertical: AppSizes.spacing16,
+                        //       ),
+                        //     ),
+                        //   ),
+                        // ),
+                        //const SizedBox(height: AppSizes.spacing24),
                         const Text(
                           'Upgrade Your Plan',
                           style: TextStyle(
@@ -105,21 +106,7 @@ class _SubscriptionPlanScreenState
                         ),
                         const SizedBox(height: AppSizes.spacing16),
                       ],
-                      _buildPlanCard(
-                        days: '7',
-                        title: '7 Days Plan',
-                        price: '₹1999',
-                        meals: 'Upto 21 meals',
-                        subtitle: 'The weekly Kickstart to experience FitKhao',
-                      ),
-                      const SizedBox(height: AppSizes.spacing16),
-                      _buildPlanCard(
-                        days: '30',
-                        title: '30 Days Plan',
-                        price: '₹7999',
-                        meals: 'Upto 90 meals',
-                        subtitle: 'Save more with monthly subscription',
-                      ),
+                      _buildPlansList(),
                       const SizedBox(height: AppSizes.spacing24),
                       _buildWhyFitKhaoSection(),
                       const SizedBox(height: AppSizes.spacing24),
@@ -186,7 +173,7 @@ class _SubscriptionPlanScreenState
                 ),
                 //const SizedBox(height: AppSizes.spacing2),
                 Text(
-                 "Select the plan that fits your goal",
+                  "Select the plan that fits your goal",
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize12,
                     fontWeight: AppTypography.regular,
@@ -197,23 +184,23 @@ class _SubscriptionPlanScreenState
               ],
             ),
           ),
-          CircleAvatar(
-            radius: AppSizes.spacing24,
-            backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-            backgroundImage: const NetworkImage(
-              "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
-            ),
-            onBackgroundImageError: (exception, stackTrace) {},
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.3),
-                  width: AppSizes.borderThin,
-                ),
-              ),
-            ),
-          ),
+          // CircleAvatar(
+          //   radius: AppSizes.spacing24,
+          //   backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
+          //   backgroundImage: const NetworkImage(
+          //     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
+          //   ),
+          //   onBackgroundImageError: (exception, stackTrace) {},
+          //   child: Container(
+          //     decoration: BoxDecoration(
+          //       shape: BoxShape.circle,
+          //       border: Border.all(
+          //         color: AppColors.primaryGreen.withValues(alpha: 0.3),
+          //         width: AppSizes.borderThin,
+          //       ),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -223,30 +210,98 @@ class _SubscriptionPlanScreenState
     return LogoWidget();
   }
 
-  Widget _buildPlanCard({
-    required String days,
-    required String title,
-    required String price,
-    required String meals,
-    required String subtitle,
-  }) {
-    final isSelected = _selectedPlan == days;
+  Widget _buildPlansList() {
+    final planState = ref.watch(subscriptionPlanProvider);
+
+    if (planState.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSizes.spacing24),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.primaryGreen),
+        ),
+      );
+    }
+
+    if (planState.error != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing16),
+        child: Center(
+          child: Column(
+            children: [
+              Text(
+                planState.error!,
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  color: AppColors.errorColor,
+                  fontFamily: 'Lato',
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSizes.spacing12),
+              TextButton(
+                onPressed: () =>
+                    ref.read(subscriptionPlanProvider.notifier).loadPlans(),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(
+                    color: AppColors.primaryGreen,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (planState.plans.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSizes.spacing16),
+        child: Center(
+          child: Text(
+            'No subscription plans available.',
+            style: TextStyle(
+              fontSize: AppTypography.fontSize14,
+              color: AppColors.textSecondary,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Auto-select first plan if nothing is selected yet
+    if (_selectedPlan == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _selectedPlan = planState.plans.first);
+        }
+      });
+    }
+
+    return Column(
+      children: [
+        for (int i = 0; i < planState.plans.length; i++) ...[
+          if (i > 0) const SizedBox(height: AppSizes.spacing16),
+          _buildPlanCard(planState.plans[i]),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPlanCard(SubscriptionPlan plan) {
+    final isSelected = _selectedPlan?.id == plan.id;
 
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedPlan = days;
-        });
-      },
+      onTap: () => setState(() => _selectedPlan = plan),
       child: Container(
         padding: const EdgeInsets.all(AppSizes.spacing16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(AppSizes.radius8),
           border: Border.all(
-            color: isSelected
-                ? AppColors.primaryGreen
-                : AppColors.borderColor,
+            color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
             width: isSelected ? 2 : 1,
           ),
           boxShadow: [
@@ -265,8 +320,8 @@ class _SubscriptionPlanScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
-                    style: TextStyle(
+                    "${plan.planName} (${plan.planCode})",
+                    style: const TextStyle(
                       fontSize: AppTypography.fontSize16,
                       fontWeight: AppTypography.bold,
                       color: AppColors.primaryGreen,
@@ -275,7 +330,7 @@ class _SubscriptionPlanScreenState
                   ),
                   const SizedBox(height: AppSizes.spacing8),
                   Text(
-                    price,
+                    plan.formattedPrice,
                     style: const TextStyle(
                       fontSize: AppTypography.fontSize20,
                       fontWeight: AppTypography.bold,
@@ -285,17 +340,7 @@ class _SubscriptionPlanScreenState
                   ),
                   const SizedBox(height: AppSizes.spacing8),
                   Text(
-                    meals,
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize14,
-                      fontWeight: AppTypography.semiBold,
-                      color: AppColors.textPrimary,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.spacing4),
-                  Text(
-                    subtitle,
+                    plan.planDescription,
                     style: const TextStyle(
                       fontSize: AppTypography.fontSize12,
                       fontWeight: AppTypography.regular,
@@ -306,31 +351,29 @@ class _SubscriptionPlanScreenState
                 ],
               ),
             ),
-            const SizedBox(width: AppSizes.spacing16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppSizes.radius12),
-              child: Image.network(
-                'https://img.freepik.com/free-photo/top-view-table-full-food_23-2149209253.jpg?semt=ais_hybrid&w=740&q=80',
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppSizes.radius12),
-                    ),
-                    child: const Icon(
-                      Icons.restaurant_menu,
-                      size: AppSizes.icon32,
-                      color: AppColors.primaryGreen,
-                    ),
-                  );
-                },
-              ),
-            ),
+            // const SizedBox(width: AppSizes.spacing16),
+            // ClipRRect(
+            //   borderRadius: BorderRadius.circular(AppSizes.radius12),
+            //   child: Image.network(
+            //     'https://img.freepik.com/free-photo/top-view-table-full-food_23-2149209253.jpg?semt=ais_hybrid&w=740&q=80',
+            //     width: 80,
+            //     height: 80,
+            //     fit: BoxFit.cover,
+            //     errorBuilder: (_, __, ___) => Container(
+            //       width: 80,
+            //       height: 80,
+            //       decoration: BoxDecoration(
+            //         color: AppColors.primaryGreen.withValues(alpha: 0.1),
+            //         borderRadius: BorderRadius.circular(AppSizes.radius12),
+            //       ),
+            //       child: const Icon(
+            //         Icons.restaurant_menu,
+            //         size: AppSizes.icon32,
+            //         color: AppColors.primaryGreen,
+            //       ),
+            //     ),
+            //   ),
+            // ),
           ],
         ),
       ),
@@ -355,8 +398,8 @@ class _SubscriptionPlanScreenState
         const SizedBox(height: AppSizes.spacing8),
         _buildBenefitItem('Customized Meal Preference'),
         const SizedBox(height: AppSizes.spacing8),
-        _buildBenefitItem('3 Meals Per Day'),
-        const SizedBox(height: AppSizes.spacing8),
+        // _buildBenefitItem('3 Meals Per Day'),
+        // const SizedBox(height: AppSizes.spacing8),
         _buildBenefitItem('Free Delivery'),
       ],
     );
@@ -626,57 +669,59 @@ class _SubscriptionPlanScreenState
         height: AppSizes.buttonHeight,
         child: hasActiveSubscription
             ? Container(
-                decoration: BoxDecoration(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppSizes.radius4),
-                  border: Border.all(
-                    color: AppColors.primaryGreen,
-                    width: 2,
-                  ),
-                ),
-                child: const Center(
-                  child: Text(
-                    'You have already active plan',
-                    style: TextStyle(
-                      fontSize: AppTypography.fontSize16,
-                      fontWeight: AppTypography.bold,
-                      color: AppColors.primaryGreen,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ),
-              )
+          decoration: BoxDecoration(
+            color: AppColors.primaryGreen.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppSizes.radius4),
+            border: Border.all(
+              color: AppColors.primaryGreen,
+              width: 2,
+            ),
+          ),
+          child: const Center(
+            child: Text(
+              'You already have active plan',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize16,
+                fontWeight: AppTypography.bold,
+                color: AppColors.primaryGreen,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+        )
             : ElevatedButton(
-                onPressed: () {
-                  // Navigate to checkout screen with selected plan details
-                  final planPrice = _selectedPlan == '7' ? '₹1999' : '₹7999';
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => SubscriptionCheckoutScreen(
-                        planDays: _selectedPlan,
-                        planPrice: planPrice,
-                      ),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryGreen,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSizes.radius4),
-                  ),
-                  elevation: 2,
-                ),
-                child: Text(
-                  'Buy $_selectedPlan Days Plan',
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize16,
-                    fontWeight: AppTypography.semiBold,
-                    fontFamily: 'Lato',
-                  ),
+          onPressed: _selectedPlan == null
+              ? null
+              : () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SubscriptionCheckoutScreen(
+                  planDays: _selectedPlan!.planDays,
+                  planPrice: _selectedPlan!.formattedPrice,
                 ),
               ),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryGreen,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radius4),
+            ),
+            elevation: 2,
+          ),
+          child: Text(
+            _selectedPlan == null
+                ? 'Select a Plan'
+                : 'Buy ${_selectedPlan!.planValidity} Plan',
+            style: const TextStyle(
+              fontSize: AppTypography.fontSize16,
+              fontWeight: AppTypography.semiBold,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ),
       ),
     );
   }

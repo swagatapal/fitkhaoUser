@@ -3,6 +3,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/services/local_storage_service.dart';
+import '../models/subscription_plan_model.dart';
 import '../models/subscription_request_model.dart';
 import '../models/subscription_response_model.dart';
 
@@ -16,6 +17,22 @@ class SubscriptionRepository {
     required LocalStorageService localStorage,
   })  : _apiClient = apiClient,
         _localStorage = localStorage;
+
+  /// Fetch all active subscription plans (public endpoint — no auth required)
+  Future<SubscriptionPlanResponse> getSubscriptionPlans() async {
+    debugPrint('[SubscriptionRepository] Fetching subscription plans...');
+    try {
+      final json = await _apiClient.getJson(
+        '${AppConfig.subscriptionPlansPath}?isActive=true',
+      );
+      debugPrint('[SubscriptionRepository] Plans response: $json');
+      return SubscriptionPlanResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[SubscriptionRepository] Error fetching plans: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
 
   /// Create a new subscription
   Future<SubscriptionResponse> createSubscription({
