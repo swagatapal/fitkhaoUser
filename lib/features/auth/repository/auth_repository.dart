@@ -101,12 +101,12 @@ class AuthRepository {
         refreshToken: null,
         user: user != null
             ? UserData(
-                id: userId ?? '',
-                phoneNumber: userMobile ?? phoneNumber,
-                name: profileName,
-                email: null,
-                isNewUser: !(user['isVerified'] as bool? ?? true),
-              )
+          id: userId ?? '',
+          phoneNumber: userMobile ?? phoneNumber,
+          name: profileName,
+          email: null,
+          isNewUser: !(user['isVerified'] as bool? ?? true),
+        )
             : null,
       );
     } catch (e) {
@@ -231,6 +231,123 @@ class AuthRepository {
       return json;
     } catch (e) {
       debugPrint('[AuthRepository] Profile update error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw AuthException(message: message, originalError: e);
+    }
+  }
+
+  /// Fetch physiological categories from API
+  Future<Map<String, dynamic>> getPhysiologicalCategories() async {
+    debugPrint('[AuthRepository] Fetching physiological categories...');
+
+    try {
+      final token = getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+          message: 'Authentication required. Please login again.',
+        );
+      }
+
+      final headers = {
+        'Authorization': 'Bearer $token',
+      };
+
+      final json = await _apiClient.getJson(
+        '${AppConfig.physiologicalCategoriesPath}?isActive=true',
+        headers: headers,
+      );
+
+      debugPrint('[AuthRepository] Physiological categories response: $json');
+      return json;
+    } catch (e) {
+      debugPrint('[AuthRepository] Physiological categories error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw AuthException(message: message, originalError: e);
+    }
+  }
+
+  /// Fetch profession groups from API
+  Future<Map<String, dynamic>> getProfessions() async {
+    debugPrint('[AuthRepository] Fetching professions...');
+
+    try {
+      final token = getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+          message: 'Authentication required. Please login again.',
+        );
+      }
+
+      final headers = {
+        'Authorization': 'Bearer $token',
+      };
+
+      final json = await _apiClient.getJson(
+        AppConfig.professionPath,
+        headers: headers,
+      );
+
+      debugPrint('[AuthRepository] Professions response: $json');
+      return json;
+    } catch (e) {
+      debugPrint('[AuthRepository] Professions error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw AuthException(message: message, originalError: e);
+    }
+  }
+
+  /// Fetch exercise groups from API
+  Future<Map<String, dynamic>> getExercises() async {
+    debugPrint('[AuthRepository] Fetching exercises...');
+
+    try {
+      final token = getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+          message: 'Authentication required. Please login again.',
+        );
+      }
+
+      final headers = {
+        'Authorization': 'Bearer $token',
+      };
+
+      final json = await _apiClient.getJson(
+        AppConfig.exercisePath,
+        headers: headers,
+      );
+
+      debugPrint('[AuthRepository] Exercises response: $json');
+      return json;
+    } catch (e) {
+      debugPrint('[AuthRepository] Exercises error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw AuthException(message: message, originalError: e);
+    }
+  }
+
+  /// Fetch profile update history for a user
+  Future<Map<String, dynamic>> getProfileHistory(String userId) async {
+    debugPrint('[AuthRepository] Fetching profile history for $userId...');
+
+    try {
+      final token = getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+          message: 'Authentication required. Please login again.',
+        );
+      }
+
+      final headers = {'Authorization': 'Bearer $token'};
+      final json = await _apiClient.getJson(
+        '${AppConfig.userHistoryPath}/$userId',
+        headers: headers,
+      );
+
+      debugPrint('[AuthRepository] Profile history response: $json');
+      return json;
+    } catch (e) {
+      debugPrint('[AuthRepository] Profile history error: $e');
       final message = ExceptionHandler.getErrorMessage(e);
       throw AuthException(message: message, originalError: e);
     }

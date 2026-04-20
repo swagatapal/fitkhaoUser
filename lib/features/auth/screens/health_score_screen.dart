@@ -43,11 +43,11 @@ class _HealthScoreScreenState extends ConsumerState<HealthScoreScreen> {
     debugPrint('Height: ${authState.height} cm');
     debugPrint('Weight: ${authState.weight} kg');
     debugPrint('Does Exercise: ${authState.doesExercise}');
-    debugPrint('Exercise Days/Week: ${authState.exerciseDaysPerWeek}');
-    debugPrint('Exercise Hours/Day: ${authState.exerciseDurationHours}');
-    debugPrint('Exercise Type: ${authState.exerciseType}');
-    debugPrint('Physical Activity Level: ${authState.physicalActivityLevel}');
-    debugPrint('BMI: ${authState.bmi}');
+    // debugPrint('Exercise Days/Week: ${authState.exerciseDaysPerWeek}');
+    // debugPrint('Exercise Hours/Day: ${authState.exerciseDurationHours}');
+    // debugPrint('Exercise Type: ${authState.exerciseType}');
+    // debugPrint('Physical Activity Level: ${authState.physicalActivityLevel}');
+    // debugPrint('BMI: ${authState.bmi}');
     debugPrint('Health Score: ${authState.healthScore}');
     debugPrint('========================================');
     debugPrint('ADDRESS:');
@@ -181,24 +181,24 @@ class _HealthScoreScreenState extends ConsumerState<HealthScoreScreen> {
                     children: [
                       widget.scoreLevel == "low"
                           ? Image.asset(
-                              "assets/images/red.png",
-                              fit: BoxFit.cover,
-                              width: AppSizes.scoreCardWidth,
-                              height: AppSizes.scoreCardHeight,
-                            )
+                        "assets/images/red.png",
+                        fit: BoxFit.cover,
+                        width: AppSizes.scoreCardWidth,
+                        height: AppSizes.scoreCardHeight,
+                      )
                           : widget.scoreLevel == "good"
                           ? Image.asset(
-                              "assets/images/green.png",
-                              fit: BoxFit.cover,
-                              width: AppSizes.scoreCardWidth,
-                              height: AppSizes.scoreCardHeight,
-                            )
+                        "assets/images/green.png",
+                        fit: BoxFit.cover,
+                        width: AppSizes.scoreCardWidth,
+                        height: AppSizes.scoreCardHeight,
+                      )
                           : Image.asset(
-                              "assets/images/yellow.png",
-                              fit: BoxFit.cover,
-                              width: AppSizes.scoreCardWidth,
-                              height: AppSizes.scoreCardHeight,
-                            ),
+                        "assets/images/yellow.png",
+                        fit: BoxFit.cover,
+                        width: AppSizes.scoreCardWidth,
+                        height: AppSizes.scoreCardHeight,
+                      ),
                       Center(
                         child: Text(
                           '${widget.healthScore}/100',
@@ -229,17 +229,17 @@ class _HealthScoreScreenState extends ConsumerState<HealthScoreScreen> {
                     BoxShadow(
                       color: Color(
                         0xFF18181B,
-                      ).withOpacity(0.10), 
-                      offset: Offset(0, 16), 
-                      blurRadius: 24, 
+                      ).withOpacity(0.10),
+                      offset: Offset(0, 16),
+                      blurRadius: 24,
                       spreadRadius: 2,
                     ),
                     BoxShadow(
                       color: Color(
                         0xFF18181B,
-                      ).withOpacity(0.30), 
-                      offset: Offset(0, 0), 
-                      blurRadius: 1, 
+                      ).withOpacity(0.30),
+                      offset: Offset(0, 0),
+                      blurRadius: 1,
                       spreadRadius: 0,
                     ),
                   ],
@@ -264,11 +264,11 @@ class _HealthScoreScreenState extends ConsumerState<HealthScoreScreen> {
                       child: Text(
                         AppStrings.healthScoreInfo,
                         style: TextStyle(
-                          fontSize: context.responsiveFontSize(15.0),
-                          color: AppColors.textPrimary,
-                          fontFamily: 'Lato',
-                          height: 1.4,
-                          fontWeight: FontWeight.w400
+                            fontSize: context.responsiveFontSize(15.0),
+                            color: AppColors.textPrimary,
+                            fontFamily: 'Lato',
+                            height: 1.4,
+                            fontWeight: FontWeight.w400
                         ),
                       ),
                     ),
@@ -311,19 +311,19 @@ class _HealthScoreScreenState extends ConsumerState<HealthScoreScreen> {
   List<Color> _getGradientColors(String level) {
     switch (level.toLowerCase()) {
       case 'low':
-        // Red to Orange gradient
+      // Red to Orange gradient
         return [
           const Color(0xFFE74C3C), // Red
           const Color(0xFFE67E22), // Orange
         ];
       case 'medium':
-        // Yellow to Gold gradient
+      // Yellow to Gold gradient
         return [
           const Color(0xFFF39C12), // Gold/Yellow
           const Color(0xFFF1C40F), // Yellow
         ];
       case 'good':
-        // Green gradient
+      // Green gradient
         return [
           const Color(0xFF27AE60), // Green
           const Color(0xFF2ECC71), // Light Green

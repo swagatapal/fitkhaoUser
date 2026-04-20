@@ -7,12 +7,13 @@ import '../models/auth_state.dart';
 import '../models/profile_update_model.dart';
 import '../models/verify_otp_model.dart';
 import '../repository/auth_repository.dart';
+import '../../profile/models/physiological_category_model.dart';
 
 class AuthNotifier extends StateNotifier<AuthState> {
   Timer? _resendTimer;
   final AuthRepository _authRepository;
 
-  AuthNotifier(this._authRepository) : super(const AuthState());
+  AuthNotifier(this._authRepository) : super( AuthState());
 
   @override
   void dispose() {
@@ -278,16 +279,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
+  /// Save selected physiological condition codes
+  void saveSelectedConditions(List<String> codes) {
+    state = state.copyWith(selectedConditionCodes: codes);
+  }
+
   /// Save detailed health information
   void saveDetailedHealthInfo({
     required double height,
     required double weight,
     required double age,
-    required String physicalActivityLevel,
+    required String professionGroupId,
     required bool doesExercise,
-    int? exerciseDaysPerWeek,
-    double? exerciseDurationHours,
-    required String exerciseType,
+    required List<Map<String, dynamic>> exercises,
     required bool pregnancy,
     String? pregnancyStage,
     required bool lactation,
@@ -305,11 +309,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       height: height,
       weight: weight,
       age: age,
-      physicalActivityLevel: physicalActivityLevel,
+      professionGroupId: professionGroupId,
       doesExercise: doesExercise,
-      exerciseDaysPerWeek: exerciseDaysPerWeek,
-      exerciseDurationHours: exerciseDurationHours,
-      exerciseType: exerciseType,
+      exercises: exercises,
       pregnancy: pregnancy,
       pregnancyStage: pregnancyStage,
       lactation: lactation,
@@ -332,15 +334,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final response = await _authRepository.getProfile();
 
-      debugPrint('[AuthNotifier] Profile fetch response: $response');
+      debugPrint('[AuthNotifier] Profile fetch response keys: ${response.keys.toList()}');
 
-      // Check if fetch was successful
-      final success = response['success'] == true;
-      final data = response['data'] as Map<String, dynamic>?;
-      final user = data?['user'] as Map<String, dynamic>?;
+      // Support both response formats:
+      // New: { "user": { ... } }
+      // Old: { "success": true, "data": { "user": { ... } } }
+      Map<String, dynamic>? user;
+      if (response.containsKey('user') && response['user'] is Map<String, dynamic>) {
+        user = response['user'] as Map<String, dynamic>;
+      } else if (response['data'] is Map<String, dynamic>) {
+        final data = response['data'] as Map<String, dynamic>;
+        user = data['user'] as Map<String, dynamic>?;
+      }
+
       final profile = user?['profile'] as Map<String, dynamic>?;
 
-      if (success && profile != null) {
+      final userId = user?['id'] as String? ?? '';
+      final mobileNumber = user?['mobileNumber'] as String? ?? '';
+
+      debugPrint('[AuthNotifier] Parsed user: ${user != null}, profile: ${profile != null}');
+
+      if (user != null && profile != null) {
         // Extract profile data
         final name = profile['name'] as String? ?? '';
         final imgUrl = profile['imgUrl'] as String? ?? "";
@@ -349,11 +363,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final weight = (profile['weight'] as num?)?.toDouble() ?? 0.0;
         final height = (profile['height'] as num?)?.toDouble() ?? 0.0;
         final doesWorkout = profile['doesWorkout'] as bool? ?? false;
-        final workoutDaysPerWeek = profile['workoutDaysPerWeek'] as int? ?? 0;
-        final workoutHoursPerDay = (profile['workoutHoursPerDay'] as num?)?.toDouble() ?? 0.0;
-        final exerciseType = profile['exerciseType'] as String? ?? 'type-1';
-        final profession = profile['profession'] as String? ?? 'type-1';
+        final professionGroupId = profile['professionGroupId'] as String? ?? '';
         final selectedGoal = profile['selectedGoal'] as String? ?? 'regular-bmi-maintenance';
+
+        // Parse exercises array: [{exerciseGroupId, daysPerWeek, hoursPerDay}]
+        final rawExercises = profile['exercises'] as List<dynamic>? ?? [];
+        final exercises = rawExercises
+            .whereType<Map<String, dynamic>>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
 
         // Extract nutritional targets
         final targetProtein = (profile['targetProtein'] as num?)?.toDouble();
@@ -387,21 +405,73 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final latitude = (address?['latitude'] as num?)?.toDouble();
         final longitude = (address?['longitude'] as num?)?.toDouble();
 
-        // Extract special conditions
-        final specialConditions = profile['specialConditions'] as Map<String, dynamic>?;
-        final diabetes = specialConditions?['diabetes'] as bool? ?? false;
-        final hyperTension = specialConditions?['hyperTension'] as bool? ?? false;
-        final cardiacProblem = specialConditions?['cardiacProblem'] as bool? ?? false;
-        final liverIssues = specialConditions?['liverIssues'] as bool? ?? false;
-        final kidneyIssues = specialConditions?['kidneyIssues'] as bool? ?? false;
-        final otherConditions = specialConditions?['other'] as String? ?? '';
+        // Extract special conditions from array format:
+        // [{"code": "t2dm", "name": "...", "value": false}, ...]
+        bool diabetes = false;
+        bool hyperTension = false;
+        bool cardiacProblem = false;
+        bool liverIssues = false;
+        bool kidneyIssues = false;
+        bool pregnancyFromConditions = false;
+        bool lactationFromConditions = false;
+        String otherConditions = '';
+        final List<String> selectedCodes = [];
 
-        // Extract digestive issues
-        final digestiveIssues = profile['digestiveIssues'] as Map<String, dynamic>?;
-        final regularlyConstipated = digestiveIssues?['regularlyConstipated'] as bool? ?? false;
-        final diarrhoeal = digestiveIssues?['diarrhoeal'] as bool? ?? false;
+        final specialConditionsList = profile['specialConditions'] as List<dynamic>?;
+        if (specialConditionsList != null) {
+          for (final condition in specialConditionsList) {
+            if (condition is Map<String, dynamic>) {
+              final code = condition['code'] as String? ?? '';
+              final value = condition['value'] as bool? ?? false;
+
+              // Collect all active condition codes
+              if (value && code.isNotEmpty) {
+                selectedCodes.add(code);
+              }
+
+              // Also map to legacy boolean fields for backward compatibility
+              switch (code) {
+                case 't2dm':
+                  diabetes = value;
+                  break;
+                case 'hypertension':
+                  hyperTension = value;
+                  break;
+                case 'cvd':
+                  cardiacProblem = value;
+                  break;
+                case 'ckd':
+                  kidneyIssues = value;
+                  break;
+                case 'p123':
+                  pregnancyFromConditions = value;
+                  break;
+                case 'l12':
+                  lactationFromConditions = value;
+                  break;
+                default:
+                  if (value) {
+                    final condName = condition['name'] as String? ?? code;
+                    otherConditions = otherConditions.isEmpty
+                        ? condName
+                        : '$otherConditions, $condName';
+                  }
+                  break;
+              }
+            }
+          }
+        }
+
+        // Extract digestive issues (new key: regularlyDiarrhoeal)
+        final digestiveIssues =
+        profile['digestiveIssues'] as Map<String, dynamic>?;
+        final regularlyConstipated =
+            digestiveIssues?['regularlyConstipated'] as bool? ?? false;
+        final regularlyDiarrhoeal =
+            digestiveIssues?['regularlyDiarrhoeal'] as bool? ??
+                digestiveIssues?['diarrhoeal'] as bool? ?? // legacy fallback
+                false;
         final both = digestiveIssues?['both'] as bool? ?? false;
-        final none = digestiveIssues?['none'] as bool? ?? false;
 
         // Map digestive issues to regularityStatus
         String regularityStatus = 'None';
@@ -409,17 +479,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
           regularityStatus = 'Both';
         } else if (regularlyConstipated) {
           regularityStatus = 'Constipated';
-        } else if (diarrhoeal) {
+        } else if (regularlyDiarrhoeal) {
           regularityStatus = 'Diarrhoeal';
         }
 
-        // Extract pregnancy and lactation stages
-        final pregnancyStage = profile['pregnancy'] as String?;
-        final lactationStage = profile['lactation'] as String?;
-
-        // Extract profile updatedAt timestamp
+        // Extract profile updatedAt and isUpdateable from data level
         DateTime? profileUpdatedAt;
-        final updatedAtStr = user?['updatedAt'] as String?;
+        final updatedAtStr = user['updatedAt'] as String?;
         if (updatedAtStr != null && updatedAtStr.isNotEmpty) {
           try {
             profileUpdatedAt = DateTime.parse(updatedAtStr);
@@ -427,9 +493,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
             debugPrint('[AuthNotifier] Error parsing profileUpdatedAt: $e');
           }
         }
+        final isUpdateable = user['isUpdateable'] as bool? ?? true;
 
         // Update state with fetched data
         state = state.copyWith(
+          userId: userId,
+          phoneNumber: mobileNumber.isNotEmpty ? mobileNumber : null,
           name: name,
           imgUrl: imgUrl,
           gender: gender,
@@ -438,10 +507,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
           weight: weight > 0 ? weight : null,
           age: double.parse(age.toString()),
           doesExercise: doesWorkout,
-          exerciseDaysPerWeek: workoutDaysPerWeek > 0 ? workoutDaysPerWeek : null,
-          exerciseDurationHours: workoutHoursPerDay > 0 ? workoutHoursPerDay : null,
-          exerciseType: exerciseType,
-          physicalActivityLevel: profession,
+          professionGroupId: professionGroupId,
+          exercises: exercises,
+          isUpdateable: isUpdateable,
           buildingNameNumber: buildingName,
           street: street,
           pincode: pincode,
@@ -454,17 +522,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
           liverRelatedProblem: liverIssues,
           otherConditions: otherConditions,
           regularityStatus: regularityStatus,
-          pregnancy: pregnancyStage != null && pregnancyStage.isNotEmpty,
-          pregnancyStage: pregnancyStage,
-          lactation: lactationStage != null && lactationStage.isNotEmpty,
-          lactationStage: lactationStage,
+          pregnancy: pregnancyFromConditions,
+          lactation: lactationFromConditions,
+          selectedConditionCodes: selectedCodes,
           targetProtein: targetProtein,
           targetFat: targetFat,
           targetCarbs: targetCarbs,
           targetKCalories: targetKCalories,
           lastUpdatedTargetKCal: lastUpdatedTargetKCal,
           selectedGoal: selectedGoal,
-          profession: profession,
           profileUpdatedAt: profileUpdatedAt,
           isLoading: false,
           errorMessage: null,
@@ -491,12 +557,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Update user profile (for editing existing profile)
   /// Allows partial updates without strict validation
-  Future<bool> updateProfile() async {
+  Future<bool> updateProfile({
+    List<PhysiologicalCategory> availableCategories = const [],
+  }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
       // Create profile update request from current state
-      final profileData = ProfileUpdateRequest.fromAuthState(state);
+      final profileData = ProfileUpdateRequest.fromAuthState(
+        state,
+        availableCategories: availableCategories,
+      );
 
       debugPrint('[AuthNotifier] Profile data prepared: ${profileData.toFullJson()}');
 
@@ -538,12 +609,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Complete registration with all collected data
   /// Calls PUT API to update user profile
   /// Allows partial updates - users can skip optional fields
-  Future<bool> completeRegistration() async {
+  Future<bool> completeRegistration({
+    List<PhysiologicalCategory> availableCategories = const [],
+  }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
       // Create profile update request from current state
-      final profileData = ProfileUpdateRequest.fromAuthState(state);
+      final profileData = ProfileUpdateRequest.fromAuthState(
+        state,
+        availableCategories: availableCategories,
+      );
 
       debugPrint('[AuthNotifier] Profile data prepared: ${profileData.toFullJson()}');
 
@@ -559,11 +635,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final message = response['message'] as String?;
 
       if (success) {
+        // Parse isUpdateable from response data
+        final responseData = response['data'] as Map<String, dynamic>?;
+        final isUpdateable = responseData?['isUpdateable'] as bool? ?? true;
+
         state = state.copyWith(
           isLoading: false,
+          isUpdateable: isUpdateable,
           errorMessage: null,
         );
-        debugPrint('[AuthNotifier] Profile updated successfully');
+        debugPrint('[AuthNotifier] Profile updated successfully, isUpdateable: $isUpdateable');
         return true;
       } else {
         state = state.copyWith(
@@ -668,7 +749,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       // Reset state
       _resendTimer?.cancel();
-      state = const AuthState();
+      state =  AuthState();
 
       debugPrint('[AuthNotifier] User logged out successfully');
       return true;
@@ -684,7 +765,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void reset() {
     _resendTimer?.cancel();
-    state = const AuthState();
+    state =  AuthState();
   }
 }
 

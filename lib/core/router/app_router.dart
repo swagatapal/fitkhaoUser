@@ -1,6 +1,8 @@
 import 'package:fitkhao_user/features/splash/screens/onboarding_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/policy/presentation/screens/policy_screen.dart';
+import '../../features/profile/presentation/screens/profile_history_screen.dart';
 import '../../features/splash/screens/splash_screen.dart';
 import '../../features/auth/screens/phone_auth_screen.dart';
 import '../../features/auth/screens/otp_verification_screen.dart';
@@ -150,6 +152,27 @@ class AppRouter {
           key: state.pageKey,
           child: const MainNavigationScreen(),
         ),
+      ),
+
+      GoRoute(
+        path: RouteNames.profileHistory,
+        name: RouteNames.profileHistory,
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: const ProfileHistoryScreen(),
+        ),
+      ),
+
+      GoRoute(
+        path: RouteNames.policy,
+        name: RouteNames.policy,
+        pageBuilder: (context, state) {
+          final initialTab = state.extra as int? ?? 0;
+          return MaterialPage(
+            key: state.pageKey,
+            child: PolicyScreen(initialTab: initialTab),
+          );
+        },
       ),
     ],
 

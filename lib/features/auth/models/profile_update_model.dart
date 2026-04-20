@@ -1,115 +1,133 @@
 import 'dart:math';
 
-import '../../../core/config/app_config.dart';
+import '../../profile/models/physiological_category_model.dart';
 import 'auth_state.dart';
 
 class ProfileUpdateRequest {
   final String? name;
+  final String? email;
   final int? age;
   final String? gender; // male|female
   final double? weight; // kg
   final double? height; // cm
-  final String? selectedGoal; // e.g., fat-loss | maintenance
+  final String? selectedGoal;
   final bool? doesWorkout;
-  final int? workoutDaysPerWeek;
-  final double? workoutHoursPerDay;
-  final String? exerciseType; // type-1 | type-2 etc
-  final String? profession; // optional
+  /// MongoDB _id of the selected ProfessionGroup
+  final String? professionGroupId;
+  /// Per-exercise data: [{exerciseGroupId, daysPerWeek, hoursPerDay}]
+  final List<Map<String, dynamic>>? exercises;
   final Address? address;
-  final SpecialConditions? specialConditions;
+  final List<Map<String, dynamic>>? specialConditions;
   final DigestiveIssues? digestiveIssues;
   final String? selectedKitchenId;
-  final String? imgUrl; // Profile image URL
-  final String? pregnancy; // P1, P2, P3
-  final String? lactation; // L1, L2
+  final String? imgUrl;
+  final bool isUpdateable;
 
   const ProfileUpdateRequest({
     this.name,
+    this.email,
     this.age,
     this.gender,
     this.weight,
     this.height,
     this.selectedGoal,
     this.doesWorkout,
-    this.workoutDaysPerWeek,
-    this.workoutHoursPerDay,
-    this.exerciseType,
-    this.profession ,
+    this.professionGroupId,
+    this.exercises,
     this.address,
     this.specialConditions,
     this.digestiveIssues,
     this.selectedKitchenId,
     this.imgUrl,
-    this.pregnancy,
-    this.lactation,
+    this.isUpdateable = false,
   });
 
   /// Map regularityStatus to DigestiveIssues
   static DigestiveIssues _mapRegularityStatusToDigestiveIssues(String status) {
     final lower = status.toLowerCase();
 
-    if (lower.contains('both') || (lower.contains('constipat') && lower.contains('diarrh'))) {
+    if (lower.contains('both') ||
+        (lower.contains('constipat') && lower.contains('diarrh'))) {
       return const DigestiveIssues(
         regularlyConstipated: true,
-        diarrhoeal: true,
+        regularlyDiarrhoeal: true,
         none: false,
         both: true,
       );
     } else if (lower.contains('constipat')) {
       return const DigestiveIssues(
         regularlyConstipated: true,
-        diarrhoeal: false,
+        regularlyDiarrhoeal: false,
         none: false,
         both: false,
       );
     } else if (lower.contains('diarrh')) {
       return const DigestiveIssues(
         regularlyConstipated: false,
-        diarrhoeal: true,
+        regularlyDiarrhoeal: true,
         none: false,
         both: false,
       );
     }
 
-    // Default: None
     return const DigestiveIssues(
       regularlyConstipated: false,
-      diarrhoeal: false,
+      regularlyDiarrhoeal: false,
       none: true,
       both: false,
     );
   }
 
-  factory ProfileUpdateRequest.fromAuthState(AuthState s) {
+  /// Build specialConditions array from selected codes and available categories
+  static List<Map<String, dynamic>> _buildSpecialConditionsArray(
+      List<String> selectedCodes,
+      List<PhysiologicalCategory> availableCategories,
+      ) {
+    if (availableCategories.isNotEmpty) {
+      return availableCategories.map((cat) {
+        return {
+          'code': cat.code,
+          'value': selectedCodes.contains(cat.code),
+        };
+      }).toList();
+    }
+
+    return selectedCodes.map((code) {
+      return {
+        'code': code,
+        'value': true,
+      };
+    }).toList();
+  }
+
+  factory ProfileUpdateRequest.fromAuthState(
+      AuthState s, {
+        List<PhysiologicalCategory> availableCategories = const [],
+      }) {
     int? computedAge;
     if (s.dateOfBirth != null) {
       final now = DateTime.now();
       int years = now.year - s.dateOfBirth!.year;
-      final hasHadBirthdayThisYear = (now.month > s.dateOfBirth!.month) ||
-          (now.month == s.dateOfBirth!.month && now.day >= s.dateOfBirth!.day);
+      final hasHadBirthdayThisYear =
+          (now.month > s.dateOfBirth!.month) ||
+              (now.month == s.dateOfBirth!.month &&
+                  now.day >= s.dateOfBirth!.day);
       if (!hasHadBirthdayThisYear) years -= 1;
       computedAge = max(0, years);
     }
 
-    final special = SpecialConditions(
-      diabetes: s.diabetes,
-      hyperTension: s.hypertension,
-      cardiacProblem: s.cardiacProblem,
-      liverIssues: s.liverRelatedProblem,
-      kidneyIssues: s.kidneyDisease,
-      none: !(s.diabetes || s.hypertension || s.cardiacProblem || s.liverRelatedProblem || s.kidneyDisease),
-      other: (s.otherConditions).trim(),
+    final specialConditionsArray = _buildSpecialConditionsArray(
+      s.selectedConditionCodes,
+      availableCategories,
     );
 
-    // Map regularityStatus to digestiveIssues
-    final digestive = _mapRegularityStatusToDigestiveIssues(s.regularityStatus);
+    final digestive =
+    _mapRegularityStatusToDigestiveIssues(s.regularityStatus);
 
     final addr = Address(
-      buildingName: s.buildingNameNumber.isNotEmpty ? s.buildingNameNumber : null,
+      buildingName:
+      s.buildingNameNumber.isNotEmpty ? s.buildingNameNumber : null,
       street: s.street.isNotEmpty ? s.street : null,
-      area: s.street.isNotEmpty ? s.street : null, // Using street as area fallback
-      city: '', // Default city
-      state: '', // Default state
       pincode: s.pincode.isNotEmpty ? s.pincode : null,
       latitude: s.latitude,
       longitude: s.longitude,
@@ -117,86 +135,64 @@ class ProfileUpdateRequest {
 
     return ProfileUpdateRequest(
       name: s.name.isNotEmpty ? s.name : null,
+      email: '',
       age: computedAge,
       gender: s.gender.isNotEmpty ? s.gender : null,
       weight: s.weight,
       height: s.height,
-      selectedGoal: s.selectedGoal.isNotEmpty ? s.selectedGoal : "regular-bmi-maintenance", // This is the user's goal (fat-loss, lean-mass-gain, etc)
+      selectedGoal: s.selectedGoal.isNotEmpty
+          ? s.selectedGoal
+          : 'regular-bmi-maintenance',
       doesWorkout: s.doesExercise,
-      workoutDaysPerWeek: s.exerciseDaysPerWeek,
-      workoutHoursPerDay: s.exerciseDurationHours,
-      exerciseType: s.exerciseType, // Already in API format (type-1, type-2, type-3)
-      profession: s.physicalActivityLevel.isNotEmpty ? s.physicalActivityLevel : null, // Activity level (type-1, type-2, type-3)
+      professionGroupId:
+      s.professionGroupId.isNotEmpty ? s.professionGroupId : null,
+      exercises: s.exercises.isNotEmpty ? s.exercises : null,
       address: addr,
-      specialConditions: special,
+      specialConditions: specialConditionsArray,
       digestiveIssues: digestive,
-      selectedKitchenId: '', // Empty string as default
+      selectedKitchenId: '',
       imgUrl: s.imgUrl != null && s.imgUrl!.isNotEmpty ? s.imgUrl : null,
-      pregnancy: s.pregnancy && s.pregnancyStage != null ? s.pregnancyStage : null,
-      lactation: s.lactation && s.lactationStage != null ? s.lactationStage : null,
     );
   }
 
   Map<String, dynamic> toJson() => toFullJson();
 
   /// Always include all fields as backend expects full object.
-  /// - Strings default to ""
-  /// - Numbers default to 0
-  /// - Booleans default to false
-  /// - Objects include all nested keys with their defaults
   Map<String, dynamic> toFullJson() {
-    final json = {
+    final map = <String, dynamic>{
       'name': name ?? '',
-      'age': age ?? 0,
-      'gender': gender ?? '',
-      'weight': weight ?? 0,
-      'height': height ?? 0,
-      'selectedGoal': selectedGoal ?? '',
-      'doesWorkout': doesWorkout ?? false,
-      'workoutDaysPerWeek': workoutDaysPerWeek ?? 0,
-      'workoutHoursPerDay': workoutHoursPerDay ?? 0,
-      'exerciseType': exerciseType ?? '',
-      'profession': profession ?? 'type-1',
-      'address': (address ?? const Address()).toFullJson(),
-      'specialConditions': (specialConditions ?? const SpecialConditions(
-        diabetes: false,
-        hyperTension: false,
-        cardiacProblem: false,
-        liverIssues: false,
-        kidneyIssues: false,
-        none: false,
-        other: '',
-      )).toFullJson(),
-      'digestiveIssues': (digestiveIssues ?? const DigestiveIssues(
-        regularlyConstipated: false,
-        diarrhoeal: false,
-        none: false,
-        both: false,
-      )).toFullJson(),
-      'selectedKitchenId': selectedKitchenId ?? '',
       'imgUrl': imgUrl ?? '',
+      'age': age ?? 0,
+      'height': height ?? 0,
+      'weight': weight ?? 0,
+      'doesWorkout': doesWorkout ?? false,
+      'gender': gender ?? '',
+      'address': (address ?? const Address()).toFullJson(),
+      'selectedKitchenId': selectedKitchenId ?? '',
+      'selectedGoal': selectedGoal ?? '',
+      'professionGroupId': professionGroupId ?? '',
+      'exercises': exercises ?? [],
+      'specialConditions': specialConditions ?? [],
+      'digestiveIssues': (digestiveIssues ??
+          const DigestiveIssues(
+            regularlyConstipated: false,
+            regularlyDiarrhoeal: false,
+            none: false,
+            both: false,
+          ))
+          .toFullJson(),
+      'isUpdateable': isUpdateable,
     };
-
-    // Only include pregnancy if it has a value
-    if (pregnancy != null && pregnancy!.isNotEmpty) {
-      json['pregnancy'] = pregnancy!;
+    if (email != null && email!.isNotEmpty) {
+      map['email'] = email!;
     }
-
-    // Only include lactation if it has a value
-    if (lactation != null && lactation!.isNotEmpty) {
-      json['lactation'] = lactation!;
-    }
-
-    return json;
+    return map;
   }
 }
 
 class Address {
   final String? buildingName;
   final String? street;
-  final String? area;
-  final String? city;
-  final String? state;
   final String? pincode;
   final double? latitude;
   final double? longitude;
@@ -204,9 +200,6 @@ class Address {
   const Address({
     this.buildingName,
     this.street,
-    this.area,
-    this.city,
-    this.state,
     this.pincode,
     this.latitude,
     this.longitude,
@@ -218,9 +211,6 @@ class Address {
     return {
       'buildingName': buildingName ?? '',
       'street': street ?? '',
-      'area': area ?? '',
-      'city': city ?? '',
-      'state': state ?? '',
       'pincode': pincode ?? '',
       'latitude': latitude ?? 0.0,
       'longitude': longitude ?? 0.0,
@@ -228,49 +218,15 @@ class Address {
   }
 }
 
-class SpecialConditions {
-  final bool diabetes;
-  final bool hyperTension;
-  final bool cardiacProblem;
-  final bool liverIssues;
-  final bool kidneyIssues;
-  final bool none;
-  final String other;
-
-  const SpecialConditions({
-    required this.diabetes,
-    required this.hyperTension,
-    required this.cardiacProblem,
-    required this.liverIssues,
-    required this.kidneyIssues,
-    required this.none,
-    required this.other,
-  });
-
-  Map<String, dynamic> toJson() => toFullJson();
-
-  Map<String, dynamic> toFullJson() {
-    return {
-      'diabetes': diabetes,
-      'hyperTension': hyperTension,
-      'cardiacProblem': cardiacProblem,
-      'liverIssues': liverIssues,
-      'kidneyIssues': kidneyIssues,
-      'none': none,
-      'other': other,
-    };
-  }
-}
-
 class DigestiveIssues {
   final bool regularlyConstipated;
-  final bool diarrhoeal;
+  final bool regularlyDiarrhoeal;
   final bool none;
   final bool both;
 
   const DigestiveIssues({
     required this.regularlyConstipated,
-    required this.diarrhoeal,
+    required this.regularlyDiarrhoeal,
     required this.none,
     required this.both,
   });
@@ -280,7 +236,7 @@ class DigestiveIssues {
   Map<String, dynamic> toFullJson() {
     return {
       'regularlyConstipated': regularlyConstipated,
-      'diarrhoeal': diarrhoeal,
+      'regularlyDiarrhoeal': regularlyDiarrhoeal,
       'none': none,
       'both': both,
     };

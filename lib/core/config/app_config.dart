@@ -55,6 +55,11 @@ class AppConfig {
   /// App content — terms & conditions, privacy policy (public)
   static const String appContentPath = '/api/app-content';
 
-  /// Analytics base (trending)
+  static const String userHistoryPath = '/api/user/history';
+  static const String exercisePath = '/api/adm/exercise';
+  static const String physiologicalCategoriesPath = '/api/adm/physiological-category';
+  static const String professionPath = '/api/adm/profession';
+
+/// Analytics base (trending)
   //static const String trendingPath = '/api/analytics/trending/';
 }

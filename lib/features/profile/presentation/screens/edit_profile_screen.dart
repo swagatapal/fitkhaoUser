@@ -52,6 +52,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   File? _selectedImageForUpload;
   final ImagePicker _picker = ImagePicker();
   String? _uploadedImageUrl;
+  bool _isNavigatingToMap = false;
 
   @override
   void initState() {
@@ -205,6 +206,60 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             duration: Duration(seconds: 3),
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _handleLocateOnMap() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _isNavigatingToMap = true);
+
+    try {
+      final result = await context.push<Map<String, dynamic>>(
+        RouteNames.mapPicker,
+      );
+      if (!mounted) return;
+
+      if (result != null) {
+        final building = (result['building'] as String? ?? '').trim();
+        final streetResult = (result['street'] as String? ?? '').trim();
+        final fallbackStreet = (result['fullAddress'] as String? ?? '').trim();
+        final pincode = (result['pincode'] as String? ?? '').trim();
+        final latitude = (result['latitude'] as num?)?.toDouble();
+        final longitude = (result['longitude'] as num?)?.toDouble();
+
+        final streetValue = streetResult.isNotEmpty ? streetResult : fallbackStreet;
+
+        setState(() {
+          _building = building;
+          _street = streetValue;
+          _pincode = pincode;
+          _buildingController.text = building;
+          _streetController.text = streetValue;
+          _pincodeController.text = pincode;
+        });
+
+        ref.read(authProvider.notifier).saveAddress(
+          buildingNameNumber: building,
+          street: streetValue,
+          pincode: pincode,
+          latitude: latitude,
+          longitude: longitude,
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Address selected from map'),
+            backgroundColor: AppColors.primaryGreen,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error opening map picker: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isNavigatingToMap = false);
       }
     }
   }
@@ -496,7 +551,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           fontFamily: 'Lato',
                         ),
                       ),
-                      SizedBox(height: spacing32),
+                      SizedBox(height: spacing24),
+
+                      // Locate on Map Button
+                      PrimaryButton(
+                        height: context.inputHeight,
+                        text: AppStrings.locateOnMap,
+                        onPressed: !_isNavigatingToMap ? _handleLocateOnMap : null,
+                        textColor: AppColors.textWhite,
+                        backgroundColor: const Color(0xFF5D9E40),
+                        borderRadius: AppSizes.radius4,
+                        isLoading: _isNavigatingToMap,
+                      ),
+                      SizedBox(height: spacing24),
 
                       // Save Button
                       PrimaryButton(
