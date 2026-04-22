@@ -11,6 +11,9 @@ import '../../providers/trending_provider.dart';
 import '../../providers/serviceability_provider.dart';
 import '../../providers/nutrition_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../models/menu_item.dart';
+import '../../providers/menu_provider.dart';
+import '../widgets/food_detail_popup.dart';
 import '../widgets/membership_popup.dart';
 import 'menu_list_screen.dart';
 
@@ -25,6 +28,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   bool _hasShownMembershipPopup = false;
+  String _selectedMealTab = 'breakfast';
 
   @override
   void initState() {
@@ -35,6 +39,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       _loadWalletBalance();
       _checkServiceability();
       _loadNutritionProgress();
+      _loadAllDishes();
     });
   }
 
@@ -51,8 +56,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       _loadWalletBalance(),
       _checkServiceability(),
       _loadNutritionProgress(),
-      //_loadTrending(),
+      _loadAllDishes(),
     ]);
+  }
+
+  Future<void> _loadAllDishes() async {
+    await ref.read(allDishesProvider.notifier).loadMenuItems();
   }
 
 
@@ -214,13 +223,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       // _buildCompleteYourMealButton(),
                      // const SizedBox(height: AppSizes.spacing16),
                       _buildBrowseByCategories(),
+                      const SizedBox(height: AppSizes.spacing20),
+                      _buildDishesSection(),
+                      const SizedBox(height: AppSizes.spacing32),
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSizes.spacing16),
-               // _buildTrendingNow(),
-                const SizedBox(height: AppSizes.spacing32),
-                const SizedBox(height: AppSizes.spacing32),
                 const SizedBox(height: AppSizes.spacing32),
               ],
             ),
@@ -455,63 +463,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
-  Widget _buildSearchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radius4),
-        border: Border.all(
-          color: AppColors.textWhite,
-          width: AppSizes.borderMedium,
-        ),
-      ),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: AppStrings.searchFood,
-          hintStyle: const TextStyle(
-            fontSize: AppTypography.fontSize14,
-            color: AppColors.textSecondary,
-            fontFamily: 'Lato',
-          ),
-          prefixIcon: const Icon(
-            Icons.search,
-            color: AppColors.textSecondary,
-            size: AppSizes.icon24,
-          ),
-          suffixIcon: IconButton(
-            icon: const Icon(
-              Icons.mic,
-              color: AppColors.primaryGreen,
-              size: AppSizes.icon24,
-            ),
-            onPressed: () {
-              // TODO: Implement voice search
-            },
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppSizes.spacing16,
-            vertical: AppSizes.spacing12,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radius4),
-            borderSide: const BorderSide(
-              color: AppColors.borderColor,
-              width: AppSizes.borderMedium,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radius4),
-            borderSide: const BorderSide(
-              color: AppColors.primaryGreen,
-              width: AppSizes.borderMedium,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildDailyGoalCard() {
     return Container(
@@ -719,83 +670,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
-  Widget _buildMacroCard({
-    required String label,
-    required double value,
-    required String unit,
-    required Color color,
-    required IconData icon,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.spacing8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: AppSizes.shadowBlur10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Icon(
-          //   icon,
-          //   color: color,
-          //   size: AppSizes.icon24,
-          // ),
-          // const SizedBox(height: AppSizes.spacing8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                color: color,
-                size: AppSizes.icon16,
-              ),
-              const SizedBox(width: AppSizes.spacing4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: AppTypography.fontSize12,
-                  fontWeight: AppTypography.medium,
-                  color: AppColors.textSecondary,
-                  fontFamily: 'Lato',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.spacing4),
-          RichText(
-            text: TextSpan(
-              style: TextStyle(
-                fontSize: AppTypography.fontSize18,
-                fontWeight: AppTypography.bold,
-                color: color,
-                fontFamily: 'Lato',
-              ),
-              children: [
-                TextSpan(text: value.toStringAsFixed(0)),
-                TextSpan(
-                  text: unit,
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize12,
-                    fontWeight: AppTypography.medium,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildNutritionProgressSection() {
     final progressState = ref.watch(nutritionProgressProvider);
@@ -1325,182 +1199,440 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
-  // Widget _buildTrendingNow() {
-  //   final trendingState = ref.watch(trendingProvider);
-  //   return Column(
-  //     crossAxisAlignment: CrossAxisAlignment.start,
-  //     children: [
-  //       Padding(
-  //         padding: EdgeInsets.only(left: AppSizes.p20),
-  //         child: const Text(
-  //           AppStrings.trendingNow,
-  //           style: TextStyle(
-  //             fontSize: AppTypography.fontSize16,
-  //             fontWeight: AppTypography.bold,
-  //             color: AppColors.textPrimary,
-  //             fontFamily: 'Lato',
-  //           ),
-  //         ),
-  //       ),
-  //       const SizedBox(height: AppSizes.spacing16),
-  //       SizedBox(
-  //         height: 160,
-  //         child: trendingState.when(
-  //           loading: () => ListView.builder(
-  //             scrollDirection: Axis.horizontal,
-  //             itemCount: 3,
-  //             itemBuilder: (context, index) => _buildTrendingSkeleton(),
-  //           ),
-  //           error: (e, _) => Padding(
-  //             padding: EdgeInsets.symmetric(horizontal: AppSizes.p20),
-  //             child: Text(
-  //               e.toString(),
-  //               style: const TextStyle(color: AppColors.errorColor),
-  //             ),
-  //           ),
-  //           data: (items) => ListView.builder(
-  //             scrollDirection: Axis.horizontal,
-  //             itemCount: items.length,
-  //             itemBuilder: (context, index) => _buildTrendingItem(
-  //               items[index].itemName,
-  //               items[index].avgPrice,
-  //             ),
-  //           ),
-  //         ),
-  //       ),
-  //     ],
-  //   );
-  // }
-  //
-  // Widget _buildTrendingItem(String title, double price) {
-  //   return Padding(
-  //     padding: EdgeInsets.only(left: AppSizes.p20),
-  //     child: Container(
-  //       width: 160,
-  //       decoration: BoxDecoration(
-  //         color: Colors.white,
-  //         borderRadius: BorderRadius.circular(AppSizes.radius4),
-  //         boxShadow: [
-  //           BoxShadow(
-  //             color: Colors.black.withValues(alpha: 0.05),
-  //             blurRadius: AppSizes.shadowBlur10,
-  //             offset: const Offset(0, AppSizes.spacing4),
-  //           ),
-  //         ],
-  //       ),
-  //       child: Column(
-  //         crossAxisAlignment: CrossAxisAlignment.start,
-  //         children: [
-  //           Container(
-  //             width: double.infinity,
-  //             height: 100,
-  //             decoration: BoxDecoration(
-  //               color: AppColors.primaryGreen.withValues(alpha: 0.1),
-  //               borderRadius: const BorderRadius.only(
-  //                 topLeft: Radius.circular(AppSizes.radius4),
-  //                 topRight: Radius.circular(AppSizes.radius4),
-  //               ),
-  //             ),
-  //             child: ClipRRect(
-  //               borderRadius: const BorderRadius.only(
-  //                 topLeft: Radius.circular(AppSizes.radius4),
-  //                 topRight: Radius.circular(AppSizes.radius4),
-  //               ),
-  //               child: Image.network(
-  //                 'https://img.freepik.com/free-photo/top-view-table-full-food_23-2149209253.jpg?semt=ais_hybrid&w=740&q=80',
-  //                 fit: BoxFit.cover,
-  //                 errorBuilder: (context, error, stackTrace) {
-  //                   return Container(
-  //                     color: AppColors.primaryGreen.withValues(alpha: 0.1),
-  //                     child: const Icon(
-  //                       Icons.restaurant,
-  //                       size: AppSizes.icon48,
-  //                       color: AppColors.primaryGreen,
-  //                     ),
-  //                   );
-  //                 },
-  //               ),
-  //             ),
-  //           ),
-  //           Padding(
-  //             padding: const EdgeInsets.all(AppSizes.spacing8),
-  //             child: Column(
-  //               crossAxisAlignment: CrossAxisAlignment.start,
-  //               children: [
-  //                 Text(
-  //                   title,
-  //                   style: const TextStyle(
-  //                     fontSize: AppTypography.fontSize14,
-  //                     fontWeight: AppTypography.semiBold,
-  //                     color: AppColors.textPrimary,
-  //                     fontFamily: 'Lato',
-  //                   ),
-  //                   maxLines: 1,
-  //                   overflow: TextOverflow.ellipsis,
-  //                 ),
-  //                 const SizedBox(height: AppSizes.spacing4),
-  //                 Text(
-  //                   '₹ ${price.toStringAsFixed(0)}',
-  //                   style: const TextStyle(
-  //                     fontSize: AppTypography.fontSize12,
-  //                     fontWeight: AppTypography.medium,
-  //                     color: AppColors.textSecondary,
-  //                     fontFamily: 'Lato',
-  //                   ),
-  //                 ),
-  //               ],
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
-  //
-  // Widget _buildTrendingSkeleton() {
-  //   return Padding(
-  //     padding: EdgeInsets.only(left: AppSizes.p20),
-  //     child: Container(
-  //       width: 160,
-  //       decoration: BoxDecoration(
-  //         color: Colors.white,
-  //         borderRadius: BorderRadius.circular(AppSizes.radius4),
-  //         boxShadow: [
-  //           BoxShadow(
-  //             color: Colors.black.withValues(alpha: 0.05),
-  //             blurRadius: AppSizes.shadowBlur10,
-  //             offset: const Offset(0, AppSizes.spacing4),
-  //           ),
-  //         ],
-  //       ),
-  //       child: Column(
-  //         crossAxisAlignment: CrossAxisAlignment.start,
-  //         children: [
-  //           Container(
-  //             width: double.infinity,
-  //             height: 100,
-  //             decoration: BoxDecoration(
-  //               color: AppColors.primaryGreen.withValues(alpha: 0.1),
-  //               borderRadius: const BorderRadius.only(
-  //                 topLeft: Radius.circular(AppSizes.radius4),
-  //                 topRight: Radius.circular(AppSizes.radius4),
-  //               ),
-  //             ),
-  //           ),
-  //           const Padding(
-  //             padding: EdgeInsets.all(AppSizes.spacing8),
-  //             child: Column(
-  //               crossAxisAlignment: CrossAxisAlignment.start,
-  //               children: [
-  //                 SizedBox(height: 12, width: 100),
-  //                 SizedBox(height: AppSizes.spacing4),
-  //                 SizedBox(height: 10, width: 60),
-  //               ],
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
+  // ─── Dishes Section ──────────────────────────────────────────────────────
+
+  Widget _buildDishesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section header
+        const Text(
+          'Today\'s Menu',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize16,
+            fontWeight: AppTypography.bold,
+            color: AppColors.textPrimary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        const SizedBox(height: AppSizes.spacing12),
+        // Meal type tabs
+        _buildMealTypeTabs(),
+        const SizedBox(height: AppSizes.spacing12),
+        // Filtered dish list
+        _buildDishList(),
+      ],
+    );
+  }
+
+  Widget _buildMealTypeTabs() {
+    const tabs = ['breakfast', 'lunch', 'dinner'];
+    const tabLabels = ['Breakfast', 'Lunch', 'Dinner'];
+
+    return Row(
+      children: List.generate(tabs.length, (i) {
+        final isSelected = _selectedMealTab == tabs[i];
+        return Padding(
+          padding: EdgeInsets.only(
+            right: i < tabs.length - 1 ? AppSizes.spacing8 : 0,
+          ),
+          child: GestureDetector(
+            onTap: () => setState(() => _selectedMealTab = tabs[i]),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.spacing16,
+                vertical: AppSizes.spacing8,
+              ),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primaryGreen : Colors.white,
+                borderRadius: BorderRadius.circular(AppSizes.radius20),
+                border: Border.all(
+                  color: isSelected
+                      ? AppColors.primaryGreen
+                      : AppColors.borderColor,
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Text(
+                tabLabels[i],
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: isSelected
+                      ? AppTypography.semiBold
+                      : AppTypography.regular,
+                  color: isSelected ? Colors.white : AppColors.textSecondary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildDishList() {
+    final dishState = ref.watch(allDishesProvider);
+
+    return dishState.when(
+      loading: () => _buildDishListSkeleton(),
+      error: (error, _) => _buildDishListError(error.toString()),
+      data: (items) {
+        final filtered = items
+            .where((item) => item.applicableMealTypes.contains(_selectedMealTab))
+            .toList();
+
+        if (filtered.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing32),
+            alignment: Alignment.center,
+            child: Column(
+              children: [
+                Icon(
+                  Icons.no_meals_outlined,
+                  size: AppSizes.icon48,
+                  color: AppColors.textTertiary,
+                ),
+                const SizedBox(height: AppSizes.spacing12),
+                Text(
+                  'No ${_selectedMealTab[0].toUpperCase()}${_selectedMealTab.substring(1)} items available',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    color: AppColors.textSecondary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Column(
+          children: filtered
+              .map((item) => _buildDishCard(item))
+              .toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildDishListSkeleton() {
+    return Column(
+      children: List.generate(
+        3,
+        (_) => Container(
+          margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
+          height: 96,
+          decoration: BoxDecoration(
+            color: Colors.grey.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDishListError(String message) {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spacing16),
+      decoration: BoxDecoration(
+        color: AppColors.errorColor.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(color: AppColors.errorColor.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline,
+              color: AppColors.errorColor, size: AppSizes.icon20),
+          const SizedBox(width: AppSizes.spacing8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                fontSize: AppTypography.fontSize12,
+                color: AppColors.errorColor,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: _loadAllDishes,
+            child: const Text(
+              'Retry',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize12,
+                fontWeight: AppTypography.semiBold,
+                color: AppColors.primaryGreen,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDishCard(MenuItem item) {
+    final isInCart = ref.watch(cartProvider.notifier).isInCart(item.id);
+
+    return GestureDetector(
+      onTap: () => showDialog(
+        context: context,
+        builder: (_) => FoodDetailPopup(menuItem: item),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
+        padding: const EdgeInsets.all(AppSizes.spacing12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+          border: Border.all(color: AppColors.borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: AppSizes.shadowBlur10,
+              offset: const Offset(0, AppSizes.spacing2),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Food image
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+              child: Image.network(
+                item.imageUrl,
+                width: AppSizes.icon60,
+                height: AppSizes.icon60,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: AppSizes.icon60,
+                  height: AppSizes.icon60,
+                  color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                  child: const Icon(
+                    Icons.restaurant,
+                    size: AppSizes.icon32,
+                    color: AppColors.primaryGreen,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+            // Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Name + veg indicator
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.name,
+                          style: const TextStyle(
+                            fontSize: AppTypography.fontSize15,
+                            fontWeight: AppTypography.semiBold,
+                            color: AppColors.textPrimary,
+                            fontFamily: 'Lato',
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: AppSizes.spacing6),
+                      Container(
+                        width: AppSizes.spacing12,
+                        height: AppSizes.spacing12,
+                        margin: const EdgeInsets.only(top: AppSizes.spacing2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.rectangle,
+                          border: Border.all(
+                            color: item.isVeg
+                                ? const Color(0xFF388E3C)
+                                : const Color(0xFFD32F2F),
+                            width: AppSizes.borderNormal,
+                          ),
+                        ),
+                        child: Center(
+                          child: Container(
+                            width: AppSizes.spacing6,
+                            height: AppSizes.spacing6,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: item.isVeg
+                                  ? const Color(0xFF388E3C)
+                                  : const Color(0xFFD32F2F),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSizes.spacing4),
+                  // Calories + rating
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.local_fire_department,
+                        size: AppSizes.icon12,
+                        color: AppColors.primaryGreen,
+                      ),
+                      const SizedBox(width: AppSizes.spacing2),
+                      Text(
+                        '${item.calories} kcal',
+                        style: const TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      if (item.rating > 0) ...[
+                        const SizedBox(width: AppSizes.spacing8),
+                        const Icon(Icons.star,
+                            size: AppSizes.icon12, color: Colors.amber),
+                        const SizedBox(width: AppSizes.spacing2),
+                        Text(
+                          item.rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: AppTypography.fontSize12,
+                            fontWeight: AppTypography.medium,
+                            color: AppColors.textPrimary,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                        if (item.ratingCount > 0)
+                          Text(
+                            ' (${item.ratingCount})',
+                            style: const TextStyle(
+                              fontSize: AppTypography.fontSize10,
+                              color: AppColors.textSecondary,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: AppSizes.spacing4),
+                  // Macros row
+                  Row(
+                    children: [
+                      _buildMacroChip('P', item.protein, const Color(0xFF4A7C3E)),
+                      const SizedBox(width: AppSizes.spacing6),
+                      _buildMacroChip('C', item.carbs, const Color(0xFFC66301)),
+                      const SizedBox(width: AppSizes.spacing6),
+                      _buildMacroChip('F', item.fats, const Color(0xFF6BA84F)),
+                    ],
+                  ),
+                  const SizedBox(height: AppSizes.spacing6),
+                  // Price + Add button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Price
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            '₹${item.price.toInt()}',
+                            style: const TextStyle(
+                              fontSize: AppTypography.fontSize16,
+                              fontWeight: AppTypography.bold,
+                              color: AppColors.textPrimary,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                          if (item.discountPrice != null &&
+                              item.marketPrice > item.discountPrice!) ...[
+                            const SizedBox(width: AppSizes.spacing4),
+                            Text(
+                              '₹${item.marketPrice.toInt()}',
+                              style: const TextStyle(
+                                fontSize: AppTypography.fontSize10,
+                                color: AppColors.textTertiary,
+                                fontFamily: 'Lato',
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      // Add button
+                      GestureDetector(
+                        onTap: () => showDialog(
+                          context: context,
+                          builder: (_) => FoodDetailPopup(menuItem: item),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSizes.spacing16,
+                            vertical: AppSizes.spacing4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isInCart
+                                ? AppColors.primaryGreen.withValues(alpha: 0.1)
+                                : AppColors.primaryGreen,
+                            borderRadius:
+                                BorderRadius.circular(AppSizes.radius4),
+                            border: Border.all(
+                              color: AppColors.primaryGreen,
+                              width: AppSizes.borderThin,
+                            ),
+                          ),
+                          child: Text(
+                            isInCart ? AppStrings.added : AppStrings.add,
+                            style: TextStyle(
+                              fontSize: AppTypography.fontSize12,
+                              fontWeight: AppTypography.semiBold,
+                              color: isInCart
+                                  ? AppColors.primaryGreen
+                                  : Colors.white,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMacroChip(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spacing6,
+        vertical: AppSizes.spacing2,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
+      ),
+      child: Text(
+        '$label: $value',
+        style: TextStyle(
+          fontSize: AppTypography.fontSize10,
+          fontWeight: AppTypography.medium,
+          color: color,
+          fontFamily: 'Lato',
+        ),
+      ),
+    );
+  }
 }

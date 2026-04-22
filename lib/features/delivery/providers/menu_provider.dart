@@ -39,8 +39,17 @@ class MenuNotifier extends StateNotifier<AsyncValue<List<MenuItem>>> {
   }
 }
 
-/// Provider for MenuNotifier
+/// Provider for MenuNotifier (used by MenuListScreen with per-meal filtering)
 final menuProvider =
+    StateNotifierProvider<MenuNotifier, AsyncValue<List<MenuItem>>>((ref) {
+  final menuRepository = ref.watch(menuRepositoryProvider);
+  return MenuNotifier(menuRepository);
+});
+
+/// Separate provider for the DeliveryScreen home — loads all dishes unfiltered.
+/// Isolated from [menuProvider] so MenuListScreen navigation does not clobber
+/// the delivery screen's dish list.
+final allDishesProvider =
     StateNotifierProvider<MenuNotifier, AsyncValue<List<MenuItem>>>((ref) {
   final menuRepository = ref.watch(menuRepositoryProvider);
   return MenuNotifier(menuRepository);
