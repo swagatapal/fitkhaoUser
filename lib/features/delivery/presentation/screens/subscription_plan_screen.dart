@@ -8,7 +8,6 @@ import '../../../../shared/widgets/logo_widget.dart';
 import '../../models/subscription_plan_model.dart';
 import '../../providers/subscription_plan_provider.dart';
 import '../../providers/wallet_provider.dart';
-import '../widgets/recharge_topup_modal.dart';
 import 'subscription_checkout_screen.dart';
 import 'transaction_history_screen.dart';
 
@@ -292,6 +291,7 @@ class _SubscriptionPlanScreenState
 
   Widget _buildPlanCard(SubscriptionPlan plan) {
     final isSelected = _selectedPlan?.id == plan.id;
+    final f = plan.features;
 
     return GestureDetector(
       onTap: () => setState(() => _selectedPlan = plan),
@@ -313,14 +313,15 @@ class _SubscriptionPlanScreenState
               ),
           ],
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "${plan.planName} (${plan.planCode})",
+            // Header: name + code badge + selection indicator
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    plan.planName,
                     style: const TextStyle(
                       fontSize: AppTypography.fontSize16,
                       fontWeight: AppTypography.bold,
@@ -328,54 +329,155 @@ class _SubscriptionPlanScreenState
                       fontFamily: 'Lato',
                     ),
                   ),
-                  const SizedBox(height: AppSizes.spacing8),
-                  Text(
-                    plan.formattedPrice,
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.spacing8,
+                    vertical: AppSizes.spacing2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSizes.radius4),
+                  ),
+                  child: Text(
+                    plan.planCode,
                     style: const TextStyle(
-                      fontSize: AppTypography.fontSize20,
-                      fontWeight: AppTypography.bold,
-                      color: AppColors.textPrimary,
+                      fontSize: AppTypography.fontSize10,
+                      fontWeight: AppTypography.semiBold,
+                      color: AppColors.primaryGreen,
                       fontFamily: 'Lato',
                     ),
                   ),
-                  const SizedBox(height: AppSizes.spacing8),
+                ),
+                const SizedBox(width: AppSizes.spacing8),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected
+                        ? AppColors.primaryGreen
+                        : Colors.transparent,
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primaryGreen
+                          : AppColors.borderColor,
+                      width: 2,
+                    ),
+                  ),
+                  child: isSelected
+                      ? const Icon(Icons.check, size: 12, color: Colors.white)
+                      : null,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.spacing8),
+            // Price + duration
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  plan.formattedPrice,
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize20,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(width: AppSizes.spacing4),
+                Text(
+                  '/ ${plan.planValidity}',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    fontWeight: AppTypography.regular,
+                    color: AppColors.textSecondary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                if (plan.gstPercentage > 0) ...[
+                  const SizedBox(width: AppSizes.spacing4),
                   Text(
-                    plan.planDescription,
+                    '+${plan.gstPercentage.toStringAsFixed(0)}% GST',
                     style: const TextStyle(
-                      fontSize: AppTypography.fontSize12,
+                      fontSize: AppTypography.fontSize10,
                       fontWeight: AppTypography.regular,
                       color: AppColors.textSecondary,
                       fontFamily: 'Lato',
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
-            // const SizedBox(width: AppSizes.spacing16),
-            // ClipRRect(
-            //   borderRadius: BorderRadius.circular(AppSizes.radius12),
-            //   child: Image.network(
-            //     'https://img.freepik.com/free-photo/top-view-table-full-food_23-2149209253.jpg?semt=ais_hybrid&w=740&q=80',
-            //     width: 80,
-            //     height: 80,
-            //     fit: BoxFit.cover,
-            //     errorBuilder: (_, __, ___) => Container(
-            //       width: 80,
-            //       height: 80,
-            //       decoration: BoxDecoration(
-            //         color: AppColors.primaryGreen.withValues(alpha: 0.1),
-            //         borderRadius: BorderRadius.circular(AppSizes.radius12),
-            //       ),
-            //       child: const Icon(
-            //         Icons.restaurant_menu,
-            //         size: AppSizes.icon32,
-            //         color: AppColors.primaryGreen,
-            //       ),
-            //     ),
-            //   ),
-            // ),
+            const SizedBox(height: AppSizes.spacing12),
+            const Divider(height: 1),
+            const SizedBox(height: AppSizes.spacing12),
+            // Features grid
+            Wrap(
+              spacing: AppSizes.spacing8,
+              runSpacing: AppSizes.spacing8,
+              children: [
+                if (f.freeDelivery)
+                  _buildFeatureChip(Icons.local_shipping_outlined, 'Free Delivery'),
+                if (f.dietChart)
+                  _buildFeatureChip(Icons.assignment_outlined, 'Diet Chart'),
+                if (f.consultationCount > 0)
+                  _buildFeatureChip(
+                    Icons.headset_mic_outlined,
+                    '${f.consultationCount} Consultation${f.consultationCount > 1 ? 's' : ''}',
+                  ),
+                if (f.mealCountPerDay > 0)
+                  _buildFeatureChip(
+                    Icons.restaurant_outlined,
+                    '${f.mealCountPerDay} Meals/Day',
+                  ),
+                if (f.snacks)
+                  _buildFeatureChip(Icons.fastfood_outlined, 'Snacks'),
+                if (f.discountPercent > 0)
+                  _buildFeatureChip(
+                    Icons.local_offer_outlined,
+                    '${f.discountPercent}% Discount',
+                    highlight: true,
+                  ),
+                if (f.suggestedPlan)
+                  _buildFeatureChip(Icons.auto_awesome_outlined, 'Suggested Plan'),
+              ],
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureChip(IconData icon, String label, {bool highlight = false}) {
+    final color = highlight ? const Color(0xFFC66301) : AppColors.primaryGreen;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spacing8,
+        vertical: AppSizes.spacing4,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize10,
+              fontWeight: AppTypography.semiBold,
+              color: color,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ],
       ),
     );
   }
