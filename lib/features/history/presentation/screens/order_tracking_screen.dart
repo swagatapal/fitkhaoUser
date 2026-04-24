@@ -301,7 +301,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                           const SizedBox(height: 4),
                           if (item.nutritionalInfo != null)
                             Text(
-                              '${item.nutritionalInfo!.energyKcal.toStringAsFixed(0)} kcal • ${item.nutritionalInfo!.proteinGm.toStringAsFixed(1)}g Protein',
+                              '${item.nutritionalInfo!.kcal.toStringAsFixed(0)} kcal • ${item.nutritionalInfo!.protein.toStringAsFixed(1)}g Protein',
                               style: const TextStyle(
                                 fontSize: AppTypography.fontSize12,
                                 color: AppColors.textSecondary,
@@ -779,17 +779,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     }
   }
 
-  String _formatDeliverySlot(String slot) {
-    switch (slot.toLowerCase()) {
-      case 'morning':
-        return 'Morning (8-9 AM)';
-      case 'afternoon':
-        return 'Afternoon (12-1 PM)';
-      case 'evening':
-        return 'Evening (8-9 PM)';
-      default:
-        return slot;
+  String _formatDeliverySlot(DeliverySlot slot) {
+    if (slot.slotStartTime.isNotEmpty && slot.slotEndTime.isNotEmpty) {
+      return '${slot.slotName} (${slot.slotStartTime} - ${slot.slotEndTime})';
     }
+    if (slot.slotName.isNotEmpty) return slot.slotName;
+    return '';
   }
 
   String _formatPaymentMethod(String method) {

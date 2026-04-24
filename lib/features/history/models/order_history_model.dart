@@ -1,4 +1,4 @@
-/// Models for order history API response
+// Models for order history API response
 
 /// Response model for order history
 class OrderHistoryResponse {
@@ -49,9 +49,71 @@ class OrderHistoryData {
       offset: json['offset'] as int? ?? 0,
       hasMore: json['hasMore'] as bool? ?? false,
       orders: (json['orders'] as List<dynamic>?)
-              ?.map((order) => OrderHistory.fromJson(order as Map<String, dynamic>))
+              ?.map((order) =>
+                  OrderHistory.fromJson(order as Map<String, dynamic>))
               .toList() ??
           [],
+    );
+  }
+}
+
+/// Delivery slot details
+class DeliverySlot {
+  final String id;
+  final String slotName;
+  final String slotStartTime;
+  final String slotEndTime;
+
+  const DeliverySlot({
+    required this.id,
+    required this.slotName,
+    required this.slotStartTime,
+    required this.slotEndTime,
+  });
+
+  /// Human-readable display string e.g. "Morning (8:00 AM - 9:00 AM)"
+  String get displayLabel => '$slotName ($slotStartTime - $slotEndTime)';
+
+  factory DeliverySlot.fromJson(Map<String, dynamic> json) {
+    return DeliverySlot(
+      id: json['_id'] as String? ?? '',
+      slotName: json['slotName'] as String? ?? '',
+      slotStartTime: json['slotStartTime'] as String? ?? '',
+      slotEndTime: json['slotEndTime'] as String? ?? '',
+    );
+  }
+
+  /// Fallback: build a DeliverySlot from a plain string (legacy API)
+  factory DeliverySlot.fromString(String value) {
+    return DeliverySlot(
+      id: '',
+      slotName: value,
+      slotStartTime: '',
+      slotEndTime: '',
+    );
+  }
+}
+
+/// Delivery boy details (optional — present only when order is assigned)
+class DeliveryBoy {
+  final String id;
+  final String name;
+  final String mobileNumber;
+  final String vehicleType;
+
+  const DeliveryBoy({
+    required this.id,
+    required this.name,
+    required this.mobileNumber,
+    required this.vehicleType,
+  });
+
+  factory DeliveryBoy.fromJson(Map<String, dynamic> json) {
+    return DeliveryBoy(
+      id: json['_id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      mobileNumber: json['mobileNumber'] as String? ?? '',
+      vehicleType: json['vehicleType'] as String? ?? '',
     );
   }
 }
@@ -62,7 +124,7 @@ class OrderHistory {
   final String orderNumber;
   final Kitchen kitchen;
   final String deliveryDate;
-  final String deliverySlot;
+  final DeliverySlot deliverySlot;
   final DeliveryAddressHistory deliveryAddress;
   final List<OrderHistoryItem> items;
   final double subtotal;
@@ -74,7 +136,10 @@ class OrderHistory {
   final String paymentStatus;
   final String orderStatus;
   final String orderType;
-  final List<String> mealTypes;
+  final List<String> categoryIds;
+  final DeliveryBoy? deliveryBoy;
+  final String? preparedAt;
+  final String? assignedAt;
   final String? specialInstructions;
   final String createdAt;
   final String updatedAt;
@@ -96,19 +161,33 @@ class OrderHistory {
     required this.paymentStatus,
     required this.orderStatus,
     required this.orderType,
-    required this.mealTypes,
+    this.categoryIds = const [],
+    this.deliveryBoy,
+    this.preparedAt,
+    this.assignedAt,
     this.specialInstructions,
     required this.createdAt,
     required this.updatedAt,
   });
 
   factory OrderHistory.fromJson(Map<String, dynamic> json) {
+    // deliverySlot: new API → object, legacy → string
+    final slotRaw = json['deliverySlot'];
+    final DeliverySlot slot;
+    if (slotRaw is Map<String, dynamic>) {
+      slot = DeliverySlot.fromJson(slotRaw);
+    } else if (slotRaw is String) {
+      slot = DeliverySlot.fromString(slotRaw);
+    } else {
+      slot = const DeliverySlot(id: '', slotName: '', slotStartTime: '', slotEndTime: '');
+    }
+
     return OrderHistory(
-      id: json['id'] as String? ?? '',
+      id: json['id'] as String? ?? json['_id'] as String? ?? '',
       orderNumber: json['orderNumber'] as String? ?? '',
       kitchen: Kitchen.fromJson(json['kitchen'] as Map<String, dynamic>? ?? {}),
       deliveryDate: json['deliveryDate'] as String? ?? '',
-      deliverySlot: json['deliverySlot'] as String? ?? '',
+      deliverySlot: slot,
       deliveryAddress: DeliveryAddressHistory.fromJson(
           json['deliveryAddress'] as Map<String, dynamic>? ?? {}),
       items: (json['items'] as List<dynamic>?)
@@ -125,10 +204,19 @@ class OrderHistory {
       paymentStatus: json['paymentStatus'] as String? ?? '',
       orderStatus: json['orderStatus'] as String? ?? '',
       orderType: json['orderType'] as String? ?? '',
-      mealTypes: (json['mealTypes'] as List<dynamic>?)
+      // New API uses 'categoryIds'; legacy used 'mealTypes'
+      categoryIds: (json['categoryIds'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          (json['mealTypes'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
+      deliveryBoy: json['deliveryBoy'] != null
+          ? DeliveryBoy.fromJson(json['deliveryBoy'] as Map<String, dynamic>)
+          : null,
+      preparedAt: json['preparedAt'] as String?,
+      assignedAt: json['assignedAt'] as String?,
       specialInstructions: json['specialInstructions'] as String?,
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
@@ -167,10 +255,7 @@ class KitchenAddress {
   final String area;
   final String city;
 
-  const KitchenAddress({
-    required this.area,
-    required this.city,
-  });
+  const KitchenAddress({required this.area, required this.city});
 
   factory KitchenAddress.fromJson(Map<String, dynamic> json) {
     return KitchenAddress(
@@ -185,18 +270,18 @@ class DeliveryAddressHistory {
   final String buildingName;
   final String street;
   final String pincode;
-  final double latitude;
-  final double longitude;
   final String contactNumber;
+  final double? latitude;
+  final double? longitude;
   final String? deliveryInstructions;
 
   const DeliveryAddressHistory({
     required this.buildingName,
     required this.street,
     required this.pincode,
-    required this.latitude,
-    required this.longitude,
     required this.contactNumber,
+    this.latitude,
+    this.longitude,
     this.deliveryInstructions,
   });
 
@@ -205,52 +290,48 @@ class DeliveryAddressHistory {
       buildingName: json['buildingName'] as String? ?? '',
       street: json['street'] as String? ?? '',
       pincode: json['pincode'] as String? ?? '',
-      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
-      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
       contactNumber: json['contactNumber'] as String? ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
       deliveryInstructions: json['deliveryInstructions'] as String?,
     );
   }
 }
 
-/// Order history item
+/// Individual order item
 class OrderHistoryItem {
   final String id;
   final String orderId;
-  final String foodItemId;
+  final String dishId;
   final String kitchenId;
   final String itemName;
   final double itemPrice;
   final int quantity;
+  final int dishServing;
   final double subtotal;
   final NutritionalInfo? nutritionalInfo;
-  final String foodType;
-  final String category;
+  final String itemStatus;
+  final String? specialInstructions;
   final String deliveryDate;
   final String deliverySlot;
-  final String? specialInstructions;
-  final List<dynamic> customizations;
-  final String itemStatus;
   final String createdAt;
   final String updatedAt;
 
   const OrderHistoryItem({
     required this.id,
     required this.orderId,
-    required this.foodItemId,
+    required this.dishId,
     required this.kitchenId,
     required this.itemName,
     required this.itemPrice,
     required this.quantity,
+    this.dishServing = 1,
     required this.subtotal,
     this.nutritionalInfo,
-    required this.foodType,
-    required this.category,
+    required this.itemStatus,
+    this.specialInstructions,
     required this.deliveryDate,
     required this.deliverySlot,
-    this.specialInstructions,
-    required this.customizations,
-    required this.itemStatus,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -259,49 +340,60 @@ class OrderHistoryItem {
     return OrderHistoryItem(
       id: json['_id'] as String? ?? '',
       orderId: json['orderId'] as String? ?? '',
-      foodItemId: json['foodItemId'] as String? ?? '',
+      // New API: 'dishId', legacy fallback: 'foodItemId'
+      dishId: json['dishId'] as String? ?? json['foodItemId'] as String? ?? '',
       kitchenId: json['kitchenId'] as String? ?? '',
       itemName: json['itemName'] as String? ?? '',
       itemPrice: (json['itemPrice'] as num?)?.toDouble() ?? 0.0,
       quantity: json['quantity'] as int? ?? 0,
+      dishServing: json['dishServing'] as int? ?? 1,
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
       nutritionalInfo: json['nutrition'] != null
-          ? NutritionalInfo.fromJson(
-              json['nutrition'] as Map<String, dynamic>)
+          ? NutritionalInfo.fromJson(json['nutrition'] as Map<String, dynamic>)
           : null,
-      foodType: json['foodType'] as String? ?? 'veg',
-      category: json['category'] as String? ?? '',
-      deliveryDate: json['deliveryDate'] as String? ?? '',
-      deliverySlot: json['deliverySlot'] as String? ?? '',
-      specialInstructions: json['specialInstructions'] as String?,
-      customizations: json['customizations'] as List<dynamic>? ?? [],
       itemStatus: json['itemStatus'] as String? ?? '',
+      specialInstructions: json['specialInstructions'] as String?,
+      deliveryDate: json['deliveryDate'] as String? ?? '',
+      // deliverySlot at item level is just an ID string
+      deliverySlot: json['deliverySlot'] as String? ?? '',
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
     );
   }
 }
 
-/// Nutritional information
+/// Nutritional information per item
 class NutritionalInfo {
-  final double carbGm;
-  final double proteinGm;
-  final double fatGm;
-  final double energyKcal;
+  final double kcal;
+  final double protein;
+  final double fat;
+  final double carbs;
 
   const NutritionalInfo({
-    required this.carbGm,
-    required this.proteinGm,
-    required this.fatGm,
-    required this.energyKcal,
+    required this.kcal,
+    required this.protein,
+    required this.fat,
+    required this.carbs,
   });
 
   factory NutritionalInfo.fromJson(Map<String, dynamic> json) {
     return NutritionalInfo(
-      carbGm: (json['carbGm'] as num?)?.toDouble() ?? 0.0,
-      proteinGm: (json['proteinGm'] as num?)?.toDouble() ?? 0.0,
-      fatGm: (json['fatGm'] as num?)?.toDouble() ?? 0.0,
-      energyKcal: (json['energyKcal'] as num?)?.toDouble() ?? 0.0,
+      // New API: 'kcal', legacy fallback: 'energyKcal'
+      kcal: (json['kcal'] as num?)?.toDouble() ??
+          (json['energyKcal'] as num?)?.toDouble() ??
+          0.0,
+      // New API: 'protein', legacy fallback: 'proteinGm'
+      protein: (json['protein'] as num?)?.toDouble() ??
+          (json['proteinGm'] as num?)?.toDouble() ??
+          0.0,
+      // New API: 'fat', legacy fallback: 'fatGm'
+      fat: (json['fat'] as num?)?.toDouble() ??
+          (json['fatGm'] as num?)?.toDouble() ??
+          0.0,
+      // New API: 'carbs', legacy fallback: 'carbGm'
+      carbs: (json['carbs'] as num?)?.toDouble() ??
+          (json['carbGm'] as num?)?.toDouble() ??
+          0.0,
     );
   }
 }

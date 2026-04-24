@@ -684,6 +684,10 @@ class _OrderCard extends StatelessWidget {
         return 'Confirmed';
       case 'preparing':
         return 'Preparing';
+      case 'prepared':
+        return 'Ready';
+      case 'assigned':
+        return 'Out for Delivery';
       case 'out_for_delivery':
       case 'out-for-delivery':
         return 'On the way';
@@ -699,12 +703,13 @@ class _OrderCard extends StatelessWidget {
   static Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
-        return Colors.orange;
       case 'confirmed':
       case 'preparing':
         return Colors.orange;
       case 'prepared':
         return AppColors.primaryGreen;
+      case 'assigned':
+      case 'out_for_delivery':
       case 'out-for-delivery':
         return Colors.blue;
       case 'delivered':
