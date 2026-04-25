@@ -8,6 +8,7 @@ import '../../features/delivery/repository/wallet_repository.dart';
 import '../../features/delivery/repository/order_repository.dart';
 import '../../features/history/repository/order_history_repository.dart';
 import '../../features/policy/repository/app_content_repository.dart';
+import '../../features/dashboard/repository/meal_plan_repository.dart';
 
 /// Provider for LocalStorageService
 final localStorageProvider = FutureProvider<LocalStorageService>((ref) async {
@@ -107,4 +108,16 @@ final orderHistoryRepositoryProvider = Provider<OrderHistoryRepository>((ref) {
 final appContentRepositoryProvider = Provider<AppContentRepository>((ref) {
   final apiClient = ref.watch(apiClientProvider);
   return AppContentRepository(apiClient: apiClient);
+});
+
+/// Provider for MealPlanRepository
+final mealPlanRepositoryProvider = Provider<MealPlanRepository>((ref) {
+  final localStorage = ref.watch(localStorageProvider).value;
+  final apiClient = ref.watch(apiClientProvider);
+
+  if (localStorage == null) {
+    throw Exception('LocalStorage not initialized');
+  }
+
+  return MealPlanRepository(apiClient: apiClient, localStorage: localStorage);
 });

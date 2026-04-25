@@ -5,6 +5,8 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../delivery/providers/nutrition_provider.dart';
+import '../../providers/meal_plan_provider.dart';
+import '../widgets/meal_plan_widget.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -24,6 +26,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     await Future.wait([
       ref.read(authProvider.notifier).loadProfile(),
       ref.read(nutritionProgressProvider.notifier).getDailyNutritionProgress(),
+      ref.read(mealPlanProvider.notifier).loadMealPlan(),
     ]);
   }
 
@@ -84,6 +87,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   const SizedBox(height: AppSizes.spacing32),
                 ] else
                   _buildNoTargetsPlaceholder(),
+                _buildMealPlanSection(),
+                const SizedBox(height: AppSizes.spacing32),
               ],
             ),
           ),
@@ -504,6 +509,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildMealPlanSection() {
+    return const MealPlanWidget();
   }
 
   Widget _buildNoTargetsPlaceholder() {
