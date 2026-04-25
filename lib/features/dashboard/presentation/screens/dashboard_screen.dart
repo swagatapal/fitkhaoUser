@@ -5,7 +5,9 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../delivery/providers/nutrition_provider.dart';
+import '../../../delivery/providers/delivery_slot_provider.dart';
 import '../../providers/meal_plan_provider.dart';
+import '../widgets/delivery_slot_widget.dart';
 import '../widgets/meal_plan_widget.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -27,6 +29,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ref.read(authProvider.notifier).loadProfile(),
       ref.read(nutritionProgressProvider.notifier).getDailyNutritionProgress(),
       ref.read(mealPlanProvider.notifier).loadMealPlan(),
+      ref.read(deliverySlotApiProvider.notifier).loadDeliverySlots(),
     ]);
   }
 
@@ -88,6 +91,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ] else
                   _buildNoTargetsPlaceholder(),
                 _buildMealPlanSection(),
+                const SizedBox(height: AppSizes.spacing32),
+                const DeliverySlotWidget(),
                 const SizedBox(height: AppSizes.spacing32),
               ],
             ),

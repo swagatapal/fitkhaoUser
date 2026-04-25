@@ -18,6 +18,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
   DateTime _selectedDate = DateTime.now();
   TabController? _tabController;
   List<MealPlanMeal> _currentMeals = [];
+  int _selectedTabIndex = 0;
 
   static const _categoryOrder = ['Breakfast', 'Lunch', 'Snacks', 'Dinner'];
 
@@ -42,8 +43,15 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     if (_tabController == null || _tabController!.length != sorted.length) {
       _tabController?.dispose();
       _tabController = TabController(length: sorted.length, vsync: this);
+      _tabController!.addListener(() {
+        if (!_tabController!.indexIsChanging) {
+          setState(() => _selectedTabIndex = _tabController!.index);
+        }
+      });
     }
     _currentMeals = sorted;
+    _selectedTabIndex = 0;
+    _tabController!.index = 0;
   }
 
   void _onDateSelected(DateTime date, MealPlan mealPlan) {
@@ -56,6 +64,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
         _tabController?.dispose();
         _tabController = null;
         _currentMeals = [];
+        _selectedTabIndex = 0;
       }
     });
   }
@@ -273,29 +282,16 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                     ))
                 .toList(),
           ),
-          // Tab views
-          SizedBox(
-            height: _estimateContentHeight(),
-            child: TabBarView(
-              controller: _tabController,
-              children: _currentMeals
-                  .map((m) => _buildDishList(m.dishes))
-                  .toList(),
-            ),
+          // Tab content — IndexedStack so height is intrinsic (no fixed height needed)
+          IndexedStack(
+            index: _selectedTabIndex.clamp(0, _currentMeals.length - 1),
+            children: _currentMeals
+                .map((m) => _buildDishList(m.dishes))
+                .toList(),
           ),
         ],
       ),
     );
-  }
-
-  /// Estimate height based on max dishes across tabs to prevent layout jank
-  double _estimateContentHeight() {
-    if (_currentMeals.isEmpty) return 100;
-    final maxDishes = _currentMeals
-        .map((m) => m.dishes.length)
-        .reduce((a, b) => a > b ? a : b);
-    // Each dish row ~76px + padding 16px top/bottom
-    return (maxDishes * 76.0 + 32).clamp(100.0, 400.0);
   }
 
   Widget _buildDishList(List<MealPlanDish> dishes) {
@@ -320,6 +316,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
         horizontal: AppSizes.spacing12,
         vertical: AppSizes.spacing8,
       ),
+      shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: dishes.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
