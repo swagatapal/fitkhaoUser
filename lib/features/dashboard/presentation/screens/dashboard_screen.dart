@@ -265,29 +265,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
               const SizedBox(height: AppSizes.spacing16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const SubscriptionPlanScreen(),
-                    ),
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SubscriptionPlanScreen(),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.primaryGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radius4),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: AppSizes.spacing12),
+                ),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      vertical: AppSizes.spacing12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppSizes.radius4),
                   ),
+                  alignment: Alignment.center,
                   child: const Text(
                     'View Subscription Plans',
                     style: TextStyle(
                       fontSize: AppTypography.fontSize14,
                       fontWeight: AppTypography.bold,
+                      color: AppColors.primaryGreen,
                       fontFamily: 'Lato',
                     ),
                   ),
@@ -462,7 +461,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
@@ -506,28 +505,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               'Delivery Slot Selection', 'Choose when your meals get delivered'),
           if (higherPlans.isNotEmpty) ...[
             const SizedBox(height: AppSizes.spacing16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const SubscriptionPlanScreen()),
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const SubscriptionPlanScreen()),
+              ),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                    vertical: AppSizes.spacing12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFC66301),
+                  borderRadius: BorderRadius.circular(AppSizes.radius4),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFC66301),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSizes.radius4),
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: AppSizes.spacing12),
-                ),
+                alignment: Alignment.center,
                 child: const Text(
                   'Upgrade Plan',
                   style: TextStyle(
                     fontSize: AppTypography.fontSize14,
                     fontWeight: AppTypography.bold,
+                    color: Colors.white,
                     fontFamily: 'Lato',
                   ),
                 ),
@@ -635,7 +633,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             color: AppColors.primaryGreen.withValues(alpha: 0.3)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
@@ -694,9 +692,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ],
           const SizedBox(height: AppSizes.spacing8),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -719,29 +719,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ],
                 ),
               ),
-              ElevatedButton(
-                onPressed: () => Navigator.push(
+              const SizedBox(width: AppSizes.spacing12),
+              GestureDetector(
+                onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
                       builder: (_) => const SubscriptionPlanScreen()),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryGreen,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSizes.radius4),
-                  ),
+                child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSizes.spacing20,
                     vertical: AppSizes.spacing10,
                   ),
-                ),
-                child: const Text(
-                  'Upgrade Now',
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize13,
-                    fontWeight: AppTypography.bold,
-                    fontFamily: 'Lato',
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen,
+                    borderRadius: BorderRadius.circular(AppSizes.radius4),
+                  ),
+                  child: const Text(
+                    'Upgrade Now',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize13,
+                      fontWeight: AppTypography.bold,
+                      color: Colors.white,
+                      fontFamily: 'Lato',
+                    ),
                   ),
                 ),
               ),
