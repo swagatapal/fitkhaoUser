@@ -81,19 +81,26 @@ class WalletInfo {
   }
 }
 
-/// Subscription information
+/// Subscription information — handles both:
+///   • /api/user/profile  → activeSubscription (uses `_id`, `planName`, `planCode`, `autoRenew`)
+///   • /api/wallet/balance → subscription      (uses `id`, `planType`, `isActive`, `remainingDays`)
 class SubscriptionInfo {
   final String id;
-  final String planType;
+  final String planCode;    // e.g. "PLN003"
+  final String planName;    // e.g. "Pro" — primary source for tier logic
+  final String planType;    // legacy field from wallet API (e.g. "pro")
   final int planAmount;
   final String status;
   final String startDate;
   final String endDate;
   final int remainingDays;
   final bool isActive;
+  final bool autoRenew;
 
   const SubscriptionInfo({
     required this.id,
+    required this.planCode,
+    required this.planName,
     required this.planType,
     required this.planAmount,
     required this.status,
@@ -101,35 +108,37 @@ class SubscriptionInfo {
     required this.endDate,
     required this.remainingDays,
     required this.isActive,
+    required this.autoRenew,
   });
 
   factory SubscriptionInfo.fromJson(Map<String, dynamic> json) {
+    // Profile API uses '_id'; wallet API uses 'id'
+    final id = json['_id'] as String? ?? json['id'] as String? ?? '';
+    final status = json['status'] as String? ?? '';
+    // Profile API derives isActive from status; wallet API has explicit bool
+    final isActive = json['isActive'] as bool? ?? (status == 'active');
     return SubscriptionInfo(
-      id: json['id'] as String? ?? '',
+      id: id,
+      planCode: json['planCode'] as String? ?? '',
+      planName: json['planName'] as String? ?? '',
       planType: json['planType'] as String? ?? '',
-      planAmount: json['planAmount'] as int? ?? 0,
-      status: json['status'] as String? ?? '',
+      planAmount: (json['planAmount'] as num?)?.toInt() ?? 0,
+      status: status,
       startDate: json['startDate'] as String? ?? '',
       endDate: json['endDate'] as String? ?? '',
-      remainingDays: json['remainingDays'] as int? ?? 0,
-      isActive: json['isActive'] as bool? ?? false,
+      remainingDays: (json['remainingDays'] as num?)?.toInt() ?? 0,
+      isActive: isActive,
+      autoRenew: json['autoRenew'] as bool? ?? false,
     );
-  }
-
-  /// Get formatted plan name
-  String get planName {
-    if (planType == 'weekly') return '7 Days Plan';
-    if (planType == 'monthly') return '30 Days Plan';
-    return planType;
   }
 
   /// Get formatted price
   String get formattedPrice => '₹$planAmount';
 
-  /// Derive the tier from planType string (case-insensitive)
+  /// Derive the tier — checks planName first (profile API), falls back to planType (wallet API)
   PlanTier get planTier {
     if (!isActive) return PlanTier.none;
-    final t = planType.toLowerCase();
+    final t = (planName.isNotEmpty ? planName : planType).toLowerCase();
     if (t.contains('achiever')) return PlanTier.achievers;
     if (t.contains('pro')) return PlanTier.pro;
     if (t.contains('go')) return PlanTier.go;

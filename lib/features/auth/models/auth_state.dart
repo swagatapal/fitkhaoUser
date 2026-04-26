@@ -1,3 +1,5 @@
+import '../../delivery/models/wallet_balance_model.dart';
+
 class AuthState {
   final String? userId;
   final String phoneNumber;
@@ -64,6 +66,9 @@ class AuthState {
   // Selected physiological condition codes (from API)
   final List<String> selectedConditionCodes;
 
+  // Active subscription from profile API
+  final SubscriptionInfo? activeSubscription;
+
   // Profile update tracking
   final DateTime? profileUpdatedAt;
 
@@ -116,6 +121,7 @@ class AuthState {
     this.lastUpdatedTargetKCal,
     this.selectedGoal = 'regular-bmi-maintenance',
     this.selectedConditionCodes = const [],
+    this.activeSubscription,
     this.profileUpdatedAt,
   });
 
@@ -168,6 +174,7 @@ class AuthState {
     DateTime? lastUpdatedTargetKCal,
     String? selectedGoal,
     List<String>? selectedConditionCodes,
+    SubscriptionInfo? activeSubscription,
     DateTime? profileUpdatedAt,
   }) {
     return AuthState(
@@ -221,6 +228,7 @@ class AuthState {
       selectedGoal: selectedGoal ?? this.selectedGoal,
       selectedConditionCodes:
       selectedConditionCodes ?? this.selectedConditionCodes,
+      activeSubscription: activeSubscription ?? this.activeSubscription,
       profileUpdatedAt: profileUpdatedAt ?? this.profileUpdatedAt,
     );
   }

@@ -7,6 +7,7 @@ import '../models/auth_state.dart';
 import '../models/profile_update_model.dart';
 import '../models/verify_otp_model.dart';
 import '../repository/auth_repository.dart';
+import '../../delivery/models/wallet_balance_model.dart';
 import '../../profile/models/physiological_category_model.dart';
 
 class AuthNotifier extends StateNotifier<AuthState> {
@@ -495,6 +496,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
         }
         final isUpdateable = user['isUpdateable'] as bool? ?? true;
 
+        // Parse activeSubscription from profile API
+        SubscriptionInfo? activeSubscription;
+        final activeSubJson = user['activeSubscription'] as Map<String, dynamic>?;
+        if (activeSubJson != null) {
+          try {
+            activeSubscription = SubscriptionInfo.fromJson(activeSubJson);
+            debugPrint('[AuthNotifier] Active subscription: ${activeSubscription.planName} (${activeSubscription.planCode}), status=${activeSubscription.status}');
+          } catch (e) {
+            debugPrint('[AuthNotifier] Error parsing activeSubscription: $e');
+          }
+        }
+
         // Update state with fetched data
         state = state.copyWith(
           userId: userId,
@@ -531,6 +544,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           targetKCalories: targetKCalories,
           lastUpdatedTargetKCal: lastUpdatedTargetKCal,
           selectedGoal: selectedGoal,
+          activeSubscription: activeSubscription,
           profileUpdatedAt: profileUpdatedAt,
           isLoading: false,
           errorMessage: null,

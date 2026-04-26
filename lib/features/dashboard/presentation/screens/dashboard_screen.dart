@@ -47,8 +47,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   PlanTier _currentTier() {
-    final sub = ref.read(walletProvider).subscription;
-    return sub?.planTier ?? PlanTier.none;
+    // Profile API activeSubscription is the authoritative source;
+    // fall back to wallet API subscription if profile hasn't loaded yet.
+    final authSub = ref.read(authProvider).activeSubscription;
+    if (authSub != null) return authSub.planTier;
+    final walletSub = ref.read(walletProvider).subscription;
+    return walletSub?.planTier ?? PlanTier.none;
   }
 
   bool _hasNutritionalTargets() {
@@ -89,10 +93,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final walletState = ref.watch(walletProvider);
     final planState = ref.watch(subscriptionPlanProvider);
 
-    // Derive tier — none if still loading
+    final authState = ref.watch(authProvider);
+
+    // Derive tier — null while wallet is still loading (shows skeleton).
+    // Profile activeSubscription is authoritative; wallet subscription is fallback.
     final tier = walletState.isLoading
         ? null
-        : (walletState.subscription?.planTier ?? PlanTier.none);
+        : (authState.activeSubscription?.planTier
+            ?? walletState.subscription?.planTier
+            ?? PlanTier.none);
 
     return Scaffold(
       backgroundColor: AppColors.background,
