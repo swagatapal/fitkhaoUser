@@ -1,3 +1,6 @@
+/// Subscription tier hierarchy: none < go < pro < achievers
+enum PlanTier { none, go, pro, achievers }
+
 /// Response model for wallet balance API
 class WalletBalanceResponse {
   final bool success;
@@ -122,4 +125,14 @@ class SubscriptionInfo {
 
   /// Get formatted price
   String get formattedPrice => '₹$planAmount';
+
+  /// Derive the tier from planType string (case-insensitive)
+  PlanTier get planTier {
+    if (!isActive) return PlanTier.none;
+    final t = planType.toLowerCase();
+    if (t.contains('achiever')) return PlanTier.achievers;
+    if (t.contains('pro')) return PlanTier.pro;
+    if (t.contains('go')) return PlanTier.go;
+    return PlanTier.none;
+  }
 }
