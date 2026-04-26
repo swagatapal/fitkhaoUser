@@ -1,18 +1,18 @@
 /// Request model for creating a subscription
 class SubscriptionRequest {
-  final String planType; // 'weekly' or 'monthly'
-  final int amount;
+  final String planCode;
+  final String? paymentId;
 
   const SubscriptionRequest({
-    required this.planType,
-    required this.amount,
+    required this.planCode,
+    this.paymentId,
   });
 
   /// Convert to JSON for API request
   Map<String, dynamic> toJson() {
     return {
-      'planType': planType,
-      'amount': amount,
+      'planCode': planCode,
+      if (paymentId != null && paymentId!.isNotEmpty) 'paymentId': paymentId,
     };
   }
 }

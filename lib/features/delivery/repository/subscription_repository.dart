@@ -36,11 +36,11 @@ class SubscriptionRepository {
 
   /// Create a new subscription
   Future<SubscriptionResponse> createSubscription({
-    required String planType,
-    required int amount,
+    required String planCode,
+    String? paymentId,
   }) async {
     debugPrint('[SubscriptionRepository] Creating subscription via API...');
-    debugPrint('[SubscriptionRepository] Plan: $planType, Amount: $amount');
+    debugPrint('[SubscriptionRepository] planCode: $planCode, paymentId: $paymentId');
 
     try {
       // Get auth token
@@ -53,8 +53,8 @@ class SubscriptionRepository {
 
       // Prepare request
       final request = SubscriptionRequest(
-        planType: planType,
-        amount: amount,
+        planCode: planCode,
+        paymentId: paymentId,
       );
 
       // Prepare headers with Bearer token

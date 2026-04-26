@@ -10,11 +10,13 @@ import '../../../../shared/widgets/logo_widget.dart';
 class SubscriptionCheckoutScreen extends ConsumerStatefulWidget {
   final String planDays; // '7' or '30'
   final String planPrice;
+  final String planCode;
 
   const SubscriptionCheckoutScreen({
     super.key,
     required this.planDays,
     required this.planPrice,
+    required this.planCode,
   });
 
   @override
@@ -217,20 +219,12 @@ class _SubscriptionCheckoutScreenState
       // Get subscription repository
       final subscriptionRepo = ref.read(subscriptionRepositoryProvider);
 
-      // Determine plan type based on days
-      final planType = widget.planDays == '7' ? 'weekly' : 'monthly';
-
-      // Convert amount to integer
-      final amount = _grandTotal.toInt();
-
       debugPrint('[SubscriptionCheckout] Creating subscription...');
-      debugPrint('[SubscriptionCheckout] Plan Type: $planType');
-      debugPrint('[SubscriptionCheckout] Amount: $amount');
+      debugPrint('[SubscriptionCheckout] planCode: ${widget.planCode}');
 
       // Call API to create subscription
       final response = await subscriptionRepo.createSubscription(
-        planType: planType,
-        amount: amount,
+        planCode: widget.planCode,
       );
 
       debugPrint('[SubscriptionCheckout] Response: ${response.success}');

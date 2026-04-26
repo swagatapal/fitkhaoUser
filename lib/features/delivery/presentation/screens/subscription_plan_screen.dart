@@ -802,6 +802,7 @@ class _SubscriptionPlanScreenState
                 builder: (context) => SubscriptionCheckoutScreen(
                   planDays: _selectedPlan!.planDays,
                   planPrice: _selectedPlan!.formattedPrice,
+                  planCode: _selectedPlan!.planCode,
                 ),
               ),
             );
