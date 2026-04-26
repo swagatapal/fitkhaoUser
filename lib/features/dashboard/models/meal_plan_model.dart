@@ -1,5 +1,15 @@
 // Models for the assigned meal plan API response
 
+/// Parses an API date string as a local date (date-only), stripping any
+/// UTC offset so that "2026-04-25T00:00:00.000Z" always becomes 2026-04-25
+/// regardless of the device timezone.
+DateTime _parseApiDate(String raw) {
+  if (raw.isEmpty) return DateTime.now();
+  // Take only the date portion (YYYY-MM-DD) before any T/space
+  final datePart = raw.split('T').first.split(' ').first;
+  return DateTime.tryParse(datePart) ?? DateTime.now();
+}
+
 class MealPlanResponse {
   final bool success;
   final String message;
@@ -85,7 +95,7 @@ class MealPlanDay {
 
   factory MealPlanDay.fromJson(Map<String, dynamic> json) {
     return MealPlanDay(
-      date: DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
+      date: _parseApiDate(json['date'] as String? ?? ''),
       isDeleted: json['isDeleted'] as bool? ?? false,
       meals: (json['meals'] as List<dynamic>?)
               ?.map((m) => MealPlanMeal.fromJson(m as Map<String, dynamic>))

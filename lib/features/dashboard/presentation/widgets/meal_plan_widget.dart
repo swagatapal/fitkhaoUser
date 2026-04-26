@@ -14,11 +14,12 @@ class MealPlanWidget extends ConsumerStatefulWidget {
 }
 
 class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   DateTime _selectedDate = DateTime.now();
   TabController? _tabController;
-  List<MealPlanMeal> _currentMeals = [];
   int _selectedTabIndex = 0;
+  // Track the date the controller was built for to detect date changes
+  DateTime? _controllerDate;
 
   static const _categoryOrder = ['Breakfast', 'Lunch', 'Snacks', 'Dinner'];
 
@@ -38,34 +39,31 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     return sorted;
   }
 
-  void _updateTabController(List<MealPlanMeal> meals) {
-    final sorted = _sortedMeals(meals);
-    if (_tabController == null || _tabController!.length != sorted.length) {
+  /// Rebuilds the TabController when the date changes or the meal count changes.
+  void _syncTabController(List<MealPlanMeal> sortedMeals) {
+    final dateChanged = _controllerDate == null ||
+        _controllerDate!.year != _selectedDate.year ||
+        _controllerDate!.month != _selectedDate.month ||
+        _controllerDate!.day != _selectedDate.day;
+    final countChanged = _tabController == null ||
+        _tabController!.length != sortedMeals.length;
+
+    if (dateChanged || countChanged) {
       _tabController?.dispose();
-      _tabController = TabController(length: sorted.length, vsync: this);
+      _tabController = TabController(length: sortedMeals.length, vsync: this);
       _tabController!.addListener(() {
         if (!_tabController!.indexIsChanging) {
           setState(() => _selectedTabIndex = _tabController!.index);
         }
       });
+      _selectedTabIndex = 0;
+      _controllerDate = _selectedDate;
     }
-    _currentMeals = sorted;
-    _selectedTabIndex = 0;
-    _tabController!.index = 0;
   }
 
   void _onDateSelected(DateTime date, MealPlan mealPlan) {
-    final day = mealPlan.dayForDate(date);
     setState(() {
-      _selectedDate = date;
-      if (day != null && day.meals.isNotEmpty) {
-        _updateTabController(day.meals);
-      } else {
-        _tabController?.dispose();
-        _tabController = null;
-        _currentMeals = [];
-        _selectedTabIndex = 0;
-      }
+      _selectedDate = DateTime(date.year, date.month, date.day);
     });
   }
 
@@ -133,37 +131,38 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
 
     final mealPlan = state.mealPlan!;
 
-    // Initialise selected date + tabs on first valid data load
-    if (_tabController == null) {
+    // On first load, pick the best initial date (today → next available → first)
+    if (_controllerDate == null) {
       final today = DateTime(
           DateTime.now().year, DateTime.now().month, DateTime.now().day);
       final available = mealPlan.availableDates;
-      // Pick today if available, else the closest upcoming date, else first
-      DateTime initial;
       if (available.contains(today)) {
-        initial = today;
+        _selectedDate = today;
       } else {
         final upcoming = available.where((d) => d.isAfter(today));
-        initial = upcoming.isNotEmpty ? upcoming.first : available.first;
-      }
-      _selectedDate = initial;
-      final day = mealPlan.dayForDate(initial);
-      if (day != null && day.meals.isNotEmpty) {
-        _updateTabController(day.meals);
+        _selectedDate =
+            upcoming.isNotEmpty ? upcoming.first : available.first;
       }
     }
 
     final day = mealPlan.dayForDate(_selectedDate);
+    final sortedMeals =
+        day != null && day.meals.isNotEmpty ? _sortedMeals(day.meals) : <MealPlanMeal>[];
+
+    // Always sync controller to current date + meal list
+    if (sortedMeals.isNotEmpty) {
+      _syncTabController(sortedMeals);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionHeader(context, mealPlan),
         const SizedBox(height: AppSizes.spacing12),
-        if (day == null || day.meals.isEmpty)
+        if (sortedMeals.isEmpty)
           _buildNoDayData()
         else
-          _buildMealContent(day),
+          _buildMealContent(sortedMeals),
       ],
     );
   }
@@ -226,8 +225,8 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
     );
   }
 
-  Widget _buildMealContent(MealPlanDay day) {
-    if (_tabController == null || _currentMeals.isEmpty) {
+  Widget _buildMealContent(List<MealPlanMeal> meals) {
+    if (_tabController == null || meals.isEmpty) {
       return _buildNoDayData();
     }
 
@@ -249,7 +248,6 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Meal category tabs
           TabBar(
             controller: _tabController,
             isScrollable: true,
@@ -269,7 +267,7 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
             indicatorColor: AppColors.primaryGreen,
             indicatorWeight: 2.5,
             dividerColor: AppColors.borderColor,
-            tabs: _currentMeals
+            tabs: meals
                 .map((m) => Tab(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -282,12 +280,10 @@ class _MealPlanWidgetState extends ConsumerState<MealPlanWidget>
                     ))
                 .toList(),
           ),
-          // Tab content — IndexedStack so height is intrinsic (no fixed height needed)
+          // IndexedStack gives intrinsic height — no bounded constraint needed
           IndexedStack(
-            index: _selectedTabIndex.clamp(0, _currentMeals.length - 1),
-            children: _currentMeals
-                .map((m) => _buildDishList(m.dishes))
-                .toList(),
+            index: _selectedTabIndex.clamp(0, meals.length - 1),
+            children: meals.map((m) => _buildDishList(m.dishes)).toList(),
           ),
         ],
       ),
