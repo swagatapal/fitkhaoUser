@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'dart:math';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
@@ -22,6 +23,9 @@ class _RechargeTopupModalState extends ConsumerState<RechargeTopupModal> {
   String _selectedPaymentMethod = 'UPI';
   bool _isProcessing = false;
 
+  late Razorpay _razorpay;
+
+
   final List<String> _paymentMethods = [
     'UPI',
     'Net Banking',
@@ -30,10 +34,72 @@ class _RechargeTopupModalState extends ConsumerState<RechargeTopupModal> {
   ];
 
   @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _razorpay = Razorpay();
+
+    // Attach event listeners
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  @override
   void dispose() {
     _amountController.dispose();
     _descriptionController.dispose();
+    _razorpay.clear();
     super.dispose();
+  }
+
+  // ✅ Payment Success
+  void _handlePaymentSuccess(PaymentSuccessResponse response) {
+    print('Payment Success: ${response.paymentId}');
+    // TODO: Verify payment on your backend using response.paymentId
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Payment Successful! ID: ${response.paymentId}')),
+    );
+  }
+// ❌ Payment Failed
+  void _handlePaymentError(PaymentFailureResponse response) {
+    print('Payment Error: ${response.code} | ${response.message}');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Payment Failed: ${response.message}')),
+    );
+  }
+
+  // 👛 External Wallet (PayTM, PhonePe, etc.)
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    print('External Wallet: ${response.walletName}');
+  }
+
+  // 🚀 Open Razorpay Checkout
+  void _openCheckout() {
+    var options = {
+      'key': 'rzp_test_SfHVw0QfOq1N0X', // 🔑 Your test key here
+      'amount': 1000,                   // Amount in PAISE (50000 = ₹500)
+      'name': 'FitKhao',
+      'description': 'Payment for Order #1234',
+      'currency': 'INR',
+      'prefill': {
+        'contact': '9876543210',
+        'email': 'user@example.com',
+      },
+      'theme': {
+        'color': '#00A86B',             // Checkout UI color
+      },
+      'retry': {
+        'enabled': true,
+        'max_count': 3,
+      }
+    };
+
+    try {
+      _razorpay.open(options);
+    } catch (e) {
+      print('Error opening Razorpay: $e');
+    }
   }
 
   String _generateTransactionId() {
@@ -103,7 +169,8 @@ class _RechargeTopupModalState extends ConsumerState<RechargeTopupModal> {
             ),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            //onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => _openCheckout(),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryGreen,
               foregroundColor: Colors.white,
