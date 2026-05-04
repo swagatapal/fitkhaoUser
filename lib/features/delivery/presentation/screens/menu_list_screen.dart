@@ -10,7 +10,6 @@ import '../../models/menu_item.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/menu_provider.dart';
 import '../widgets/food_detail_popup.dart';
-import 'checkout_screen.dart';
 
 class MenuListScreen extends ConsumerStatefulWidget {
   final String mealType; // 'breakfast', 'lunch', 'dinner'
@@ -128,58 +127,39 @@ class _MenuListScreenState extends ConsumerState<MenuListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cartItems = ref.watch(cartProvider);
-    final totalItems = ref.watch(cartTotalItemsProvider);
-    final totalPrice = ref.watch(cartTotalPriceProvider);
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Stack(
+        child: Column(
           children: [
-            Column(
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _onRefresh,
-                    color: AppColors.primaryGreen,
-                    backgroundColor: Colors.white,
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSizes.screenPaddingHorizontal,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: AppSizes.spacing16),
-                            _buildSearchBar(),
-                            const SizedBox(height: AppSizes.spacing16),
-                            _buildFilterButtons(),
-                            const SizedBox(height: AppSizes.spacing20),
-                            _buildMenuCategories(),
-                            const SizedBox(height: AppSizes.spacing32),
-                            // Add spacing for cart bar
-                            if (cartItems.isNotEmpty)
-                              const SizedBox(height: AppSizes.spacing80),
-                          ],
-                        ),
-                      ),
+            _buildHeader(),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _onRefresh,
+                color: AppColors.primaryGreen,
+                backgroundColor: Colors.white,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSizes.screenPaddingHorizontal,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: AppSizes.spacing16),
+                        _buildSearchBar(),
+                        const SizedBox(height: AppSizes.spacing16),
+                        _buildFilterButtons(),
+                        const SizedBox(height: AppSizes.spacing20),
+                        _buildMenuCategories(),
+                        const SizedBox(height: AppSizes.spacing32),
+                      ],
                     ),
                   ),
                 ),
-              ],
-            ),
-            // Cart Bar
-            if (cartItems.isNotEmpty)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: _buildCartBar(totalItems, totalPrice),
               ),
+            ),
           ],
         ),
       ),
@@ -718,135 +698,4 @@ class _MenuListScreenState extends ConsumerState<MenuListScreen> {
     );
   }
 
-  Widget _buildCartBar(int totalItems, double totalPrice) {
-    return Container(
-      margin: const EdgeInsets.all(AppSizes.spacing16),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.spacing20,
-        vertical: AppSizes.spacing12,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.primaryGreen,
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: AppSizes.shadowBlur20,
-            offset: const Offset(0, -AppSizes.spacing4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Cart Icon with Item Count
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const Icon(
-                Icons.shopping_cart,
-                color: Colors.white,
-                size: AppSizes.icon28,
-              ),
-              if (totalItems > 0)
-                Positioned(
-                  right: -AppSizes.spacing6,
-                  top: -AppSizes.spacing4,
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSizes.spacing4),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: AppSizes.spacing16,
-                      minHeight: AppSizes.spacing16,
-                    ),
-                    child: Center(
-                      child: Text(
-                        totalItems.toString(),
-                        style: const TextStyle(
-                          fontSize: AppTypography.fontSize10,
-                          fontWeight: AppTypography.bold,
-                          color: AppColors.primaryGreen,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: AppSizes.spacing12),
-          // Item Count Text
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '$totalItems ${totalItems == 1 ? AppStrings.item : AppStrings.items}',
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize14,
-                    fontWeight: AppTypography.semiBold,
-                    color: Colors.white,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-                Text(
-                  '₹${totalPrice.toInt()}',
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize12,
-                    fontWeight: AppTypography.regular,
-                    color: Colors.white,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Proceed to Checkout Button
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CheckoutScreen(),
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSizes.spacing16,
-                vertical: AppSizes.spacing8,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppSizes.radius6),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    AppStrings.proceedToCheckout,
-                    style: TextStyle(
-                      fontSize: AppTypography.fontSize12,
-                      fontWeight: AppTypography.semiBold,
-                      color: AppColors.primaryGreen,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                  // const SizedBox(width: AppSizes.spacing4),
-                  // const Icon(
-                  //   Icons.delete_outline,
-                  //   color: AppColors.primaryGreen,
-                  //   size: AppSizes.icon16,
-                  // ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

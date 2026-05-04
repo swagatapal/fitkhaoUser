@@ -12,6 +12,7 @@ import '../../models/menu_item.dart';
 import '../../providers/menu_provider.dart';
 import '../widgets/food_detail_popup.dart';
 import '../widgets/membership_popup.dart';
+import 'checkout_screen.dart';
 import 'menu_list_screen.dart';
 
 class DeliveryScreen extends ConsumerStatefulWidget {
@@ -169,45 +170,172 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cartItems = ref.watch(cartProvider);
+    final totalItems = ref.watch(cartTotalItemsProvider);
+    final totalPrice = ref.watch(cartTotalPriceProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _onRefresh,
-          color: AppColors.primaryGreen,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSizes.screenPaddingHorizontal,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: AppSizes.spacing4),
-                      _buildHeader(),
-                      const SizedBox(height: AppSizes.spacing8),
-                      _buildServiceabilityBanner(),
-                      //_trackSubscription(),
-                      // const SizedBox(height: AppSizes.spacing16),
-                      // _buildSearchBar(),
-                      //const SizedBox(height: AppSizes.spacing12),
-                      //_buildDailyGoalCard(),
-                      //const SizedBox(height: AppSizes.spacing12),
-                      _buildBrowseByCategories(),
-                      //const SizedBox(height: AppSizes.spacing20),
-                      _buildDishesSection(),
-                      const SizedBox(height: AppSizes.spacing32),
-                    ],
+        child: Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: _onRefresh,
+              color: AppColors.primaryGreen,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSizes.screenPaddingHorizontal,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: AppSizes.spacing4),
+                          _buildHeader(),
+                          const SizedBox(height: AppSizes.spacing8),
+                          _buildServiceabilityBanner(),
+                          //_buildBrowseByCategories(),
+                          _buildDishesSection(),
+                          const SizedBox(height: AppSizes.spacing32),
+                        ],
+                      ),
+                    ),
+                    // Bottom padding so content isn't hidden behind cart bar
+                    if (cartItems.isNotEmpty)
+                      const SizedBox(height: AppSizes.spacing80),
+                    const SizedBox(height: AppSizes.spacing32),
+                  ],
+                ),
+              ),
+            ),
+            if (cartItems.isNotEmpty)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 60,
+                child: _buildCartBar(totalItems, totalPrice),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCartBar(int totalItems, double totalPrice) {
+    return Container(
+      margin: const EdgeInsets.all(AppSizes.spacing16),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spacing20,
+        vertical: AppSizes.spacing12,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen,
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: AppSizes.shadowBlur20,
+            offset: const Offset(0, -AppSizes.spacing4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(
+                Icons.shopping_cart,
+                color: Colors.white,
+                size: AppSizes.icon28,
+              ),
+              if (totalItems > 0)
+                Positioned(
+                  right: -AppSizes.spacing6,
+                  top: -AppSizes.spacing4,
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSizes.spacing4),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: AppSizes.spacing16,
+                      minHeight: AppSizes.spacing16,
+                    ),
+                    child: Center(
+                      child: Text(
+                        totalItems.toString(),
+                        style: const TextStyle(
+                          fontSize: AppTypography.fontSize10,
+                          fontWeight: AppTypography.bold,
+                          color: AppColors.primaryGreen,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: AppSizes.spacing32),
+            ],
+          ),
+          const SizedBox(width: AppSizes.spacing12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$totalItems ${totalItems == 1 ? AppStrings.item : AppStrings.items}',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.semiBold,
+                    color: Colors.white,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                Text(
+                  '₹${totalPrice.toInt()}',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    fontWeight: AppTypography.regular,
+                    color: Colors.white,
+                    fontFamily: 'Lato',
+                  ),
+                ),
               ],
             ),
           ),
-        ),
+          GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const CheckoutScreen(),
+              ),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.spacing16,
+                vertical: AppSizes.spacing8,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppSizes.radius6),
+              ),
+              child: const Text(
+                AppStrings.proceedToCheckout,
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize12,
+                  fontWeight: AppTypography.semiBold,
+                  color: AppColors.primaryGreen,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -397,199 +525,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       ],
     );
   }
-
-  Widget _buildBrowseByCategories() {
-    final serviceabilityState = ref.read(serviceabilityProvider);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              AppStrings.browseByCategories,
-              style: TextStyle(
-                fontSize: AppTypography.fontSize16,
-                fontWeight: AppTypography.bold,
-                color: AppColors.textPrimary,
-                fontFamily: 'Lato',
-              ),
-            ),
-            Consumer(
-              builder: (context, ref, child) {
-                final totalItems = ref.watch(cartTotalItemsProvider);
-
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Icon(
-                      Icons.shopping_cart,
-                      color: AppColors.darkGreen,
-                      size: 20,
-                    ),
-                    if (totalItems > 0)
-                      Positioned(
-                        right: -AppSizes.spacing6,
-                        top: -AppSizes.spacing4,
-                        child: Container(
-                          padding: const EdgeInsets.all(AppSizes.spacing4),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primaryGreen,
-                            shape: BoxShape.circle,
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: AppSizes.spacing16,
-                            minHeight: AppSizes.spacing16,
-                          ),
-                          child: Center(
-                            child: Text(
-                              totalItems.toString(),
-                              style: const TextStyle(
-                                fontSize: AppTypography.fontSize10,
-                                fontWeight: AppTypography.bold,
-                                color: Colors.white,
-                                fontFamily: 'Lato',
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              },
-            )
-          ],
-        ),
-        const SizedBox(height: AppSizes.spacing12),
-        Stack(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildCategoryCard(AppStrings.breakfast, "https://img.freepik.com/premium-photo/breakfast-buffet-full-continental-english_79295-5883.jpg?semt=ais_hybrid&w=740&q=80"),
-                _buildCategoryCard(AppStrings.lunch,"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQUfmoU1yzh652_lP_nyxMeEFMqA6_QaYb-5A&s"),
-                _buildCategoryCard(AppStrings.dinner,"https://media.istockphoto.com/id/868408746/photo/assorted-indian-dish.jpg?s=612x612&w=0&k=20&c=XLsAk571Z2kEe_x6TnXWSzsG95-2agp-TcYswQrKHuo="),
-              ],
-            ),
-            Visibility(
-              visible: serviceabilityState.isServiceable == false?true:false,
-              child: Container(
-                height: MediaQuery.of(context).size.height*0.2,
-                width: MediaQuery.of(context).size.width,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(8)
-                ),
-                child: Center(
-                  child: Text("Delivery Not Available", style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textWhite
-                  ),),
-                ),
-              ),
-            )
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryCard(String category, String categoryImage) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MenuListScreen(mealType: category),
-          ),
-        );
-      },
-      child: Container(
-        width:
-            (MediaQuery.of(context).size.width -
-                (AppSizes.screenPaddingHorizontal * 2) -
-                (AppSizes.spacing16 * 2)) /
-            3,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppSizes.radius4),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: AppSizes.shadowBlur10,
-              offset: const Offset(0, AppSizes.spacing4),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              height: AppSizes.containerHeightMedium,
-              decoration: BoxDecoration(
-                color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(AppSizes.radius4),
-                  topRight: Radius.circular(AppSizes.radius4),
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(AppSizes.radius4),
-                  topRight: Radius.circular(AppSizes.radius4),
-                ),
-                child: Image.network(
-                  categoryImage,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                      child: const Icon(
-                        Icons.restaurant,
-                        size: AppSizes.icon48,
-                        color: AppColors.primaryGreen,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(AppSizes.spacing8),
-              child: Text(
-                category,
-                style: const TextStyle(
-                  fontSize: AppTypography.fontSize14,
-                  fontWeight: AppTypography.semiBold,
-                  color: AppColors.textPrimary,
-                  fontFamily: 'Lato',
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ─── Dishes Section ──────────────────────────────────────────────────────
 
   Widget _buildDishesSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Today\'s Menu',
-          style: TextStyle(
-            fontSize: AppTypography.fontSize16,
-            fontWeight: AppTypography.bold,
-            color: AppColors.textPrimary,
-            fontFamily: 'Lato',
-          ),
-        ),
-        const SizedBox(height: AppSizes.spacing12),
         _buildFilterChips(),
         _buildDishList(),
       ],
