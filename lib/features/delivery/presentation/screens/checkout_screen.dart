@@ -10,7 +10,6 @@ import '../../models/cart_item.dart';
 import '../../models/order_placement_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/wallet_provider.dart';
-import '../widgets/order_confirmation_modal.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -23,6 +22,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   // 'wallet' | 'gateway'
   String _selectedPaymentMethod = 'wallet';
   final TextEditingController _instructionsController = TextEditingController();
+  bool _isProcessing = false;
 
   @override
   void initState() {
@@ -44,7 +44,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final totalPrice = ref.watch(cartTotalPriceProvider);
     final walletState = ref.watch(walletProvider);
 
-    const gst = 0.05; // 5%
+    const gst = 0.05;
     const platformCharge = 7.0;
     final itemTotal = totalPrice;
     final gstAmount = totalPrice * gst;
@@ -202,7 +202,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ),
       child: Row(
         children: [
-          // Food image
           ClipRRect(
             borderRadius: BorderRadius.circular(AppSizes.radius8),
             child: Image.network(
@@ -223,7 +222,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
           ),
           const SizedBox(width: AppSizes.spacing12),
-          // Item details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,7 +249,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ],
             ),
           ),
-          // Price + quantity controls
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -286,9 +283,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             cartItem.quantity - 1,
                           );
                         } else {
-                          ref.read(cartProvider.notifier).removeItem(
-                            cartItem.menuItem.id,
-                          );
+                          ref
+                              .read(cartProvider.notifier)
+                              .removeItem(cartItem.menuItem.id);
                         }
                       },
                     ),
@@ -368,7 +365,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               subtitle: isWalletSufficient
                   ? 'Available: ₹${couponBalance.toStringAsFixed(2)}'
                   : 'Insufficient balance — ₹${couponBalance.toStringAsFixed(2)} available, ₹${subTotal.toStringAsFixed(2)} required',
-              isSelected: _selectedPaymentMethod == 'wallet' && isWalletSufficient,
+              isSelected:
+                  _selectedPaymentMethod == 'wallet' && isWalletSufficient,
               trailingWhenUnselected: isWalletSufficient
                   ? null
                   : const Icon(
@@ -425,7 +423,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             child: Icon(
               icon,
               size: AppSizes.icon24,
-              color: isSelected ? AppColors.primaryGreen : AppColors.textSecondary,
+              color:
+                  isSelected ? AppColors.primaryGreen : AppColors.textSecondary,
             ),
           ),
           const SizedBox(width: AppSizes.spacing12),
@@ -655,8 +654,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             contentPadding: const EdgeInsets.all(AppSizes.spacing12),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppSizes.radius8),
-              borderSide:
-                  const BorderSide(color: AppColors.borderColor),
+              borderSide: const BorderSide(color: AppColors.borderColor),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppSizes.radius8),
@@ -679,7 +677,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     required bool isWalletSufficient,
     required WalletState walletState,
   }) {
-    final canPlace = cartItems.isNotEmpty &&
+    final canPlace = !_isProcessing &&
+        cartItems.isNotEmpty &&
         (_selectedPaymentMethod == 'gateway' ||
             (_selectedPaymentMethod == 'wallet' && isWalletSufficient));
 
@@ -687,6 +686,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (!canPlace &&
+            !_isProcessing &&
             cartItems.isNotEmpty &&
             _selectedPaymentMethod == 'wallet')
           Container(
@@ -701,8 +701,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
             child: const Row(
               children: [
-                Icon(Icons.info_outline,
-                    color: AppColors.errorColor, size: AppSizes.icon20),
+                Icon(
+                  Icons.info_outline,
+                  color: AppColors.errorColor,
+                  size: AppSizes.icon20,
+                ),
                 SizedBox(width: AppSizes.spacing8),
                 Expanded(
                   child: Text(
@@ -732,14 +735,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 borderRadius: BorderRadius.circular(AppSizes.radius8),
               ),
             ),
-            child: walletState.isLoading
+            child: _isProcessing || walletState.isLoading
                 ? const SizedBox(
                     width: AppSizes.icon20,
                     height: AppSizes.icon20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Colors.white),
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
                 : const Text(
@@ -759,7 +761,28 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   // ─── Order Placement ──────────────────────────────────────────────────────
 
-  Future<void> _placeOrder(List<CartItem> cartItems, double totalAmount) async {
+  Future<void> _placeOrder(List<CartItem> cartItems, double subTotal) async {
+    // Online payment — not yet implemented
+    if (_selectedPaymentMethod == 'gateway') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Online payment coming soon!',
+            style: TextStyle(fontFamily: 'Lato'),
+          ),
+          backgroundColor: AppColors.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Wallet payment
+    setState(() => _isProcessing = true);
+
     try {
       final localStorage = await ref.read(localStorageProvider.future);
       final userPhone = localStorage.getUserPhone() ?? '';
@@ -787,40 +810,80 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         contactNumber: userPhone,
         latitude: (address?['latitude'] as num?)?.toDouble() ?? 0.0,
         longitude: (address?['longitude'] as num?)?.toDouble() ?? 0.0,
+        deliveryInstructions: _instructionsController.text.trim().isNotEmpty
+            ? _instructionsController.text.trim()
+            : null,
+      );
+
+      // Determine foodType: non-veg > eggetarian > vegan > veg
+      String foodType = 'veg';
+      for (final cartItem in cartItems) {
+        final itemType = cartItem.menuItem.menuType.toLowerCase();
+        if (itemType == 'nonveg' || itemType == 'non-veg') {
+          foodType = 'non-veg';
+          break;
+        } else if (itemType == 'eggetarian' && foodType != 'non-veg') {
+          foodType = 'eggetarian';
+        } else if (itemType == 'vegan' && foodType == 'veg') {
+          foodType = 'vegan';
+        }
+      }
+
+      final orderItems = cartItems
+          .map((c) => OrderItem(foodItemId: c.menuItem.id, quantity: c.quantity))
+          .toList();
+
+      final instructions = _instructionsController.text.trim();
+
+      final orderRepo = ref.read(orderRepositoryProvider);
+      final orderResponse = await orderRepo.placeOrder(
+        kitchenId: '69275ba5c538faaf25e2acd1',
+        deliveryDate: DateTime.now().toIso8601String().substring(0, 10),
+        deliverySlot: 'morning',
+        items: orderItems,
+        deliveryAddress: deliveryAddress,
+        paymentMethod: 'wallet',
+        orderType: 'single-meal',
+        foodType: foodType,
+        specialInstructions: instructions.isNotEmpty ? instructions : null,
       );
 
       if (!mounted) return;
 
-      final result = await showDialog<Map<String, dynamic>>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => OrderConfirmationModal(
-          deliveryDate: DateTime.now().toIso8601String(),
-          cartItems: cartItems,
-          totalAmount: totalAmount,
-          deliveryAddress: deliveryAddress,
-        ),
-      );
-
-      if (result != null && result['success'] == true && mounted) {
-        _showSuccessDialog(result['orderNumber'], result['payment']);
+      if (orderResponse.success && orderResponse.data != null) {
+        await ref.read(walletProvider.notifier).loadWalletBalance();
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        _showSuccessDialog(orderResponse.data!.orderNumber);
+      } else {
+        setState(() => _isProcessing = false);
+        _showErrorSnackbar(orderResponse.message);
       }
     } catch (e) {
       debugPrint('[CheckoutScreen] Error placing order: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Unable to fetch delivery address. Please update your profile.',
-          ),
-          backgroundColor: AppColors.errorColor,
-          duration: Duration(seconds: 4),
-        ),
-      );
+      setState(() => _isProcessing = false);
+      _showErrorSnackbar('Failed to place order. Please try again.');
     }
   }
 
-  void _showSuccessDialog(String? orderNumber, dynamic payment) {
+  // ─── Dialogs / Snackbars ──────────────────────────────────────────────────
+
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontFamily: 'Lato')),
+        backgroundColor: AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+        ),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  void _showSuccessDialog(String? orderNumber) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -878,39 +941,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              if (payment != null && payment.wallet != null) ...[
-                const SizedBox(height: AppSizes.spacing20),
-                Container(
-                  padding: const EdgeInsets.all(AppSizes.spacing12),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(AppSizes.radius8),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Remaining Wallet Balance',
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize12,
-                          fontWeight: AppTypography.medium,
-                          color: AppColors.textSecondary,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                      const SizedBox(height: AppSizes.spacing4),
-                      Text(
-                        '₹${payment.wallet.couponBalance.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: AppTypography.fontSize18,
-                          fontWeight: AppTypography.bold,
-                          color: AppColors.primaryGreen,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ],
           ),
         ),
@@ -920,7 +950,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     Future.delayed(const Duration(seconds: 3), () {
       if (!mounted) return;
       ref.read(cartProvider.notifier).clearCart();
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(); // close dialog
       Navigator.of(context).popUntil((route) => route.isFirst);
     });
   }
