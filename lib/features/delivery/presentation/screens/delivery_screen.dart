@@ -13,7 +13,6 @@ import '../../providers/menu_provider.dart';
 import '../widgets/food_detail_popup.dart';
 import '../widgets/membership_popup.dart';
 import 'checkout_screen.dart';
-import 'menu_list_screen.dart';
 
 class DeliveryScreen extends ConsumerStatefulWidget {
   const DeliveryScreen({super.key});
@@ -224,6 +223,103 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
+  void _showClearCartDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_outline_rounded,
+                color: AppColors.errorColor, size: AppSizes.icon24),
+            SizedBox(width: AppSizes.spacing8),
+            Text(
+              'Clear Cart',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize18,
+                fontWeight: AppTypography.bold,
+                color: AppColors.textPrimary,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to remove all items from your cart?',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize14,
+            color: AppColors.textSecondary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(
+          AppSizes.spacing16,
+          0,
+          AppSizes.spacing16,
+          AppSizes.spacing16,
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => Navigator.of(ctx).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: AppSizes.spacing12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.borderColor),
+                      borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.semiBold,
+                        color: AppColors.textSecondary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSizes.spacing12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    ref.read(cartProvider.notifier).clearCart();
+                    Navigator.of(ctx).pop();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: AppSizes.spacing12),
+                    decoration: BoxDecoration(
+                      color: AppColors.errorColor,
+                      borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'Clear Cart',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.semiBold,
+                        color: Colors.white,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCartBar(int totalItems, double totalPrice) {
     return Container(
       margin: const EdgeInsets.all(AppSizes.spacing16),
@@ -308,6 +404,25 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               ],
             ),
           ),
+          // Delete cart icon
+          GestureDetector(
+            onTap: _showClearCartDialog,
+            child: Container(
+              width: 36,
+              height: 36,
+              margin: const EdgeInsets.only(right: AppSizes.spacing8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.delete_outline_rounded,
+                color: Colors.white,
+                size: AppSizes.icon20,
+              ),
+            ),
+          ),
+          // Proceed to checkout
           GestureDetector(
             onTap: () => Navigator.push(
               context,
