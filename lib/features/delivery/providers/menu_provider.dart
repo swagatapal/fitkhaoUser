@@ -60,6 +60,7 @@ class AllDishesState {
   final int totalCount;
   final String? selectedCategoryId;
   final String selectedDishType; // 'all' | 'veg' | 'non-veg'
+  final String searchQuery;
 
   const AllDishesState({
     this.allItems = const [],
@@ -71,6 +72,7 @@ class AllDishesState {
     this.totalCount = 0,
     this.selectedCategoryId,
     this.selectedDishType = 'all',
+    this.searchQuery = '',
   });
 
   bool get canLoadMore =>
@@ -78,9 +80,20 @@ class AllDishesState {
 
   List<MenuItem> get filteredItems {
     var items = allItems;
+
+    if (searchQuery.isNotEmpty) {
+      final q = searchQuery.toLowerCase();
+      items = items
+          .where((i) =>
+              i.name.toLowerCase().contains(q) ||
+              i.categoryName.toLowerCase().contains(q))
+          .toList();
+    }
+
     if (selectedCategoryId != null && selectedCategoryId!.isNotEmpty) {
       items = items.where((i) => i.categoryId == selectedCategoryId).toList();
     }
+
     switch (selectedDishType) {
       case 'veg':
         items = items.where((i) => i.isVeg).toList();
@@ -116,6 +129,7 @@ class AllDishesState {
     String? selectedCategoryId,
     bool clearCategoryFilter = false,
     String? selectedDishType,
+    String? searchQuery,
   }) {
     return AllDishesState(
       allItems: allItems ?? this.allItems,
@@ -129,6 +143,7 @@ class AllDishesState {
           ? null
           : (selectedCategoryId ?? this.selectedCategoryId),
       selectedDishType: selectedDishType ?? this.selectedDishType,
+      searchQuery: searchQuery ?? this.searchQuery,
     );
   }
 }
@@ -149,6 +164,7 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
         totalCount: result.totalCount,
         selectedCategoryId: state.selectedCategoryId,
         selectedDishType: state.selectedDishType,
+        searchQuery: state.searchQuery,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -184,6 +200,10 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
 
   void setDishTypeFilter(String dishType) {
     state = state.copyWith(selectedDishType: dishType);
+  }
+
+  void setSearchQuery(String query) {
+    state = state.copyWith(searchQuery: query);
   }
 
   Future<void> refresh() => loadMenuItems();

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -23,6 +25,7 @@ class DeliveryScreen extends ConsumerStatefulWidget {
 
 class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
 
   bool _hasShownMembershipPopup = false;
 
@@ -40,8 +43,22 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onDishSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      ref.read(allDishesProvider.notifier).setSearchQuery(value.trim());
+    });
+  }
+
+  void _clearDishSearch() {
+    _searchController.clear();
+    _searchDebounce?.cancel();
+    ref.read(allDishesProvider.notifier).setSearchQuery('');
   }
 
   /// Refresh all data
@@ -197,6 +214,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                           const SizedBox(height: AppSizes.spacing8),
                           _buildServiceabilityBanner(),
                           //_buildBrowseByCategories(),
+                          _buildDishSearchBar(),
                           _buildDishesSection(),
                           const SizedBox(height: AppSizes.spacing32),
                         ],
@@ -640,6 +658,84 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       ],
     );
   }
+  // ─── Dish Search Bar ─────────────────────────────────────────────────────
+
+  Widget _buildDishSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSizes.spacing12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+          border: Border.all(color: AppColors.borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: AppSizes.shadowBlur10,
+              offset: const Offset(0, AppSizes.spacing2),
+            ),
+          ],
+        ),
+        child: TextField(
+          controller: _searchController,
+          onChanged: _onDishSearchChanged,
+          textInputAction: TextInputAction.search,
+          style: const TextStyle(
+            fontSize: AppTypography.fontSize14,
+            color: AppColors.textPrimary,
+            fontFamily: 'Lato',
+          ),
+          decoration: InputDecoration(
+            hintText: 'Search dishes...',
+            hintStyle: const TextStyle(
+              fontSize: AppTypography.fontSize14,
+              color: AppColors.textTertiary,
+              fontFamily: 'Lato',
+            ),
+            prefixIcon: const Icon(
+              Icons.search_rounded,
+              color: AppColors.textSecondary,
+              size: AppSizes.icon20,
+            ),
+            suffixIcon: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _searchController,
+              builder: (_, value, __) {
+                if (value.text.isEmpty) return const SizedBox.shrink();
+                return GestureDetector(
+                  onTap: _clearDishSearch,
+                  child: const Padding(
+                    padding: EdgeInsets.all(AppSizes.spacing12),
+                    child: Icon(
+                      Icons.close_rounded,
+                      color: AppColors.textSecondary,
+                      size: AppSizes.icon20,
+                    ),
+                  ),
+                );
+              },
+            ),
+            border: InputBorder.none,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+              borderSide: const BorderSide(
+                color: AppColors.primaryGreen,
+                width: AppSizes.borderMedium,
+              ),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.spacing16,
+              vertical: AppSizes.spacing12,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   // ─── Dishes Section ──────────────────────────────────────────────────────
 
   Widget _buildDishesSection() {
