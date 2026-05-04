@@ -8,6 +8,8 @@ class MenuItem {
   final double marketPrice;
   final double? discountPrice;
   final String category;
+  final String categoryId;
+  final String categoryName;
   final bool isVeg;
   final String description;
   final String protein;
@@ -35,6 +37,8 @@ class MenuItem {
     this.marketPrice = 0,
     this.discountPrice,
     required this.category,
+    this.categoryId = '',
+    this.categoryName = '',
     required this.isVeg,
     this.description = '',
     this.protein = '0g',
@@ -57,6 +61,18 @@ class MenuItem {
   factory MenuItem.fromJson(Map<String, dynamic> json) {
     // ID: new API uses '_id', legacy uses 'id'
     final id = json['_id'] as String? ?? json['id'] as String? ?? '';
+
+    // Category: new API uses object {_id, name}, legacy uses plain string
+    final categoryRaw = json['category'];
+    String catId = '';
+    String catName = '';
+    String legacyCatStr = '';
+    if (categoryRaw is Map<String, dynamic>) {
+      catId = categoryRaw['_id'] as String? ?? '';
+      catName = categoryRaw['name'] as String? ?? '';
+    } else if (categoryRaw is String) {
+      legacyCatStr = categoryRaw;
+    }
 
     // Name: new API uses 'dishName'
     final name = json['dishName'] as String? ?? json['name'] as String? ?? '';
@@ -139,7 +155,7 @@ class MenuItem {
       if (applicableGoalType['fatLoss'] == true) goalCategories.add('fatLoss');
     }
 
-    // Display category label
+    // Display category label (goal-based)
     String displayCategory;
     if (goalCategories.contains('fatLoss')) {
       displayCategory = 'Fat Loss';
@@ -148,8 +164,7 @@ class MenuItem {
     } else if (goalCategories.contains('general')) {
       displayCategory = 'BMI Maintenance';
     } else {
-      final legacyCat = json['category'] as String? ?? '';
-      switch (legacyCat.toLowerCase()) {
+      switch (legacyCatStr.toLowerCase()) {
         case 'bmimaintainance':
         case 'bmi-maintenance':
           displayCategory = 'BMI Maintenance';
@@ -163,15 +178,12 @@ class MenuItem {
           displayCategory = 'Lean Mass Gain';
           break;
         default:
-          displayCategory = legacyCat.isNotEmpty ? legacyCat : 'General';
+          displayCategory = legacyCatStr.isNotEmpty ? legacyCatStr : 'General';
       }
     }
 
-    if (goalCategories.isEmpty) {
-      final legacyCat = json['category'] as String?;
-      if (legacyCat != null && legacyCat.isNotEmpty) {
-        goalCategories.add(legacyCat);
-      }
+    if (goalCategories.isEmpty && legacyCatStr.isNotEmpty) {
+      goalCategories.add(legacyCatStr);
     }
 
     return MenuItem(
@@ -183,6 +195,8 @@ class MenuItem {
       marketPrice: marketPrice,
       discountPrice: discountPrice,
       category: displayCategory,
+      categoryId: catId,
+      categoryName: catName.isNotEmpty ? catName : legacyCatStr,
       isVeg: isVeg,
       description:
           json['remarks'] as String? ?? json['description'] as String? ?? '',
@@ -193,9 +207,7 @@ class MenuItem {
       menuType: menuType,
       mealType: mealType,
       applicableMealTypes: applicableMealTypes,
-      goalCategory: goalCategories.isNotEmpty
-          ? goalCategories
-          : (json['category'] != null ? [json['category'] as String] : []),
+      goalCategory: goalCategories.isNotEmpty ? goalCategories : [],
       isAvailable: json['isActive'] as bool? ?? true,
       tags: const [],
       allergens: const [],

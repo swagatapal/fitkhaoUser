@@ -580,7 +580,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section header
         const Text(
           'Today\'s Menu',
           style: TextStyle(
@@ -591,47 +590,220 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           ),
         ),
         const SizedBox(height: AppSizes.spacing12),
+        _buildFilterChips(),
         _buildDishList(),
       ],
+    );
+  }
+
+  Widget _buildFilterChips() {
+    final dishState = ref.watch(allDishesProvider);
+    if (dishState.isLoading || dishState.allItems.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final categories = dishState.categories;
+    final selectedCatId = dishState.selectedCategoryId;
+    final selectedType = dishState.selectedDishType;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (categories.isNotEmpty) ...[
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _chip(
+                  label: 'All',
+                  isSelected: selectedCatId == null,
+                  onTap: () =>
+                      ref.read(allDishesProvider.notifier).setCategoryFilter(null),
+                ),
+                ...categories.map(
+                  (cat) => _chip(
+                    label: cat.name,
+                    isSelected: selectedCatId == cat.id,
+                    onTap: () => ref
+                        .read(allDishesProvider.notifier)
+                        .setCategoryFilter(cat.id),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSizes.spacing8),
+        ],
+        Row(
+          children: [
+            _chip(
+              label: 'All',
+              isSelected: selectedType == 'all',
+              onTap: () =>
+                  ref.read(allDishesProvider.notifier).setDishTypeFilter('all'),
+            ),
+            const SizedBox(width: AppSizes.spacing8),
+            _chip(
+              label: 'Veg',
+              isSelected: selectedType == 'veg',
+              dotColor: const Color(0xFF388E3C),
+              onTap: () =>
+                  ref.read(allDishesProvider.notifier).setDishTypeFilter('veg'),
+            ),
+            const SizedBox(width: AppSizes.spacing8),
+            _chip(
+              label: 'Non-Veg',
+              isSelected: selectedType == 'non-veg',
+              dotColor: const Color(0xFFD32F2F),
+              onTap: () => ref
+                  .read(allDishesProvider.notifier)
+                  .setDishTypeFilter('non-veg'),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSizes.spacing12),
+      ],
+    );
+  }
+
+  Widget _chip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+    Color? dotColor,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: AppSizes.spacing8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.spacing12,
+          vertical: AppSizes.spacing6,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryGreen : Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius20),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.primaryGreen
+                : AppColors.borderColor,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (dotColor != null) ...[
+              Container(
+                width: AppSizes.spacing8,
+                height: AppSizes.spacing8,
+                decoration: BoxDecoration(
+                  color: dotColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: AppSizes.spacing4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize12,
+                fontWeight: isSelected
+                    ? AppTypography.semiBold
+                    : AppTypography.regular,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildDishList() {
     final dishState = ref.watch(allDishesProvider);
 
-    return dishState.when(
-      loading: () => _buildDishListSkeleton(),
-      error: (error, _) => _buildDishListError(error.toString()),
-      data: (items) {
-        if (items.isEmpty) {
-          return Container(
-            padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing32),
-            alignment: Alignment.center,
-            child: Column(
-              children: [
-                Icon(
-                  Icons.no_meals_outlined,
-                  size: AppSizes.icon48,
-                  color: AppColors.textTertiary,
+    if (dishState.isLoading) return _buildDishListSkeleton();
+
+    if (dishState.error != null && dishState.allItems.isEmpty) {
+      return _buildDishListError(dishState.error!);
+    }
+
+    final items = dishState.filteredItems;
+
+    if (items.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing32),
+        alignment: Alignment.center,
+        child: Column(
+          children: [
+            Icon(
+              Icons.no_meals_outlined,
+              size: AppSizes.icon48,
+              color: AppColors.textTertiary,
+            ),
+            const SizedBox(height: AppSizes.spacing12),
+            Text(
+              dishState.allItems.isEmpty
+                  ? 'No items available'
+                  : 'No items match the selected filters',
+              style: const TextStyle(
+                fontSize: AppTypography.fontSize14,
+                color: AppColors.textSecondary,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        ...items.map((item) => _buildDishCard(item)),
+        if (dishState.isLoadingMore)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSizes.spacing16),
+            child: Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primaryGreen,
                 ),
-                const SizedBox(height: AppSizes.spacing12),
-                const Text(
-                  'No items available',
-                  style: TextStyle(
+              ),
+            ),
+          )
+        else if (dishState.canLoadMore)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSizes.spacing12),
+            child: GestureDetector(
+              onTap: () => ref.read(allDishesProvider.notifier).loadMore(),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppSizes.spacing12,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.primaryGreen),
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'Load More',
+                  style: const TextStyle(
                     fontSize: AppTypography.fontSize14,
-                    color: AppColors.textSecondary,
+                    fontWeight: AppTypography.semiBold,
+                    color: AppColors.primaryGreen,
                     fontFamily: 'Lato',
                   ),
                 ),
-              ],
+              ),
             ),
-          );
-        }
-
-        return Column(
-          children: items.map((item) => _buildDishCard(item)).toList(),
-        );
-      },
+          ),
+      ],
     );
   }
 

@@ -4,6 +4,20 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/services/local_storage_service.dart';
 import '../models/menu_item.dart';
 
+class MenuPageResult {
+  final List<MenuItem> items;
+  final int totalCount;
+  final int totalPages;
+  final int currentPage;
+
+  const MenuPageResult({
+    required this.items,
+    required this.totalCount,
+    required this.totalPages,
+    required this.currentPage,
+  });
+}
+
 /// Repository for menu-related operations
 class MenuRepository {
   final ApiClient _apiClient;
@@ -15,12 +29,15 @@ class MenuRepository {
   })  : _apiClient = apiClient,
         _localStorage = localStorage;
 
-  /// Fetch menu items from API
-  Future<List<MenuItem>> getMenuItems({String? mealType}) async {
-    debugPrint('[MenuRepository] Fetching menu items...');
+  /// Fetch a single page of menu items.
+  Future<MenuPageResult> getMenuPage({
+    String? mealType,
+    int page = 1,
+    int pageSize = 5,
+  }) async {
+    debugPrint('[MenuRepository] Fetching menu page $page...');
 
     try {
-      // Get auth token
       final token = _localStorage.getAuthToken();
       if (token == null || token.isEmpty) {
         throw AuthException(
@@ -28,55 +45,57 @@ class MenuRepository {
         );
       }
 
-      // Prepare headers with Bearer token
       final headers = {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
       };
 
-      // Make GET request - fetch all items without mealType filter
       final json = await _apiClient.getJson(
-        '/api/adm/outlet-dish',
+        '/api/adm/outlet-dish?page=$page&limit=$pageSize',
         headers: headers,
       );
 
-      debugPrint('[MenuRepository] Menu items response: $json');
-
-      // Parse response - dishes are nested under 'data.dishes'
       final data = json['data'] as Map<String, dynamic>? ?? {};
-      final items = data['dishes'] as List<dynamic>? ??
+      final rawItems = data['dishes'] as List<dynamic>? ??
           data['items'] as List<dynamic>? ??
           [];
-      final count = data['count'] as int? ?? 0;
+      final totalCount = (data['count'] as num?)?.toInt() ??
+          (data['totalCount'] as num?)?.toInt() ??
+          rawItems.length;
+      final totalPages = (data['totalPages'] as num?)?.toInt() ?? 1;
 
-      debugPrint('[MenuRepository] Found $count items in response');
+      debugPrint('[MenuRepository] Page $page/$totalPages — ${rawItems.length} items');
 
-      // Convert to MenuItem list
-      final menuItems = items
+      var menuItems = rawItems
           .map((item) => MenuItem.fromJson(item as Map<String, dynamic>))
           .toList();
 
-      debugPrint('[MenuRepository] Fetched ${menuItems.length} menu items from API');
-
-      // Filter by meal type on frontend if provided
-      // Uses applicableMealTypes (new API) with fallback to mealType (legacy)
       if (mealType != null && mealType.isNotEmpty) {
-        final lowerMealType = mealType.toLowerCase();
-        final filteredItems = menuItems.where((item) {
+        final lower = mealType.toLowerCase();
+        menuItems = menuItems.where((item) {
           if (item.applicableMealTypes.isNotEmpty) {
-            return item.applicableMealTypes.contains(lowerMealType);
+            return item.applicableMealTypes.contains(lower);
           }
-          return item.mealType.toLowerCase() == lowerMealType;
+          return item.mealType.toLowerCase() == lower;
         }).toList();
-        debugPrint('[MenuRepository] Filtered to ${filteredItems.length} items for mealType: $mealType');
-        return filteredItems;
       }
 
-      return menuItems;
+      return MenuPageResult(
+        items: menuItems,
+        totalCount: totalCount,
+        totalPages: totalPages,
+        currentPage: page,
+      );
     } catch (e) {
       debugPrint('[MenuRepository] Error fetching menu items: $e');
       final message = ExceptionHandler.getErrorMessage(e);
       throw Exception(message);
     }
+  }
+
+  /// Convenience method — returns all items from page 1 (used by MenuListScreen).
+  Future<List<MenuItem>> getMenuItems({String? mealType}) async {
+    final result = await getMenuPage(mealType: mealType);
+    return result.items;
   }
 }
