@@ -190,14 +190,14 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       _buildHeader(),
                       const SizedBox(height: AppSizes.spacing8),
                       _buildServiceabilityBanner(),
-                      _trackSubscription(),
+                      //_trackSubscription(),
                       // const SizedBox(height: AppSizes.spacing16),
                       // _buildSearchBar(),
-                      const SizedBox(height: AppSizes.spacing12),
-                      _buildDailyGoalCard(),
-                      const SizedBox(height: AppSizes.spacing12),
+                      //const SizedBox(height: AppSizes.spacing12),
+                      //_buildDailyGoalCard(),
+                      //const SizedBox(height: AppSizes.spacing12),
                       _buildBrowseByCategories(),
-                      const SizedBox(height: AppSizes.spacing20),
+                      //const SizedBox(height: AppSizes.spacing20),
                       _buildDishesSection(),
                       const SizedBox(height: AppSizes.spacing32),
                     ],
@@ -280,45 +280,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
     // Don't show anything if serviceable or still checking
     return const SizedBox.shrink();
-  }
-
-  Widget _trackSubscription(){
-    final subscription = ref.watch(walletProvider).subscription;
-    final wallet = ref.watch(walletProvider).wallet;
-    if (subscription == null) return const SizedBox.shrink();
-    return Container(
-      width: MediaQuery.of(context).size.width,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.spacing12,
-        vertical: AppSizes.spacing6,
-      ),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4A7C3E), Color(0xFF6BA84F)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.radius20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryGreen.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child:
-      Text(
-        'Available balance : ${wallet?.couponBalance.toStringAsFixed(2)} (${subscription.remainingDays} Days Remaining)',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: AppTypography.fontSize12,
-          fontWeight: AppTypography.semiBold,
-          color: Colors.white.withValues(alpha: 0.9),
-          fontFamily: 'Lato',
-        ),
-      ),
-    );
   }
 
   Widget _buildHeader() {
@@ -434,117 +395,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           ],
         ),
       ],
-    );
-  }
-
-
-  Widget _buildDailyGoalCard() {
-    return Container(
-      //padding: const EdgeInsets.all(AppSizes.spacing20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4A7C3E), Color(0xFF6BA84F)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-      ),
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppSizes.radius8),
-            child: Image.asset(
-              "assets/images/header_bg.png",
-              fit: BoxFit.cover,
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.all(AppSizes.spacing16),
-            child: Row(
-              children: [
-                Image.asset(
-                  "assets/images/logo_1.png",
-                  height: AppSizes.logoHeight,
-                  width: AppSizes.logoWidth,
-                ),
-                const SizedBox(width: AppSizes.spacing8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        children: [
-                          const Text(
-                            AppStrings.dailyGoal,
-                            style: TextStyle(
-                              fontSize: AppTypography.fontSize14,
-                              fontWeight: AppTypography.bold,
-                              color: Colors.white,
-                              fontFamily: 'Lato',
-                            ),
-                          ),
-                          const SizedBox(width: AppSizes.spacing8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSizes.spacing8,
-                              vertical: AppSizes.spacing2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(
-                                AppSizes.radius20,
-                              ),
-                            ),
-                            child: Text(
-                              _getSelectedGoalName(),
-                              style: const TextStyle(
-                                fontSize: AppTypography.fontSize12,
-                                fontWeight: AppTypography.medium,
-                                color: Colors.white,
-                                fontFamily: 'Lato',
-                              ),
-                            ),
-                          ),
-                          // IconButton(
-                          //   icon: const Icon(
-                          //     Icons.edit,
-                          //     color: Colors.white,
-                          //     size: AppSizes.icon20,
-                          //   ),
-                          //   onPressed: () {
-                          //     // TODO: Implement edit goal
-                          //   },
-                          // ),
-                        ],
-                      ),
-                      // const SizedBox(height: AppSizes.spacing8),
-                      const Text(
-                        AppStrings.recommendedIntake,
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize12,
-                          fontWeight: AppTypography.medium,
-                          color: Colors.white,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                      const SizedBox(height: AppSizes.spacing2),
-                      const Text(
-                        AppStrings.targetDailyKcal,
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize12,
-                          fontWeight: AppTypography.regular,
-                          color: Colors.white,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 

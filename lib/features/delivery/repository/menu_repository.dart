@@ -36,7 +36,7 @@ class MenuRepository {
 
       // Make GET request - fetch all items without mealType filter
       final json = await _apiClient.getJson(
-        '/api/dishes/list',
+        '/api/adm/outlet-dish',
         headers: headers,
       );
 
