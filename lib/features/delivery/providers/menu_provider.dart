@@ -156,7 +156,7 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
   Future<void> loadMenuItems({String? mealType}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final result = await _repo.getMenuPage(mealType: mealType, page: 1);
+      final result = await _repo.getMenuPage(mealType: mealType, pageIndex: 1);
       state = AllDishesState(
         allItems: result.items,
         currentPage: result.currentPage,
@@ -178,7 +178,7 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
     try {
       final result = await _repo.getMenuPage(
         mealType: mealType,
-        page: nextPage,
+        pageIndex: nextPage,
       );
       state = state.copyWith(
         allItems: [...state.allItems, ...result.items],

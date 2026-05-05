@@ -32,10 +32,10 @@ class MenuRepository {
   /// Fetch a single page of menu items.
   Future<MenuPageResult> getMenuPage({
     String? mealType,
-    int page = 1,
+    int pageIndex = 1,
     int pageSize = 5,
   }) async {
-    debugPrint('[MenuRepository] Fetching menu page $page...');
+    debugPrint('[MenuRepository] Fetching menu page $pageIndex...');
 
     try {
       final token = _localStorage.getAuthToken();
@@ -51,7 +51,7 @@ class MenuRepository {
       };
 
       final json = await _apiClient.getJson(
-        '/api/adm/outlet-dish?page=$page&limit=$pageSize',
+        '/api/adm/outlet-dish?pageIndex=$pageIndex&pageSize=$pageSize',
         headers: headers,
       );
 
@@ -64,7 +64,7 @@ class MenuRepository {
           rawItems.length;
       final totalPages = (data['totalPages'] as num?)?.toInt() ?? 1;
 
-      debugPrint('[MenuRepository] Page $page/$totalPages — ${rawItems.length} items');
+      debugPrint('[MenuRepository] Page $pageIndex/$totalPages — ${rawItems.length} items');
 
       var menuItems = rawItems
           .map((item) => MenuItem.fromJson(item as Map<String, dynamic>))
@@ -84,7 +84,7 @@ class MenuRepository {
         items: menuItems,
         totalCount: totalCount,
         totalPages: totalPages,
-        currentPage: page,
+        currentPage: pageIndex,
       );
     } catch (e) {
       debugPrint('[MenuRepository] Error fetching menu items: $e');
