@@ -3,7 +3,7 @@ import 'package:fitkhao_user/features/delivery/presentation/screens/delivery_scr
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+//import 'package:fluttertoast/fluttertoast.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../core/constants/app_typography.dart';
@@ -70,7 +70,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
             currentBackPressTime == null ||
             now.difference(currentBackPressTime!) > Duration(seconds: 2)) {
           currentBackPressTime = now;
-          Fluttertoast.showToast(msg: 'Tap back again to Exit');
+         // Fluttertoast.showToast(msg: 'Tap back again to Exit');
           // return false;
         } else {
           SystemNavigator.pop();
