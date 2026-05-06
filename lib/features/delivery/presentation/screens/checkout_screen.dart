@@ -6,6 +6,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
+import '../../../../core/services/razorpay_service.dart';
 import '../../models/cart_item.dart';
 import '../../models/order_placement_model.dart';
 import '../../providers/cart_provider.dart';
@@ -64,6 +65,26 @@ const List<_Coupon> _mockCoupons = [
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Holds all data needed to place an order, populated before Razorpay opens
+/// so the success callback can submit without re-fetching.
+class _PendingOrderPayload {
+  final String kitchenId;
+  final List<OrderItem> items;
+  final DeliveryAddress deliveryAddress;
+  final String? specialInstructions;
+  final int amountInPaise;
+
+  const _PendingOrderPayload({
+    required this.kitchenId,
+    required this.items,
+    required this.deliveryAddress,
+    this.specialInstructions,
+    required this.amountInPaise,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -79,9 +100,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   // Coupon state
   _Coupon? _appliedCoupon;
 
+  // Razorpay
+  late final RazorpayService _razorpayService;
+  _PendingOrderPayload? _pendingOrder;
+
   @override
   void initState() {
     super.initState();
+    _razorpayService = RazorpayService(
+      onSuccess: _onRazorpaySuccess,
+      onFailure: _onRazorpayFailure,
+      onExternalWallet: _onRazorpayExternalWallet,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(walletProvider.notifier).loadWalletBalance();
       final serviceState = ref.read(serviceabilityProvider);
@@ -96,6 +126,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   @override
   void dispose() {
+    _razorpayService.dispose();
     _instructionsController.dispose();
     super.dispose();
   }
@@ -1107,24 +1138,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   // ─── Order Placement ──────────────────────────────────────────────────────
 
+  /// Entry point for "Confirm Order". Builds the payload then either calls
+  /// the order API directly (wallet) or opens Razorpay (gateway).
   Future<void> _placeOrder(List<CartItem> cartItems, double subTotal) async {
-    if (_selectedPaymentMethod == 'gateway') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Online payment coming soon!',
-            style: TextStyle(fontFamily: 'Lato'),
-          ),
-          backgroundColor: AppColors.primaryGreen,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radius8),
-          ),
-        ),
-      );
-      return;
-    }
-
     final kitchenId = ref.read(serviceabilityProvider).kitchenId;
     if (kitchenId == null || kitchenId.isEmpty) {
       _showErrorSnackbar(
@@ -1138,6 +1154,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     try {
       final localStorage = await ref.read(localStorageProvider.future);
       final userPhone = localStorage.getUserPhone() ?? '';
+      final userName = localStorage.getUserName() ?? 'FitKhao User';
+      final userEmail = localStorage.getUserEmail() ?? '';
 
       final authRepo = ref.read(authRepositoryProvider);
       final profileResponse = await authRepo.getProfile();
@@ -1174,15 +1192,64 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           )
           .toList();
 
-      final orderRepo = ref.read(orderRepositoryProvider);
-      final orderResponse = await orderRepo.placeOrder(
+      _pendingOrder = _PendingOrderPayload(
         kitchenId: kitchenId,
         items: orderItems,
         deliveryAddress: deliveryAddress,
-        paymentMethod: 'wallet',
         specialInstructions: instructions.isNotEmpty ? instructions : null,
+        amountInPaise: (subTotal * 100).round(),
       );
 
+      if (_selectedPaymentMethod == 'wallet') {
+        await _executeOrderPlacement(paymentMethod: 'wallet');
+      } else {
+        // Stop the loader — Razorpay has its own UI.
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        _razorpayService.open(
+          RazorpayPaymentConfig(
+            amountInPaise: _pendingOrder!.amountInPaise,
+            orderId: '',
+            description:
+                'FitKhao order — ${cartItems.length} item${cartItems.length > 1 ? 's' : ''}',
+            customerName: userName,
+            customerEmail: userEmail,
+            customerContact: userPhone,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[CheckoutScreen] Error preparing order: $e');
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      _pendingOrder = null;
+      _showErrorSnackbar('Failed to prepare order. Please try again.');
+    }
+  }
+
+  /// Calls the order placement API with the stored [_pendingOrder] payload.
+  /// Used by both the wallet path and the Razorpay success callback.
+  Future<void> _executeOrderPlacement({required String paymentMethod}) async {
+    final pending = _pendingOrder;
+    if (pending == null) {
+      _showErrorSnackbar('Order data missing. Please try again.');
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _isProcessing = true);
+
+    try {
+      final orderRepo = ref.read(orderRepositoryProvider);
+      final orderResponse = await orderRepo.placeOrder(
+        kitchenId: pending.kitchenId,
+        items: pending.items,
+        deliveryAddress: pending.deliveryAddress,
+        paymentMethod: paymentMethod,
+        specialInstructions: pending.specialInstructions,
+      );
+
+      _pendingOrder = null;
       if (!mounted) return;
 
       if (orderResponse.success && orderResponse.data != null) {
@@ -1196,10 +1263,34 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       }
     } catch (e) {
       debugPrint('[CheckoutScreen] Error placing order: $e');
+      _pendingOrder = null;
       if (!mounted) return;
       setState(() => _isProcessing = false);
       _showErrorSnackbar('Failed to place order. Please try again.');
     }
+  }
+
+  // ─── Razorpay Callbacks ───────────────────────────────────────────────────
+
+  void _onRazorpaySuccess(
+    String paymentId,
+    String? orderId,
+    String? signature,
+  ) {
+    debugPrint('[CheckoutScreen] Razorpay success — paymentId=$paymentId');
+    _executeOrderPlacement(paymentMethod: 'online');
+  }
+
+  void _onRazorpayFailure(int code, String message) {
+    debugPrint('[CheckoutScreen] Razorpay failure — code=$code msg=$message');
+    _pendingOrder = null;
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+    _showErrorSnackbar(message);
+  }
+
+  void _onRazorpayExternalWallet(String walletName) {
+    debugPrint('[CheckoutScreen] Razorpay external wallet — $walletName');
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
