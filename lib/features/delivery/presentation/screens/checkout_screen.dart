@@ -9,6 +9,7 @@ import '../../../../core/providers/providers.dart';
 import '../../models/cart_item.dart';
 import '../../models/order_placement_model.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/serviceability_provider.dart';
 import '../../providers/wallet_provider.dart';
 
 // ─── Coupon model (replace with API model later) ──────────────────────────────
@@ -83,6 +84,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(walletProvider.notifier).loadWalletBalance();
+      final serviceState = ref.read(serviceabilityProvider);
+      if (serviceState.kitchenId == null && !serviceState.isLoading) {
+        ref.read(serviceabilityProvider.notifier).checkServiceability(
+              latitude: 22.8671,
+              longitude: 88.3674,
+            );
+      }
     });
   }
 
@@ -1117,6 +1125,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return;
     }
 
+    final kitchenId = ref.read(serviceabilityProvider).kitchenId;
+    if (kitchenId == null || kitchenId.isEmpty) {
+      _showErrorSnackbar(
+        'Service not available in your area. Please try again.',
+      );
+      return;
+    }
+
     setState(() => _isProcessing = true);
 
     try {
@@ -1136,52 +1152,34 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       }
       address ??= profileResponse['address'] as Map<String, dynamic>?;
 
+      final instructions = _instructionsController.text.trim();
+
       final deliveryAddress = DeliveryAddress(
         buildingName: address?['buildingName'] as String? ?? '',
         street: address?['street'] as String? ?? '',
-        area: address?['area'] as String? ?? '',
-        city: address?['city'] as String? ?? '',
-        state: address?['state'] as String? ?? '',
         pincode: address?['pincode'] as String? ?? '000000',
         contactNumber: userPhone,
         latitude: (address?['latitude'] as num?)?.toDouble() ?? 0.0,
         longitude: (address?['longitude'] as num?)?.toDouble() ?? 0.0,
-        deliveryInstructions: _instructionsController.text.trim().isNotEmpty
-            ? _instructionsController.text.trim()
-            : null,
+        deliveryInstructions: instructions.isNotEmpty ? instructions : null,
       );
 
-      // Determine foodType: non-veg > eggetarian > vegan > veg
-      String foodType = 'veg';
-      for (final cartItem in cartItems) {
-        final itemType = cartItem.menuItem.menuType.toLowerCase();
-        if (itemType == 'nonveg' || itemType == 'non-veg') {
-          foodType = 'non-veg';
-          break;
-        } else if (itemType == 'eggetarian' && foodType != 'non-veg') {
-          foodType = 'eggetarian';
-        } else if (itemType == 'vegan' && foodType == 'veg') {
-          foodType = 'vegan';
-        }
-      }
-
       final orderItems = cartItems
-          .map((c) =>
-              OrderItem(foodItemId: c.menuItem.id, quantity: c.quantity))
+          .map(
+            (c) => OrderItem(
+              dishId: c.menuItem.id,
+              quantity: c.quantity,
+              dishServing: 1,
+            ),
+          )
           .toList();
-
-      final instructions = _instructionsController.text.trim();
 
       final orderRepo = ref.read(orderRepositoryProvider);
       final orderResponse = await orderRepo.placeOrder(
-        kitchenId: '69275ba5c538faaf25e2acd1',
-        deliveryDate: DateTime.now().toIso8601String().substring(0, 10),
-        deliverySlot: 'morning',
+        kitchenId: kitchenId,
         items: orderItems,
         deliveryAddress: deliveryAddress,
         paymentMethod: 'wallet',
-        orderType: 'single-meal',
-        foodType: foodType,
         specialInstructions: instructions.isNotEmpty ? instructions : null,
       );
 

@@ -32,14 +32,7 @@ class _OrderConfirmationModalState
   final _formKey = GlobalKey<FormState>();
   final _specialInstructionsController = TextEditingController();
   final _deliveryInstructionsController = TextEditingController();
-  String _selectedDeliverySlot = 'morning';
   bool _isProcessing = false;
-
-  final Map<String, String> _deliverySlots = {
-    'morning': 'Morning (8-9 AM)',
-    'afternoon': 'Afternoon (12-1 PM)',
-    'evening': 'Evening (8-9 PM)',
-  };
 
   @override
   void dispose() {
@@ -60,25 +53,25 @@ class _OrderConfirmationModalState
     try {
       final orderRepo = ref.read(orderRepositoryProvider);
 
-      // Prepare order items
-      final orderItems = widget.cartItems.map((cartItem) {
-        return OrderItem(
-          foodItemId: cartItem.menuItem.id,
-          quantity: cartItem.quantity,
-          specialInstructions:
-              _specialInstructionsController.text.trim().isNotEmpty
-              ? _specialInstructionsController.text.trim()
-              : null,
-        );
-      }).toList();
+      final specialInstructions =
+          _specialInstructionsController.text.trim().isNotEmpty
+          ? _specialInstructionsController.text.trim()
+          : null;
 
-      // Update delivery address with delivery instructions
+      final orderItems = widget.cartItems
+          .map(
+            (cartItem) => OrderItem(
+              dishId: cartItem.menuItem.id,
+              quantity: cartItem.quantity,
+              dishServing: 1,
+              specialInstructions: specialInstructions,
+            ),
+          )
+          .toList();
+
       final deliveryAddress = DeliveryAddress(
         buildingName: widget.deliveryAddress.buildingName,
         street: widget.deliveryAddress.street,
-        area: widget.deliveryAddress.area,
-        city: widget.deliveryAddress.city,
-        state: widget.deliveryAddress.state,
         pincode: widget.deliveryAddress.pincode,
         contactNumber: widget.deliveryAddress.contactNumber,
         latitude: widget.deliveryAddress.latitude,
@@ -89,36 +82,12 @@ class _OrderConfirmationModalState
             : null,
       );
 
-      // Determine foodType based on cart items
-      // Priority: non-veg > eggetarian > vegan > veg
-      String foodType = 'veg';
-      for (final cartItem in widget.cartItems) {
-        final itemType = cartItem.menuItem.menuType.toLowerCase();
-        if (itemType == 'nonveg' || itemType == 'non-veg') {
-          foodType = 'non-veg';
-          break; // Non-veg has highest priority
-        } else if (itemType == 'eggetarian' && foodType != 'non-veg') {
-          foodType = 'eggetarian';
-        } else if (itemType == 'vegan' && foodType == 'veg') {
-          foodType = 'vegan';
-        }
-      }
-
-      // Step 1: Place order
       final orderResponse = await orderRepo.placeOrder(
-        kitchenId: '69275ba5c538faaf25e2acd1',
-        // TODO: Get from menu/kitchen selection
-        deliveryDate: (widget.deliveryDate).substring(0, 10),
-        deliverySlot: _selectedDeliverySlot,
+        kitchenId: widget.deliveryAddress.buildingName, // placeholder — not used
         items: orderItems,
         deliveryAddress: deliveryAddress,
         paymentMethod: 'wallet',
-        orderType: 'single-meal',
-        foodType: foodType,
-        specialInstructions:
-            _specialInstructionsController.text.trim().isNotEmpty
-            ? _specialInstructionsController.text.trim()
-            : null,
+        specialInstructions: specialInstructions,
       );
 
       if (mounted && orderResponse.success && orderResponse.data != null) {
@@ -295,83 +264,6 @@ class _OrderConfirmationModalState
                   ],
                 ),
                 const SizedBox(height: AppSizes.spacing24),
-                // Delivery Slot
-                const Text(
-                  'Delivery Slot',
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize14,
-                    fontWeight: AppTypography.semiBold,
-                    color: AppColors.textPrimary,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-                const SizedBox(height: AppSizes.spacing8),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppColors.borderColor),
-                    borderRadius: BorderRadius.circular(AppSizes.radius4),
-                  ),
-                  child: DropdownButtonFormField<String>(
-                    //initialValue: _selectedDeliverySlot,
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSizes.spacing16,
-                        vertical: AppSizes.spacing12,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppSizes.radius4),
-                        borderSide: const BorderSide(
-                          color: AppColors.borderColor,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppSizes.radius4),
-                        borderSide: const BorderSide(
-                          color: AppColors.textWhite,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppSizes.radius4),
-                        borderSide: const BorderSide(
-                          color: AppColors.textWhite,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    icon: const Icon(Icons.keyboard_arrow_down),
-                    items: _deliverySlots.entries.map((entry) {
-                      return DropdownMenuItem(
-                        value: entry.key,
-                        child: Row(
-                          children: [
-                            Icon(
-                              _getSlotIcon(entry.key),
-                              size: AppSizes.icon20,
-                              color: AppColors.primaryGreen,
-                            ),
-                            const SizedBox(width: AppSizes.spacing12),
-                            Text(
-                              entry.value,
-                              style: const TextStyle(
-                                fontSize: AppTypography.fontSize14,
-                                fontWeight: AppTypography.medium,
-                                fontFamily: 'Lato',
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _selectedDeliverySlot = value;
-                        });
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(height: AppSizes.spacing20),
                 // Special Instructions for Cook
                 const Text(
                   'Special Instructions for Cook (Optional)',
@@ -529,16 +421,5 @@ class _OrderConfirmationModalState
     );
   }
 
-  IconData _getSlotIcon(String slot) {
-    switch (slot) {
-      case 'morning':
-        return Icons.wb_sunny;
-      case 'afternoon':
-        return Icons.wb_cloudy;
-      case 'evening':
-        return Icons.nights_stay;
-      default:
-        return Icons.access_time;
-    }
-  }
 }
+

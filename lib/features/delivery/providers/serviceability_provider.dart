@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/providers.dart';
-import '../models/serviceability_model.dart';
 import '../repository/serviceability_repository.dart';
 
 /// State for serviceability check
 class ServiceabilityState {
   final bool? isServiceable;
+  final String? kitchenId;
   final String? message;
   final bool isLoading;
   final String? error;
 
   const ServiceabilityState({
     this.isServiceable,
+    this.kitchenId,
     this.message,
     this.isLoading = false,
     this.error,
@@ -20,12 +21,14 @@ class ServiceabilityState {
 
   ServiceabilityState copyWith({
     bool? isServiceable,
+    String? kitchenId,
     String? message,
     bool? isLoading,
     String? error,
   }) {
     return ServiceabilityState(
       isServiceable: isServiceable ?? this.isServiceable,
+      kitchenId: kitchenId ?? this.kitchenId,
       message: message ?? this.message,
       isLoading: isLoading ?? this.isLoading,
       error: error,
@@ -40,7 +43,7 @@ class ServiceabilityNotifier extends StateNotifier<ServiceabilityState> {
   ServiceabilityNotifier(this._serviceabilityRepository)
       : super(const ServiceabilityState());
 
-  /// Check serviceability
+  /// Check serviceability and populate kitchenId
   Future<void> checkServiceability({
     required double latitude,
     required double longitude,
@@ -56,13 +59,19 @@ class ServiceabilityNotifier extends StateNotifier<ServiceabilityState> {
       );
 
       if (response.success && response.data != null) {
+        final data = response.data!;
+        final kitchenId = data.primaryKitchenId;
         state = ServiceabilityState(
-          isServiceable: response.data!.isServiceable,
+          isServiceable: data.isServiceable,
+          kitchenId: kitchenId,
           message: response.message,
           isLoading: false,
           error: null,
         );
-        debugPrint('[ServiceabilityNotifier] Serviceability check successful: ${response.data!.isServiceable}');
+        debugPrint(
+          '[ServiceabilityNotifier] Serviceable: ${data.isServiceable}, '
+          'zone: ${data.zoneName}, kitchenId: $kitchenId',
+        );
       } else {
         state = state.copyWith(
           isLoading: false,
@@ -72,7 +81,7 @@ class ServiceabilityNotifier extends StateNotifier<ServiceabilityState> {
         );
       }
     } catch (e) {
-      debugPrint('[ServiceabilityNotifier] Error checking serviceability: $e');
+      debugPrint('[ServiceabilityNotifier] Error: $e');
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to check serviceability',
@@ -80,7 +89,6 @@ class ServiceabilityNotifier extends StateNotifier<ServiceabilityState> {
     }
   }
 
-  /// Reset state
   void reset() {
     state = const ServiceabilityState();
   }

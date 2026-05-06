@@ -20,19 +20,14 @@ class OrderRepository {
   /// Place an order
   Future<OrderPlacementResponse> placeOrder({
     required String kitchenId,
-    required String deliveryDate,
-    required String deliverySlot,
     required List<OrderItem> items,
     required DeliveryAddress deliveryAddress,
     required String paymentMethod,
-    required String orderType,
-    required String foodType,
     String? specialInstructions,
   }) async {
     debugPrint('[OrderRepository] Placing order via API...');
 
     try {
-      // Get auth token
       final token = _localStorage.getAuthToken();
       if (token == null || token.isEmpty) {
         throw AuthException(
@@ -40,26 +35,21 @@ class OrderRepository {
         );
       }
 
-      // Prepare headers with Bearer token
       final headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       };
 
-      // Prepare request body
       final request = OrderPlacementRequest(
         kitchenId: kitchenId,
-        deliveryDate: deliveryDate,
-        deliverySlot: deliverySlot,
         items: items,
         deliveryAddress: deliveryAddress,
         paymentMethod: paymentMethod,
-        orderType: orderType,
-        foodType: foodType,
         specialInstructions: specialInstructions,
       );
 
-      // Make POST request
+      debugPrint('[OrderRepository] Payload: ${request.toJson()}');
+
       final json = await _apiClient.postJson(
         AppConfig.placeOrderPath,
         body: request.toJson(),
@@ -85,7 +75,6 @@ class OrderRepository {
     debugPrint('[OrderRepository] Processing wallet payment via API...');
 
     try {
-      // Get auth token
       final token = _localStorage.getAuthToken();
       if (token == null || token.isEmpty) {
         throw AuthException(
@@ -93,20 +82,17 @@ class OrderRepository {
         );
       }
 
-      // Prepare headers with Bearer token
       final headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       };
 
-      // Prepare request body
       final request = WalletPaymentRequest(
         orderId: orderId,
         amount: amount,
         paymentMethod: paymentMethod,
       );
 
-      // Make POST request
       final json = await _apiClient.postJson(
         AppConfig.walletOrderPaymentPath,
         body: request.toJson(),
@@ -131,7 +117,6 @@ class OrderRepository {
     debugPrint('[OrderRepository] Cancelling order $orderId via API...');
 
     try {
-      // Get auth token
       final token = _localStorage.getAuthToken();
       if (token == null || token.isEmpty) {
         throw AuthException(
@@ -139,21 +124,14 @@ class OrderRepository {
         );
       }
 
-      // Prepare headers with Bearer token
       final headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       };
 
-      // Prepare request body
-      final body = {
-        'reason': reason,
-      };
-
-      // Make POST request
       final json = await _apiClient.postJson(
         '${AppConfig.cancelOrderPath}/$orderId',
-        body: body,
+        body: {'reason': reason},
         headers: headers,
       );
 

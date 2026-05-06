@@ -1,39 +1,27 @@
-/// Models for order placement
+// Models for order placement
 
 /// Request model for placing an order
 class OrderPlacementRequest {
   final String kitchenId;
-  final String deliveryDate;
-  final String deliverySlot;
   final List<OrderItem> items;
   final DeliveryAddress deliveryAddress;
   final String paymentMethod;
-  final String orderType;
-  final String foodType;
   final String? specialInstructions;
 
   const OrderPlacementRequest({
     required this.kitchenId,
-    required this.deliveryDate,
-    required this.deliverySlot,
     required this.items,
     required this.deliveryAddress,
     required this.paymentMethod,
-    required this.orderType,
-    required this.foodType,
     this.specialInstructions,
   });
 
   Map<String, dynamic> toJson() {
     return {
       'kitchenId': kitchenId,
-      'deliveryDate': deliveryDate,
-      'deliverySlot': deliverySlot,
       'items': items.map((item) => item.toJson()).toList(),
       'deliveryAddress': deliveryAddress.toJson(),
       'paymentMethod': paymentMethod,
-      'orderType': orderType,
-      'foodType': foodType,
       if (specialInstructions != null && specialInstructions!.isNotEmpty)
         'specialInstructions': specialInstructions,
     };
@@ -42,20 +30,23 @@ class OrderPlacementRequest {
 
 /// Order item in the request
 class OrderItem {
-  final String foodItemId;
+  final String dishId;
   final int quantity;
+  final int dishServing;
   final String? specialInstructions;
 
   const OrderItem({
-    required this.foodItemId,
+    required this.dishId,
     required this.quantity,
+    this.dishServing = 1,
     this.specialInstructions,
   });
 
   Map<String, dynamic> toJson() {
     return {
-      'foodItemId': foodItemId,
+      'dishId': dishId,
       'quantity': quantity,
+      'dishServing': dishServing,
       if (specialInstructions != null && specialInstructions!.isNotEmpty)
         'specialInstructions': specialInstructions,
     };
@@ -66,9 +57,6 @@ class OrderItem {
 class DeliveryAddress {
   final String buildingName;
   final String street;
-  final String area;
-  final String city;
-  final String state;
   final String pincode;
   final String contactNumber;
   final double latitude;
@@ -78,9 +66,6 @@ class DeliveryAddress {
   const DeliveryAddress({
     required this.buildingName,
     required this.street,
-    required this.area,
-    required this.city,
-    required this.state,
     required this.pincode,
     required this.contactNumber,
     required this.latitude,
@@ -92,9 +77,6 @@ class DeliveryAddress {
     return {
       'buildingName': buildingName,
       'street': street,
-      'area': area,
-      'city': city,
-      'state': state,
       'pincode': pincode,
       'contactNumber': contactNumber,
       'latitude': latitude,
@@ -130,11 +112,13 @@ class OrderPlacementResponse {
 
 /// Order data from placement response
 class OrderPlacementData {
+  final String orderId;
   final String orderNumber;
   final double total;
   final String paymentStatus;
 
   const OrderPlacementData({
+    required this.orderId,
     required this.orderNumber,
     required this.total,
     required this.paymentStatus,
@@ -142,6 +126,7 @@ class OrderPlacementData {
 
   factory OrderPlacementData.fromJson(Map<String, dynamic> json) {
     return OrderPlacementData(
+      orderId: json['orderId'] as String? ?? '',
       orderNumber: json['orderNumber'] as String? ?? '',
       total: (json['total'] as num?)?.toDouble() ?? 0.0,
       paymentStatus: json['paymentStatus'] as String? ?? '',
@@ -154,8 +139,6 @@ class PlacedOrder {
   final String id;
   final String orderNumber;
   final String kitchenId;
-  final String deliveryDate;
-  final String deliverySlot;
   final List<PlacedOrderItem> items;
   final double subtotal;
   final double deliveryCharge;
@@ -171,8 +154,6 @@ class PlacedOrder {
     required this.id,
     required this.orderNumber,
     required this.kitchenId,
-    required this.deliveryDate,
-    required this.deliverySlot,
     required this.items,
     required this.subtotal,
     required this.deliveryCharge,
@@ -190,10 +171,11 @@ class PlacedOrder {
       id: json['id'] as String? ?? '',
       orderNumber: json['orderNumber'] as String? ?? '',
       kitchenId: json['kitchenId'] as String? ?? '',
-      deliveryDate: json['deliveryDate'] as String? ?? '',
-      deliverySlot: json['deliverySlot'] as String? ?? '',
       items: (json['items'] as List<dynamic>?)
-              ?.map((item) => PlacedOrderItem.fromJson(item as Map<String, dynamic>))
+              ?.map(
+                (item) =>
+                    PlacedOrderItem.fromJson(item as Map<String, dynamic>),
+              )
               .toList() ??
           [],
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
