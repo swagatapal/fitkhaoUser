@@ -76,7 +76,7 @@ class AllDishesState {
   });
 
   bool get canLoadMore =>
-      !isLoading && !isLoadingMore && currentPage < totalPages;
+      !isLoading && !isLoadingMore && currentPage < totalPages - 1;
 
   List<MenuItem> get filteredItems {
     var items = allItems;
@@ -156,7 +156,7 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
   Future<void> loadMenuItems({String? mealType}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final result = await _repo.getMenuPage(mealType: mealType, pageIndex: 1);
+      final result = await _repo.getMenuPage(mealType: mealType, pageIndex: 0);
       state = AllDishesState(
         allItems: result.items,
         currentPage: result.currentPage,
