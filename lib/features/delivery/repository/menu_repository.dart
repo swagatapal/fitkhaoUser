@@ -32,7 +32,7 @@ class MenuRepository {
   /// Fetch a single page of menu items.
   Future<MenuPageResult> getMenuPage({
     String? mealType,
-    int pageIndex = 1,
+    int pageIndex = 0,
     int pageSize = 5,
   }) async {
     debugPrint('[MenuRepository] Fetching menu page $pageIndex...');

@@ -81,17 +81,19 @@ class MenuItem {
     final nutritionalValue = json['nutritionalValue'] as Map<String, dynamic>?;
     final legacyNutrition = json['nutrition'] as Map<String, dynamic>?;
 
-    double kcal = 0, protein = 0, fat = 0, carbs = 0;
+    double kcal = 0, protein = 0, fat = 0, carbs = 0, fiber = 0;
     if (nutritionalValue != null) {
       kcal = (nutritionalValue['kcal'] as num?)?.toDouble() ?? 0;
       protein = (nutritionalValue['protein'] as num?)?.toDouble() ?? 0;
       fat = (nutritionalValue['fat'] as num?)?.toDouble() ?? 0;
       carbs = (nutritionalValue['carbs'] as num?)?.toDouble() ?? 0;
+      fiber = (nutritionalValue['fiber'] as num?)?.toDouble() ?? 0;
     } else if (legacyNutrition != null) {
       kcal = (legacyNutrition['energyKcal'] as num?)?.toDouble() ?? 0;
       protein = (legacyNutrition['proteinGm'] as num?)?.toDouble() ?? 0;
       fat = (legacyNutrition['fatGm'] as num?)?.toDouble() ?? 0;
       carbs = (legacyNutrition['carbGm'] as num?)?.toDouble() ?? 0;
+      fiber = (legacyNutrition['fiber'] as num?)?.toDouble() ?? 0;
     }
 
     // Dish type: new API uses 'dishType' array [{_id, dishType: "Veg"/"Non-Veg"}]
@@ -109,11 +111,13 @@ class MenuItem {
       menuType = foodType;
     }
 
-    // Image
-    final imageObj = json['image'] as Map<String, dynamic>?;
-    final rawImageUrl = imageObj?['url'] as String? ?? '';
+    // Image: new API sends `imageUrl` as a top-level string;
+    // legacy API nested it inside `image.url`.
     const defaultImageUrl =
         'https://img.freepik.com/free-photo/top-view-table-full-food_23-2149209253.jpg';
+    final rawImageUrl = json['imageUrl'] as String? ??
+        (json['image'] as Map<String, dynamic>?)?['url'] as String? ??
+        '';
     final finalImageUrl = rawImageUrl.isEmpty ? defaultImageUrl : rawImageUrl;
 
     // Price: new API uses marketPrice / discountPrice
@@ -203,7 +207,7 @@ class MenuItem {
       protein: '${protein.toStringAsFixed(1)}g',
       carbs: '${carbs.toStringAsFixed(1)}g',
       fats: '${fat.toStringAsFixed(1)}g',
-      fiber: '0g',
+      fiber: '${fiber.toStringAsFixed(1)}g',
       menuType: menuType,
       mealType: mealType,
       applicableMealTypes: applicableMealTypes,

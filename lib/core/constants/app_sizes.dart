@@ -79,6 +79,7 @@ class AppSizes {
   static const double icon50 = 50.0;
   static const double icon60 = 60.0;
   static const double icon80 = 80.0;
+  static const double icon120 = 120.0;
 
   // Icon size aliases
   static const double iconXSmall = icon12;

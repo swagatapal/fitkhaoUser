@@ -13,6 +13,7 @@ import '../../providers/cart_provider.dart';
 import '../../models/menu_item.dart';
 import '../../providers/menu_provider.dart';
 import '../widgets/food_detail_popup.dart';
+import '../widgets/location_view_sheet.dart';
 import '../widgets/membership_popup.dart';
 import 'checkout_screen.dart';
 
@@ -28,6 +29,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   Timer? _searchDebounce;
 
   bool _hasShownMembershipPopup = false;
+  final bool _profileImageError = false;
 
   @override
   void initState() {
@@ -184,12 +186,27 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     }
   }
 
+  String _computeLocation(authState) {
+    if ((authState.street as String).isNotEmpty) {
+      final parts = (authState.street as String).split(',');
+      final p2 = authState.pincode as String;
+      //  final p3 = authState.buildingNameNumber as String;
+      // return "${parts.first.trim()}, $p3, $p2";
+      return "${parts.join(', ')}, $p2";
+    }
+    if ((authState.buildingNameNumber as String).isNotEmpty) {
+      return authState.buildingNameNumber as String;
+    }
+    return 'Location';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
     final cartItems = ref.watch(cartProvider);
     final totalItems = ref.watch(cartTotalItemsProvider);
     final totalPrice = ref.watch(cartTotalPriceProvider);
-
+    final location = _computeLocation(authState);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -210,7 +227,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: AppSizes.spacing4),
-                          _buildHeader(),
+                          //_buildHeader(),
+                          _buildCompactHeader(authState, location),
                           const SizedBox(height: AppSizes.spacing8),
                           _buildServiceabilityBanner(),
                           //_buildBrowseByCategories(),
@@ -543,122 +561,152 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return const SizedBox.shrink();
   }
 
-  Widget _buildHeader() {
+  /// Open bottom sheet showing user's location on map
+  void _openLocationMap() {
+    final authState = ref.read(authProvider);
+    final lat = authState.latitude;
+    final lng = authState.longitude;
+
+    if (lat == null || lng == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => LocationViewSheet(
+        latitude: lat,
+        longitude: lng,
+        address: _getUserLocation(),
+      ),
+    );
+  }
+
+  Widget _buildCompactHeader(authState, String location) {
+    final firstName = (authState.name as String).isNotEmpty
+        ? (authState.name as String).split(' ').first
+        : 'User';
+    final imgUrl = authState.imgUrl as String?;
+    final hasValidUrl =
+        imgUrl != null && imgUrl.isNotEmpty && !_profileImageError;
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        // Small avatar
+        GestureDetector(
+          //onTap: () => ref.read(mainNavIndexProvider.notifier).state = 1,
+          child: hasValidUrl
+              ? CircleAvatar(
+            radius: 19,
+            backgroundImage: NetworkImage(imgUrl),
+            backgroundColor:
+            AppColors.primaryGreen.withValues(alpha: 0.1),
+          )
+              : CircleAvatar(
+            radius: 19,
+            backgroundColor: AppColors.primaryGreen,
+            child: Text(
+              firstName[0].toUpperCase(),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+
+        // Name + location
         Expanded(
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${AppStrings.greetings} ${ref.watch(authProvider).name.isNotEmpty ? ref.watch(authProvider).name : 'User'},',
+                'Hey, $firstName! 👋',
                 style: const TextStyle(
-                  fontSize: AppTypography.fontSize20,
+                  fontSize: AppTypography.fontSize18,
                   fontWeight: AppTypography.bold,
                   color: AppColors.textPrimary,
                   fontFamily: 'Lato',
                 ),
               ),
-              const SizedBox(height: AppSizes.spacing8),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.location_on,
-                    size: AppSizes.icon16,
-                    color: AppColors.primaryGreen,
-                  ),
-                  const SizedBox(width: AppSizes.spacing4),
-                  Text(
-                    _getUserLocation(),
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize13,
-                      fontWeight: AppTypography.regular,
-                      color: AppColors.textSecondary,
-                      fontFamily: 'Lato',
+              const SizedBox(height: 2),
+              GestureDetector(
+                onTap: _openLocationMap,
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on,
+                      size: 11,
+                      color: AppColors.primaryGreen,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: Text(
+                        location,
+                        style: const TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-
             ],
           ),
         ),
-        Column(
-          children: [
 
-            // Profile Avatar
-            CircleAvatar(
-              radius: AppSizes.spacing28,
-              backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-              backgroundImage:  NetworkImage(
-                ref.watch(authProvider).imgUrl??"https://i.sstatic.net/l60Hf.png",
+        // FitKhao Plus badge
+        GestureDetector(
+          onTap: _showMembershipPopupOnDemand,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4A7C3E), Color(0xFF6BA84F)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              onBackgroundImageError: (exception, stackTrace) {},
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.3),
-                    width: AppSizes.borderThin,
+              borderRadius: BorderRadius.circular(AppSizes.radius16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.25),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/images/buttonshit_logo.png',
+                  height: 13,
+                  width: 13,
+                ),
+                const SizedBox(width: 4),
+                const Text(
+                  'Plus',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    fontWeight: AppTypography.bold,
+                    color: Colors.white,
+                    fontFamily: 'Lato',
                   ),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(height: AppSizes.spacing4),
-            // FitKhao Plus Badge
-            GestureDetector(
-              onTap: _showMembershipPopupOnDemand,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSizes.spacing12,
-                  vertical: AppSizes.spacing4,
-                ),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF4A7C3E), Color(0xFF6BA84F)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(AppSizes.radius16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(
-                      'assets/images/buttonshit_logo.png',
-                      height: AppSizes.icon16,
-                      width: AppSizes.icon16,
-                    ),
-                    const SizedBox(width: AppSizes.spacing4),
-                    const Text(
-                      'Plus',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize12,
-                        fontWeight: AppTypography.bold,
-                        color: Colors.white,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-
-                  ],
-                ),
-              ),
-            ),
-
-          ],
+          ),
         ),
       ],
     );
-  }
-  // ─── Dish Search Bar ─────────────────────────────────────────────────────
+  }  // ─── Dish Search Bar ─────────────────────────────────────────────────────
 
   Widget _buildDishSearchBar() {
     return Padding(
@@ -1046,8 +1094,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               borderRadius: BorderRadius.circular(AppSizes.radius8),
               child: Image.network(
                 item.imageUrl,
-                width: AppSizes.icon60,
-                height: AppSizes.icon60,
+                width: AppSizes.icon120,
+                height: AppSizes.icon120,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                   width: AppSizes.icon60,
@@ -1075,7 +1123,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         child: Text(
                           item.name,
                           style: const TextStyle(
-                            fontSize: AppTypography.fontSize15,
+                            fontSize: AppTypography.fontSize14,
                             fontWeight: AppTypography.semiBold,
                             color: AppColors.textPrimary,
                             fontFamily: 'Lato',
