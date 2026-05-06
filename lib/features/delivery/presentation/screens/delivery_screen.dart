@@ -1065,231 +1065,281 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   Widget _buildDishCard(MenuItem item) {
     final isInCart = ref.watch(cartProvider.notifier).isInCart(item.id);
+    final isAvailable = item.isAvailable;
 
-    return GestureDetector(
-      onTap: () => showDialog(
-        context: context,
-        builder: (_) => FoodDetailPopup(menuItem: item),
-      ),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
-        padding: const EdgeInsets.all(AppSizes.spacing12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppSizes.radius8),
-          border: Border.all(color: AppColors.borderColor),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: AppSizes.shadowBlur10,
-              offset: const Offset(0, AppSizes.spacing2),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSizes.spacing8),
+      child: GestureDetector(
+        onTap: isAvailable
+            ? () => showDialog(
+                  context: context,
+                  builder: (_) => FoodDetailPopup(menuItem: item),
+                )
+            : null,
+        child: Stack(
           children: [
-            // Food image
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppSizes.radius8),
-              child: Image.network(
-                item.imageUrl,
-                width: AppSizes.icon120,
-                height: AppSizes.icon120,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: AppSizes.icon60,
-                  height: AppSizes.icon60,
-                  color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                  child: const Icon(
-                    Icons.restaurant,
-                    size: AppSizes.icon32,
-                    color: AppColors.primaryGreen,
+            Container(
+              padding: const EdgeInsets.all(AppSizes.spacing12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+                border: Border.all(color: AppColors.borderColor),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: AppSizes.shadowBlur10,
+                    offset: const Offset(0, AppSizes.spacing2),
                   ),
-                ),
+                ],
               ),
-            ),
-            const SizedBox(width: AppSizes.spacing12),
-            // Details
-            Expanded(
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Name + veg indicator
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.name,
-                          style: const TextStyle(
-                            fontSize: AppTypography.fontSize14,
-                            fontWeight: AppTypography.semiBold,
-                            color: AppColors.textPrimary,
-                            fontFamily: 'Lato',
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                  // Food image
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    child: Image.network(
+                      item.imageUrl,
+                      width: AppSizes.icon120,
+                      height: AppSizes.icon120,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: AppSizes.icon60,
+                        height: AppSizes.icon60,
+                        color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                        child: const Icon(
+                          Icons.restaurant,
+                          size: AppSizes.icon32,
+                          color: AppColors.primaryGreen,
                         ),
                       ),
-                      const SizedBox(width: AppSizes.spacing6),
-                      Container(
-                        width: AppSizes.spacing12,
-                        height: AppSizes.spacing12,
-                        margin: const EdgeInsets.only(top: AppSizes.spacing2),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.rectangle,
-                          border: Border.all(
-                            color: item.isVeg
-                                ? const Color(0xFF388E3C)
-                                : const Color(0xFFD32F2F),
-                            width: AppSizes.borderNormal,
-                          ),
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: AppSizes.spacing6,
-                            height: AppSizes.spacing6,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: item.isVeg
-                                  ? const Color(0xFF388E3C)
-                                  : const Color(0xFFD32F2F),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: AppSizes.spacing4),
-                  // Calories + rating
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.local_fire_department,
-                        size: AppSizes.icon12,
-                        color: AppColors.primaryGreen,
-                      ),
-                      const SizedBox(width: AppSizes.spacing2),
-                      Text(
-                        '${item.calories} kcal',
-                        style: const TextStyle(
-                          fontSize: AppTypography.fontSize12,
-                          color: AppColors.textSecondary,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                      if (item.rating > 0) ...[
-                        const SizedBox(width: AppSizes.spacing8),
-                        const Icon(Icons.star,
-                            size: AppSizes.icon12, color: Colors.amber),
-                        const SizedBox(width: AppSizes.spacing2),
-                        Text(
-                          item.rating.toStringAsFixed(1),
-                          style: const TextStyle(
-                            fontSize: AppTypography.fontSize12,
-                            fontWeight: AppTypography.medium,
-                            color: AppColors.textPrimary,
-                            fontFamily: 'Lato',
-                          ),
-                        ),
-                        if (item.ratingCount > 0)
-                          Text(
-                            ' (${item.ratingCount})',
-                            style: const TextStyle(
-                              fontSize: AppTypography.fontSize10,
-                              color: AppColors.textSecondary,
-                              fontFamily: 'Lato',
+                  const SizedBox(width: AppSizes.spacing12),
+                  // Details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Name + veg indicator
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.name,
+                                style: const TextStyle(
+                                  fontSize: AppTypography.fontSize14,
+                                  fontWeight: AppTypography.semiBold,
+                                  color: AppColors.textPrimary,
+                                  fontFamily: 'Lato',
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: AppSizes.spacing4),
-                  // Macros row
-                  Row(
-                    children: [
-                      _buildMacroChip('P', item.protein, const Color(0xFF4A7C3E)),
-                      const SizedBox(width: AppSizes.spacing6),
-                      _buildMacroChip('C', item.carbs, const Color(0xFFC66301)),
-                      const SizedBox(width: AppSizes.spacing6),
-                      _buildMacroChip('F', item.fats, const Color(0xFF6BA84F)),
-                    ],
-                  ),
-                  const SizedBox(height: AppSizes.spacing6),
-                  // Price + Add button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Price
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            '₹${item.price.toInt()}',
-                            style: const TextStyle(
-                              fontSize: AppTypography.fontSize16,
-                              fontWeight: AppTypography.bold,
-                              color: AppColors.textPrimary,
-                              fontFamily: 'Lato',
-                            ),
-                          ),
-                          if (item.discountPrice != null &&
-                              item.marketPrice > item.discountPrice!) ...[
-                            const SizedBox(width: AppSizes.spacing4),
-                            Text(
-                              '₹${item.marketPrice.toInt()}',
-                              style: const TextStyle(
-                                fontSize: AppTypography.fontSize10,
-                                color: AppColors.textTertiary,
-                                fontFamily: 'Lato',
-                                decoration: TextDecoration.lineThrough,
+                            const SizedBox(width: AppSizes.spacing6),
+                            Container(
+                              width: AppSizes.spacing12,
+                              height: AppSizes.spacing12,
+                              margin:
+                                  const EdgeInsets.only(top: AppSizes.spacing2),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.rectangle,
+                                border: Border.all(
+                                  color: item.isVeg
+                                      ? const Color(0xFF388E3C)
+                                      : const Color(0xFFD32F2F),
+                                  width: AppSizes.borderNormal,
+                                ),
+                              ),
+                              child: Center(
+                                child: Container(
+                                  width: AppSizes.spacing6,
+                                  height: AppSizes.spacing6,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: item.isVeg
+                                        ? const Color(0xFF388E3C)
+                                        : const Color(0xFFD32F2F),
+                                  ),
+                                ),
                               ),
                             ),
                           ],
-                        ],
-                      ),
-                      // Add button
-                      GestureDetector(
-                        onTap: () => showDialog(
-                          context: context,
-                          builder: (_) => FoodDetailPopup(menuItem: item),
                         ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSizes.spacing16,
-                            vertical: AppSizes.spacing4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isInCart
-                                ? AppColors.primaryGreen.withValues(alpha: 0.1)
-                                : AppColors.primaryGreen,
-                            borderRadius:
-                                BorderRadius.circular(AppSizes.radius4),
-                            border: Border.all(
+                        const SizedBox(height: AppSizes.spacing4),
+                        // Calories + rating
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.local_fire_department,
+                              size: AppSizes.icon12,
                               color: AppColors.primaryGreen,
-                              width: AppSizes.borderThin,
                             ),
-                          ),
-                          child: Text(
-                            isInCart ? AppStrings.added : AppStrings.add,
-                            style: TextStyle(
-                              fontSize: AppTypography.fontSize12,
-                              fontWeight: AppTypography.semiBold,
-                              color: isInCart
-                                  ? AppColors.primaryGreen
-                                  : Colors.white,
-                              fontFamily: 'Lato',
+                            const SizedBox(width: AppSizes.spacing2),
+                            Text(
+                              '${item.calories} kcal',
+                              style: const TextStyle(
+                                fontSize: AppTypography.fontSize12,
+                                color: AppColors.textSecondary,
+                                fontFamily: 'Lato',
+                              ),
                             ),
-                          ),
+                            if (item.rating > 0) ...[
+                              const SizedBox(width: AppSizes.spacing8),
+                              const Icon(Icons.star,
+                                  size: AppSizes.icon12, color: Colors.amber),
+                              const SizedBox(width: AppSizes.spacing2),
+                              Text(
+                                item.rating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontSize: AppTypography.fontSize12,
+                                  fontWeight: AppTypography.medium,
+                                  color: AppColors.textPrimary,
+                                  fontFamily: 'Lato',
+                                ),
+                              ),
+                              if (item.ratingCount > 0)
+                                Text(
+                                  ' (${item.ratingCount})',
+                                  style: const TextStyle(
+                                    fontSize: AppTypography.fontSize10,
+                                    color: AppColors.textSecondary,
+                                    fontFamily: 'Lato',
+                                  ),
+                                ),
+                            ],
+                          ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: AppSizes.spacing4),
+                        // Macros row
+                        Row(
+                          children: [
+                            _buildMacroChip(
+                                'P', item.protein, const Color(0xFF4A7C3E)),
+                            const SizedBox(width: AppSizes.spacing6),
+                            _buildMacroChip(
+                                'C', item.carbs, const Color(0xFFC66301)),
+                            const SizedBox(width: AppSizes.spacing6),
+                            _buildMacroChip(
+                                'F', item.fats, const Color(0xFF6BA84F)),
+                          ],
+                        ),
+                        const SizedBox(height: AppSizes.spacing6),
+                        // Price + Add button
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Price
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  '₹${item.price.toInt()}',
+                                  style: const TextStyle(
+                                    fontSize: AppTypography.fontSize16,
+                                    fontWeight: AppTypography.bold,
+                                    color: AppColors.textPrimary,
+                                    fontFamily: 'Lato',
+                                  ),
+                                ),
+                                if (item.discountPrice != null &&
+                                    item.marketPrice > item.discountPrice!) ...[
+                                  const SizedBox(width: AppSizes.spacing4),
+                                  Text(
+                                    '₹${item.marketPrice.toInt()}',
+                                    style: const TextStyle(
+                                      fontSize: AppTypography.fontSize10,
+                                      color: AppColors.textTertiary,
+                                      fontFamily: 'Lato',
+                                      decoration: TextDecoration.lineThrough,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            // Add button
+                            GestureDetector(
+                              onTap: isAvailable
+                                  ? () => showDialog(
+                                        context: context,
+                                        builder: (_) =>
+                                            FoodDetailPopup(menuItem: item),
+                                      )
+                                  : null,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSizes.spacing16,
+                                  vertical: AppSizes.spacing4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isInCart
+                                      ? AppColors.primaryGreen
+                                          .withValues(alpha: 0.1)
+                                      : AppColors.primaryGreen,
+                                  borderRadius:
+                                      BorderRadius.circular(AppSizes.radius4),
+                                  border: Border.all(
+                                    color: AppColors.primaryGreen,
+                                    width: AppSizes.borderThin,
+                                  ),
+                                ),
+                                child: Text(
+                                  isInCart ? AppStrings.added : AppStrings.add,
+                                  style: TextStyle(
+                                    fontSize: AppTypography.fontSize12,
+                                    fontWeight: AppTypography.semiBold,
+                                    color: isInCart
+                                        ? AppColors.primaryGreen
+                                        : Colors.white,
+                                    fontFamily: 'Lato',
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
+            // Disabled overlay for unavailable items
+            if (!isAvailable)
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  child: Container(
+                    color: Colors.white.withValues(alpha: 0.78),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.spacing12,
+                          vertical: AppSizes.spacing6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade700,
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radius20),
+                        ),
+                        child: const Text(
+                          'Currently Unavailable',
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            fontFamily: 'Lato',
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
