@@ -326,16 +326,16 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             color: AppColors.textSecondary,
             size: AppSizes.icon24,
           ),
-          suffixIcon: IconButton(
-            icon: const Icon(
-              Icons.mic,
-              color: AppColors.primaryGreen,
-              size: AppSizes.icon24,
-            ),
-            onPressed: () {
-              // TODO: Implement voice search
-            },
-          ),
+          // suffixIcon: IconButton(
+          //   icon: const Icon(
+          //     Icons.mic,
+          //     color: AppColors.primaryGreen,
+          //     size: AppSizes.icon24,
+          //   ),
+          //   onPressed: () {
+          //     // TODO: Implement voice search
+          //   },
+         // ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: AppSizes.spacing16,
