@@ -412,23 +412,23 @@ class _DetailedHealthInfoScreenState
               const SizedBox(width: 8),
 
               // profile history
-              Padding(
-                padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
-                child: GestureDetector(
-                  onTap: () => context.push(RouteNames.profileHistory),
-                  child: Container(
-                    width: AppSizes.iconContainerSize,
-                    height: AppSizes.iconContainerSize,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF5D9E40),
-                      borderRadius: BorderRadius.circular(AppSizes.radius8),
-                    ),
-                    child: Center(
-                      child: Icon(Icons.history, color: Colors.white,)
-                    ),
-                  ),
-                ),
-              ),
+              // Padding(
+              //   padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+              //   child: GestureDetector(
+              //     onTap: () => context.push(RouteNames.profileHistory),
+              //     child: Container(
+              //       width: AppSizes.iconContainerSize,
+              //       height: AppSizes.iconContainerSize,
+              //       decoration: BoxDecoration(
+              //         color: const Color(0xFF5D9E40),
+              //         borderRadius: BorderRadius.circular(AppSizes.radius8),
+              //       ),
+              //       child: Center(
+              //         child: Icon(Icons.history, color: Colors.white,)
+              //       ),
+              //     ),
+              //   ),
+              // ),
               
               // Edit button — always visible
               Padding(
@@ -500,11 +500,20 @@ class _DetailedHealthInfoScreenState
             ),
           ),
 
-          // ── Scrollable form content ──
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(spacing20, spacing20, spacing20, 0),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
+          // ── Pinned Coming Soon banner ──
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _ComingSoonHeaderDelegate(),
+          ),
+
+          // ── Scrollable form content (view-only preview) ──
+          SliverOpacity(
+            opacity: 0.15,
+            sliver: SliverIgnorePointer(
+              sliver: SliverPadding(
+                padding: EdgeInsets.fromLTRB(spacing20, spacing20, spacing20, 0),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
                 Text(
                   "Select type of Physical Activity",
                   style: TextStyle(
@@ -706,6 +715,8 @@ class _DetailedHealthInfoScreenState
                 ),
                 SizedBox(height: context.responsiveSpacing(100.0)),
               ]),
+            ),
+          ),
             ),
           ),
         ],
@@ -1505,5 +1516,112 @@ class _DetailedHealthInfoScreenState
       ),
     );
   }
+}
 
+class _ComingSoonHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _ComingSoonHeaderDelegate();
+
+  static const double _height = 78.0;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  bool shouldRebuild(_ComingSoonHeaderDelegate oldDelegate) => false;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Material(
+      color: Colors.white,
+      elevation: overlapsContent ? 2.0 : 0.0,
+      shadowColor: Colors.black26,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF4A7D33), Color(0xFF6BA84F)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0xFF4A7D33).withValues(alpha: 0.28),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.lock_clock_outlined,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Coming Soon',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        fontFamily: 'Lato',
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'This section is currently being updated',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Preview',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
