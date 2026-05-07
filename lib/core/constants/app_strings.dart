@@ -37,8 +37,10 @@ class AppStrings {
   // Address Input
   static const String whereToDeliver = 'Where to deliver your order?';
   static const String pleaseEnterAddress = 'Please, enter your address';
-  static const String buildingNameNumber = 'Building Name/ Number';
+  static const String buildingNameNumber = 'Building Name/Room Number';
+  static const String floorNumber = 'Floor Number';
   static const String street = 'Street';
+  static const String landmark = 'Enter nearest Landmark';
   static const String pincode = 'Pincode';
   static const String addressHint = 'Address';
   static const String putYourDetailedAddress = 'Put your detailed address';

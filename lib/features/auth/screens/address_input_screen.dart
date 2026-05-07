@@ -21,16 +21,22 @@ class AddressInputScreen extends ConsumerStatefulWidget {
 
 class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
   final TextEditingController _buildingController = TextEditingController();
+  final TextEditingController _floorController = TextEditingController();
   final TextEditingController _streetController = TextEditingController();
   final TextEditingController _pincodeController = TextEditingController();
+  final TextEditingController _landmarkController = TextEditingController();
 
   final FocusNode _buildingFocusNode = FocusNode();
+  final FocusNode _floorFocusNode = FocusNode();
   final FocusNode _streetFocusNode = FocusNode();
   final FocusNode _pincodeFocusNode = FocusNode();
+  final FocusNode _landmarkFocusNode = FocusNode();
 
   String _building = '';
+  String _floor = '';
   String _street = '';
   String _pincode = '';
+  String _landmark = '';
   bool _isNavigatingToMap = false;
   String? _selectedAddressType;
 
@@ -43,11 +49,15 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
   @override
   void dispose() {
     _buildingController.dispose();
+    _floorController.dispose();
     _streetController.dispose();
     _pincodeController.dispose();
+    _landmarkController.dispose();
     _buildingFocusNode.dispose();
+    _floorFocusNode.dispose();
     _streetFocusNode.dispose();
     _pincodeFocusNode.dispose();
+    _landmarkFocusNode.dispose();
     super.dispose();
   }
 
@@ -264,7 +274,7 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
                   fontFamily: "Lato",
                 ),
               ),
-              SizedBox(height: spacing40),
+              SizedBox(height: spacing16),
               // Building Name/Number Field
               _buildInputField(
                 label: AppStrings.buildingNameNumber,
@@ -276,7 +286,19 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
                   });
                 },
               ),
-              SizedBox(height: spacing16),
+              SizedBox(height: spacing8),
+              // Floor Number Field
+              _buildInputField(
+                label: AppStrings.floorNumber,
+                controller: _floorController,
+                focusNode: _floorFocusNode,
+                onChanged: (value) {
+                  setState(() {
+                    _floor = value.trim();
+                  });
+                },
+              ),
+              SizedBox(height: spacing8),
               // Street Field
               _buildInputField(
                 label: AppStrings.street,
@@ -288,7 +310,7 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
                   });
                 },
               ),
-              SizedBox(height: spacing16),
+              SizedBox(height: spacing8),
               // Pincode Field
               _buildInputField(
                 label: AppStrings.pincode,
@@ -303,6 +325,18 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
                   });
                 },
               ),
+              // Landmark Field
+              _buildInputField(
+                label: AppStrings.landmark,
+                controller: _landmarkController,
+                focusNode: _landmarkFocusNode,
+                onChanged: (value) {
+                  setState(() {
+                    _landmark = value.trim();
+                  });
+                },
+              ),
+              SizedBox(height: spacing8),
               //  SizedBox(height: spacing8),
               // Helper text
               Text(
@@ -313,7 +347,7 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
                   fontFamily: 'Lato',
                 ),
               ),
-              SizedBox(height: spacing24),
+              SizedBox(height: spacing8),
               // Address Type Dropdown
               // Column(
               //   crossAxisAlignment: CrossAxisAlignment.start,
