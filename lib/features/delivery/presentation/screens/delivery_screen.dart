@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -1095,17 +1096,34 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Food image
+                  // Food image — loaded once and served from disk+memory cache
                   ClipRRect(
                     borderRadius: BorderRadius.circular(AppSizes.radius8),
-                    child: Image.network(
-                      item.imageUrl,
+                    child: CachedNetworkImage(
+                      imageUrl: item.imageUrl,
                       width: AppSizes.icon120,
                       height: AppSizes.icon120,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: AppSizes.icon60,
-                        height: AppSizes.icon60,
+                      fadeInDuration: const Duration(milliseconds: 200),
+                      fadeOutDuration: const Duration(milliseconds: 100),
+                      placeholder: (_, __) => Container(
+                        width: AppSizes.icon120,
+                        height: AppSizes.icon120,
+                        color: Colors.grey.withValues(alpha: 0.12),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: AppColors.primaryGreen,
+                            ),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        width: AppSizes.icon120,
+                        height: AppSizes.icon120,
                         color: AppColors.primaryGreen.withValues(alpha: 0.1),
                         child: const Icon(
                           Icons.restaurant,

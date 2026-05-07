@@ -72,6 +72,7 @@ dependencies:
   firebase_messaging: ^16.1.0
   flutter_local_notifications: ^18.0.1
   razorpay_flutter: ^1.4.4
+  cached_network_image: ^3.4.1
 
 dev_dependencies:
   flutter_test:
