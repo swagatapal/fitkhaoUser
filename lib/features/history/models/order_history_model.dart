@@ -314,6 +314,7 @@ class OrderHistoryItem {
   final String? specialInstructions;
   final String deliveryDate;
   final String deliverySlot;
+  final String? dishImage;
   final String createdAt;
   final String updatedAt;
 
@@ -332,6 +333,7 @@ class OrderHistoryItem {
     this.specialInstructions,
     required this.deliveryDate,
     required this.deliverySlot,
+    this.dishImage,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -340,7 +342,6 @@ class OrderHistoryItem {
     return OrderHistoryItem(
       id: json['_id'] as String? ?? '',
       orderId: json['orderId'] as String? ?? '',
-      // New API: 'dishId', legacy fallback: 'foodItemId'
       dishId: json['dishId'] as String? ?? json['foodItemId'] as String? ?? '',
       kitchenId: json['kitchenId'] as String? ?? '',
       itemName: json['itemName'] as String? ?? '',
@@ -354,8 +355,8 @@ class OrderHistoryItem {
       itemStatus: json['itemStatus'] as String? ?? '',
       specialInstructions: json['specialInstructions'] as String?,
       deliveryDate: json['deliveryDate'] as String? ?? '',
-      // deliverySlot at item level is just an ID string
       deliverySlot: json['deliverySlot'] as String? ?? '',
+      dishImage: json['dishImage'] as String?,
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
     );

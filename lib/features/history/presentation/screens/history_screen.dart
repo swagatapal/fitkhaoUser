@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fitkhao_user/core/utils/responsive_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -571,24 +572,8 @@ class _OrderCard extends StatelessWidget {
           padding: const EdgeInsets.all(AppSizes.p12),
           child: Row(
             children: [
-              // Kitchen logo/icon placeholder
-              Container(
-                width: 70,
-                height: 70,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(AppSizes.radius4),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppSizes.radius4),
-                  child: Image.network(
-                    "https://media.istockphoto.com/id/877317520/photo/burgers-on-the-dark-rustic-background.jpg?s=612x612&w=0&k=20&c=3wXk0Lh-aKBjzvqqmujDOhUXEaydf4M__eT9xzyxM_A=",
-                    width: 70,
-                    height: 70,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
+              // Dish image — first item's image with green placeholder fallback
+              _buildDishImage(order.items.isNotEmpty ? order.items.first.dishImage : null),
               const SizedBox(width: AppSizes.spacing12),
               Expanded(
                 child: Column(
@@ -650,6 +635,26 @@ class _OrderCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  static Widget _buildDishImage(String? imageUrl) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppSizes.radius4),
+      child: SizedBox(
+        width: 70,
+        height: 70,
+        child: imageUrl != null && imageUrl.isNotEmpty
+            ? CachedNetworkImage(
+                imageUrl: imageUrl,
+                width: 70,
+                height: 70,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => const _DishImagePlaceholder(),
+                errorWidget: (_, __, ___) => const _DishImagePlaceholder(),
+              )
+            : const _DishImagePlaceholder(),
       ),
     );
   }
@@ -748,5 +753,20 @@ class _OrderCard extends StatelessWidget {
     } catch (e) {
       return dateStr;
     }
+  }
+}
+
+class _DishImagePlaceholder extends StatelessWidget {
+  const _DishImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Icon(
+        Icons.restaurant,
+        size: 32,
+        color: AppColors.primaryGreen,
+      ),
+    );
   }
 }

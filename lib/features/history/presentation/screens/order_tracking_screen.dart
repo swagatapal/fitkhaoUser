@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -273,17 +274,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(AppSizes.radius4),
-                      ),
-                      child: ClipRRect(
-                          borderRadius: BorderRadius.circular(AppSizes.radius4),
-                          child: Image.network("https://arthurmillerfoundation.org/wp-content/uploads/2018/06/default-placeholder.png"))
-                    ),
+                    _DishImage(url: item.dishImage, size: 50),
                     const SizedBox(width: AppSizes.spacing12),
                     Expanded(
                       child: Column(
@@ -614,8 +605,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             final stepStatus = s.$1;
             final currentStatusIndex = _getStatusIndex(widget.order.orderStatus);
             final stepIndex = _getStatusIndex(stepStatus);
-            print(currentStatusIndex);
-            print(stepIndex);
             final isCompleted = currentStatusIndex > stepIndex;
             final isCurrent = widget.order.orderStatus.toLowerCase() == stepStatus.toLowerCase();
             final isLast = index == steps.length - 1;
@@ -719,22 +708,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         ),
       ),
     );
-  }
-
-  String _getEtaText(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return 'ETA ~ 40-45 mins';
-      case 'confirmed':
-        return 'ETA ~ 35-40 mins';
-      case 'preparing':
-        return 'ETA ~ 20-25 mins';
-      case 'out-for-delivery':
-      case 'out_for_delivery':
-        return 'Arriving in ~ 10 mins';
-      default:
-        return 'Processing...';
-    }
   }
 
   int _getStatusIndex(String status) {
@@ -841,16 +814,9 @@ class _OrderSummaryCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              color: AppColors.primaryGreen.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(AppSizes.radius4),
-            ),
-            child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppSizes.radius4),
-                child: Image.network("https://arthurmillerfoundation.org/wp-content/uploads/2018/06/default-placeholder.png")),
+          _DishImage(
+            url: order.items.isNotEmpty ? order.items.first.dishImage : null,
+            size: 70,
           ),
           const SizedBox(width: AppSizes.spacing12),
           Expanded(
@@ -1304,4 +1270,42 @@ class _CancelOrderModalState extends State<_CancelOrderModal> {
       ),
     );
   }
+}
+
+/// Reusable cached dish image with a green icon placeholder fallback.
+class _DishImage extends StatelessWidget {
+  final String? url;
+  final double size;
+
+  const _DishImage({this.url, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppSizes.radius4),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: url != null && url!.isNotEmpty
+            ? CachedNetworkImage(
+                imageUrl: url!,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => _placeholder(),
+                errorWidget: (_, __, ___) => _placeholder(),
+              )
+            : _placeholder(),
+      ),
+    );
+  }
+
+  Widget _placeholder() => Container(
+        width: size,
+        height: size,
+        color: AppColors.primaryGreen.withValues(alpha: 0.08),
+        child: const Center(
+          child: Icon(Icons.restaurant, color: AppColors.primaryGreen, size: 28),
+        ),
+      );
 }
