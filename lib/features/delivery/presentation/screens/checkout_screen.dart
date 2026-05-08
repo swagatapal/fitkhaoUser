@@ -17,20 +17,30 @@ import '../../providers/wallet_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Holds all data needed to place an order, populated before Razorpay opens
-/// so the success callback can submit without re-fetching.
+/// Holds all data needed to place an order.
+/// Populated before Razorpay opens so the success callback can submit
+/// without re-fetching user/address data.
 class _PendingOrderPayload {
   final String kitchenId;
   final List<OrderItem> items;
   final DeliveryAddress deliveryAddress;
   final String? specialInstructions;
-  final int amountInPaise;
+  final List<String> couponIds;
 
-  const _PendingOrderPayload({
+  /// Set after a successful call to POST /razorpay/create-order.
+  /// Used by the verify-payment call inside _onRazorpaySuccess.
+  String? razorpayOrderId;
+
+  /// Amount in paise — may be overwritten with the backend-computed value
+  /// returned by POST /razorpay/create-order (covers discounts, taxes, etc.).
+  int amountInPaise;
+
+  _PendingOrderPayload({
     required this.kitchenId,
     required this.items,
     required this.deliveryAddress,
     this.specialInstructions,
+    this.couponIds = const [],
     required this.amountInPaise,
   });
 }
@@ -1099,14 +1109,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   // ─── Order Placement ──────────────────────────────────────────────────────
 
-  /// Entry point for "Confirm Order". Builds the payload then either calls
-  /// the order API directly (wallet) or opens Razorpay (gateway).
+  /// Builds the common delivery payload, then branches:
+  /// • wallet  → POST /api/orders/place directly
+  /// • gateway → POST /razorpay/create-order → open Razorpay SDK
   Future<void> _placeOrder(List<CartItem> cartItems, double subTotal) async {
     final kitchenId = ref.read(serviceabilityProvider).kitchenId;
     if (kitchenId == null || kitchenId.isEmpty) {
-      _showErrorSnackbar(
-        'Service not available in your area. Please try again.',
-      );
+      _showErrorSnackbar('Service not available in your area. Please try again.');
       return;
     }
 
@@ -1144,39 +1153,28 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       );
 
       final orderItems = cartItems
-          .map(
-            (c) => OrderItem(
-              dishId: c.menuItem.id,
-              quantity: c.quantity,
-              dishServing: 1,
-            ),
-          )
+          .map((c) => OrderItem(dishId: c.menuItem.id, quantity: c.quantity, dishServing: 1))
           .toList();
+
+      final couponIds = _appliedCoupon != null ? [_appliedCoupon!.id] : <String>[];
 
       _pendingOrder = _PendingOrderPayload(
         kitchenId: kitchenId,
         items: orderItems,
         deliveryAddress: deliveryAddress,
         specialInstructions: instructions.isNotEmpty ? instructions : null,
+        couponIds: couponIds,
         amountInPaise: (subTotal * 100).round(),
       );
 
       if (_selectedPaymentMethod == 'wallet') {
-        await _executeOrderPlacement(paymentMethod: 'wallet');
+        await _executeWalletOrderPlacement();
       } else {
-        // Stop the loader — Razorpay has its own UI.
-        if (!mounted) return;
-        setState(() => _isProcessing = false);
-        _razorpayService.open(
-          RazorpayPaymentConfig(
-            amountInPaise: _pendingOrder!.amountInPaise,
-            orderId: '',
-            description:
-                'FitKhao order — ${cartItems.length} item${cartItems.length > 1 ? 's' : ''}',
-            customerName: userName,
-            customerEmail: userEmail,
-            customerContact: userPhone,
-          ),
+        await _initiateRazorpayFlow(
+          cartItems: cartItems,
+          userName: userName,
+          userEmail: userEmail,
+          userPhone: userPhone,
         );
       }
     } catch (e) {
@@ -1188,9 +1186,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
-  /// Calls the order placement API with the stored [_pendingOrder] payload.
-  /// Used by both the wallet path and the Razorpay success callback.
-  Future<void> _executeOrderPlacement({required String paymentMethod}) async {
+  /// Wallet path — POST /api/orders/place and show result.
+  Future<void> _executeWalletOrderPlacement() async {
     final pending = _pendingOrder;
     if (pending == null) {
       _showErrorSnackbar('Order data missing. Please try again.');
@@ -1202,28 +1199,30 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     try {
       final orderRepo = ref.read(orderRepositoryProvider);
-      final orderResponse = await orderRepo.placeOrder(
+      final response = await orderRepo.placeOrder(
         kitchenId: pending.kitchenId,
         items: pending.items,
         deliveryAddress: pending.deliveryAddress,
-        paymentMethod: paymentMethod,
+        paymentMethod: 'wallet',
         specialInstructions: pending.specialInstructions,
       );
 
       _pendingOrder = null;
       if (!mounted) return;
 
-      if (orderResponse.success && orderResponse.data != null) {
+      if (response.success && response.data != null) {
         await ref.read(walletProvider.notifier).loadWalletBalance();
         if (!mounted) return;
         setState(() => _isProcessing = false);
-        _showSuccessDialog(orderResponse.data!.orderNumber);
+        _showSuccessDialog(response.data!.orderNumber);
       } else {
         setState(() => _isProcessing = false);
-        _showErrorSnackbar(orderResponse.message);
+        _showErrorSnackbar(response.message.isNotEmpty
+            ? response.message
+            : 'Failed to place order. Please try again.');
       }
     } catch (e) {
-      debugPrint('[CheckoutScreen] Error placing order: $e');
+      debugPrint('[CheckoutScreen] Wallet order error: $e');
       _pendingOrder = null;
       if (!mounted) return;
       setState(() => _isProcessing = false);
@@ -1231,15 +1230,149 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
+  /// Gateway path — create Razorpay order on backend, then open the SDK.
+  Future<void> _initiateRazorpayFlow({
+    required List<CartItem> cartItems,
+    required String userName,
+    required String userEmail,
+    required String userPhone,
+  }) async {
+    final pending = _pendingOrder;
+    if (pending == null) return;
+
+    try {
+      final orderRepo = ref.read(orderRepositoryProvider);
+      final createResponse = await orderRepo.createRazorpayOrder(
+        pendingOrderData: RazorpayPendingOrderData(
+          kitchenId: pending.kitchenId,
+          items: pending.items,
+          deliveryAddress: pending.deliveryAddress,
+          specialInstructions: pending.specialInstructions,
+          couponIds: pending.couponIds,
+        ),
+        purpose: 'order_food',
+      );
+
+      if (!createResponse.success || createResponse.data == null) {
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        _pendingOrder = null;
+        _showErrorSnackbar(createResponse.message.isNotEmpty
+            ? createResponse.message
+            : 'Could not initiate payment. Please try again.');
+        return;
+      }
+
+      final orderData = createResponse.data!;
+      pending.razorpayOrderId = orderData.razorpayOrderId;
+      pending.amountInPaise = orderData.amountInPaise > 0
+          ? orderData.amountInPaise
+          : pending.amountInPaise;
+
+      debugPrint(
+        '[CheckoutScreen] Razorpay order created — '
+        'orderId=${orderData.razorpayOrderId} amount=${orderData.amountInPaise}',
+      );
+
+      if (!mounted) return;
+      // Stop the spinner — Razorpay SDK renders its own loading UI.
+      setState(() => _isProcessing = false);
+
+      _razorpayService.open(
+        RazorpayPaymentConfig(
+          amountInPaise: pending.amountInPaise,
+          orderId: orderData.razorpayOrderId,
+          description:
+              'FitKhao order — ${cartItems.length} item${cartItems.length > 1 ? 's' : ''}',
+          customerName: userName,
+          customerEmail: userEmail,
+          customerContact: userPhone,
+        ),
+      );
+    } catch (e) {
+      debugPrint('[CheckoutScreen] createRazorpayOrder error: $e');
+      _pendingOrder = null;
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      _showErrorSnackbar('Payment initiation failed. Please try again.');
+    }
+  }
+
   // ─── Razorpay Callbacks ───────────────────────────────────────────────────
 
+  /// Called by the Razorpay SDK after the user completes payment.
+  /// Calls POST /razorpay/verify-payment to confirm and finalise the order.
   void _onRazorpaySuccess(
     String paymentId,
-    String? orderId,
+    String? sdkOrderId,
     String? signature,
   ) {
-    debugPrint('[CheckoutScreen] Razorpay success — paymentId=$paymentId');
-    _executeOrderPlacement(paymentMethod: 'online');
+    debugPrint(
+      '[CheckoutScreen] Razorpay success — '
+      'paymentId=$paymentId orderId=$sdkOrderId',
+    );
+    _verifyRazorpayPayment(
+      paymentId: paymentId,
+      sdkOrderId: sdkOrderId,
+      signature: signature,
+    );
+  }
+
+  Future<void> _verifyRazorpayPayment({
+    required String paymentId,
+    required String? sdkOrderId,
+    required String? signature,
+  }) async {
+    final pending = _pendingOrder;
+    // Prefer the order ID stored from the create-order response; fall back to
+    // what the SDK echoes back in case of any mismatch.
+    final razorpayOrderId =
+        (pending?.razorpayOrderId?.isNotEmpty == true)
+            ? pending!.razorpayOrderId!
+            : (sdkOrderId ?? '');
+
+    if (razorpayOrderId.isEmpty) {
+      debugPrint('[CheckoutScreen] verifyPayment: razorpayOrderId is empty');
+      _pendingOrder = null;
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      _showErrorSnackbar('Payment verification failed. Please contact support.');
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _isProcessing = true);
+
+    try {
+      final orderRepo = ref.read(orderRepositoryProvider);
+      final verifyResponse = await orderRepo.verifyRazorpayPayment(
+        razorpayOrderId: razorpayOrderId,
+        razorpayPaymentId: paymentId,
+        razorpaySignature: signature ?? '',
+        purpose: 'order_food',
+      );
+
+      _pendingOrder = null;
+      if (!mounted) return;
+
+      if (verifyResponse.success) {
+        await ref.read(walletProvider.notifier).loadWalletBalance();
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        _showSuccessDialog(verifyResponse.data?.orderNumber);
+      } else {
+        setState(() => _isProcessing = false);
+        _showErrorSnackbar(verifyResponse.message.isNotEmpty
+            ? verifyResponse.message
+            : 'Payment verification failed. Please contact support.');
+      }
+    } catch (e) {
+      debugPrint('[CheckoutScreen] verifyRazorpayPayment error: $e');
+      _pendingOrder = null;
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      _showErrorSnackbar('Payment verification failed. Please try again.');
+    }
   }
 
   void _onRazorpayFailure(int code, String message) {

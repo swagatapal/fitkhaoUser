@@ -1,6 +1,174 @@
 // Models for order placement
 
-/// Request model for placing an order
+// ─── Razorpay Create-Order ─────────────────────────────────────────────────
+
+/// Inner data block sent to POST /razorpay/create-order
+class RazorpayPendingOrderData {
+  final String kitchenId;
+  final List<OrderItem> items;
+  final DeliveryAddress deliveryAddress;
+  final String? specialInstructions;
+  final List<String> couponIds;
+
+  const RazorpayPendingOrderData({
+    required this.kitchenId,
+    required this.items,
+    required this.deliveryAddress,
+    this.specialInstructions,
+    this.couponIds = const [],
+  });
+
+  Map<String, dynamic> toJson() => {
+        'kitchenId': kitchenId,
+        'items': items.map((e) => e.toJson()).toList(),
+        'deliveryAddress': deliveryAddress.toJson(),
+        if (specialInstructions != null && specialInstructions!.isNotEmpty)
+          'specialInstructions': specialInstructions,
+        if (couponIds.isNotEmpty) 'couponIds': couponIds,
+      };
+}
+
+/// Full request body for POST /razorpay/create-order
+class RazorpayCreateOrderRequest {
+  final String purpose;
+  final RazorpayPendingOrderData pendingOrderData;
+
+  const RazorpayCreateOrderRequest({
+    required this.purpose,
+    required this.pendingOrderData,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'purpose': purpose,
+        'pendingOrderData': pendingOrderData.toJson(),
+      };
+}
+
+/// Data returned from POST /razorpay/create-order
+class RazorpayCreateOrderData {
+  final String razorpayOrderId;
+  final int amountInPaise;
+  final String currency;
+
+  const RazorpayCreateOrderData({
+    required this.razorpayOrderId,
+    required this.amountInPaise,
+    required this.currency,
+  });
+
+  factory RazorpayCreateOrderData.fromJson(Map<String, dynamic> json) {
+    return RazorpayCreateOrderData(
+      razorpayOrderId: json['razorpayOrderId'] as String? ??
+          json['orderId'] as String? ??
+          json['id'] as String? ??
+          '',
+      amountInPaise: (json['amount'] as num?)?.toInt() ?? 0,
+      currency: json['currency'] as String? ?? 'INR',
+    );
+  }
+}
+
+/// Full response from POST /razorpay/create-order
+class RazorpayCreateOrderResponse {
+  final bool success;
+  final String message;
+  final RazorpayCreateOrderData? data;
+
+  const RazorpayCreateOrderResponse({
+    required this.success,
+    required this.message,
+    this.data,
+  });
+
+  factory RazorpayCreateOrderResponse.fromJson(Map<String, dynamic> json) {
+    final raw = json['data'];
+    return RazorpayCreateOrderResponse(
+      success: json['success'] as bool? ?? false,
+      message: json['message'] as String? ?? '',
+      data: raw is Map<String, dynamic>
+          ? RazorpayCreateOrderData.fromJson(raw)
+          : null,
+    );
+  }
+}
+
+// ─── Razorpay Verify-Payment ───────────────────────────────────────────────
+
+/// Request body for POST /razorpay/verify-payment
+class RazorpayVerifyPaymentRequest {
+  final String razorpayOrderId;
+  final String razorpayPaymentId;
+  final String razorpaySignature;
+  final String purpose;
+
+  const RazorpayVerifyPaymentRequest({
+    required this.razorpayOrderId,
+    required this.razorpayPaymentId,
+    required this.razorpaySignature,
+    required this.purpose,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'razorpayOrderId': razorpayOrderId,
+        'razorpayPaymentId': razorpayPaymentId,
+        'razorpaySignature': razorpaySignature,
+        'purpose': purpose,
+      };
+}
+
+/// Data returned from POST /razorpay/verify-payment
+class RazorpayVerifyPaymentData {
+  final String? orderId;
+  final String? orderNumber;
+  final String? status;
+
+  const RazorpayVerifyPaymentData({
+    this.orderId,
+    this.orderNumber,
+    this.status,
+  });
+
+  factory RazorpayVerifyPaymentData.fromJson(Map<String, dynamic> json) {
+    final order = json['order'] as Map<String, dynamic>?;
+    return RazorpayVerifyPaymentData(
+      orderId: order?['_id'] as String? ??
+          order?['id'] as String? ??
+          json['orderId'] as String?,
+      orderNumber: order?['orderNumber'] as String? ??
+          json['orderNumber'] as String?,
+      status: order?['paymentStatus'] as String? ??
+          json['status'] as String?,
+    );
+  }
+}
+
+/// Full response from POST /razorpay/verify-payment
+class RazorpayVerifyPaymentResponse {
+  final bool success;
+  final String message;
+  final RazorpayVerifyPaymentData? data;
+
+  const RazorpayVerifyPaymentResponse({
+    required this.success,
+    required this.message,
+    this.data,
+  });
+
+  factory RazorpayVerifyPaymentResponse.fromJson(Map<String, dynamic> json) {
+    final raw = json['data'];
+    return RazorpayVerifyPaymentResponse(
+      success: json['success'] as bool? ?? false,
+      message: json['message'] as String? ?? '',
+      data: raw is Map<String, dynamic>
+          ? RazorpayVerifyPaymentData.fromJson(raw)
+          : null,
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+
+/// Request model for placing an order (wallet path)
 class OrderPlacementRequest {
   final String kitchenId;
   final List<OrderItem> items;

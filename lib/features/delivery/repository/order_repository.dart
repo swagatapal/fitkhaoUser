@@ -109,6 +109,93 @@ class OrderRepository {
     }
   }
 
+  /// Create a Razorpay order on the backend.
+  /// Returns a [RazorpayCreateOrderResponse] containing the Razorpay order ID
+  /// and amount that should be passed to the Razorpay SDK.
+  Future<RazorpayCreateOrderResponse> createRazorpayOrder({
+    required RazorpayPendingOrderData pendingOrderData,
+    String purpose = 'order_food',
+  }) async {
+    debugPrint('[OrderRepository] Creating Razorpay order...');
+
+    try {
+      final token = _localStorage.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(message: 'Authentication required. Please login again.');
+      }
+
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+
+      final request = RazorpayCreateOrderRequest(
+        purpose: purpose,
+        pendingOrderData: pendingOrderData,
+      );
+
+      debugPrint('[OrderRepository] createRazorpayOrder payload: ${request.toJson()}');
+
+      final json = await _apiClient.postJson(
+        AppConfig.razorpayCreateOrderPath,
+        body: request.toJson(),
+        headers: headers,
+      );
+
+      debugPrint('[OrderRepository] createRazorpayOrder response: $json');
+      return RazorpayCreateOrderResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[OrderRepository] createRazorpayOrder error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
+  /// Verify a Razorpay payment after the SDK reports success.
+  /// Returns a [RazorpayVerifyPaymentResponse] with the confirmed order number.
+  Future<RazorpayVerifyPaymentResponse> verifyRazorpayPayment({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+    String purpose = 'order_food',
+  }) async {
+    debugPrint('[OrderRepository] Verifying Razorpay payment — orderId=$razorpayOrderId');
+
+    try {
+      final token = _localStorage.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(message: 'Authentication required. Please login again.');
+      }
+
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+
+      final request = RazorpayVerifyPaymentRequest(
+        razorpayOrderId: razorpayOrderId,
+        razorpayPaymentId: razorpayPaymentId,
+        razorpaySignature: razorpaySignature,
+        purpose: purpose,
+      );
+
+      debugPrint('[OrderRepository] verifyRazorpayPayment payload: ${request.toJson()}');
+
+      final json = await _apiClient.postJson(
+        AppConfig.razorpayVerifyPaymentPath,
+        body: request.toJson(),
+        headers: headers,
+      );
+
+      debugPrint('[OrderRepository] verifyRazorpayPayment response: $json');
+      return RazorpayVerifyPaymentResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[OrderRepository] verifyRazorpayPayment error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
   /// Cancel an order
   Future<Map<String, dynamic>> cancelOrder({
     required String orderId,
