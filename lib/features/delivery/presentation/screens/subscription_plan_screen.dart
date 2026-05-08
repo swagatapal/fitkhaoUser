@@ -53,7 +53,12 @@ class _SubscriptionPlanScreenState
                       const SizedBox(height: AppSizes.spacing20),
                       _buildFitKhaoLogo(),
                       const SizedBox(height: AppSizes.spacing16),
-                      // Show active subscription card if exists
+                      // Wallet balance — always visible when loaded
+                      if (ref.watch(walletProvider).wallet != null) ...[
+                        _buildWalletBalanceCard(),
+                        const SizedBox(height: AppSizes.spacing16),
+                      ],
+                      // Active subscription card
                       if (ref.watch(walletProvider).hasActiveSubscription) ...[
                         _buildActiveSubscriptionCard(),
                         const SizedBox(height: AppSizes.spacing16),
@@ -576,9 +581,75 @@ class _SubscriptionPlanScreenState
     );
   }
 
+  Widget _buildWalletBalanceCard() {
+    final wallet = ref.watch(walletProvider).wallet;
+    if (wallet == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spacing16,
+        vertical: AppSizes.spacing12,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSizes.spacing10),
+            decoration: BoxDecoration(
+              color: AppColors.primaryGreen.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+            ),
+            child: const Icon(
+              Icons.account_balance_wallet_outlined,
+              color: AppColors.primaryGreen,
+              size: AppSizes.icon24,
+            ),
+          ),
+          const SizedBox(width: AppSizes.spacing12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Wallet Balance',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    fontWeight: AppTypography.medium,
+                    color: AppColors.textSecondary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: AppSizes.spacing2),
+                Text(
+                  '₹${wallet.couponBalance.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize20,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.primaryGreen,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActiveSubscriptionCard() {
     final subscription = ref.watch(walletProvider).subscription;
-    final wallet = ref.watch(walletProvider).wallet;
     if (subscription == null) return const SizedBox.shrink();
 
     return Container(
@@ -724,31 +795,6 @@ class _SubscriptionPlanScreenState
               ],
             ),
           ),
-          const SizedBox(height: AppSizes.spacing12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "Wallet balance is : ",
-                style: const TextStyle(
-                  fontSize: AppTypography.fontSize16,
-                  fontWeight: AppTypography.semiBold,
-                  color: Colors.white,
-                  fontFamily: 'Lato',
-                ),
-              ),
-              Text(
-                wallet?.couponBalance.toStringAsFixed(2)??"",
-                style: const TextStyle(
-                  fontSize: AppTypography.fontSize16,
-                  fontWeight: AppTypography.semiBold,
-                  color: Colors.white,
-                  fontFamily: 'Lato',
-                ),
-              ),
-            ],
-          )
-
         ],
       ),
     );
