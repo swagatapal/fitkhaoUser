@@ -55,6 +55,7 @@ class AppConfig {
   /// App content — terms & conditions, privacy policy (public)
   static const String appContentPath = '/api/app-content';
 
+  static const String eligibleCouponsPath = '/api/user/coupons';
   static const String userHistoryPath = '/api/user/history';
   static const String exercisePath = '/api/adm/exercise';
   static const String physiologicalCategoriesPath = '/api/adm/physiological-category';

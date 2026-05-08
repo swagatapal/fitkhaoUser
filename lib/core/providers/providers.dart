@@ -10,6 +10,7 @@ import '../../features/history/repository/order_history_repository.dart';
 import '../../features/policy/repository/app_content_repository.dart';
 import '../../features/dashboard/repository/meal_plan_repository.dart';
 import '../../features/delivery/repository/delivery_slot_repository.dart';
+import '../../features/delivery/repository/coupon_repository.dart';
 
 /// Provider for LocalStorageService
 final localStorageProvider = FutureProvider<LocalStorageService>((ref) async {
@@ -133,4 +134,16 @@ final deliverySlotRepositoryProvider = Provider<DeliverySlotRepository>((ref) {
   }
 
   return DeliverySlotRepository(apiClient: apiClient, localStorage: localStorage);
+});
+
+/// Provider for CouponRepository
+final couponRepositoryProvider = Provider<CouponRepository>((ref) {
+  final localStorage = ref.watch(localStorageProvider).value;
+  final apiClient = ref.watch(apiClientProvider);
+
+  if (localStorage == null) {
+    throw Exception('LocalStorage not initialized');
+  }
+
+  return CouponRepository(apiClient: apiClient, localStorage: localStorage);
 });

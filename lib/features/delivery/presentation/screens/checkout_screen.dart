@@ -8,60 +8,12 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/services/razorpay_service.dart';
 import '../../models/cart_item.dart';
+import '../../models/coupon_model.dart';
 import '../../models/order_placement_model.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/coupon_provider.dart';
 import '../../providers/serviceability_provider.dart';
 import '../../providers/wallet_provider.dart';
-
-// ─── Coupon model (replace with API model later) ──────────────────────────────
-
-class _Coupon {
-  final String code;
-  final String title;
-  final String description;
-  final double discount;
-  final String validTill;
-
-  const _Coupon({
-    required this.code,
-    required this.title,
-    required this.description,
-    required this.discount,
-    required this.validTill,
-  });
-}
-
-// Mock coupons — swap for API response when ready
-const List<_Coupon> _mockCoupons = [
-  _Coupon(
-    code: 'FITKHAO10',
-    title: '₹10 Off',
-    description: 'Get ₹10 off on any order',
-    discount: 10.0,
-    validTill: '31 May 2026',
-  ),
-  _Coupon(
-    code: 'WELCOME20',
-    title: '₹20 Off',
-    description: 'Special welcome discount for new users',
-    discount: 20.0,
-    validTill: '30 Jun 2026',
-  ),
-  _Coupon(
-    code: 'HEALTHY50',
-    title: '₹50 Off',
-    description: 'On orders above ₹300',
-    discount: 50.0,
-    validTill: '15 Jun 2026',
-  ),
-  _Coupon(
-    code: 'SAVE30',
-    title: '₹30 Off',
-    description: 'Exclusive weekend offer',
-    discount: 30.0,
-    validTill: '31 May 2026',
-  ),
-];
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -98,7 +50,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _isProcessing = false;
 
   // Coupon state
-  _Coupon? _appliedCoupon;
+  CouponModel? _appliedCoupon;
 
   // Razorpay
   late final RazorpayService _razorpayService;
@@ -141,7 +93,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     const platformCharge = 7.0;
     final itemTotal = totalPrice;
     final gstAmount = totalPrice * gst;
-    final couponDiscount = _appliedCoupon?.discount ?? 0.0;
+    final couponDiscount = _appliedCoupon?.computeDiscount(itemTotal) ?? 0.0;
     final subTotal =
         (itemTotal + gstAmount + platformCharge - couponDiscount)
             .clamp(0.0, double.infinity);
@@ -583,7 +535,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Coupon Applied — ${coupon.title}',
+                  'Coupon Applied — ${coupon.name}',
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize14,
                     fontWeight: AppTypography.semiBold,
@@ -592,7 +544,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSizes.spacing2),
-                Row(
+                Wrap(
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -617,7 +569,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ),
                     const SizedBox(width: AppSizes.spacing6),
                     Text(
-                      '− ₹${coupon.discount.toStringAsFixed(2)} off',
+                      '− ${coupon.discountLabel}',
                       style: const TextStyle(
                         fontSize: AppTypography.fontSize12,
                         color: AppColors.primaryGreen,
@@ -677,14 +629,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   void _openCouponSheet() {
+    ref.read(couponProvider.notifier).loadCoupons();
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => _CouponSheet(
-        coupons: _mockCoupons,
         appliedCode: _appliedCoupon?.code,
+        itemTotal: ref.read(cartTotalPriceProvider),
         onApply: (coupon) {
+          final itemTotal = ref.read(cartTotalPriceProvider);
+          if (coupon.minOrderAmount > 0 && itemTotal < coupon.minOrderAmount) {
+            Navigator.of(context).pop();
+            _showErrorSnackbar(
+              'Minimum order of ₹${coupon.minOrderAmount.toInt()} required for this coupon.',
+            );
+            return;
+          }
           setState(() => _appliedCoupon = coupon);
           Navigator.of(context).pop();
         },
@@ -1384,21 +1345,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
 // ─── Coupon Bottom Sheet ──────────────────────────────────────────────────────
 
-class _CouponSheet extends StatelessWidget {
-  final List<_Coupon> coupons;
+class _CouponSheet extends ConsumerWidget {
   final String? appliedCode;
-  final ValueChanged<_Coupon> onApply;
+  final double itemTotal;
+  final ValueChanged<CouponModel> onApply;
   final VoidCallback onRemove;
 
   const _CouponSheet({
-    required this.coupons,
     required this.appliedCode,
+    required this.itemTotal,
     required this.onApply,
     required this.onRemove,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final couponState = ref.watch(couponProvider);
+
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFFF6F6F6),
@@ -1459,30 +1422,103 @@ class _CouponSheet extends StatelessWidget {
 
           const Divider(height: 1),
 
-          // Coupon list
+          // Body: loading / error / list
           ConstrainedBox(
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.55,
             ),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(AppSizes.spacing16),
-              shrinkWrap: true,
-              itemCount: coupons.length,
-              separatorBuilder: (_, __) =>
-                  const SizedBox(height: AppSizes.spacing12),
-              itemBuilder: (_, i) => _CouponCard(
-                coupon: coupons[i],
-                isApplied: coupons[i].code == appliedCode,
-                onApply: () => onApply(coupons[i]),
-                onRemove: onRemove,
-              ),
-            ),
+            child: _buildBody(context, couponState, itemTotal),
           ),
 
-          // Bottom safe area
-          SizedBox(height: MediaQuery.of(context).padding.bottom + AppSizes.spacing8),
+          SizedBox(
+            height: MediaQuery.of(context).padding.bottom + AppSizes.spacing8,
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, CouponState state, double itemTotal) {
+    if (state.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+            strokeWidth: 2.5,
+          ),
+        ),
+      );
+    }
+
+    if (state.error != null) {
+      return Padding(
+        padding: const EdgeInsets.all(AppSizes.spacing24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: AppSizes.icon48,
+              color: AppColors.textTertiary,
+            ),
+            const SizedBox(height: AppSizes.spacing12),
+            Text(
+              state.error!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: AppTypography.fontSize14,
+                color: AppColors.textSecondary,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state.coupons.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(AppSizes.spacing24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.confirmation_number_outlined,
+              size: AppSizes.icon48,
+              color: AppColors.textTertiary,
+            ),
+            SizedBox(height: AppSizes.spacing12),
+            Text(
+              'No coupons available right now',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize14,
+                color: AppColors.textSecondary,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(AppSizes.spacing16),
+      shrinkWrap: true,
+      itemCount: state.coupons.length,
+      separatorBuilder: (_, __) => const SizedBox(height: AppSizes.spacing12),
+      itemBuilder: (_, i) {
+        final coupon = state.coupons[i];
+        final eligible = coupon.minOrderAmount <= 0 || itemTotal >= coupon.minOrderAmount;
+        return _CouponCard(
+          coupon: coupon,
+          isApplied: coupon.code == appliedCode,
+          isEligible: eligible,
+          onApply: eligible ? () => onApply(coupon) : null,
+          onRemove: onRemove,
+        );
+      },
     );
   }
 }
@@ -1490,47 +1526,35 @@ class _CouponSheet extends StatelessWidget {
 // ─── Single Coupon Card ───────────────────────────────────────────────────────
 
 class _CouponCard extends StatelessWidget {
-  final _Coupon coupon;
+  final CouponModel coupon;
   final bool isApplied;
-  final VoidCallback onApply;
+  final bool isEligible;
+  final VoidCallback? onApply;
   final VoidCallback onRemove;
 
   const _CouponCard({
     required this.coupon,
     required this.isApplied,
+    required this.isEligible,
     required this.onApply,
     required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final isFlat = coupon.discountType == CouponDiscountType.flat;
+
+    return Opacity(
+      opacity: isEligible ? 1.0 : 0.5,
+      child: Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppSizes.radius8),
-        // border: Border(
-        //   left: BorderSide(
-        //     color: isApplied
-        //         ? AppColors.primaryGreen
-        //         : AppColors.primaryGreen.withValues(alpha: 0.4),
-        //     width: 4,
-        //   ),
-        //   top: BorderSide(
-        //     color: isApplied
-        //         ? AppColors.primaryGreen.withValues(alpha: 0.3)
-        //         : AppColors.borderColor,
-        //   ),
-        //   right: BorderSide(
-        //     color: isApplied
-        //         ? AppColors.primaryGreen.withValues(alpha: 0.3)
-        //         : AppColors.borderColor,
-        //   ),
-        //   bottom: BorderSide(
-        //     color: isApplied
-        //         ? AppColors.primaryGreen.withValues(alpha: 0.3)
-        //         : AppColors.borderColor,
-        //   ),
-        // ),
+        border: Border.all(
+          color: isApplied
+              ? AppColors.primaryGreen.withValues(alpha: 0.4)
+              : AppColors.borderColor,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSizes.spacing16),
@@ -1542,34 +1566,65 @@ class _CouponCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Code badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSizes.spacing8,
-                      vertical: AppSizes.spacing4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppSizes.radius4),
-                      border: Border.all(
-                        color: AppColors.primaryGreen.withValues(alpha: 0.3),
+                  // Code badge + discount-type chip
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.spacing8,
+                          vertical: AppSizes.spacing4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radius4),
+                          border: Border.all(
+                            color:
+                                AppColors.primaryGreen.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          coupon.code,
+                          style: const TextStyle(
+                            fontSize: AppTypography.fontSize13,
+                            fontWeight: AppTypography.bold,
+                            color: AppColors.primaryGreen,
+                            letterSpacing: 1.2,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      coupon.code,
-                      style: const TextStyle(
-                        fontSize: AppTypography.fontSize13,
-                        fontWeight: AppTypography.bold,
-                        color: AppColors.primaryGreen,
-                        letterSpacing: 1.2,
-                        fontFamily: 'Lato',
+                      const SizedBox(width: AppSizes.spacing6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.spacing6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isFlat
+                              ? const Color(0xFFE8F5E9)
+                              : const Color(0xFFFFF3E0),
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radius4),
+                        ),
+                        child: Text(
+                          isFlat ? 'FLAT' : '%OFF',
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize10,
+                            fontWeight: AppTypography.bold,
+                            color: isFlat
+                                ? AppColors.primaryGreen
+                                : const Color(0xFFE65100),
+                            fontFamily: 'Lato',
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                   const SizedBox(height: AppSizes.spacing8),
-                  // Title
+                  // Discount headline
                   Text(
-                    coupon.title,
+                    coupon.discountLabel,
                     style: const TextStyle(
                       fontSize: AppTypography.fontSize16,
                       fontWeight: AppTypography.semiBold,
@@ -1587,26 +1642,48 @@ class _CouponCard extends StatelessWidget {
                       fontFamily: 'Lato',
                     ),
                   ),
-                  const SizedBox(height: AppSizes.spacing8),
-                  // Valid till
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.access_time_outlined,
-                        size: AppSizes.icon12,
-                        color: AppColors.textTertiary,
-                      ),
-                      const SizedBox(width: AppSizes.spacing4),
-                      Text(
-                        'Valid till ${coupon.validTill}',
-                        style: const TextStyle(
-                          fontSize: AppTypography.fontSize10,
+                  const SizedBox(height: AppSizes.spacing6),
+                  // Min order condition
+                  if (coupon.minOrderAmount > 0)
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.shopping_cart_outlined,
+                          size: AppSizes.icon12,
                           color: AppColors.textTertiary,
-                          fontFamily: 'Lato',
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: AppSizes.spacing4),
+                        Text(
+                          'Min order ₹${coupon.minOrderAmount.toInt()}',
+                          style: const TextStyle(
+                            fontSize: AppTypography.fontSize10,
+                            color: AppColors.textTertiary,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: AppSizes.spacing4),
+                  // Expiry
+                  if (coupon.formattedExpiry.isNotEmpty)
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.access_time_outlined,
+                          size: AppSizes.icon12,
+                          color: AppColors.textTertiary,
+                        ),
+                        const SizedBox(width: AppSizes.spacing4),
+                        Text(
+                          'Valid till ${coupon.formattedExpiry}',
+                          style: const TextStyle(
+                            fontSize: AppTypography.fontSize10,
+                            color: AppColors.textTertiary,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -1646,8 +1723,7 @@ class _CouponCard extends StatelessWidget {
                         vertical: AppSizes.spacing8,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppSizes.radius6),
+                        borderRadius: BorderRadius.circular(AppSizes.radius6),
                       ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1666,6 +1742,7 @@ class _CouponCard extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

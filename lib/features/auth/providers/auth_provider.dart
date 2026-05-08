@@ -359,10 +359,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         // Extract profile data
         final name = profile['name'] as String? ?? '';
         final imgUrl = profile['imgUrl'] as String? ?? "";
-        final age = profile['age'] as int? ?? 0;
+        //final age = profile['age'] as int? ?? 0;
+        final age = 14;
         final gender = profile['gender'] as String? ?? 'male';
-        final weight = (profile['weight'] as num?)?.toDouble() ?? 0.0;
-        final height = (profile['height'] as num?)?.toDouble() ?? 0.0;
+        //final weight = (profile['weight'] as num?)?.toDouble() ?? 0.0;
+        //final height = (profile['height'] as num?)?.toDouble() ?? 0.0;
+        final weight = 68.0;
+        final height = 149.0;
         final doesWorkout = profile['doesWorkout'] as bool? ?? false;
         final professionGroupId = profile['professionGroupId'] as String? ?? '';
         final selectedGoal = profile['selectedGoal'] as String? ?? 'regular-bmi-maintenance';
