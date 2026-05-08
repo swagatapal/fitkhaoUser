@@ -5,10 +5,11 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
+import '../../../../core/services/razorpay_service.dart';
 import '../../../../shared/widgets/logo_widget.dart';
 
 class SubscriptionCheckoutScreen extends ConsumerStatefulWidget {
-  final String planDays; // '7' or '30'
+  final String planDays;
   final String planPrice;
   final String planCode;
 
@@ -26,82 +27,68 @@ class SubscriptionCheckoutScreen extends ConsumerStatefulWidget {
 
 class _SubscriptionCheckoutScreenState
     extends ConsumerState<SubscriptionCheckoutScreen> {
-  final TextEditingController _couponController = TextEditingController();
-  String _selectedPaymentMethod = 'UPI'; // 'UPI', 'Net Banking', 'Debit/Credit Card'
-  double _discount = 0.0;
+  bool _isProcessing = false;
 
-  @override
-  void dispose() {
-    _couponController.dispose();
-    super.dispose();
-  }
+  late final RazorpayService _razorpayService;
+
+  // Stored after create-order so the verify callback can reference it.
+  String? _razorpayOrderId;
 
   double get _planPrice {
-    // Remove ₹ symbol and parse
-    final priceStr = widget.planPrice.replaceAll('₹', '').replaceAll(',', '');
-    return double.tryParse(priceStr) ?? 0.0;
+    final raw = widget.planPrice.replaceAll('₹', '').replaceAll(',', '').trim();
+    return double.tryParse(raw) ?? 0.0;
   }
 
-  double get _gstAmount {
-    // Calculate 1% GST approximately for display
-    return _planPrice * 0.01;
-  }
-
-  double get _grandTotal {
-    return _planPrice - _discount;
-  }
-
-  void _applyCoupon() {
-    final couponCode = _couponController.text.trim().toUpperCase();
-
-    if (couponCode.isEmpty) {
-      _showMessage('Please enter a coupon code');
-      return;
-    }
-
-    // Mock coupon validation
-    if (couponCode == 'FITKHAO50') {
-      setState(() {
-        _discount = _planPrice * 0.5; // 50% discount
-      });
-      _showMessage('Coupon applied! 50% discount');
-    } else if (couponCode == 'WELCOME10') {
-      setState(() {
-        _discount = _planPrice * 0.1; // 10% discount
-      });
-      _showMessage('Coupon applied! 10% discount');
-    } else {
-      _showMessage('Invalid coupon code');
-    }
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: const TextStyle(fontFamily: 'Lato'),
-        ),
-        backgroundColor: AppColors.primaryGreen,
-        behavior: SnackBarBehavior.floating,
-      ),
+  @override
+  void initState() {
+    super.initState();
+    _razorpayService = RazorpayService(
+      onSuccess: _onRazorpaySuccess,
+      onFailure: _onRazorpayFailure,
+      onExternalWallet: (_) {},
     );
   }
 
-  void _processPayment() {
-    if (_selectedPaymentMethod.isEmpty) {
-      _showMessage('Please select a payment method');
-      return;
-    }
+  @override
+  void dispose() {
+    _razorpayService.dispose();
+    super.dispose();
+  }
 
-    // Show confirmation dialog first
+  // ── Razorpay callbacks ────────────────────────────────────────────────────
+
+  void _onRazorpaySuccess(
+    String paymentId,
+    String? sdkOrderId,
+    String? signature,
+  ) {
+    debugPrint('[SubscriptionCheckout] Razorpay success — paymentId=$paymentId');
+    _verifyAndFinalise(
+      paymentId: paymentId,
+      sdkOrderId: sdkOrderId,
+      signature: signature,
+    );
+  }
+
+  void _onRazorpayFailure(int code, String message) {
+    debugPrint('[SubscriptionCheckout] Razorpay failure — $code $message');
+    _razorpayOrderId = null;
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+    _showError(message);
+  }
+
+  // ── Payment flow ──────────────────────────────────────────────────────────
+
+  void _onPayTapped() {
+    if (_isProcessing) return;
     _showConfirmationDialog();
   }
 
   void _showConfirmationDialog() {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
+      builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSizes.radius8),
         ),
@@ -110,7 +97,6 @@ class _SubscriptionCheckoutScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Question Icon
               Container(
                 padding: const EdgeInsets.all(AppSizes.spacing16),
                 decoration: BoxDecoration(
@@ -136,7 +122,7 @@ class _SubscriptionCheckoutScreenState
               ),
               const SizedBox(height: AppSizes.spacing12),
               Text(
-                'Are you sure you want to proceed with payment of ₹${_grandTotal.toStringAsFixed(0)} via $_selectedPaymentMethod?',
+                'Proceed with payment of ${widget.planPrice} for the ${widget.planDays}-day subscription plan?',
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize14,
                   fontWeight: AppTypography.regular,
@@ -150,14 +136,9 @@ class _SubscriptionCheckoutScreenState
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
+                      onPressed: () => Navigator.of(ctx).pop(),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(
-                          color: AppColors.borderColor,
-                          width: 1,
-                        ),
+                        side: const BorderSide(color: AppColors.borderColor),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppSizes.radius4),
                         ),
@@ -180,8 +161,8 @@ class _SubscriptionCheckoutScreenState
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.pop(context);
-                        _confirmPayment();
+                        Navigator.of(ctx).pop();
+                        _initiateRazorpayFlow();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryGreen,
@@ -212,46 +193,122 @@ class _SubscriptionCheckoutScreenState
     );
   }
 
-  Future<void> _confirmPayment() async {
-    _showMessage('Processing payment via $_selectedPaymentMethod...');
+  Future<void> _initiateRazorpayFlow() async {
+    if (!mounted) return;
+    setState(() => _isProcessing = true);
 
     try {
-      // Get subscription repository
-      final subscriptionRepo = ref.read(subscriptionRepositoryProvider);
-
-      debugPrint('[SubscriptionCheckout] Creating subscription...');
-      debugPrint('[SubscriptionCheckout] planCode: ${widget.planCode}');
-
-      // Call API to create subscription
-      final response = await subscriptionRepo.createSubscription(
+      final orderRepo = ref.read(orderRepositoryProvider);
+      final createResponse = await orderRepo.createRazorpaySubscriptionOrder(
         planCode: widget.planCode,
       );
 
-      debugPrint('[SubscriptionCheckout] Response: ${response.success}');
-      debugPrint('[SubscriptionCheckout] Message: ${response.message}');
+      if (!createResponse.success || createResponse.data == null) {
+        if (!mounted) return;
+        setState(() => _isProcessing = false);
+        _showError(createResponse.message.isNotEmpty
+            ? createResponse.message
+            : 'Could not initiate payment. Please try again.');
+        return;
+      }
 
-      if (mounted) {
-        if (response.success) {
-          _showSuccessDialog();
-        } else {
-          _showMessage(response.message.isNotEmpty
-            ? response.message
-            : 'Subscription creation failed. Please try again.');
-        }
-      }
+      final orderData = createResponse.data!;
+      _razorpayOrderId = orderData.razorpayOrderId;
+      final amountInPaise = orderData.amountInPaise > 0
+          ? orderData.amountInPaise
+          : (_planPrice * 100).toInt();
+
+      debugPrint(
+        '[SubscriptionCheckout] Razorpay order created — '
+        'orderId=${orderData.razorpayOrderId} paise=$amountInPaise',
+      );
+
+      if (!mounted) return;
+      // Stop spinner — Razorpay SDK renders its own loading UI.
+      setState(() => _isProcessing = false);
+
+      final localStorage = ref.read(localStorageProvider).value;
+      final userName = localStorage?.getUserName() ?? 'FitKhao User';
+      final userEmail = localStorage?.getUserEmail() ?? '';
+      final userPhone = localStorage?.getUserPhone() ?? '';
+
+      _razorpayService.open(
+        RazorpayPaymentConfig(
+          amountInPaise: amountInPaise,
+          orderId: orderData.razorpayOrderId,
+          description: 'FitKhao ${widget.planDays}-Day Subscription',
+          customerName: userName,
+          customerEmail: userEmail,
+          customerContact: userPhone,
+        ),
+      );
     } catch (e) {
-      debugPrint('[SubscriptionCheckout] Error: $e');
-      if (mounted) {
-        _showMessage('Failed to create subscription. Please try again.');
-      }
+      debugPrint('[SubscriptionCheckout] createRazorpaySubscriptionOrder error: $e');
+      _razorpayOrderId = null;
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      _showError('Payment initiation failed. Please try again.');
     }
   }
+
+  Future<void> _verifyAndFinalise({
+    required String paymentId,
+    required String? sdkOrderId,
+    required String? signature,
+  }) async {
+    final razorpayOrderId = (_razorpayOrderId?.isNotEmpty == true)
+        ? _razorpayOrderId!
+        : (sdkOrderId ?? '');
+
+    if (razorpayOrderId.isEmpty) {
+      debugPrint('[SubscriptionCheckout] verifyPayment: razorpayOrderId empty');
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      _showError('Payment verification failed. Please contact support.');
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _isProcessing = true);
+
+    try {
+      final orderRepo = ref.read(orderRepositoryProvider);
+      final verifyResponse = await orderRepo.verifyRazorpayPayment(
+        razorpayOrderId: razorpayOrderId,
+        razorpayPaymentId: paymentId,
+        razorpaySignature: signature ?? '',
+        purpose: 'subscription',
+        planCode: widget.planCode,
+      );
+
+      _razorpayOrderId = null;
+      if (!mounted) return;
+
+      setState(() => _isProcessing = false);
+
+      if (verifyResponse.success) {
+        _showSuccessDialog();
+      } else {
+        _showError(verifyResponse.message.isNotEmpty
+            ? verifyResponse.message
+            : 'Payment verification failed. Please contact support.');
+      }
+    } catch (e) {
+      debugPrint('[SubscriptionCheckout] verifyRazorpayPayment error: $e');
+      _razorpayOrderId = null;
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      _showError('Payment verification failed. Please try again.');
+    }
+  }
+
+  // ── Dialogs ───────────────────────────────────────────────────────────────
 
   void _showSuccessDialog() {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
+      builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSizes.radius16),
         ),
@@ -260,7 +317,6 @@ class _SubscriptionCheckoutScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Success Icon
               Container(
                 padding: const EdgeInsets.all(AppSizes.spacing20),
                 decoration: BoxDecoration(
@@ -299,9 +355,8 @@ class _SubscriptionCheckoutScreenState
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
-                  },
+                  onPressed: () =>
+                      Navigator.of(ctx).popUntil((route) => route.isFirst),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryGreen,
                     shape: RoundedRectangleBorder(
@@ -326,6 +381,52 @@ class _SubscriptionCheckoutScreenState
     );
   }
 
+  void _showError(String message) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+        ),
+        title: const Text(
+          'Payment Failed',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize18,
+            fontWeight: AppTypography.bold,
+            color: AppColors.textPrimary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(
+            fontSize: AppTypography.fontSize14,
+            fontWeight: AppTypography.regular,
+            color: AppColors.textSecondary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text(
+              'OK',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize14,
+                fontWeight: AppTypography.medium,
+                color: AppColors.primaryGreen,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -344,13 +445,9 @@ class _SubscriptionCheckoutScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: AppSizes.spacing16),
-                      _buildFitKhaoLogo(),
+                      LogoWidget(),
                       const SizedBox(height: AppSizes.spacing24),
                       _buildPaymentSummary(),
-                      const SizedBox(height: AppSizes.spacing16),
-                      _buildApplyCoupon(),
-                      const SizedBox(height: AppSizes.spacing16),
-                      _buildPaymentMethod(),
                       const SizedBox(height: AppSizes.spacing24),
                     ],
                   ),
@@ -398,23 +495,22 @@ class _SubscriptionCheckoutScreenState
             ),
           ),
           const SizedBox(width: AppSizes.spacing12),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Complete your purchase",
-                  style: const TextStyle(
+                  'Complete your purchase',
+                  style: TextStyle(
                     fontSize: AppTypography.fontSize20,
                     fontWeight: AppTypography.bold,
                     color: AppColors.textPrimary,
                     fontFamily: 'Lato',
                   ),
                 ),
-                //const SizedBox(height: AppSizes.spacing2),
                 Text(
-                  "Make payment to recharge wallet",
-                  style: const TextStyle(
+                  'Review your plan and pay',
+                  style: TextStyle(
                     fontSize: AppTypography.fontSize12,
                     fontWeight: AppTypography.regular,
                     color: AppColors.textSecondary,
@@ -424,31 +520,11 @@ class _SubscriptionCheckoutScreenState
               ],
             ),
           ),
-          // CircleAvatar(
-          //   radius: AppSizes.spacing24,
-          //   backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-          //   backgroundImage: const NetworkImage(
-          //     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
-          //   ),
-          //   onBackgroundImageError: (exception, stackTrace) {},
-          //   child: Container(
-          //     decoration: BoxDecoration(
-          //       shape: BoxShape.circle,
-          //       border: Border.all(
-          //         color: AppColors.primaryGreen.withValues(alpha: 0.3),
-          //         width: AppSizes.borderThin,
-          //       ),
-          //     ),
-          //   ),
-          // ),
         ],
       ),
     );
   }
 
-  Widget _buildFitKhaoLogo() {
-    return LogoWidget();
-  }
   Widget _buildPaymentSummary() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,10 +544,7 @@ class _SubscriptionCheckoutScreenState
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(AppSizes.radius8),
-            border: Border.all(
-              color: AppColors.borderColor,
-              width: 1,
-            ),
+            border: Border.all(color: AppColors.borderColor),
           ),
           child: Column(
             children: [
@@ -480,27 +553,12 @@ class _SubscriptionCheckoutScreenState
                 widget.planPrice,
                 isBold: false,
               ),
-              const SizedBox(height: AppSizes.spacing8),
-              _buildSummaryRow(
-                'GST',
-                '₹${_gstAmount.toStringAsFixed(2)}',
-                isBold: false,
-              ),
-              if (_discount > 0) ...[
-                const SizedBox(height: AppSizes.spacing8),
-                _buildSummaryRow(
-                  'Discount',
-                  '-₹${_discount.toStringAsFixed(0)}',
-                  isBold: false,
-                  isDiscount: true,
-                ),
-              ],
               const SizedBox(height: AppSizes.spacing12),
               const Divider(height: 1, color: AppColors.borderColor),
               const SizedBox(height: AppSizes.spacing12),
               _buildSummaryRow(
-                'Grand Total',
-                '₹${_grandTotal.toStringAsFixed(0)}',
+                'Total',
+                widget.planPrice,
                 isBold: true,
               ),
             ],
@@ -514,7 +572,6 @@ class _SubscriptionCheckoutScreenState
     String label,
     String value, {
     required bool isBold,
-    bool isDiscount = false,
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -533,168 +590,11 @@ class _SubscriptionCheckoutScreenState
           style: TextStyle(
             fontSize: AppTypography.fontSize16,
             fontWeight: isBold ? AppTypography.bold : AppTypography.regular,
-            color: isDiscount ? AppColors.primaryGreen : AppColors.textPrimary,
+            color: isBold ? AppColors.primaryGreen : AppColors.textPrimary,
             fontFamily: 'Lato',
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildApplyCoupon() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Apply Coupon',
-          style: TextStyle(
-            fontSize: AppTypography.fontSize20,
-            fontWeight: AppTypography.semiBold,
-            color: AppColors.primaryGreen,
-            fontFamily: 'Lato',
-          ),
-        ),
-        const SizedBox(height: AppSizes.spacing12),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSizes.spacing16,
-            vertical: AppSizes.spacing4,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppSizes.radius4),
-            border: Border.all(
-              color: AppColors.borderColor,
-              width: 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _couponController,
-                  decoration: InputDecoration(
-                    hintText: 'Enter Code',
-                    hintStyle: const TextStyle(
-                      fontSize: AppTypography.fontSize16,
-                      color: AppColors.textSecondary,
-                      fontFamily: 'Lato',
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: AppSizes.spacing12,
-                    ),
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                  ),
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize16,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: _applyCoupon,
-                child: const Text(
-                  'Apply',
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize16,
-                    fontWeight: AppTypography.bold,
-                    color: AppColors.primaryGreen,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPaymentMethod() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Payment Method',
-          style: TextStyle(
-            fontSize: AppTypography.fontSize20,
-            fontWeight: AppTypography.semiBold,
-            color: AppColors.primaryGreen,
-            fontFamily: 'Lato',
-          ),
-        ),
-        const SizedBox(height: AppSizes.spacing16),
-        _buildPaymentOption('UPI'),
-        const SizedBox(height: AppSizes.spacing12),
-        _buildPaymentOption('Net Banking'),
-        const SizedBox(height: AppSizes.spacing12),
-        _buildPaymentOption('Debit/Credit Card'),
-      ],
-    );
-  }
-
-  Widget _buildPaymentOption(String method) {
-    final isSelected = _selectedPaymentMethod == method;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedPaymentMethod = method;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.all(AppSizes.spacing12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppSizes.radius4),
-          border: Border.all(
-            color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color:
-                      isSelected ? AppColors.primaryGreen : AppColors.borderColor,
-                  width: 2,
-                ),
-                color: Colors.white,
-              ),
-              child: isSelected
-                  ? Center(
-                      child: Container(
-                        width: 12,
-                        height: 12,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.primaryGreen,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: AppSizes.spacing16),
-            Text(
-              method,
-              style: TextStyle(
-                fontSize: AppTypography.fontSize16,
-                fontWeight:
-                    isSelected ? AppTypography.semiBold : AppTypography.regular,
-                color: AppColors.textPrimary,
-                fontFamily: 'Lato',
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -715,23 +615,34 @@ class _SubscriptionCheckoutScreenState
         width: double.infinity,
         height: AppSizes.buttonHeight,
         child: ElevatedButton(
-          onPressed: _processPayment,
+          onPressed: _isProcessing ? null : _onPayTapped,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaryGreen,
             foregroundColor: Colors.white,
+            disabledBackgroundColor:
+                AppColors.primaryGreen.withValues(alpha: 0.6),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSizes.radius4),
             ),
             elevation: 2,
           ),
-          child: Text(
-            'Pay ${_grandTotal.toStringAsFixed(0)}/-',
-            style: const TextStyle(
-              fontSize: AppTypography.fontSize18,
-              fontWeight: AppTypography.bold,
-              fontFamily: 'Lato',
-            ),
-          ),
+          child: _isProcessing
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : Text(
+                  'Pay ${widget.planPrice}',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize18,
+                    fontWeight: AppTypography.bold,
+                    fontFamily: 'Lato',
+                  ),
+                ),
         ),
       ),
     );

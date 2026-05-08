@@ -111,14 +111,32 @@ class RazorpayWalletTopupRequest {
       };
 }
 
+/// Request body for POST /razorpay/create-order (subscription variant).
+/// Only sends `purpose` + `planCode`.
+class RazorpaySubscriptionOrderRequest {
+  final String planCode;
+  final String purpose;
+
+  const RazorpaySubscriptionOrderRequest({
+    required this.planCode,
+    this.purpose = 'subscription',
+  });
+
+  Map<String, dynamic> toJson() => {
+        'purpose': purpose,
+        'planCode': planCode,
+      };
+}
+
 /// Request body for POST /razorpay/verify-payment.
-/// [amount] is required for wallet_topup; omitted for order_food.
+/// [amount] is required for wallet_topup; [planCode] for subscription; both omitted for order_food.
 class RazorpayVerifyPaymentRequest {
   final String razorpayOrderId;
   final String razorpayPaymentId;
   final String razorpaySignature;
   final String purpose;
   final int? amount;
+  final String? planCode;
 
   const RazorpayVerifyPaymentRequest({
     required this.razorpayOrderId,
@@ -126,6 +144,7 @@ class RazorpayVerifyPaymentRequest {
     required this.razorpaySignature,
     required this.purpose,
     this.amount,
+    this.planCode,
   });
 
   Map<String, dynamic> toJson() => {
@@ -134,6 +153,7 @@ class RazorpayVerifyPaymentRequest {
         'razorpaySignature': razorpaySignature,
         'purpose': purpose,
         if (amount != null) 'amount': amount,
+        if (planCode != null && planCode!.isNotEmpty) 'planCode': planCode,
       };
 }
 

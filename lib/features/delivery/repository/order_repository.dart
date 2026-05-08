@@ -146,6 +146,43 @@ class OrderRepository {
     }
   }
 
+  /// Create a Razorpay order for a subscription purchase.
+  /// Sends `{ purpose: "subscription", planCode }` to the backend.
+  Future<RazorpayCreateOrderResponse> createRazorpaySubscriptionOrder({
+    required String planCode,
+  }) async {
+    debugPrint('[OrderRepository] Creating Razorpay subscription order — planCode=$planCode');
+
+    try {
+      final token = _localStorage.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(message: 'Authentication required. Please login again.');
+      }
+
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+
+      final request = RazorpaySubscriptionOrderRequest(planCode: planCode);
+
+      debugPrint('[OrderRepository] createRazorpaySubscriptionOrder payload: ${request.toJson()}');
+
+      final json = await _apiClient.postJson(
+        AppConfig.razorpayCreateOrderPath,
+        body: request.toJson(),
+        headers: headers,
+      );
+
+      debugPrint('[OrderRepository] createRazorpaySubscriptionOrder response: $json');
+      return RazorpayCreateOrderResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[OrderRepository] createRazorpaySubscriptionOrder error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
   /// Create a Razorpay order on the backend.
   /// Returns a [RazorpayCreateOrderResponse] containing the Razorpay order ID
   /// and amount that should be passed to the Razorpay SDK.
@@ -196,8 +233,9 @@ class OrderRepository {
     required String razorpaySignature,
     String purpose = 'order_food',
     int? amount,
+    String? planCode,
   }) async {
-    debugPrint('[OrderRepository] Verifying Razorpay payment — orderId=$razorpayOrderId');
+    debugPrint('[OrderRepository] Verifying Razorpay payment — orderId=$razorpayOrderId purpose=$purpose');
 
     try {
       final token = _localStorage.getAuthToken();
@@ -216,6 +254,7 @@ class OrderRepository {
         razorpaySignature: razorpaySignature,
         purpose: purpose,
         amount: amount,
+        planCode: planCode,
       );
 
       debugPrint('[OrderRepository] verifyRazorpayPayment payload: ${request.toJson()}');
