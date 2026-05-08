@@ -1508,29 +1508,29 @@ class _CouponCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppSizes.radius8),
-        border: Border(
-          left: BorderSide(
-            color: isApplied
-                ? AppColors.primaryGreen
-                : AppColors.primaryGreen.withValues(alpha: 0.4),
-            width: 4,
-          ),
-          top: BorderSide(
-            color: isApplied
-                ? AppColors.primaryGreen.withValues(alpha: 0.3)
-                : AppColors.borderColor,
-          ),
-          right: BorderSide(
-            color: isApplied
-                ? AppColors.primaryGreen.withValues(alpha: 0.3)
-                : AppColors.borderColor,
-          ),
-          bottom: BorderSide(
-            color: isApplied
-                ? AppColors.primaryGreen.withValues(alpha: 0.3)
-                : AppColors.borderColor,
-          ),
-        ),
+        // border: Border(
+        //   left: BorderSide(
+        //     color: isApplied
+        //         ? AppColors.primaryGreen
+        //         : AppColors.primaryGreen.withValues(alpha: 0.4),
+        //     width: 4,
+        //   ),
+        //   top: BorderSide(
+        //     color: isApplied
+        //         ? AppColors.primaryGreen.withValues(alpha: 0.3)
+        //         : AppColors.borderColor,
+        //   ),
+        //   right: BorderSide(
+        //     color: isApplied
+        //         ? AppColors.primaryGreen.withValues(alpha: 0.3)
+        //         : AppColors.borderColor,
+        //   ),
+        //   bottom: BorderSide(
+        //     color: isApplied
+        //         ? AppColors.primaryGreen.withValues(alpha: 0.3)
+        //         : AppColors.borderColor,
+        //   ),
+        // ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSizes.spacing16),

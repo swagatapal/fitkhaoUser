@@ -77,6 +77,8 @@ class RazorpayService {
 
   void _handleSuccess(PaymentSuccessResponse response) {
     debugPrint('[RazorpayService] SUCCESS — paymentId=${response.paymentId}');
+    debugPrint('[RazorpayService] SUCCESS — orderId=${response.orderId}');
+    debugPrint('[RazorpayService] SUCCESS — signature=${response.signature}');
     onSuccess(
       response.paymentId ?? '',
       response.orderId,

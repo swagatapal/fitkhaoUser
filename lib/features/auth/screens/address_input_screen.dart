@@ -10,6 +10,7 @@ import '../../../core/router/route_names.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../shared/widgets/logo_widget.dart';
 import '../../../shared/widgets/primary_button.dart';
+import '../models/auth_state.dart';
 import '../providers/auth_provider.dart';
 
 class AddressInputScreen extends ConsumerStatefulWidget {
@@ -38,13 +39,9 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
   String _pincode = '';
   String _landmark = '';
   bool _isNavigatingToMap = false;
-  String? _selectedAddressType;
-
-  final List<Map<String, dynamic>> _addressTypes = const [
-    {'label': 'Home', 'icon': Icons.home_outlined},
-    {'label': 'Work', 'icon': Icons.work_outline},
-    {'label': 'Other', 'icon': Icons.location_on_outlined},
-  ];
+  bool _isProcessing = false;
+  double? _latitude;
+  double? _longitude;
 
   @override
   void dispose() {
@@ -63,86 +60,123 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
 
   bool get _isFormValid {
     return _building.isNotEmpty &&
+        _floor.isNotEmpty &&
         _street.isNotEmpty &&
-        _pincode.length == AppSizes.maxLengthPincode;
+        _pincode.length == AppSizes.maxLengthPincode &&
+        _landmark.isNotEmpty &&
+        _latitude != null &&
+        _longitude != null;
   }
 
-  void _handleContinue() {
-    // Save address to auth provider
-    ref
-        .read(authProvider.notifier)
-        .saveAddress(
-          buildingNameNumber: _building,
-          street: _street,
-          pincode: _pincode,
-        );
+  Future<void> _handleContinue() async {
+    // Concatenate building + floor, and street + landmark
+    final buildingFull = '${_building.trim()}, Floor number :  ${_floor.trim()}';
+    final streetFull = '${_street.trim()},Landmark :  ${_landmark.trim()}';
 
-    // Navigate to BMI analysis screen
-    context.go(RouteNames.bmiAnalysis);
+    ref.read(authProvider.notifier).saveAddress(
+      buildingNameNumber: buildingFull,
+      street: streetFull,
+      pincode: _pincode.trim(),
+      latitude: _latitude,
+      longitude: _longitude,
+    );
+
+    setState(() => _isProcessing = true);
+    final success =
+        await ref.read(authProvider.notifier).completeRegistration();
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registration completed successfully!'),
+          backgroundColor: AppColors.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      context.go(RouteNames.home);
+    }
   }
 
   Future<void> _handleLocateOnMap() async {
     FocusScope.of(context).unfocus();
-    setState(() {
-      _isNavigatingToMap = true;
-    });
+    setState(() => _isNavigatingToMap = true);
 
     try {
       final result = await context.push<Map<String, dynamic>>(
         RouteNames.mapPicker,
       );
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       if (result != null) {
-        final building = (result['building'] as String? ?? '').trim();
-        final streetResult = (result['street'] as String? ?? '').trim();
-        final fallbackStreet = (result['fullAddress'] as String? ?? '').trim();
-        final pincode = (result['pincode'] as String? ?? '').trim();
-        final latitude = (result['latitude'] as num?)?.toDouble();
-        final longitude = (result['longitude'] as num?)?.toDouble();
-
-        final streetValue = streetResult.isNotEmpty
-            ? streetResult
-            : fallbackStreet;
-
-        setState(() {
-          _building = building;
-          _street = streetValue;
-          _pincode = pincode;
-          _buildingController.text = building;
-          _streetController.text = streetValue;
-          _pincodeController.text = pincode;
-        });
-
-        ref
-            .read(authProvider.notifier)
-            .saveAddress(
-              buildingNameNumber: building,
-              street: streetValue,
-              pincode: pincode,
-              latitude: latitude,
-              longitude: longitude,
-            );
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Address selected from map'),
-            backgroundColor: AppColors.primaryGreen,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        final lat = (result['latitude'] as num?)?.toDouble();
+        final lng = (result['longitude'] as num?)?.toDouble();
+        if (lat != null && lng != null) {
+          setState(() {
+            _latitude = lat;
+            _longitude = lng;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location pinned on map'),
+              backgroundColor: AppColors.primaryGreen,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint('Error opening map picker: $e');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isNavigatingToMap = false;
-        });
-      }
+      if (mounted) setState(() => _isNavigatingToMap = false);
     }
+  }
+
+  Widget _buildMapLocationIndicator() {
+    final isPinned = _latitude != null && _longitude != null;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isPinned
+            ? AppColors.primaryGreen.withValues(alpha: 0.08)
+            : AppColors.errorColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
+        border: Border.all(
+          color: isPinned
+              ? AppColors.primaryGreen.withValues(alpha: 0.35)
+              : AppColors.errorColor.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isPinned ? Icons.location_on : Icons.location_off_outlined,
+            size: 18,
+            color: isPinned ? AppColors.primaryGreen : AppColors.errorColor,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isPinned
+                  ? 'Location pinned — tap below to change'
+                  : 'Location required — tap below to pin on map',
+              style: TextStyle(
+                fontSize: context.responsiveFontSize(12.0),
+                fontWeight: FontWeight.w500,
+                color: isPinned ? AppColors.primaryGreen : AppColors.errorColor,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+          if (isPinned)
+            const Icon(Icons.check_circle, size: 16, color: AppColors.primaryGreen),
+        ],
+      ),
+    );
   }
 
   Widget _buildInputField({
@@ -230,14 +264,27 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+
+    ref.listen<AuthState>(authProvider, (_, next) {
+      if (next.errorMessage != null && next.errorMessage!.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.errorMessage!),
+            backgroundColor: AppColors.errorColor,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    });
+
     // Get responsive values
     final horizontalPadding = context.horizontalPadding;
     final verticalPadding = context.verticalPadding;
     final spacing8 = context.responsiveSpacing(8.0);
     final spacing16 = context.responsiveSpacing(16.0);
     final spacing24 = context.responsiveSpacing(24.0);
-    final spacing40 = context.responsiveSpacing(40.0);
-    final spacing48 = context.responsiveSpacing(48.0);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -465,25 +512,32 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
               //   ],
               // ),
               // SizedBox(height: spacing24),
-              // Continue Button
-              PrimaryButton(
-                text: AppStrings.continueText,
-                textColor: Colors.white,
-                onPressed: _isFormValid ? _handleContinue : null,
-                isLoading: false,
-                height: AppSizes.buttonHeight,
-                disabledBackgroundColor: const Color(0xFFA0D488),
-              ),
-              SizedBox(height: spacing16),
+              // Map location status indicator
+              _buildMapLocationIndicator(),
+              SizedBox(height: spacing8),
               // Locate on Map Button
               PrimaryButton(
                 height: AppSizes.buttonHeight,
                 text: AppStrings.locateOnMap,
-                onPressed: !_isNavigatingToMap ? _handleLocateOnMap : null,
+                onPressed: !_isNavigatingToMap && !_isProcessing
+                    ? _handleLocateOnMap
+                    : null,
                 textColor: AppColors.textWhite,
-                backgroundColor: Color(0XFF5D9E40),
+                backgroundColor: const Color(0xFF5D9E40),
                 borderRadius: AppSizes.radius4,
                 isLoading: _isNavigatingToMap,
+              ),
+              SizedBox(height: spacing16),
+              // Continue Button
+              PrimaryButton(
+                text: AppStrings.continueText,
+                textColor: Colors.white,
+                onPressed: _isFormValid && !_isProcessing && !authState.isLoading
+                    ? () { _handleContinue(); }
+                    : null,
+                isLoading: _isProcessing || authState.isLoading,
+                height: AppSizes.buttonHeight,
+                disabledBackgroundColor: const Color(0xFFA0D488),
               ),
             ],
           ),
