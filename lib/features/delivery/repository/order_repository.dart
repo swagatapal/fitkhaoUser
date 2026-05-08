@@ -109,6 +109,43 @@ class OrderRepository {
     }
   }
 
+  /// Create a Razorpay order for wallet top-up.
+  /// Sends `{ purpose: "wallet_topup", amount: <rupees> }` to the backend.
+  Future<RazorpayCreateOrderResponse> createRazorpayWalletTopup({
+    required int amountInRupees,
+  }) async {
+    debugPrint('[OrderRepository] Creating Razorpay wallet topup order...');
+
+    try {
+      final token = _localStorage.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(message: 'Authentication required. Please login again.');
+      }
+
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+
+      final request = RazorpayWalletTopupRequest(amount: amountInRupees);
+
+      debugPrint('[OrderRepository] createRazorpayWalletTopup payload: ${request.toJson()}');
+
+      final json = await _apiClient.postJson(
+        AppConfig.razorpayCreateOrderPath,
+        body: request.toJson(),
+        headers: headers,
+      );
+
+      debugPrint('[OrderRepository] createRazorpayWalletTopup response: $json');
+      return RazorpayCreateOrderResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[OrderRepository] createRazorpayWalletTopup error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
   /// Create a Razorpay order on the backend.
   /// Returns a [RazorpayCreateOrderResponse] containing the Razorpay order ID
   /// and amount that should be passed to the Razorpay SDK.
@@ -158,6 +195,7 @@ class OrderRepository {
     required String razorpayPaymentId,
     required String razorpaySignature,
     String purpose = 'order_food',
+    int? amount,
   }) async {
     debugPrint('[OrderRepository] Verifying Razorpay payment — orderId=$razorpayOrderId');
 
@@ -177,6 +215,7 @@ class OrderRepository {
         razorpayPaymentId: razorpayPaymentId,
         razorpaySignature: razorpaySignature,
         purpose: purpose,
+        amount: amount,
       );
 
       debugPrint('[OrderRepository] verifyRazorpayPayment payload: ${request.toJson()}');

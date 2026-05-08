@@ -94,18 +94,38 @@ class RazorpayCreateOrderResponse {
 
 // ─── Razorpay Verify-Payment ───────────────────────────────────────────────
 
-/// Request body for POST /razorpay/verify-payment
+/// Request body for POST /razorpay/create-order (wallet top-up variant).
+/// Only sends `purpose` + `amount` — no `pendingOrderData`.
+class RazorpayWalletTopupRequest {
+  final int amount; // in rupees (the server converts to paise)
+  final String purpose;
+
+  const RazorpayWalletTopupRequest({
+    required this.amount,
+    this.purpose = 'wallet_topup',
+  });
+
+  Map<String, dynamic> toJson() => {
+        'purpose': purpose,
+        'amount': amount,
+      };
+}
+
+/// Request body for POST /razorpay/verify-payment.
+/// [amount] is required for wallet_topup; omitted for order_food.
 class RazorpayVerifyPaymentRequest {
   final String razorpayOrderId;
   final String razorpayPaymentId;
   final String razorpaySignature;
   final String purpose;
+  final int? amount;
 
   const RazorpayVerifyPaymentRequest({
     required this.razorpayOrderId,
     required this.razorpayPaymentId,
     required this.razorpaySignature,
     required this.purpose,
+    this.amount,
   });
 
   Map<String, dynamic> toJson() => {
@@ -113,6 +133,7 @@ class RazorpayVerifyPaymentRequest {
         'razorpayPaymentId': razorpayPaymentId,
         'razorpaySignature': razorpaySignature,
         'purpose': purpose,
+        if (amount != null) 'amount': amount,
       };
 }
 

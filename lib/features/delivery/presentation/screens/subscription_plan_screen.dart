@@ -57,44 +57,46 @@ class _SubscriptionPlanScreenState
                       if (ref.watch(walletProvider).hasActiveSubscription) ...[
                         _buildActiveSubscriptionCard(),
                         const SizedBox(height: AppSizes.spacing16),
-                       // Recharge Top-up button
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => const RechargeTopupModal(),
-                              );
-                            },
-                            icon: const Icon(
-                              Icons.account_balance_wallet,
-                              size: AppSizes.icon20,
+                      ],
+                      // Recharge Wallet — always visible
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => const RechargeTopupModal(),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.account_balance_wallet,
+                            size: AppSizes.icon20,
+                          ),
+                          label: const Text(
+                            'Recharge Wallet',
+                            style: TextStyle(
+                              fontSize: AppTypography.fontSize16,
+                              fontWeight: AppTypography.semiBold,
+                              fontFamily: 'Lato',
                             ),
-                            label: const Text(
-                              'Recharge Wallet',
-                              style: TextStyle(
-                                fontSize: AppTypography.fontSize16,
-                                fontWeight: AppTypography.semiBold,
-                                fontFamily: 'Lato',
-                              ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primaryGreen,
+                            side: const BorderSide(
+                              color: AppColors.primaryGreen,
+                              width: 2,
                             ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.primaryGreen,
-                              side: const BorderSide(
-                                color: AppColors.primaryGreen,
-                                width: 2,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(AppSizes.radius4),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                vertical: AppSizes.spacing16,
-                              ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppSizes.radius4),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: AppSizes.spacing16,
                             ),
                           ),
                         ),
-                        const SizedBox(height: AppSizes.spacing24),
+                      ),
+                      const SizedBox(height: AppSizes.spacing24),
+                      if (ref.watch(walletProvider).hasActiveSubscription) ...[
                         const Text(
                           'Upgrade Your Plan',
                           style: TextStyle(
