@@ -17,107 +17,39 @@ class OrderTrackingScreen extends ConsumerStatefulWidget {
 }
 
 class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
-  bool _isCancelling = false;
+  bool get _shouldShowCancelButton =>
+      widget.order.orderStatus.toLowerCase() == 'confirmed';
 
-  /// Check if cancel button should be shown
-  bool get _shouldShowCancelButton {
-    // Only show for confirmed orders
-    if (widget.order.orderStatus.toLowerCase() != 'confirmed') {
-      return false;
-    }
-
-    try {
-      final deliveryDate = DateTime.parse(widget.order.deliveryDate);
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final tomorrow = today.add(const Duration(days: 1));
-      final dayAfterTomorrow = today.add(const Duration(days: 2));
-
-      final deliveryDay = DateTime(deliveryDate.year, deliveryDate.month, deliveryDate.day);
-
-      // If delivery is tomorrow, show button only today
-      if (deliveryDay == tomorrow) {
-        return true;
-      }
-
-      // If delivery is day after tomorrow, show button up to tomorrow
-      if (deliveryDay == dayAfterTomorrow && (now.isBefore(tomorrow.add(const Duration(days: 1))))) {
-        return true;
-      }
-
-      return false;
-    } catch (e) {
-      debugPrint('[OrderTrackingScreen] Error checking cancel button visibility: $e');
-      return false;
-    }
-  }
-
+  /// Opens the cancel modal. When it resolves with `true` the order was
+  /// successfully cancelled — navigate back and show a success snackbar.
   void _showCancelOrderModal() {
-    showDialog(
+    showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => _CancelOrderModal(
+      builder: (_) => _CancelOrderModal(
         order: widget.order,
-        onCancel: (reason) => _cancelOrder(reason),
+        onCancel: _cancelOrder,
       ),
-    );
+    ).then((cancelled) {
+      if (cancelled == true && mounted) {
+        // Pop with true so HistoryScreen knows to refresh
+        Navigator.of(context).pop(true);
+      }
+    });
   }
 
+  /// Calls the cancel API. Throws on failure so the modal can display the error.
   Future<void> _cancelOrder(String reason) async {
-    if (_isCancelling) return;
+    final orderRepo = ref.read(orderRepositoryProvider);
+    final response = await orderRepo.cancelOrder(
+      orderId: widget.order.id,
+      reason: reason,
+    );
 
-    setState(() {
-      _isCancelling = true;
-    });
-
-    try {
-      final orderRepo = ref.read(orderRepositoryProvider);
-      final response = await orderRepo.cancelOrder(
-        orderId: widget.order.id,
-        reason: reason,
+    if (response['success'] != true) {
+      throw Exception(
+        response['message'] as String? ?? 'Failed to cancel order',
       );
-
-      if (!mounted) return;
-
-      if (response['success'] == true) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response['message'] ?? 'Order cancelled successfully'),
-            backgroundColor: AppColors.successColor,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-
-        // Navigate back to history screen
-        Navigator.of(context).pop();
-      } else {
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response['message'] ?? 'Failed to cancel order'),
-            backgroundColor: AppColors.errorColor,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('[OrderTrackingScreen] Cancel order error: $e');
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to cancel order. Please try again.'),
-          backgroundColor: AppColors.errorColor,
-          duration: Duration(seconds: 3),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isCancelling = false;
-        });
-      }
     }
   }
 
@@ -678,28 +610,18 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: _isCancelling ? null : _showCancelOrderModal,
+        onPressed: _showCancelOrderModal,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.errorColor,
-          disabledBackgroundColor: AppColors.errorColor.withValues(alpha: 0.5),
           padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSizes.radius4),
           ),
         ),
-        icon: _isCancelling
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
-            : const Icon(Icons.cancel, color: Colors.white),
-        label: Text(
-          _isCancelling ? 'Cancelling...' : 'Cancel Order',
-          style: const TextStyle(
+        icon: const Icon(Icons.cancel, color: Colors.white),
+        label: const Text(
+          'Cancel Order',
+          style: TextStyle(
             fontSize: AppTypography.fontSize14,
             fontWeight: AppTypography.semiBold,
             color: Colors.white,
@@ -993,7 +915,7 @@ class _TimelineTile extends StatelessWidget {
 
 class _CancelOrderModal extends StatefulWidget {
   final OrderHistory order;
-  final Function(String reason) onCancel;
+  final Future<void> Function(String reason) onCancel;
 
   const _CancelOrderModal({
     required this.order,
@@ -1016,17 +938,25 @@ class _CancelOrderModalState extends State<_CancelOrderModal> {
   }
 
   Future<void> _submitCancellation() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
+    if (!_formKey.currentState!.validate()) return;
+    if (_isSubmitting) return;
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      await widget.onCancel(_reasonController.text.trim());
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: AppColors.errorColor,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
-
-    setState(() {
-      _isSubmitting = true;
-    });
-
-    // Close the modal and trigger cancellation
-    Navigator.of(context).pop();
-    widget.onCancel(_reasonController.text.trim());
   }
 
   @override

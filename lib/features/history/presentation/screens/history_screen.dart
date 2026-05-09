@@ -109,13 +109,32 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                     isUpcoming:
                                         _selected == _HistoryFilter.upcoming,
                                     onTap: () {
-                                      Navigator.push(
+                                      final messenger =
+                                          ScaffoldMessenger.of(context);
+                                      Navigator.push<bool>(
                                         context,
                                         MaterialPageRoute(
                                           builder: (_) =>
                                               OrderTrackingScreen(order: order),
                                         ),
-                                      );
+                                      ).then((didCancel) {
+                                        if (didCancel == true && mounted) {
+                                          ref
+                                              .read(orderHistoryProvider.notifier)
+                                              .refresh();
+                                          messenger.showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                  'Order cancelled successfully'),
+                                              backgroundColor:
+                                                  AppColors.successColor,
+                                              behavior:
+                                                  SnackBarBehavior.floating,
+                                              duration: Duration(seconds: 3),
+                                            ),
+                                          );
+                                        }
+                                      });
                                     },
                                   );
                                 },
