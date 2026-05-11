@@ -11,7 +11,6 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/utils/responsive_utils.dart';
-import '../../../../core/providers/providers.dart';
 import '../../../../shared/widgets/primary_button.dart';
 import '../../../auth/models/auth_state.dart';
 import '../../../auth/providers/auth_provider.dart';
@@ -29,23 +28,29 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String _name = '';
   String _phoneNumber = '';
   String _building = '';
+  String _floor = '';
   String _street = '';
   String _pincode = '';
+  String _landmark = '';
   String _countryCode = '+91';
 
   // Controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _buildingController = TextEditingController();
+  final TextEditingController _floorController = TextEditingController();
   final TextEditingController _streetController = TextEditingController();
   final TextEditingController _pincodeController = TextEditingController();
+  final TextEditingController _landmarkController = TextEditingController();
 
   // Focus nodes
   final FocusNode _nameFocusNode = FocusNode();
   final FocusNode _phoneFocusNode = FocusNode();
   final FocusNode _buildingFocusNode = FocusNode();
+  final FocusNode _floorFocusNode = FocusNode();
   final FocusNode _streetFocusNode = FocusNode();
   final FocusNode _pincodeFocusNode = FocusNode();
+  final FocusNode _landmarkFocusNode = FocusNode();
 
   // Profile image
   File? _profileImage;
@@ -53,6 +58,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final ImagePicker _picker = ImagePicker();
   String? _uploadedImageUrl;
   bool _isNavigatingToMap = false;
+  bool _isLoadingProfile = true;
+  bool _isSavingProfile = false;
+  double? _latitude;
+  double? _longitude;
+
+  static const String _floorMarker = 'Floor number :';
+  static const String _landmarkMarker = 'Landmark :';
 
   @override
   void initState() {
@@ -66,37 +78,46 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Future<void> _loadProfileData() async {
     final authNotifier = ref.read(authProvider.notifier);
     final success = await authNotifier.loadProfile();
+    if (!mounted) return;
 
-    if (success && mounted) {
-      _fetchUserData();
+    if (success) {
+      _populateFormFromState(ref.read(authProvider));
     }
+
+    setState(() => _isLoadingProfile = false);
   }
 
-  void _fetchUserData() async {
-    // Get user data from auth state
-     final authState = ref.read(authProvider);
+  void _populateFormFromState(AuthState authState) {
+    final buildingParts = _splitCompositeAddressField(
+      authState.buildingNameNumber,
+      _floorMarker,
+    );
+    final streetParts = _splitCompositeAddressField(
+      authState.street,
+      _landmarkMarker,
+    );
 
-      setState(() {
+    setState(() {
+      _name = authState.name;
+      _phoneNumber = authState.phoneNumber;
+      _building = buildingParts.primary;
+      _floor = buildingParts.secondary;
+      _street = streetParts.primary;
+      _landmark = streetParts.secondary;
+      _pincode = authState.pincode;
+      _countryCode = authState.countryCode;
+      _latitude = authState.latitude;
+      _longitude = authState.longitude;
+      _uploadedImageUrl = authState.imgUrl;
 
-        _name = authState.name;
-        _phoneNumber = authState.phoneNumber;
-        _building = authState.buildingNameNumber;
-        _street = authState.street;
-        _pincode = authState.pincode;
-
-        // Load existing profile image URL from server
-        if (authState.imgUrl != null && authState.imgUrl!.isNotEmpty) {
-          _uploadedImageUrl = authState.imgUrl;
-        }
-
-        // Update controllers
-        _nameController.text = _name;
-        _phoneController.text = _phoneNumber;
-        _buildingController.text = _building;
-        _streetController.text = _street;
-        _pincodeController.text = _pincode;
-      });
-
+      _nameController.text = _name;
+      _phoneController.text = _phoneNumber;
+      _buildingController.text = _building;
+      _floorController.text = _floor;
+      _streetController.text = _street;
+      _pincodeController.text = _pincode;
+      _landmarkController.text = _landmark;
+    });
   }
 
   @override
@@ -104,22 +125,29 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _buildingController.dispose();
+    _floorController.dispose();
     _streetController.dispose();
     _pincodeController.dispose();
+    _landmarkController.dispose();
     _nameFocusNode.dispose();
     _phoneFocusNode.dispose();
     _buildingFocusNode.dispose();
+    _floorFocusNode.dispose();
     _streetFocusNode.dispose();
     _pincodeFocusNode.dispose();
+    _landmarkFocusNode.dispose();
     super.dispose();
   }
 
   bool get _isFormValid {
-    return _name.isNotEmpty &&
-        _phoneNumber.length == AppSizes.maxLengthPhone &&
-        _building.isNotEmpty &&
-        _street.isNotEmpty &&
-        _pincode.length == AppSizes.maxLengthPincode;
+    return _name.trim().isNotEmpty &&
+        _building.trim().isNotEmpty &&
+        _floor.trim().isNotEmpty &&
+        _street.trim().isNotEmpty &&
+        _pincode.trim().length == AppSizes.maxLengthPincode &&
+        _landmark.trim().isNotEmpty &&
+        _latitude != null &&
+        _longitude != null;
   }
 
   Future<void> _pickImage() async {
@@ -221,39 +249,23 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       if (!mounted) return;
 
       if (result != null) {
-        final building = (result['building'] as String? ?? '').trim();
-        final streetResult = (result['street'] as String? ?? '').trim();
-        final fallbackStreet = (result['fullAddress'] as String? ?? '').trim();
-        final pincode = (result['pincode'] as String? ?? '').trim();
         final latitude = (result['latitude'] as num?)?.toDouble();
         final longitude = (result['longitude'] as num?)?.toDouble();
 
-        final streetValue = streetResult.isNotEmpty ? streetResult : fallbackStreet;
+        if (latitude != null && longitude != null) {
+          setState(() {
+            _latitude = latitude;
+            _longitude = longitude;
+          });
 
-        setState(() {
-          _building = building;
-          _street = streetValue;
-          _pincode = pincode;
-          _buildingController.text = building;
-          _streetController.text = streetValue;
-          _pincodeController.text = pincode;
-        });
-
-        ref.read(authProvider.notifier).saveAddress(
-          buildingNameNumber: building,
-          street: streetValue,
-          pincode: pincode,
-          latitude: latitude,
-          longitude: longitude,
-        );
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Address selected from map'),
-            backgroundColor: AppColors.primaryGreen,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location pinned on map'),
+              backgroundColor: AppColors.primaryGreen,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint('Error opening map picker: $e');
@@ -265,28 +277,39 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Future<void> _handleSave() async {
-    // if (!_isFormValid) return;
+    if (!_isFormValid || _isSavingProfile) return;
 
     final authNotifier = ref.read(authProvider.notifier);
     final authState = ref.read(authProvider);
-
-    // Update auth state with edited values
-    authNotifier.saveName(_name);
-    authNotifier.saveImageUrl(_uploadedImageUrl??"");
-   // authNotifier.updatePhoneNumber(authState.phoneNumber);
-    authNotifier.saveAddress(
-      buildingNameNumber: _building,
-      street: _street,
-      pincode: _pincode,
-      latitude: authState.latitude,
-      longitude: authState.longitude,
+    final buildingFull = _composeCompositeAddressField(
+      primary: _building,
+      secondary: _floor,
+      marker: _floorMarker,
+    );
+    final streetFull = _composeCompositeAddressField(
+      primary: _street,
+      secondary: _landmark,
+      marker: _landmarkMarker,
     );
 
-    // Update user profile
-    final success = await authNotifier.updateProfile();
+    authNotifier.saveName(_name.trim());
+    authNotifier.saveImageUrl(
+      (_uploadedImageUrl ?? authState.imgUrl ?? '').trim(),
+    );
+    authNotifier.saveAddress(
+      buildingNameNumber: buildingFull,
+      street: streetFull,
+      pincode: _pincode.trim(),
+      latitude: _latitude,
+      longitude: _longitude,
+    );
 
-    if (success && mounted) {
-      // Show success message
+    setState(() => _isSavingProfile = true);
+    final success = await authNotifier.updateProfile();
+    if (!mounted) return;
+    setState(() => _isSavingProfile = false);
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Profile updated successfully!'),
@@ -295,11 +318,104 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           duration: Duration(seconds: 3),
         ),
       );
-
-      // Navigate to preferences saved screen
       context.go(RouteNames.preferencesSaved);
     }
-    // Error message will be shown via listener
+  }
+
+  _CompositeAddressParts _splitCompositeAddressField(
+    String value,
+    String marker,
+  ) {
+    final normalizedValue = value.trim();
+    if (normalizedValue.isEmpty) {
+      return const _CompositeAddressParts(primary: '', secondary: '');
+    }
+
+    final markerIndex = normalizedValue.toLowerCase().indexOf(
+          marker.toLowerCase(),
+        );
+
+    if (markerIndex == -1) {
+      return _CompositeAddressParts(
+        primary: normalizedValue,
+        secondary: '',
+      );
+    }
+
+    final primary = normalizedValue
+        .substring(0, markerIndex)
+        .trim()
+        .replaceFirst(RegExp(r'[,\s]+$'), '');
+    final secondary = normalizedValue
+        .substring(markerIndex + marker.length)
+        .trim()
+        .replaceFirst(RegExp(r'^,+'), '')
+        .trim();
+
+    return _CompositeAddressParts(
+      primary: primary,
+      secondary: secondary,
+    );
+  }
+
+  String _composeCompositeAddressField({
+    required String primary,
+    required String secondary,
+    required String marker,
+  }) {
+    return '${primary.trim()}, $marker ${secondary.trim()}';
+  }
+
+  Widget _buildMapLocationIndicator() {
+    final isPinned = _latitude != null && _longitude != null;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isPinned
+            ? AppColors.primaryGreen.withValues(alpha: 0.08)
+            : AppColors.errorColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
+        border: Border.all(
+          color: isPinned
+              ? AppColors.primaryGreen.withValues(alpha: 0.35)
+              : AppColors.errorColor.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isPinned ? Icons.location_on : Icons.location_off_outlined,
+            size: 18,
+            color: isPinned ? AppColors.primaryGreen : AppColors.errorColor,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isPinned
+                  ? 'Location pinned — tap below to change'
+                  : 'Location required — tap below to pin on map',
+              style: TextStyle(
+                fontSize: context.responsiveFontSize(12.0),
+                fontWeight: FontWeight.w500,
+                color: isPinned
+                    ? AppColors.primaryGreen
+                    : AppColors.errorColor,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+          if (isPinned)
+            const Icon(
+              Icons.check_circle,
+              size: 16,
+              color: AppColors.primaryGreen,
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -372,7 +488,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   //   topRight: Radius.circular(context.responsiveSpacing(32.0)),
                   // ),
                 ),
-                child: authState.isLoading
+                child: _isLoadingProfile
                     ? Center(
                         child: CircularProgressIndicator(
                           color: AppColors.primaryGreen,
@@ -512,8 +628,20 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       _buildTextField(
                         controller: _buildingController,
                         focusNode: _buildingFocusNode,
-                        hint: AppStrings.addressHint,
-                        onChanged: (value) => setState(() => _building = value),
+                        hint: AppStrings.buildingNameNumber,
+                        onChanged: (value) =>
+                            setState(() => _building = value.trim()),
+                      ),
+                      SizedBox(height: spacing24),
+
+                      _buildLabel('${AppStrings.floorNumber} *'),
+                      SizedBox(height: spacing12),
+                      _buildTextField(
+                        controller: _floorController,
+                        focusNode: _floorFocusNode,
+                        hint: AppStrings.floorNumber,
+                        onChanged: (value) =>
+                            setState(() => _floor = value.trim()),
                       ),
                       SizedBox(height: spacing24),
 
@@ -523,8 +651,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       _buildTextField(
                         controller: _streetController,
                         focusNode: _streetFocusNode,
-                        hint: AppStrings.addressHint,
-                        onChanged: (value) => setState(() => _street = value),
+                        hint: AppStrings.street,
+                        onChanged: (value) =>
+                            setState(() => _street = value.trim()),
                       ),
                       SizedBox(height: spacing24),
 
@@ -534,13 +663,25 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       _buildTextField(
                         controller: _pincodeController,
                         focusNode: _pincodeFocusNode,
-                        hint: AppStrings.addressHint,
+                        hint: AppStrings.pincode,
                         keyboardType: TextInputType.number,
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                           LengthLimitingTextInputFormatter(6),
                         ],
-                        onChanged: (value) => setState(() => _pincode = value),
+                        onChanged: (value) =>
+                            setState(() => _pincode = value.trim()),
+                      ),
+                      SizedBox(height: spacing24),
+
+                      _buildLabel('${AppStrings.landmark} *'),
+                      SizedBox(height: spacing12),
+                      _buildTextField(
+                        controller: _landmarkController,
+                        focusNode: _landmarkFocusNode,
+                        hint: AppStrings.landmark,
+                        onChanged: (value) =>
+                            setState(() => _landmark = value.trim()),
                       ),
                       SizedBox(height: spacing12),
                       Text(
@@ -551,13 +692,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           fontFamily: 'Lato',
                         ),
                       ),
+                      SizedBox(height: spacing20),
+
+                      _buildMapLocationIndicator(),
                       SizedBox(height: spacing24),
 
                       // Locate on Map Button
                       PrimaryButton(
                         height: context.inputHeight,
                         text: AppStrings.locateOnMap,
-                        onPressed: !_isNavigatingToMap ? _handleLocateOnMap : null,
+                        onPressed:
+                            !_isNavigatingToMap && !_isSavingProfile
+                                ? _handleLocateOnMap
+                                : null,
                         textColor: AppColors.textWhite,
                         backgroundColor: const Color(0xFF5D9E40),
                         borderRadius: AppSizes.radius4,
@@ -568,12 +715,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       // Save Button
                       PrimaryButton(
                         text: AppStrings.save,
-                        onPressed: !authState.isLoading
+                        onPressed: _isFormValid &&
+                                !_isSavingProfile &&
+                                !authState.isLoading
                             ? _handleSave
                             : null,
                         textColor: Colors.white,
                         height: context.inputHeight,
-                        isLoading: authState.isLoading,
+                        isLoading: _isSavingProfile,
                       ),
                       SizedBox(height: spacing20),
                     ],
@@ -717,6 +866,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       ),
     );
   }
+}
+
+class _CompositeAddressParts {
+  final String primary;
+  final String secondary;
+
+  const _CompositeAddressParts({
+    required this.primary,
+    required this.secondary,
+  });
 }
 
 class _ImageUploadConfirmationModal extends StatefulWidget {
