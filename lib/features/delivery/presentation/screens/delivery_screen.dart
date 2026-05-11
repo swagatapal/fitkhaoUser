@@ -30,14 +30,17 @@ class DeliveryScreen extends ConsumerStatefulWidget {
 
 class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   Timer? _searchDebounce;
 
   bool _hasShownMembershipPopup = false;
   final bool _profileImageError = false;
+  bool _hasShownNoMoreDataPopup = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_handleScroll);
     // Load profile data when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProfileData();
@@ -49,6 +52,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   @override
   void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -78,7 +83,47 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   }
 
   Future<void> _loadAllDishes() async {
+    _hasShownNoMoreDataPopup = false;
     await ref.read(allDishesProvider.notifier).loadMenuItems();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+
+    final position = _scrollController.position;
+    final dishState = ref.read(allDishesProvider);
+
+    if (position.pixels < position.maxScrollExtent - 120) {
+      _hasShownNoMoreDataPopup = false;
+      return;
+    }
+
+    if (dishState.canLoadMore) {
+      ref.read(allDishesProvider.notifier).loadMore();
+      return;
+    }
+
+    final hasReachedEnd = dishState.allItems.isNotEmpty &&
+        !dishState.isLoading &&
+        !dishState.isLoadingMore &&
+        !dishState.canLoadMore;
+
+    if (hasReachedEnd && !_hasShownNoMoreDataPopup) {
+      _hasShownNoMoreDataPopup = true;
+      _showNoMoreDataPopup();
+    }
+  }
+
+  void _showNoMoreDataPopup() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No more data found'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.textPrimary,
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
 
@@ -221,6 +266,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               onRefresh: _onRefresh,
               color: AppColors.primaryGreen,
               child: SingleChildScrollView(
+                controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
                   children: [
@@ -815,6 +861,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       children: [
         _buildFilterChips(),
         _buildDishList(),
+        SizedBox(height: MediaQuery.of(context).size.height*0.05,),
       ],
     );
   }
@@ -995,33 +1042,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   color: AppColors.primaryGreen,
-                ),
-              ),
-            ),
-          )
-        else if (dishState.canLoadMore)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSizes.spacing12),
-            child: GestureDetector(
-              onTap: () => ref.read(allDishesProvider.notifier).loadMore(),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  vertical: AppSizes.spacing12,
-                ),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.primaryGreen),
-                  borderRadius: BorderRadius.circular(AppSizes.radius8),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  'Load More',
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize14,
-                    fontWeight: AppTypography.semiBold,
-                    color: AppColors.primaryGreen,
-                    fontFamily: 'Lato',
-                  ),
                 ),
               ),
             ),
@@ -1254,7 +1274,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         ),
                         const SizedBox(height: AppSizes.spacing4),
                         // Macros row
-                        Row(
+                        Wrap(
                           children: [
                             _buildMacroChip(
                                 'P', item.protein, const Color(0xFF4A7C3E)),
