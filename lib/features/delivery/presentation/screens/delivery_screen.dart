@@ -211,6 +211,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final totalItems = ref.watch(cartTotalItemsProvider);
     final totalPrice = ref.watch(cartTotalPriceProvider);
     final location = _computeLocation(authState);
+    final serviceabilityState = ref.watch(serviceabilityProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -234,10 +235,18 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                           //_buildHeader(),
                           _buildCompactHeader(authState, location),
                           const SizedBox(height: AppSizes.spacing8),
-                          _buildServiceabilityBanner(),
-                          //_buildBrowseByCategories(),
-                          _buildDishSearchBar(),
-                          _buildDishesSection(),
+
+                          (serviceabilityState.isServiceable == false)?
+
+
+                          _buildServiceabilityBanner():
+                          Column(
+                            children: [
+                              _buildDishSearchBar(),
+                              _buildDishesSection(),
+                            ],
+                          ),
+
                           const SizedBox(height: AppSizes.spacing32),
                         ],
                       ),
