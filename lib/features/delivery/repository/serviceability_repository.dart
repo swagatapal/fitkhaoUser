@@ -39,8 +39,8 @@ class ServiceabilityRepository {
 
       // Make GET request with query parameters
       final json = await _apiClient.getJson(
-       // '/api/check-serviceability?latitude=$latitude&longitude=$longitude',
-        '/api/check-serviceability?latitude=22.8671&longitude=88.3674',
+        '/api/check-serviceability?latitude=$latitude&longitude=$longitude',
+        //'/api/check-serviceability?latitude=22.8671&longitude=88.3674',
         headers: headers,
       );
 

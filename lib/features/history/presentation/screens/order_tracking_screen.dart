@@ -40,12 +40,22 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                     const SizedBox(height: AppSizes.spacing16),
                     _buildPriceSummary(),
                     const SizedBox(height: AppSizes.spacing16),
-                    if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
-                      _buildTimeline(context),
-                    if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
+                    // if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
+                    //   _buildTimeline(context),
+                    // if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
+                    //   const SizedBox(height: AppSizes.spacing20),
+                    // if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
+                    //   _buildHelpRow(context),
+                    // const SizedBox(height: AppSizes.spacing20),
+
+                    const SizedBox(height: AppSizes.spacing16),
+                    _buildTimeline(context),
+
+                    if (!_shouldHideHelpActions(widget.order.orderStatus)) ...[
                       const SizedBox(height: AppSizes.spacing20),
-                    if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
                       _buildHelpRow(context),
+                    ],
+
                     const SizedBox(height: AppSizes.spacing20),
                   ],
                 ),
@@ -454,13 +464,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
 
   Widget _buildTimeline(BuildContext context) {
-    final steps = [
-      ('pending', 'Order Placed', 'We received your order'),
-      ('confirmed', 'Order Confirmed', 'Kitchen confirmed your order'),
-      ('prepared', 'Preparing Order', 'Chef is preparing your meal'),
-      ('out_for_delivery', 'Out for Delivery', 'Rider is on the way'),
-      ('delivered', 'Delivered', 'Enjoy your meal!'),
-    ];
+    final currentStatus = _normalizeOrderStatus(widget.order.orderStatus);
+    final steps = _getTimelineSteps(currentStatus);
+    final currentStatusIndex = _getStatusIndex(currentStatus);
+    final isNegativeTerminal = _isNegativeTerminalStatus(currentStatus);
 
     return Container(
       width: double.infinity,
@@ -491,20 +498,25 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           ),
           const SizedBox(height: AppSizes.spacing16),
           ...List.generate(steps.length, (index) {
-            final s = steps[index];
-            final stepStatus = s.$1;
-            final currentStatusIndex = _getStatusIndex(widget.order.orderStatus);
-            final stepIndex = _getStatusIndex(stepStatus);
-            final isCompleted = currentStatusIndex > stepIndex;
-            final isCurrent = widget.order.orderStatus.toLowerCase() == stepStatus.toLowerCase();
+            final step = steps[index];
+            final stepStatus = _normalizeOrderStatus(step.status);
+            final stepStatusIndex = _getStatusIndex(stepStatus);
+
+            final isCurrent = currentStatus == stepStatus;
+
+            final isCompleted = !isNegativeTerminal &&
+                currentStatusIndex > stepStatusIndex &&
+                stepStatusIndex >= 0;
+
             final isLast = index == steps.length - 1;
 
             return _TimelineTile(
-              title: s.$2,
-              subtitle: s.$3,
+              title: step.title,
+              subtitle: step.subtitle,
               isCompleted: isCompleted,
               isCurrent: isCurrent,
               showConnector: !isLast,
+              isError: isNegativeTerminal && isCurrent,
             );
           }),
         ],
@@ -512,6 +524,152 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     );
   }
 
+  List<_OrderTimelineStep> _getTimelineSteps(String currentStatus) {
+    if (currentStatus == 'cancelled') {
+      return const [
+        _OrderTimelineStep(
+          status: 'pending',
+          title: 'Order Placed',
+          subtitle: 'We received your order',
+        ),
+        _OrderTimelineStep(
+          status: 'cancelled',
+          title: 'Order Cancelled',
+          subtitle: 'This order has been cancelled',
+        ),
+      ];
+    }
+
+    if (currentStatus == 'rejected') {
+      return const [
+        _OrderTimelineStep(
+          status: 'pending',
+          title: 'Order Placed',
+          subtitle: 'We received your order',
+        ),
+        _OrderTimelineStep(
+          status: 'rejected',
+          title: 'Order Rejected',
+          subtitle: 'Kitchen rejected this order',
+        ),
+      ];
+    }
+
+    if (currentStatus == 'failed') {
+      return const [
+        _OrderTimelineStep(
+          status: 'pending',
+          title: 'Order Initiated',
+          subtitle: 'Your order was initiated',
+        ),
+        _OrderTimelineStep(
+          status: 'failed',
+          title: 'Order Failed',
+          subtitle: 'Something went wrong while placing this order',
+        ),
+      ];
+    }
+
+    return const [
+      _OrderTimelineStep(
+        status: 'pending',
+        title: 'Order Placed',
+        subtitle: 'We received your order',
+      ),
+      _OrderTimelineStep(
+        status: 'confirmed',
+        title: 'Order Confirmed',
+        subtitle: 'Your order has been confirmed',
+      ),
+      _OrderTimelineStep(
+        status: 'accepted_by_kitchen',
+        title: 'Accepted by Kitchen',
+        subtitle: 'Kitchen accepted your order',
+      ),
+      _OrderTimelineStep(
+        status: 'preparing',
+        title: 'Preparing Order',
+        subtitle: 'Chef is preparing your meal',
+      ),
+      _OrderTimelineStep(
+        status: 'prepared',
+        title: 'Order Prepared',
+        subtitle: 'Your meal is ready',
+      ),
+      _OrderTimelineStep(
+        status: 'assigned',
+        title: 'Rider Assigned',
+        subtitle: 'Delivery partner has been assigned',
+      ),
+      _OrderTimelineStep(
+        status: 'out_for_delivery',
+        title: 'Out for Delivery',
+        subtitle: 'Rider is on the way',
+      ),
+      _OrderTimelineStep(
+        status: 'delivered',
+        title: 'Delivered',
+        subtitle: 'Enjoy your meal!',
+      ),
+    ];
+  }
+
+  String _normalizeOrderStatus(String status) {
+    return status.trim().toLowerCase().replaceAll('-', '_');
+  }
+
+  bool _isNegativeTerminalStatus(String status) {
+    final normalizedStatus = _normalizeOrderStatus(status);
+
+    return normalizedStatus == 'cancelled' ||
+        normalizedStatus == 'rejected' ||
+        normalizedStatus == 'failed';
+  }
+
+  bool _shouldHideHelpActions(String status) {
+    final normalizedStatus = _normalizeOrderStatus(status);
+
+    return normalizedStatus == 'delivered' ||
+        normalizedStatus == 'cancelled' ||
+        normalizedStatus == 'rejected' ||
+        normalizedStatus == 'failed';
+  }
+
+  int _getStatusIndex(String status) {
+    switch (_normalizeOrderStatus(status)) {
+      case 'pending':
+        return 0;
+
+      case 'confirmed':
+        return 1;
+
+      case 'accepted_by_kitchen':
+        return 2;
+
+      case 'preparing':
+        return 3;
+
+      case 'prepared':
+        return 4;
+
+      case 'assigned':
+        return 5;
+
+      case 'out_for_delivery':
+        return 6;
+
+      case 'delivered':
+        return 7;
+
+      case 'cancelled':
+      case 'rejected':
+      case 'failed':
+        return 100;
+
+      default:
+        return -1;
+    }
+  }
   Widget _buildHelpRow(BuildContext context) {
     return Row(
       children: [
@@ -564,24 +722,24 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     );
   }
 
-  int _getStatusIndex(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return 0;
-      case 'confirmed':
-        return 1;
-      case 'prepared':
-        return 2;
-      case 'assigned':
-        return 3;
-      case 'out_for_delivery':
-        return 4;
-      case 'delivered':
-        return 5;
-      default:
-        return 0;
-    }
-  }
+  // int _getStatusIndex(String status) {
+  //   switch (status.toLowerCase()) {
+  //     case 'pending':
+  //       return 0;
+  //     case 'confirmed':
+  //       return 1;
+  //     case 'prepared':
+  //       return 2;
+  //     case 'assigned':
+  //       return 3;
+  //     case 'out_for_delivery':
+  //       return 4;
+  //     case 'delivered':
+  //       return 5;
+  //     default:
+  //       return 0;
+  //   }
+  // }
 
   String _formatDeliveryDate(String dateStr) {
     try {
@@ -724,44 +882,71 @@ class _OrderSummaryCard extends StatelessWidget {
   }
 
   static String _getStatusText(String status) {
-    switch (status.toLowerCase()) {
+    switch (status.trim().toLowerCase().replaceAll('-', '_')) {
       case 'pending':
         return 'Pending';
+
       case 'confirmed':
         return 'Confirmed';
+
+      case 'accepted_by_kitchen':
+        return 'Accepted by Kitchen';
+
       case 'preparing':
         return 'Preparing';
+
+      case 'prepared':
+        return 'Prepared';
+
+      case 'assigned':
+        return 'Rider Assigned';
+
       case 'out_for_delivery':
-      case 'out-for-delivery':
         return 'On the way';
+
       case 'delivered':
         return 'Delivered';
+
       case 'cancelled':
         return 'Cancelled';
+
+      case 'rejected':
+        return 'Rejected';
+
+      case 'failed':
+        return 'Failed';
+
       default:
         return status;
     }
   }
-
   static Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
+    switch (status.trim().toLowerCase().replaceAll('-', '_')) {
       case 'pending':
-        return Colors.orange;
       case 'confirmed':
+        return Colors.orange;
+
+      case 'accepted_by_kitchen':
       case 'preparing':
+      case 'prepared':
         return AppColors.primaryGreen;
+
+      case 'assigned':
       case 'out_for_delivery':
-      case 'out-for-delivery':
         return Colors.blue;
+
       case 'delivered':
         return AppColors.successColor;
+
       case 'cancelled':
+      case 'rejected':
+      case 'failed':
         return AppColors.errorColor;
+
       default:
         return AppColors.textSecondary;
     }
-  }
-}
+  }}
 
 class _TimelineTile extends StatelessWidget {
   final String title;
@@ -769,6 +954,7 @@ class _TimelineTile extends StatelessWidget {
   final bool isCompleted;
   final bool isCurrent;
   final bool showConnector;
+  final bool isError;
 
   const _TimelineTile({
     required this.title,
@@ -776,16 +962,26 @@ class _TimelineTile extends StatelessWidget {
     required this.isCompleted,
     required this.isCurrent,
     required this.showConnector,
+    this.isError = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final dotColor = isCompleted || isCurrent ? AppColors.primaryGreen : AppColors.borderColor;
+    final activeColor =
+    isError ? AppColors.errorColor : AppColors.primaryGreen;
+
+    final dotColor =
+    isCompleted || isCurrent ? activeColor : AppColors.borderColor;
+
     final innerIcon = isCompleted
         ? const Icon(Icons.check, size: 16, color: Colors.white)
         : isCurrent
-            ? const Icon(Icons.radio_button_checked, size: 16, color: Colors.white)
-            : const SizedBox.shrink();
+        ? Icon(
+      isError ? Icons.close : Icons.radio_button_checked,
+      size: 16,
+      color: Colors.white,
+    )
+        : const SizedBox.shrink();
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -796,7 +992,7 @@ class _TimelineTile extends StatelessWidget {
               width: 26,
               height: 26,
               decoration: BoxDecoration(
-                color: (isCompleted || isCurrent) ? AppColors.primaryGreen : Colors.white,
+                color: isCompleted || isCurrent ? activeColor : Colors.white,
                 shape: BoxShape.circle,
                 border: Border.all(color: dotColor, width: 2),
               ),
@@ -806,7 +1002,7 @@ class _TimelineTile extends StatelessWidget {
               Container(
                 width: 2,
                 height: 40,
-                color: isCompleted ? AppColors.primaryGreen : AppColors.borderColor,
+                color: isCompleted ? activeColor : AppColors.borderColor,
               ),
           ],
         ),
@@ -819,16 +1015,23 @@ class _TimelineTile extends StatelessWidget {
               children: [
                 Text(
                   title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: AppTypography.fontSize14,
-                    fontWeight: isCurrent ? AppTypography.bold : AppTypography.semiBold,
-                    color: AppColors.textPrimary,
+                    fontWeight:
+                    isCurrent ? AppTypography.bold : AppTypography.semiBold,
+                    color: isError && isCurrent
+                        ? AppColors.errorColor
+                        : AppColors.textPrimary,
                     fontFamily: AppTypography.fontFamily,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize13,
                     color: AppColors.textSecondary,
@@ -839,12 +1042,11 @@ class _TimelineTile extends StatelessWidget {
               ],
             ),
           ),
-        )
+        ),
       ],
     );
   }
 }
-
 /// Reusable cached dish image with a green icon placeholder fallback.
 class _DishImage extends StatelessWidget {
   final String? url;
@@ -881,4 +1083,15 @@ class _DishImage extends StatelessWidget {
           child: Icon(Icons.restaurant, color: AppColors.primaryGreen, size: 28),
         ),
       );
+}
+class _OrderTimelineStep {
+  final String status;
+  final String title;
+  final String subtitle;
+
+  const _OrderTimelineStep({
+    required this.status,
+    required this.title,
+    required this.subtitle,
+  });
 }
