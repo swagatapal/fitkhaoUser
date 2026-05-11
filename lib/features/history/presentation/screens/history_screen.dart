@@ -584,7 +584,7 @@ class _OrderCard extends StatefulWidget {
 }
 
 class _OrderCardState extends State<_OrderCard> {
-  static const _cancelWindow = Duration(minutes: 300);
+  static const _cancelWindow = Duration(minutes: 2);
   static const _cancellableStatuses = {'pending', 'confirmed'};
 
   Timer? _countdownTimer;
@@ -807,63 +807,57 @@ class _OrderCardState extends State<_OrderCard> {
 
   Widget _buildCancelSection(BuildContext context) {
     final countdownLabel = _buildCountdownLabel();
-    final textScaleFactor = MediaQuery.of(context).textScaleFactor;
 
-    Widget countdownChip({double? maxWidth}) {
-      return ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: maxWidth ?? double.infinity,
+    Widget countdownChip() {
+      return Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.spacing8,
+          vertical: AppSizes.spacing4,
         ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSizes.spacing8,
-            vertical: AppSizes.spacing4,
+        decoration: BoxDecoration(
+          color: Colors.orange.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppSizes.radius4),
+          border: Border.all(
+            color: Colors.orange.withValues(alpha: 0.35),
           ),
-          decoration: BoxDecoration(
-            color: Colors.orange.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(AppSizes.radius4),
-            border: Border.all(
-              color: Colors.orange.withValues(alpha: 0.35),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.timer_outlined,
+              size: AppSizes.icon14,
+              color: Colors.orange,
             ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.timer_outlined,
-                size: AppSizes.icon14,
-                color: Colors.orange,
-              ),
-              const SizedBox(width: AppSizes.spacing4),
-              Flexible(
-                child: Text(
-                  countdownLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: false,
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize12,
-                    fontWeight: AppTypography.semiBold,
-                    color: Colors.orange,
-                    fontFamily: AppTypography.fontFamily,
-                  ),
+            const SizedBox(width: AppSizes.spacing4),
+            Flexible(
+              child: Text(
+                countdownLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize12,
+                  fontWeight: AppTypography.semiBold,
+                  color: Colors.orange,
+                  fontFamily: AppTypography.fontFamily,
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
 
-    Widget cancelButton({bool fullWidth = false}) {
-      final button = OutlinedButton.icon(
+    Widget cancelButton() {
+      return OutlinedButton(
         onPressed: () => _showCancelModal(context),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.errorColor,
           side: const BorderSide(color: AppColors.errorColor),
-          minimumSize: Size(fullWidth ? double.infinity : 0, 36),
+          minimumSize: const Size(0, 34),
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSizes.p10,
+            horizontal: AppSizes.spacing8,
             vertical: AppSizes.spacing6,
           ),
           visualDensity: VisualDensity.compact,
@@ -872,25 +866,27 @@ class _OrderCardState extends State<_OrderCard> {
             borderRadius: BorderRadius.circular(AppSizes.radius4),
           ),
         ),
-        icon: const Icon(Icons.cancel_outlined, size: AppSizes.icon16),
-        label: const Text(
-          'Cancel Order',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          softWrap: false,
-          style: TextStyle(
-            fontSize: AppTypography.fontSize13,
-            fontWeight: AppTypography.semiBold,
-            fontFamily: AppTypography.fontFamily,
-          ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.max,
+          children: [
+            Icon(Icons.cancel_outlined, size: AppSizes.icon16),
+            SizedBox(width: AppSizes.spacing4),
+            Flexible(
+              child: Text(
+                'Cancel Order',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize13,
+                  fontWeight: AppTypography.semiBold,
+                  fontFamily: AppTypography.fontFamily,
+                ),
+              ),
+            ),
+          ],
         ),
-      );
-
-      if (!fullWidth) return button;
-
-      return SizedBox(
-        width: double.infinity,
-        child: button,
       );
     }
 
@@ -905,26 +901,8 @@ class _OrderCardState extends State<_OrderCard> {
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final shouldStackVertically =
-                  context.isSmallMobile ||
-                      constraints.maxWidth < 380 ||
-                      textScaleFactor > 1.1;
-
-              if (shouldStackVertically) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: countdownChip(
-                        maxWidth: constraints.maxWidth,
-                      ),
-                    ),
-                    const SizedBox(height: AppSizes.spacing8),
-                    cancelButton(fullWidth: true),
-                  ],
-                );
-              }
+              final cancelButtonWidth =
+              (constraints.maxWidth * 0.42).clamp(118.0, 148.0).toDouble();
 
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -932,17 +910,13 @@ class _OrderCardState extends State<_OrderCard> {
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: countdownChip(
-                        maxWidth: constraints.maxWidth * 0.55,
-                      ),
+                      child: countdownChip(),
                     ),
                   ),
                   const SizedBox(width: AppSizes.spacing8),
-                  Flexible(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: cancelButton(),
-                    ),
+                  SizedBox(
+                    width: cancelButtonWidth,
+                    child: cancelButton(),
                   ),
                 ],
               );
