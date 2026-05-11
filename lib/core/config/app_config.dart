@@ -58,6 +58,7 @@ class AppConfig {
   static const String eligibleCouponsPath = '/api/user/coupons';
   static const String razorpayCreateOrderPath = '/api/razorpay/create-order';
   static const String razorpayVerifyPaymentPath = '/api/razorpay/verify-payment';
+  static const String notificationsPath = '/api/notifications';
   static const String userHistoryPath = '/api/user/history';
   static const String exercisePath = '/api/adm/exercise';
   static const String physiologicalCategoriesPath = '/api/adm/physiological-category';
