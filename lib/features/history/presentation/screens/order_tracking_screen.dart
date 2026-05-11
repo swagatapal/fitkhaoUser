@@ -1,58 +1,20 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
-import '../../../../core/providers/providers.dart';
 import '../../models/order_history_model.dart';
 
-class OrderTrackingScreen extends ConsumerStatefulWidget {
+class OrderTrackingScreen extends StatefulWidget {
   final OrderHistory order;
   const OrderTrackingScreen({super.key, required this.order});
 
   @override
-  ConsumerState<OrderTrackingScreen> createState() => _OrderTrackingScreenState();
+  State<OrderTrackingScreen> createState() => _OrderTrackingScreenState();
 }
 
-class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
-  bool get _shouldShowCancelButton =>
-      widget.order.orderStatus.toLowerCase() == 'confirmed';
-
-  /// Opens the cancel modal. When it resolves with `true` the order was
-  /// successfully cancelled — navigate back and show a success snackbar.
-  void _showCancelOrderModal() {
-    showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _CancelOrderModal(
-        order: widget.order,
-        onCancel: _cancelOrder,
-      ),
-    ).then((cancelled) {
-      if (cancelled == true && mounted) {
-        // Pop with true so HistoryScreen knows to refresh
-        Navigator.of(context).pop(true);
-      }
-    });
-  }
-
-  /// Calls the cancel API. Throws on failure so the modal can display the error.
-  Future<void> _cancelOrder(String reason) async {
-    final orderRepo = ref.read(orderRepositoryProvider);
-    final response = await orderRepo.cancelOrder(
-      orderId: widget.order.id,
-      reason: reason,
-    );
-
-    if (response['success'] != true) {
-      throw Exception(
-        response['message'] as String? ?? 'Failed to cancel order',
-      );
-    }
-  }
-
+class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -84,10 +46,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                       const SizedBox(height: AppSizes.spacing20),
                     if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
                       _buildHelpRow(context),
-                    if (_shouldShowCancelButton) ...[
-                      const SizedBox(height: AppSizes.spacing16),
-                      _buildCancelButton(),
-                    ],
                     const SizedBox(height: AppSizes.spacing20),
                   ],
                 ),
@@ -606,32 +564,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     );
   }
 
-  Widget _buildCancelButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: _showCancelOrderModal,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.errorColor,
-          padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radius4),
-          ),
-        ),
-        icon: const Icon(Icons.cancel, color: Colors.white),
-        label: const Text(
-          'Cancel Order',
-          style: TextStyle(
-            fontSize: AppTypography.fontSize14,
-            fontWeight: AppTypography.semiBold,
-            color: Colors.white,
-            fontFamily: AppTypography.fontFamily,
-          ),
-        ),
-      ),
-    );
-  }
-
   int _getStatusIndex(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -909,295 +841,6 @@ class _TimelineTile extends StatelessWidget {
           ),
         )
       ],
-    );
-  }
-}
-
-class _CancelOrderModal extends StatefulWidget {
-  final OrderHistory order;
-  final Future<void> Function(String reason) onCancel;
-
-  const _CancelOrderModal({
-    required this.order,
-    required this.onCancel,
-  });
-
-  @override
-  State<_CancelOrderModal> createState() => _CancelOrderModalState();
-}
-
-class _CancelOrderModalState extends State<_CancelOrderModal> {
-  final _formKey = GlobalKey<FormState>();
-  final _reasonController = TextEditingController();
-  bool _isSubmitting = false;
-
-  @override
-  void dispose() {
-    _reasonController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submitCancellation() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_isSubmitting) return;
-
-    setState(() => _isSubmitting = true);
-
-    try {
-      await widget.onCancel(_reasonController.text.trim());
-      if (mounted) Navigator.of(context).pop(true);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: AppColors.errorColor,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSizes.radius12),
-      ),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSizes.spacing24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(AppSizes.spacing12),
-                      decoration: BoxDecoration(
-                        color: AppColors.errorColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(AppSizes.radius8),
-                      ),
-                      child: const Icon(
-                        Icons.cancel,
-                        color: AppColors.errorColor,
-                        size: AppSizes.icon24,
-                      ),
-                    ),
-                    const SizedBox(width: AppSizes.spacing12),
-                    const Expanded(
-                      child: Text(
-                        'Cancel Order',
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize20,
-                          fontWeight: AppTypography.bold,
-                          color: AppColors.textPrimary,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close),
-                      color: AppColors.textSecondary,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSizes.spacing16),
-
-                // Order info
-                Container(
-                  padding: const EdgeInsets.all(AppSizes.spacing12),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(AppSizes.radius8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.receipt_long,
-                        color: AppColors.primaryGreen,
-                        size: AppSizes.icon20,
-                      ),
-                      const SizedBox(width: AppSizes.spacing8),
-                      Expanded(
-                        child: Text(
-                          'Order #${widget.order.orderNumber}',
-                          style: const TextStyle(
-                            fontSize: AppTypography.fontSize14,
-                            fontWeight: AppTypography.semiBold,
-                            color: AppColors.textPrimary,
-                            fontFamily: 'Lato',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSizes.spacing20),
-
-                // Warning message
-                Container(
-                  padding: const EdgeInsets.all(AppSizes.spacing12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppSizes.radius8),
-                    border: Border.all(
-                      color: Colors.orange.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.warning_amber_rounded,
-                        color: Colors.orange,
-                        size: AppSizes.icon20,
-                      ),
-                      const SizedBox(width: AppSizes.spacing8),
-                      Expanded(
-                        child: Text(
-                          'Your payment will be refunded to your wallet within 2-3 business days.',
-                          style: TextStyle(
-                            fontSize: AppTypography.fontSize12,
-                            color: Colors.orange.shade800,
-                            fontFamily: 'Lato',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSizes.spacing20),
-
-                // Cancellation reason
-                const Text(
-                  'Reason for Cancellation',
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize14,
-                    fontWeight: AppTypography.semiBold,
-                    color: AppColors.textPrimary,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-                const SizedBox(height: AppSizes.spacing8),
-                TextFormField(
-                  controller: _reasonController,
-                  maxLines: 4,
-                  enabled: !_isSubmitting,
-                  decoration: InputDecoration(
-                    hintText: 'Please tell us why you want to cancel this order (minimum 10 characters)',
-                    hintStyle: const TextStyle(
-                      fontSize: AppTypography.fontSize12,
-                      color: AppColors.textTertiary,
-                      fontFamily: 'Lato',
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radius4),
-                      borderSide: const BorderSide(color: AppColors.borderColor),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radius4),
-                      borderSide: const BorderSide(color: AppColors.borderColor),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radius4),
-                      borderSide: const BorderSide(color: AppColors.primaryGreen, width: 2),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radius4),
-                      borderSide: const BorderSide(color: AppColors.errorColor),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radius4),
-                      borderSide: const BorderSide(color: AppColors.errorColor, width: 2),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppSizes.spacing16,
-                      vertical: AppSizes.spacing12,
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please provide a reason for cancellation';
-                    }
-                    if (value.trim().length < 10) {
-                      return 'Reason must be at least 10 characters long';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: AppSizes.spacing24),
-
-                // Action buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
-                          side: const BorderSide(color: AppColors.borderColor),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppSizes.radius4),
-                          ),
-                        ),
-                        child: const Text(
-                          'Go Back',
-                          style: TextStyle(
-                            fontSize: AppTypography.fontSize14,
-                            fontWeight: AppTypography.semiBold,
-                            color: AppColors.textPrimary,
-                            fontFamily: 'Lato',
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSizes.spacing12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submitCancellation,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.errorColor,
-                          disabledBackgroundColor: AppColors.errorColor.withValues(alpha: 0.5),
-                          padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppSizes.radius4),
-                          ),
-                        ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text(
-                                'Confirm Cancel',
-                                style: TextStyle(
-                                  fontSize: AppTypography.fontSize14,
-                                  fontWeight: AppTypography.semiBold,
-                                  color: Colors.white,
-                                  fontFamily: 'Lato',
-                                ),
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
