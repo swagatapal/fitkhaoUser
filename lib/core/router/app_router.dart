@@ -1,3 +1,4 @@
+import 'package:fitkhao_user/features/notification/presentation/notification_screen.dart';
 import 'package:fitkhao_user/features/splash/screens/onboarding_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -151,6 +152,14 @@ class AppRouter {
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
           child: const MainNavigationScreen(),
+        ),
+      ),
+     GoRoute(
+        path: RouteNames.notificationScreen,
+        name: RouteNames.notificationScreen,
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: const NotificationScreen(),
         ),
       ),
 

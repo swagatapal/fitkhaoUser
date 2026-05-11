@@ -18,6 +18,7 @@ class RouteNames {
 
   // Main routes
   static const String home = '/home';
+  static const String notificationScreen = '/notification';
   static const String dashboard = '/dashboard';
 
   // Profile routes

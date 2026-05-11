@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:fitkhao_user/core/router/app_router.dart';
+import 'package:fitkhao_user/features/notification/presentation/notification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -674,7 +677,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(AppSizes.radius16),
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.primaryGreen.withValues(alpha: 0.25),
@@ -686,12 +689,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Image.asset(
-                  'assets/images/buttonshit_logo.png',
-                  height: 13,
-                  width: 13,
-                ),
-                const SizedBox(width: 4),
+                // Image.asset(
+                //   'assets/images/buttonshit_logo.png',
+                //   height: 13,
+                //   width: 13,
+                // ),
+                // const SizedBox(width: 4),
                 const Text(
                   'Plus',
                   style: TextStyle(
@@ -705,6 +708,16 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             ),
           ),
         ),
+        SizedBox(width: 8,),
+        GestureDetector(
+            onTap: (){
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                  builder: (_) => const NotificationScreen(),
+              ),);
+            },
+            child: Icon(Icons.notifications, color: AppColors.darkGreen,size:24))
       ],
     );
   }  // ─── Dish Search Bar ─────────────────────────────────────────────────────
