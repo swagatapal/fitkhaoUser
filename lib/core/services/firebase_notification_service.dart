@@ -1,5 +1,10 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:fitkhao_user/core/constants/fcm_events.dart';
+import 'package:fitkhao_user/core/router/app_router.dart';
+import 'package:fitkhao_user/core/router/route_names.dart';
+import 'package:fitkhao_user/features/main_navigation/main_navigation_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -21,6 +26,8 @@ class FirebaseNotificationService {
 
   String? _fcmToken;
   bool _isInitialized = false;
+  bool _isAppReady = false;
+  Map<String, dynamic>? _pendingNavigationData;
 
   // Private constructor
   FirebaseNotificationService._();
@@ -29,6 +36,12 @@ class FirebaseNotificationService {
   static FirebaseNotificationService getInstance() {
     _instance ??= FirebaseNotificationService._();
     return _instance!;
+  }
+
+  void markAppReady() {
+    if (_isAppReady) return;
+    _isAppReady = true;
+    _flushPendingNavigation();
   }
 
   /// Initialize Firebase Messaging and local notifications
@@ -224,7 +237,7 @@ class FirebaseNotificationService {
         notification.title,
         notification.body,
         details,
-        payload: message.data.toString(),
+        payload: jsonEncode(message.data),
       );
 
       debugPrint('[FCM] Local notification shown');
@@ -238,10 +251,7 @@ class FirebaseNotificationService {
     try {
       debugPrint('[FCM] Notification tapped: ${message.messageId}');
       debugPrint('[FCM] Data: ${message.data}');
-
-      // TODO: Handle navigation based on notification data
-      // Example: Navigate to specific screen based on message.data
-      // You can use a navigation service or callback here
+      _navigateFromNotificationData(message.data);
     } catch (e) {
       debugPrint('[FCM] Error handling notification tap: $e');
     }
@@ -252,8 +262,19 @@ class FirebaseNotificationService {
     try {
       debugPrint('[FCM] Local notification tapped');
       debugPrint('[FCM] Payload: ${response.payload}');
+      final payload = response.payload;
+      if (payload == null || payload.isEmpty) return;
 
-      // TODO: Handle navigation based on payload
+      final decoded = jsonDecode(payload);
+      if (decoded is Map<String, dynamic>) {
+        _navigateFromNotificationData(decoded);
+      } else if (decoded is Map) {
+        _navigateFromNotificationData(
+          decoded.map(
+            (key, value) => MapEntry(key.toString(), value),
+          ),
+        );
+      }
     } catch (e) {
       debugPrint('[FCM] Error handling local notification tap: $e');
     }
@@ -373,5 +394,97 @@ class FirebaseNotificationService {
       debugPrint('[FCM] Error checking notification status: $e');
       return false;
     }
+  }
+
+  void _navigateFromNotificationData(Map<String, dynamic> data) {
+    final eventType = _extractEventType(data);
+    if (eventType == null || eventType.isEmpty) {
+      debugPrint('[FCM] Notification event type missing in payload: $data');
+      return;
+    }
+
+    if (!_isAppReady || AppRouter.rootNavigatorKey.currentContext == null) {
+      _pendingNavigationData = Map<String, dynamic>.from(data);
+      debugPrint('[FCM] App not ready, queued notification navigation');
+      return;
+    }
+
+    debugPrint('[FCM] Navigating for event type: $eventType');
+
+    if (FcmEvent.orderEvents.contains(eventType) ||
+        FcmEvent.deliveryEvents.contains(eventType)) {
+      AppRouter.router.go(
+        RouteNames.home,
+        extra: MainNavigationTabIndex.history,
+      );
+      return;
+    }
+
+    if (FcmEvent.subscriptionEvents.contains(eventType) ||
+        FcmEvent.walletEvents.contains(eventType)) {
+      AppRouter.router.go(RouteNames.subscriptionPlans);
+      return;
+    }
+
+    debugPrint('[FCM] No navigation mapping found for event type: $eventType');
+  }
+
+  String? _extractEventType(Map<String, dynamic> data) {
+    final directKeys = [
+      data['type'],
+      data['event'],
+      data['eventType'],
+      data['notificationType'],
+      data['notification_type'],
+    ];
+
+    for (final candidate in directKeys) {
+      final normalizedValue = _normalizeEventType(candidate);
+      if (normalizedValue != null) {
+        return normalizedValue;
+      }
+    }
+
+    final nestedData = data['data'];
+    if (nestedData is Map) {
+      return _extractEventType(
+        nestedData.map(
+          (key, value) => MapEntry(key.toString(), value),
+        ),
+      );
+    }
+
+    if (nestedData is String && nestedData.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(nestedData);
+        if (decoded is Map) {
+          return _extractEventType(
+            decoded.map(
+              (key, value) => MapEntry(key.toString(), value),
+            ),
+          );
+        }
+      } catch (_) {
+        // Ignore malformed nested JSON payloads and fall back gracefully.
+      }
+    }
+
+    return null;
+  }
+
+  String? _normalizeEventType(Object? rawType) {
+    if (rawType == null) return null;
+
+    final normalized = rawType.toString().trim().toUpperCase();
+    if (normalized.isEmpty) return null;
+    return normalized;
+  }
+
+  void _flushPendingNavigation() {
+    final pendingData = _pendingNavigationData;
+    if (pendingData == null || !_isAppReady) return;
+
+    _pendingNavigationData = null;
+    _navigateFromNotificationData(pendingData);
   }
 }

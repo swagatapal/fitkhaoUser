@@ -20,6 +20,7 @@ class RouteNames {
   static const String home = '/home';
   static const String notificationScreen = '/notification';
   static const String dashboard = '/dashboard';
+  static const String subscriptionPlans = '/subscription-plans';
 
   // Profile routes
   static const String profile = '/profile';

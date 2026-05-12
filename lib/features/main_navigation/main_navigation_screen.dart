@@ -9,8 +9,21 @@ import '../../core/constants/app_typography.dart';
 import '../../core/utils/responsive_utils.dart';
 import '../history/presentation/screens/history_screen.dart';
 
+class MainNavigationTabIndex {
+  MainNavigationTabIndex._();
+
+  static const int menu = 0;
+  static const int profile = 1;
+  static const int history = 2;
+}
+
 class MainNavigationScreen extends ConsumerStatefulWidget {
-  const MainNavigationScreen({super.key});
+  final int initialIndex;
+
+  const MainNavigationScreen({
+    super.key,
+    this.initialIndex = MainNavigationTabIndex.menu,
+  });
 
   @override
   ConsumerState<MainNavigationScreen> createState() =>
@@ -18,7 +31,24 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
 }
 
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex;
+  }
+
+  @override
+  void didUpdateWidget(covariant MainNavigationScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialIndex != widget.initialIndex &&
+        _selectedIndex != widget.initialIndex) {
+      setState(() {
+        _selectedIndex = widget.initialIndex;
+      });
+    }
+  }
 
   // Build the current screen based on selected index
   Widget _getCurrentScreen() {

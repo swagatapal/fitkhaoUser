@@ -1,5 +1,6 @@
 import 'package:fitkhao_user/features/notification/presentation/notification_screen.dart';
 import 'package:fitkhao_user/features/splash/screens/onboarding_screen.dart';
+import 'package:fitkhao_user/features/delivery/presentation/screens/subscription_plan_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/policy/presentation/screens/policy_screen.dart';
@@ -23,7 +24,11 @@ import 'route_names.dart';
 class AppRouter {
   AppRouter._();
 
+  static final GlobalKey<NavigatorState> rootNavigatorKey =
+      GlobalKey<NavigatorState>();
+
   static final GoRouter router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: RouteNames.splash,
     observers: [AnalyticsService.observer],
     debugLogDiagnostics: true,
@@ -149,17 +154,30 @@ class AppRouter {
       GoRoute(
         path: RouteNames.home,
         name: RouteNames.home,
-        pageBuilder: (context, state) => MaterialPage(
-          key: state.pageKey,
-          child: const MainNavigationScreen(),
-        ),
+        pageBuilder: (context, state) {
+          final initialIndex = state.extra is int
+              ? state.extra as int
+              : MainNavigationTabIndex.menu;
+          return MaterialPage(
+            key: state.pageKey,
+            child: MainNavigationScreen(initialIndex: initialIndex),
+          );
+        },
       ),
-     GoRoute(
+      GoRoute(
         path: RouteNames.notificationScreen,
         name: RouteNames.notificationScreen,
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
           child: const NotificationScreen(),
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.subscriptionPlans,
+        name: RouteNames.subscriptionPlans,
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: const SubscriptionPlanScreen(),
         ),
       ),
 
