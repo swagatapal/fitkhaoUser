@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/services/device_info_service.dart';
+import '../../delivery/providers/cart_provider.dart';
 import '../models/auth_state.dart';
 import '../models/profile_update_model.dart';
 import '../models/verify_otp_model.dart';
@@ -12,9 +13,10 @@ import '../../profile/models/physiological_category_model.dart';
 
 class AuthNotifier extends StateNotifier<AuthState> {
   Timer? _resendTimer;
+  final Ref _ref;
   final AuthRepository _authRepository;
 
-  AuthNotifier(this._authRepository) : super( AuthState());
+  AuthNotifier(this._ref, this._authRepository) : super(AuthState());
 
   @override
   void dispose() {
@@ -764,9 +766,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Clear local storage
       await _authRepository.logout();
 
+      // Clear user-scoped in-memory state that survives while the app stays alive.
+      _ref.read(cartProvider.notifier).clearCart();
+
       // Reset state
       _resendTimer?.cancel();
-      state =  AuthState();
+      state = AuthState();
 
       debugPrint('[AuthNotifier] User logged out successfully');
       return true;
@@ -797,5 +802,5 @@ extension StringExtension on String {
 // Provider for AuthNotifier
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
-  return AuthNotifier(authRepository);
+  return AuthNotifier(ref, authRepository);
 });
