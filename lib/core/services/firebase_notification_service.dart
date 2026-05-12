@@ -6,6 +6,7 @@ import 'package:fitkhao_user/core/router/app_router.dart';
 import 'package:fitkhao_user/core/router/route_names.dart';
 import 'package:fitkhao_user/features/main_navigation/main_navigation_screen.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// Top-level function for handling background messages
@@ -27,6 +28,8 @@ class FirebaseNotificationService {
   String? _fcmToken;
   bool _isInitialized = false;
   bool _isAppReady = false;
+  bool _notificationNavigationRequested = false;
+  bool _isFlushScheduled = false;
   Map<String, dynamic>? _pendingNavigationData;
 
   // Private constructor
@@ -41,6 +44,13 @@ class FirebaseNotificationService {
   void markAppReady() {
     if (_isAppReady) return;
     _isAppReady = true;
+    _flushPendingNavigation();
+  }
+
+  bool get hasNotificationNavigationInProgress =>
+      _notificationNavigationRequested || _pendingNavigationData != null;
+
+  void flushPendingNavigationIfPossible() {
     _flushPendingNavigation();
   }
 
@@ -251,6 +261,7 @@ class FirebaseNotificationService {
     try {
       debugPrint('[FCM] Notification tapped: ${message.messageId}');
       debugPrint('[FCM] Data: ${message.data}');
+      _notificationNavigationRequested = true;
       _navigateFromNotificationData(message.data);
     } catch (e) {
       debugPrint('[FCM] Error handling notification tap: $e');
@@ -399,13 +410,21 @@ class FirebaseNotificationService {
   void _navigateFromNotificationData(Map<String, dynamic> data) {
     final eventType = _extractEventType(data);
     if (eventType == null || eventType.isEmpty) {
+      _notificationNavigationRequested = false;
       debugPrint('[FCM] Notification event type missing in payload: $data');
       return;
     }
 
-    if (!_isAppReady || AppRouter.rootNavigatorKey.currentContext == null) {
+    if (!_isAppReady) {
       _pendingNavigationData = Map<String, dynamic>.from(data);
       debugPrint('[FCM] App not ready, queued notification navigation');
+      return;
+    }
+
+    if (AppRouter.rootNavigatorKey.currentContext == null) {
+      _pendingNavigationData = Map<String, dynamic>.from(data);
+      debugPrint('[FCM] Navigator not ready, queued notification navigation');
+      _schedulePendingNavigationFlush();
       return;
     }
 
@@ -417,15 +436,20 @@ class FirebaseNotificationService {
         RouteNames.home,
         extra: MainNavigationTabIndex.history,
       );
+      _pendingNavigationData = null;
+      _notificationNavigationRequested = false;
       return;
     }
 
     if (FcmEvent.subscriptionEvents.contains(eventType) ||
         FcmEvent.walletEvents.contains(eventType)) {
       AppRouter.router.go(RouteNames.subscriptionPlans);
+      _pendingNavigationData = null;
+      _notificationNavigationRequested = false;
       return;
     }
 
+    _notificationNavigationRequested = false;
     debugPrint('[FCM] No navigation mapping found for event type: $eventType');
   }
 
@@ -484,7 +508,22 @@ class FirebaseNotificationService {
     final pendingData = _pendingNavigationData;
     if (pendingData == null || !_isAppReady) return;
 
+    if (AppRouter.rootNavigatorKey.currentContext == null) {
+      _schedulePendingNavigationFlush();
+      return;
+    }
+
     _pendingNavigationData = null;
     _navigateFromNotificationData(pendingData);
+  }
+
+  void _schedulePendingNavigationFlush() {
+    if (_isFlushScheduled) return;
+
+    _isFlushScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isFlushScheduled = false;
+      _flushPendingNavigation();
+    });
   }
 }

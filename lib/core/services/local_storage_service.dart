@@ -28,6 +28,7 @@ class LocalStorageService {
   static const String _keyThemeMode = 'theme_mode';
   static const String _keyLanguage = 'language';
 
+
   /// Save auth token
   Future<bool> saveAuthToken(String token) async {
     try {
@@ -248,6 +249,7 @@ class LocalStorageService {
       await _preferences!.remove(_keyUserName);
       await _preferences!.remove(_keyUserEmail);
       await _preferences!.setBool(_keyIsLoggedIn, false);
+
       return true;
     } catch (e) {
       throw CacheException(

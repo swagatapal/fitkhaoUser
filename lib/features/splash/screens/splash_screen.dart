@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/route_names.dart';
+import '../../../core/services/firebase_notification_service.dart';
 import '../../../core/providers/providers.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -154,10 +155,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     // Check if user has a valid profile
     final hasValidProfile = await _checkUserProfile();
+    final notificationService = FirebaseNotificationService.getInstance();
 
     // Navigate based on profile status
     if (mounted) {
       if (hasValidProfile) {
+        if (notificationService.hasNotificationNavigationInProgress) {
+          debugPrint(
+            '[SplashScreen] Notification launch detected, skipping default home navigation',
+          );
+          notificationService.flushPendingNavigationIfPossible();
+          return;
+        }
+
         // User has valid profile - go to home
         debugPrint('[SplashScreen] Navigating to home');
         context.go(RouteNames.home);

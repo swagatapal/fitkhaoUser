@@ -17,6 +17,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   /// Load cart items from local storage
   Future<void> _loadCartFromStorage() async {
     try {
+      //final cartData = _localStorage.getString(_cartKey);
       final cartData = _localStorage.getString(_cartKey);
       if (cartData != null && cartData.isNotEmpty) {
         final List<dynamic> cartJson = jsonDecode(cartData);
