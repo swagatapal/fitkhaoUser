@@ -75,19 +75,23 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Display only the currently selected screen
-          _getCurrentScreen(),
+      body: SafeArea(
+        bottom: true,
+        top: false,
+        child: Stack(
+          children: [
+            // Display only the currently selected screen
+            _getCurrentScreen(),
 
-          // Floating Bottom Navigation Bar
-          Positioned(
-            bottom: AppSizes.spacing20,
-            left: 0,
-            right: 0,
-            child: _buildBottomNavigationBar(context),
-          ),
-        ],
+            // Floating Bottom Navigation Bar
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _buildBottomNavigationBar(context),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -100,7 +104,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       padding: EdgeInsets.only(
         left: spacing16,
         right: spacing16,
-        bottom: spacing16,
+        //bottom: spacing16,
       ),
       child: Container(
         decoration: BoxDecoration(

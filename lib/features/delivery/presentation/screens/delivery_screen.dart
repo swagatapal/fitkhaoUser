@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fitkhao_user/core/router/app_router.dart';
+import 'package:fitkhao_user/features/delivery/presentation/screens/subscription_plan_screen.dart';
 import 'package:fitkhao_user/features/notification/presentation/notification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -142,7 +143,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     if (mounted) {
       final walletState = ref.read(walletProvider);
       if (!walletState.hasActiveSubscription) {
-        _showMembershipPopup();
+       // _showMembershipPopup();
       }
     }
   }
@@ -309,7 +310,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: 60,
+                bottom: MediaQuery.of(context).size.height*0.08,
                 child: _buildCartBar(totalItems, totalPrice),
               ),
           ],
@@ -723,7 +724,15 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
         // FitKhao Plus badge
         GestureDetector(
-          onTap: _showMembershipPopupOnDemand,
+          //onTap: _showMembershipPopupOnDemand,
+          onTap: (){
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) =>
+                const SubscriptionPlanScreen(),
+              ),
+            );
+          },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
@@ -1053,7 +1062,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   Widget _buildDishListSkeleton() {
     return Column(
       children: List.generate(
-        3,
+        6,
         (_) => Container(
           margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
           height: 96,

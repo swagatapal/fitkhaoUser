@@ -78,7 +78,7 @@ class _SubscriptionPlanScreenState
                             size: AppSizes.icon20,
                           ),
                           label: const Text(
-                            'Recharge Wallet',
+                            'Recharge FitKhao Wallet',
                             style: TextStyle(
                               fontSize: AppTypography.fontSize16,
                               fontWeight: AppTypography.semiBold,
@@ -114,8 +114,6 @@ class _SubscriptionPlanScreenState
                         const SizedBox(height: AppSizes.spacing16),
                       ],
                       _buildPlansList(),
-                      const SizedBox(height: AppSizes.spacing24),
-                      _buildWhyFitKhaoSection(),
                       const SizedBox(height: AppSizes.spacing24),
                       _buildTransactionHistoryButton(),
                       const SizedBox(height: AppSizes.spacing24),
@@ -278,11 +276,15 @@ class _SubscriptionPlanScreenState
       );
     }
 
-    // Auto-select first plan if nothing is selected yet
+    // Auto-select the basic (free) plan by default
     if (_selectedPlan == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          setState(() => _selectedPlan = planState.plans.first);
+          final basicPlan = planState.plans.firstWhere(
+            (p) => p.price == 0,
+            orElse: () => planState.plans.first,
+          );
+          setState(() => _selectedPlan = basicPlan);
         }
       });
     }
@@ -298,169 +300,208 @@ class _SubscriptionPlanScreenState
   }
 
   Widget _buildPlanCard(SubscriptionPlan plan) {
+    final isBasic = plan.price == 0;
     final isSelected = _selectedPlan?.id == plan.id;
     final f = plan.features;
 
-    return GestureDetector(
-      onTap: () => setState(() => _selectedPlan = plan),
-      child: Container(
-        padding: const EdgeInsets.all(AppSizes.spacing16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppSizes.radius8),
-          border: Border.all(
-            color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
-            width: isSelected ? 2 : 1,
-          ),
-          boxShadow: [
-            if (isSelected)
-              BoxShadow(
-                color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-          ],
+    final cardContent = Container(
+      padding: const EdgeInsets.all(AppSizes.spacing16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(
+          color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
+          width: isSelected ? 2 : 1,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header: name + code badge + selection indicator
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    plan.planName,
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize16,
-                      fontWeight: AppTypography.bold,
-                      color: AppColors.primaryGreen,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSizes.spacing8,
-                    vertical: AppSizes.spacing2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppSizes.radius4),
-                  ),
-                  child: Text(
-                    plan.planCode,
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize10,
-                      fontWeight: AppTypography.semiBold,
-                      color: AppColors.primaryGreen,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSizes.spacing8),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isSelected
-                        ? AppColors.primaryGreen
-                        : Colors.transparent,
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.primaryGreen
-                          : AppColors.borderColor,
-                      width: 2,
-                    ),
-                  ),
-                  child: isSelected
-                      ? const Icon(Icons.check, size: 12, color: Colors.white)
-                      : null,
-                ),
-              ],
+        boxShadow: [
+          if (isSelected)
+            BoxShadow(
+              color: AppColors.primaryGreen.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            const SizedBox(height: AppSizes.spacing8),
-            // Price + duration
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  plan.formattedPrice,
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize20,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: name + code badge + selection indicator
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  plan.planName,
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize16,
                     fontWeight: AppTypography.bold,
-                    color: AppColors.textPrimary,
+                    color: isBasic
+                        ? AppColors.primaryGreen
+                        : AppColors.textSecondary,
                     fontFamily: 'Lato',
                   ),
                 ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSizes.spacing8,
+                  vertical: AppSizes.spacing2,
+                ),
+                decoration: BoxDecoration(
+                  color: isBasic
+                      ? AppColors.primaryGreen.withValues(alpha: 0.1)
+                      : AppColors.borderColor.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(AppSizes.radius4),
+                ),
+                child: Text(
+                  plan.planCode,
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize10,
+                    fontWeight: AppTypography.semiBold,
+                    color: isBasic
+                        ? AppColors.primaryGreen
+                        : AppColors.textSecondary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSizes.spacing8),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSelected
+                      ? AppColors.primaryGreen
+                      : Colors.transparent,
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.primaryGreen
+                        : AppColors.borderColor,
+                    width: 2,
+                  ),
+                ),
+                child: isSelected
+                    ? const Icon(Icons.check, size: 12, color: Colors.white)
+                    : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSizes.spacing8),
+          // Price + duration
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                plan.formattedPrice,
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize20,
+                  fontWeight: AppTypography.bold,
+                  color: AppColors.textPrimary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              const SizedBox(width: AppSizes.spacing4),
+              Text(
+                '/ ${plan.planValidity}',
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize12,
+                  fontWeight: AppTypography.regular,
+                  color: AppColors.textSecondary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              if (plan.gstPercentage > 0) ...[
                 const SizedBox(width: AppSizes.spacing4),
                 Text(
-                  '/ ${plan.planValidity}',
+                  '+${plan.gstPercentage.toStringAsFixed(0)}% GST',
                   style: const TextStyle(
-                    fontSize: AppTypography.fontSize12,
+                    fontSize: AppTypography.fontSize10,
                     fontWeight: AppTypography.regular,
                     color: AppColors.textSecondary,
                     fontFamily: 'Lato',
                   ),
                 ),
-                if (plan.gstPercentage > 0) ...[
-                  const SizedBox(width: AppSizes.spacing4),
-                  Text(
-                    '+${plan.gstPercentage.toStringAsFixed(0)}% GST',
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize10,
-                      fontWeight: AppTypography.regular,
-                      color: AppColors.textSecondary,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ],
               ],
-            ),
-            const SizedBox(height: AppSizes.spacing12),
-            const Divider(height: 1),
-            const SizedBox(height: AppSizes.spacing12),
-            // Features grid
-            Wrap(
-              spacing: AppSizes.spacing8,
-              runSpacing: AppSizes.spacing8,
-              children: [
-                if (f.freeDelivery)
-                  _buildFeatureChip(Icons.local_shipping_outlined, 'Free Delivery'),
-                if (f.dietChart)
-                  _buildFeatureChip(Icons.assignment_outlined, 'Diet Chart'),
-                if (f.consultationCount > 0)
-                  _buildFeatureChip(
-                    Icons.headset_mic_outlined,
-                    '${f.consultationCount} Consultation${f.consultationCount > 1 ? 's' : ''}',
-                  ),
-                if (f.mealCountPerDay > 0)
-                  _buildFeatureChip(
-                    Icons.restaurant_outlined,
-                    '${f.mealCountPerDay} Meals/Day',
-                  ),
-                if (f.snacks)
-                  _buildFeatureChip(Icons.fastfood_outlined, 'Snacks'),
-                if (f.discountPercent > 0)
-                  _buildFeatureChip(
-                    Icons.local_offer_outlined,
-                    '${f.discountPercent}% Discount',
-                    highlight: true,
-                  ),
-                if (f.suggestedPlan)
-                  _buildFeatureChip(Icons.auto_awesome_outlined, 'Suggested Plan'),
-              ],
-            ),
-          ],
-        ),
+            ],
+          ),
+          const SizedBox(height: AppSizes.spacing12),
+          const Divider(height: 1),
+          const SizedBox(height: AppSizes.spacing12),
+          // Features grid
+          Wrap(
+            spacing: AppSizes.spacing8,
+            runSpacing: AppSizes.spacing8,
+            children: [
+              if (f.freeDelivery)
+                _buildFeatureChip(Icons.local_shipping_outlined, 'Free Delivery', disabled: !isBasic),
+              if (f.dietChart)
+                _buildFeatureChip(Icons.assignment_outlined, 'Diet Chart', disabled: !isBasic),
+              if (f.consultationCount > 0)
+                _buildFeatureChip(
+                  Icons.headset_mic_outlined,
+                  '${f.consultationCount} Consultation${f.consultationCount > 1 ? 's' : ''}',
+                  disabled: !isBasic,
+                ),
+              if (f.mealCountPerDay > 0)
+                _buildFeatureChip(
+                  Icons.restaurant_outlined,
+                  '${f.mealCountPerDay} Meals/Day',
+                  disabled: !isBasic,
+                ),
+              if (f.snacks)
+                _buildFeatureChip(Icons.fastfood_outlined, 'Snacks', disabled: !isBasic),
+              if (f.discountPercent > 0)
+                _buildFeatureChip(
+                  Icons.local_offer_outlined,
+                  '${f.discountPercent}% Discount',
+                  highlight: true,
+                  disabled: !isBasic,
+                ),
+              if (f.suggestedPlan)
+                _buildFeatureChip(Icons.auto_awesome_outlined, 'Suggested Plan', disabled: !isBasic),
+            ],
+          ),
+        ],
       ),
+    );
+
+    if (!isBasic) {
+      return Stack(
+        children: [
+          Opacity(opacity: 0.45, child: cardContent),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+              child: const Center(
+                child: _ComingSoonBadge(),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedPlan = plan),
+      child: cardContent,
     );
   }
 
-  Widget _buildFeatureChip(IconData icon, String label, {bool highlight = false}) {
-    final color = highlight ? const Color(0xFFC66301) : AppColors.primaryGreen;
+  Widget _buildFeatureChip(
+    IconData icon,
+    String label, {
+    bool highlight = false,
+    bool disabled = false,
+  }) {
+    final color = disabled
+        ? AppColors.textSecondary
+        : highlight
+            ? const Color(0xFFC66301)
+            : AppColors.primaryGreen;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSizes.spacing8,
@@ -487,56 +528,6 @@ class _SubscriptionPlanScreenState
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildWhyFitKhaoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Why FitKhao ?',
-          style: TextStyle(
-            fontSize: AppTypography.fontSize20,
-            fontWeight: AppTypography.semiBold,
-            color: AppColors.primaryGreen,
-            fontFamily: 'Lato',
-          ),
-        ),
-        const SizedBox(height: AppSizes.spacing16),
-        _buildBenefitItem('Personalized Nutritionist'),
-        const SizedBox(height: AppSizes.spacing8),
-        _buildBenefitItem('Customized Meal Preference'),
-        const SizedBox(height: AppSizes.spacing8),
-        // _buildBenefitItem('3 Meals Per Day'),
-        // const SizedBox(height: AppSizes.spacing8),
-        _buildBenefitItem('Free Delivery'),
-      ],
-    );
-  }
-
-  Widget _buildBenefitItem(String text) {
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: const BoxDecoration(
-            color: AppColors.darkGreen,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: AppSizes.spacing12),
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: AppTypography.fontSize14,
-            fontWeight: AppTypography.medium,
-            color: AppColors.textPrimary,
-            fontFamily: 'Lato',
-          ),
-        ),
-      ],
     );
   }
 
@@ -802,6 +793,7 @@ class _SubscriptionPlanScreenState
 
   Widget _buildBottomButton() {
     final hasActiveSubscription = ref.watch(walletProvider).hasActiveSubscription;
+    final isFreePlan = _selectedPlan != null && _selectedPlan!.price == 0;
 
     return Container(
       padding: const EdgeInsets.all(AppSizes.spacing20),
@@ -820,60 +812,103 @@ class _SubscriptionPlanScreenState
         height: AppSizes.buttonHeight,
         child: hasActiveSubscription
             ? Container(
-          decoration: BoxDecoration(
-            color: AppColors.primaryGreen.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(AppSizes.radius4),
-            border: Border.all(
-              color: AppColors.primaryGreen,
-              width: 2,
-            ),
-          ),
-          child: const Center(
-            child: Text(
-              'You already have active plan',
-              style: TextStyle(
-                fontSize: AppTypography.fontSize16,
-                fontWeight: AppTypography.bold,
-                color: AppColors.primaryGreen,
-                fontFamily: 'Lato',
-              ),
-            ),
-          ),
-        )
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppSizes.radius4),
+                  border: Border.all(
+                    color: AppColors.primaryGreen,
+                    width: 2,
+                  ),
+                ),
+                child: const Center(
+                  child: Text(
+                    'You already have active plan',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize16,
+                      fontWeight: AppTypography.bold,
+                      color: AppColors.primaryGreen,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+              )
             : ElevatedButton(
-          onPressed: _selectedPlan == null
-              ? null
-              : () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => SubscriptionCheckoutScreen(
-                  planDays: _selectedPlan!.planDays,
-                  planPrice: _selectedPlan!.formattedPrice,
-                  planCode: _selectedPlan!.planCode,
+                onPressed: (_selectedPlan == null || isFreePlan)
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SubscriptionCheckoutScreen(
+                              planDays: _selectedPlan!.planDays,
+                              planPrice: _selectedPlan!.formattedPrice,
+                              planCode: _selectedPlan!.planCode,
+                            ),
+                          ),
+                        );
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.borderColor,
+                  disabledForegroundColor: AppColors.textSecondary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radius4),
+                  ),
+                  elevation: 2,
+                ),
+                child: Text(
+                  isFreePlan
+                      ? 'Free Plan — No Purchase Needed'
+                      : _selectedPlan == null
+                          ? 'Select a Plan'
+                          : 'Buy ${_selectedPlan!.planValidity} Plan',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize16,
+                    fontWeight: AppTypography.semiBold,
+                    fontFamily: 'Lato',
+                  ),
                 ),
               ),
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primaryGreen,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSizes.radius4),
-            ),
-            elevation: 2,
+      ),
+    );
+  }
+}
+
+class _ComingSoonBadge extends StatelessWidget {
+  const _ComingSoonBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF5A5A5A),
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          child: Text(
-            _selectedPlan == null
-                ? 'Select a Plan'
-                : 'Buy ${_selectedPlan!.planValidity} Plan',
-            style: const TextStyle(
-              fontSize: AppTypography.fontSize16,
+        ],
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.access_time_rounded, size: 14, color: Colors.white),
+          SizedBox(width: 6),
+          Text(
+            'Coming Soon',
+            style: TextStyle(
+              fontSize: AppTypography.fontSize13,
               fontWeight: AppTypography.semiBold,
+              color: Colors.white,
               fontFamily: 'Lato',
+              letterSpacing: 0.3,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
