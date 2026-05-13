@@ -60,6 +60,9 @@ class AppConfig {
   static const String razorpayVerifyPaymentPath = '/api/razorpay/verify-payment';
   static const String notificationsPath = '/api/notifications';
   static const String userHistoryPath = '/api/user/history';
+
+  /// Google Maps / Places API key (must have Maps SDK + Places API enabled)
+  static const String googleMapsApiKey = 'AIzaSyAK5ndKV1GKCjUrbpOE6d0zr3hLJfI29FE';
   static const String exercisePath = '/api/adm/exercise';
   static const String physiologicalCategoriesPath = '/api/adm/physiological-category';
   static const String professionPath = '/api/adm/profession';
