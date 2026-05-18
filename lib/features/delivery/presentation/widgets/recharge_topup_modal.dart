@@ -410,6 +410,7 @@ class _RechargeTopupModalState extends ConsumerState<RechargeTopupModal> {
                     final parsed = int.tryParse(value);
                     if (parsed == null) return 'Please enter a valid amount';
                     if (parsed < 1000) return 'Minimum amount is ₹1000';
+                    //if (parsed < 0) return 'Minimum amount is ₹1000';
                     return null;
                   },
                 ),

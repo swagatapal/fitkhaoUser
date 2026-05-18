@@ -99,8 +99,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final totalPrice = ref.watch(cartTotalPriceProvider);
     final walletState = ref.watch(walletProvider);
 
-    const gst = 0.05;
-    const platformCharge = 7.0;
+    const gst = 0.00;
+    const platformCharge = 0.0;
     final itemTotal = totalPrice;
     final gstAmount = totalPrice * gst;
     final couponDiscount = _appliedCoupon?.computeDiscount(itemTotal) ?? 0.0;
@@ -856,11 +856,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               _buildSummaryRow(
                 'GST (5%)',
                 '₹${gstAmount.toStringAsFixed(2)}',
+               // '₹${0}',
               ),
               const SizedBox(height: AppSizes.spacing8),
               _buildSummaryRow(
                 'Platform Charge',
                 '₹${platformCharge.toStringAsFixed(2)}',
+                //'₹${0}',
               ),
               const SizedBox(height: AppSizes.spacing8),
               _buildSummaryRow(
