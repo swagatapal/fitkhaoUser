@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
@@ -119,15 +120,22 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
                     focusNode: _nameFocusNode,
                     keyboardType: TextInputType.name,
                     textCapitalization: TextCapitalization.words,
+
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+                    ],
+
                     onChanged: (value) {
                       setState(() {
                         _name = value.trim();
                       });
                     },
+
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       fontSize: context.responsiveFontSize(16.0),
                       fontFamily: 'Lato',
                     ),
+
                     decoration: InputDecoration(
                       hintText: 'Your Name',
                       hintStyle: TextStyle(

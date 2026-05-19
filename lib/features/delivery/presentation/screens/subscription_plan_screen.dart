@@ -122,7 +122,7 @@ class _SubscriptionPlanScreenState
                 ),
               ),
             ),
-            _buildBottomButton(),
+           // _buildBottomButton(),
           ],
         ),
       ),

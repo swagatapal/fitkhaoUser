@@ -327,6 +327,10 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
                 label: AppStrings.buildingNameNumber,
                 controller: _buildingController,
                 focusNode: _buildingFocusNode,
+                keyboardType: TextInputType.text,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                ],
                 onChanged: (value) {
                   setState(() {
                     _building = value.trim();
@@ -339,6 +343,7 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
                 label: AppStrings.floorNumber,
                 controller: _floorController,
                 focusNode: _floorFocusNode,
+                keyboardType: TextInputType.number,
                 onChanged: (value) {
                   setState(() {
                     _floor = value.trim();
@@ -351,6 +356,10 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
                 label: AppStrings.street,
                 controller: _streetController,
                 focusNode: _streetFocusNode,
+                keyboardType: TextInputType.text,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                ],
                 onChanged: (value) {
                   setState(() {
                     _street = value.trim();
@@ -377,6 +386,10 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
                 label: AppStrings.landmark,
                 controller: _landmarkController,
                 focusNode: _landmarkFocusNode,
+                keyboardType: TextInputType.text,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                ],
                 onChanged: (value) {
                   setState(() {
                     _landmark = value.trim();

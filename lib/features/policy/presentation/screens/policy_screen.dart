@@ -289,25 +289,28 @@ class _PolicyScreenState extends ConsumerState<PolicyScreen>
           const SizedBox(height: 16),
 
           // Last updated note
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 14,
-                color: AppColors.textSecondary.withValues(alpha: 0.6),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'Please read carefully before using FitKhao',
-                style: TextStyle(
-                  fontSize: AppTypography.fontSize12,
-                  color: AppColors.textSecondary.withValues(alpha: 0.7),
-                  fontFamily: 'Lato',
-                  fontStyle: FontStyle.italic,
+          SafeArea(
+            top: false,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 14,
+                  color: AppColors.textSecondary.withValues(alpha: 0.6),
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  'Please read carefully before using FitKhao',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    color: AppColors.textSecondary.withValues(alpha: 0.7),
+                    fontFamily: 'Lato',
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

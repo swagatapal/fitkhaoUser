@@ -193,7 +193,8 @@ Future<void> getPhoneNumber() async {
       result = await _phoneNumberHintPlugin.requestHint(
               ) ??
           '';
-      final phone = removeFirstThreeChars(result);
+      final phone = getLastTenDigits(result);
+    //  final phone = result;
       _phoneController.text = phone;
       ref.read(authProvider.notifier).updatePhoneNumber(phone);
 
@@ -211,11 +212,14 @@ Future<void> getPhoneNumber() async {
     });
   }
 
-  String removeFirstThreeChars(String input) {
-    if (input.length <= 3) {
-      return '';
+  String getLastTenDigits(String input) {
+    final digitsOnly = input.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (digitsOnly.length <= 10) {
+      return digitsOnly;
     }
-    return input.substring(3);
+
+    return digitsOnly.substring(digitsOnly.length - 10);
   }
 
   @override
@@ -336,6 +340,7 @@ Future<void> getPhoneNumber() async {
                           showCountryOnly: false,
                           showOnlyCountryWhenClosed: false,
                           alignLeft: false,
+                          enabled: false,
                           padding: EdgeInsets.symmetric(
                             horizontal: spacing8,
                           ),
@@ -493,15 +498,16 @@ Future<void> getPhoneNumber() async {
                             SizedBox(height: spacing8 / 2),
                             GestureDetector(
                               onTap: () {
+                                context.push(RouteNames.policy);
                                 // TODO: Navigate to Terms and Conditions screen
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Terms and Conditions screen will be implemented',
-                                    ),
-                                    backgroundColor: AppColors.primaryGreen,
-                                  ),
-                                );
+                                // ScaffoldMessenger.of(context).showSnackBar(
+                                //   const SnackBar(
+                                //     content: Text(
+                                //       'Terms and Conditions screen will be implemented',
+                                //     ),
+                                //     backgroundColor: AppColors.primaryGreen,
+                                //   ),
+                                // );
                               },
                               child: Text(
                                 AppStrings.readHere,

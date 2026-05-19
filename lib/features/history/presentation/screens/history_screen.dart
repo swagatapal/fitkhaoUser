@@ -302,10 +302,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             ),
           ),
 
-          GestureDetector(
-            onTap: _showLogoutConfirmation,
-            child: Icon(Icons.logout_outlined, color: AppColors.darkGreen),
-          ),
+          // GestureDetector(
+          //   onTap: _showLogoutConfirmation,
+          //   child: Icon(Icons.logout_outlined, color: AppColors.darkGreen),
+          // ),
           // CircleAvatar(
           //   radius: AppSizes.spacing24,
           //   backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
