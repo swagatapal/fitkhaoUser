@@ -20,9 +20,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<OnboardingData> _onboardingData = [
     OnboardingData(
       image: "assets/images/o1.png",
-      title: "Select\nYour\nHealth\nRecipe",
-      titleGreenPart: "Select\nYour\n",
-      titleWhitePart: "Health\nRecipe",
+      title: "Healthy eating made tasty, quick, and affordable.",
+     // title: "Select\nYour\nHealth\nRecipe",
+      titleGreenPart: "Healthy eating made \n",
+      titleWhitePart: "tasty, quick, and affordable.",
     ),
     OnboardingData(
       image: "assets/images/o2.png",
@@ -33,8 +34,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     OnboardingData(
       image: "assets/images/o3.png",
       title: "We\nDeliver\nIt to Your\nDoorstep",
-      titleGreenPart: "Get\nHealthy\n",
-      titleWhitePart: "Food\nDelivered",
+      titleGreenPart: "Get Healthy Food",
+      titleWhitePart: "\nDelivered at lowest price garrenty",
     ),
   ];
 
@@ -182,7 +183,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           child: RichText(
             text: TextSpan(
               style: TextStyle(
-                fontSize: context.responsiveFontSize(AppTypography.fontSize60),
+                fontSize: context.responsiveFontSize(AppTypography.fontSize40),
                 fontWeight: AppTypography.bold,
                 fontFamily: AppTypography.fontFamily,
                 height: 1.2,

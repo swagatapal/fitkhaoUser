@@ -170,11 +170,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
         // User has valid profile - go to home
         debugPrint('[SplashScreen] Navigating to home');
-        context.go(RouteNames.home);
+       // context.go(RouteNames.home);
       } else {
         // User needs to login/complete profile - go to onboarding
         debugPrint('[SplashScreen] Navigating to onboarding');
-        context.go(RouteNames.onboarding);
+       // context.go(RouteNames.onboarding);
       }
     }
   }
@@ -274,6 +274,40 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                   fontWeight: AppTypography.bold,
                                   color: AppColors.textWhite,
                                   decoration: TextDecoration.none,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSizes.spacing12),
+                    SlideTransition(
+                      position: _textSlideAnimation,
+                      child: Opacity(
+                        opacity: _textOpacity.value,
+                        child: RichText(
+                          text: TextSpan(
+                            text: 'fit khao,',
+                            style: context.getResponsiveTextStyle(
+                              fontSize: context.responsiveFontSize(
+                                AppTypography.fontSize32,
+                              ),
+                              fontWeight: AppTypography.light,
+                              color: AppColors.textWhite,
+                             // decoration: TextDecoration.underline,
+                            ),
+                            children: <TextSpan>[
+                              TextSpan(
+                                text: ' fit raho!',
+                                style: context.getResponsiveTextStyle(
+                                  fontSize: context.responsiveFontSize(
+                                    AppTypography.fontSize32,
+                                  ),
+                                  fontWeight: AppTypography.bold,
+                                  color: AppColors.textWhite,
+
                                 ),
                               ),
                             ],
