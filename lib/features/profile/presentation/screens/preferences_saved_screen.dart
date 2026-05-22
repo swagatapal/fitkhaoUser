@@ -113,18 +113,18 @@ class _PreferencesSavedScreenState
                   SizedBox(height: spacing32),
 
                   // Call message
-                  Text(
-                    AppStrings.expectCallSoon,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: context.responsiveFontSize(16.0),
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
-                      fontFamily: 'Lato',
-                      height: 1.5,
-                    ),
-                  ),
-                  SizedBox(height: spacing24),
+                  // Text(
+                  //   AppStrings.expectCallSoon,
+                  //   textAlign: TextAlign.center,
+                  //   style: TextStyle(
+                  //     fontSize: context.responsiveFontSize(16.0),
+                  //     fontWeight: FontWeight.w700,
+                  //     color: AppColors.textSecondary,
+                  //     fontFamily: 'Lato',
+                  //     height: 1.5,
+                  //   ),
+                  // ),
+                  // SizedBox(height: spacing24),
                 ],
               ),
             ),

@@ -258,51 +258,54 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final totalPrice = ref.watch(cartTotalPriceProvider);
     final location = _computeLocation(authState);
     final serviceabilityState = ref.watch(serviceabilityProvider);
+    // Cart bar height: icon(28) + padding(24) + margin(32) ≈ 84px
+    const double cartBarHeight = 84.0;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Stack(
           children: [
-            RefreshIndicator(
-              onRefresh: _onRefresh,
-              color: AppColors.primaryGreen,
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSizes.screenPaddingHorizontal,
+            // Positioned.fill forces the Stack to expand to its parent's full
+            // height regardless of scroll content length, so the cart bar
+            // Positioned widget always anchors to the true bottom edge.
+            Positioned.fill(
+              child: RefreshIndicator(
+                onRefresh: _onRefresh,
+                color: AppColors.primaryGreen,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.screenPaddingHorizontal,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: AppSizes.spacing4),
+                            _buildCompactHeader(authState, location),
+                            const SizedBox(height: AppSizes.spacing8),
+                            serviceabilityState.isServiceable == false
+                                ? _buildServiceabilityBanner()
+                                : Column(
+                                    children: [
+                                      _buildDishSearchBar(),
+                                      _buildDishesSection(),
+                                    ],
+                                  ),
+                            const SizedBox(height: AppSizes.spacing32),
+                          ],
+                        ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: AppSizes.spacing4),
-                          //_buildHeader(),
-                          _buildCompactHeader(authState, location),
-                          const SizedBox(height: AppSizes.spacing8),
-
-                          (serviceabilityState.isServiceable == false)?
-
-
-                          _buildServiceabilityBanner():
-                          Column(
-                            children: [
-                              _buildDishSearchBar(),
-                              _buildDishesSection(),
-                            ],
-                          ),
-
-                          const SizedBox(height: AppSizes.spacing32),
-                        ],
-                      ),
-                    ),
-                    // Bottom padding so content isn't hidden behind cart bar
-                    if (cartItems.isNotEmpty)
-                      const SizedBox(height: AppSizes.spacing80),
-                    const SizedBox(height: AppSizes.spacing32),
-                  ],
+                      // Extra space so last item isn't hidden behind cart bar
+                      if (cartItems.isNotEmpty)
+                        const SizedBox(height: cartBarHeight),
+                      const SizedBox(height: AppSizes.spacing32),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -310,7 +313,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: MediaQuery.of(context).size.height*0.08,
+                bottom: MediaQuery.of(context).size.height*0.1,
                 child: _buildCartBar(totalItems, totalPrice),
               ),
           ],
