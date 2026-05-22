@@ -128,6 +128,30 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       });
     }
 
+    // Auto-remove coupon when cart total drops below its minimum order amount
+    if (_appliedCoupon != null &&
+        _appliedCoupon!.minOrderAmount > 0 &&
+        itemTotal < _appliedCoupon!.minOrderAmount) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _appliedCoupon = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Coupon removed — cart total is below the minimum order amount.',
+              style: TextStyle(fontFamily: 'Lato'),
+            ),
+            backgroundColor: AppColors.errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      });
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(

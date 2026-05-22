@@ -282,9 +282,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           _buildDetailRow(Icons.calendar_today, 'Delivery Date',
               _formatDeliveryDate(widget.order.deliveryDate)),
           const SizedBox(height: AppSizes.spacing8),
-          _buildDetailRow(
-              Icons.access_time, 'Delivery Slot', _formatDeliverySlot(widget.order.deliverySlot)),
-          const SizedBox(height: AppSizes.spacing8),
+          // _buildDetailRow(
+          //     Icons.access_time, 'Delivery Slot', _formatDeliverySlot(widget.order.deliverySlot)),
+          // const SizedBox(height: AppSizes.spacing8),
           _buildDetailRow(Icons.phone, 'Contact', widget.order.deliveryAddress.contactNumber),
           if (widget.order.deliveryAddress.deliveryInstructions != null) ...[
             const SizedBox(height: AppSizes.spacing8),
