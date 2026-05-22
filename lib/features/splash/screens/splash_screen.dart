@@ -23,6 +23,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _backgroundController;
   late AnimationController _logoController;
   late AnimationController _textController;
+  late AnimationController _subtitleController;
 
   // Animations
   late Animation<double> _backgroundOpacity;
@@ -30,6 +31,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late Animation<double> _logoOpacity;
   late Animation<Offset> _textSlideAnimation;
   late Animation<double> _textOpacity;
+  late Animation<Offset> _subtitleSlideAnimation;
+  late Animation<double> _subtitleOpacity;
 
   @override
   void initState() {
@@ -120,7 +123,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ),
     );
 
-    // Text animation (1500-2500ms)
+    // Title text animation (1500-2500ms)
     _textController = AnimationController(
       duration: const Duration(milliseconds: AppSizes.durationSlow),
       vsync: this,
@@ -131,10 +134,27 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           CurvedAnimation(parent: _textController, curve: Curves.easeOutCubic),
         );
 
-    _textOpacity = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _textController, curve: Curves.easeIn));
+    _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _textController, curve: Curves.easeIn),
+    );
+
+    // Subtitle animation — starts after title completes
+    _subtitleController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+
+    _subtitleSlideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.6), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _subtitleController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+
+    _subtitleOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _subtitleController, curve: Curves.easeIn),
+    );
   }
 
   Future<void> _startAnimationSequence() async {
@@ -147,11 +167,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Start logo animation
     await _logoController.forward();
 
-    // Start text animation
+    // Start title animation, then subtitle after a brief pause
     await _textController.forward();
+    await Future.delayed(const Duration(milliseconds: 120));
+    await _subtitleController.forward();
 
     // Wait a bit before checking profile
-    await Future.delayed(const Duration(milliseconds: AppSizes.durationSlow));
+    await Future.delayed(const Duration(milliseconds: 400));
 
     // Check if user has a valid profile
     final hasValidProfile = await _checkUserProfile();
@@ -170,11 +192,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
         // User has valid profile - go to home
         debugPrint('[SplashScreen] Navigating to home');
-       // context.go(RouteNames.home);
+        context.go(RouteNames.home);
       } else {
         // User needs to login/complete profile - go to onboarding
         debugPrint('[SplashScreen] Navigating to onboarding');
-       // context.go(RouteNames.onboarding);
+        context.go(RouteNames.onboarding);
       }
     }
   }
@@ -184,6 +206,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _backgroundController.dispose();
     _logoController.dispose();
     _textController.dispose();
+    _subtitleController.dispose();
     super.dispose();
   }
 
@@ -198,6 +221,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           _backgroundController,
           _logoController,
           _textController,
+          _subtitleController,
         ]),
         builder: (context, child) {
           return Stack(
@@ -284,9 +308,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
                     const SizedBox(height: AppSizes.spacing12),
                     SlideTransition(
-                      position: _textSlideAnimation,
+                      position: _subtitleSlideAnimation,
                       child: Opacity(
-                        opacity: _textOpacity.value,
+                        opacity: _subtitleOpacity.value,
                         child: RichText(
                           text: TextSpan(
                             text: 'fit khao,',
@@ -296,7 +320,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               ),
                               fontWeight: AppTypography.light,
                               color: AppColors.textWhite,
-                             // decoration: TextDecoration.underline,
                             ),
                             children: <TextSpan>[
                               TextSpan(
@@ -307,7 +330,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                   ),
                                   fontWeight: AppTypography.bold,
                                   color: AppColors.textWhite,
-
                                 ),
                               ),
                             ],
