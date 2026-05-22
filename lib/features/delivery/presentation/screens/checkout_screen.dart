@@ -14,6 +14,8 @@ import '../../providers/cart_provider.dart';
 import '../../providers/coupon_provider.dart';
 import '../../providers/serviceability_provider.dart';
 import '../../providers/wallet_provider.dart';
+import '../../../policy/models/app_constants_model.dart';
+import '../../../policy/providers/app_constants_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -99,13 +101,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final totalPrice = ref.watch(cartTotalPriceProvider);
     final walletState = ref.watch(walletProvider);
 
-    const gst = 0.00;
-    const platformCharge = 0.0;
+    // Dynamic pricing from /api/app/constants — defaults to all-zero while
+    // loading or on failure, so the checkout total is never wrong.
+    final pricing = ref
+            .watch(appConstantsProvider)
+            .valueOrNull
+            ?.pricing ??
+        PricingConstants.defaults;
+
     final itemTotal = totalPrice;
-    final gstAmount = totalPrice * gst;
+    final platformCharge = pricing.platformFee;
+    final deliveryCharge = pricing.deliveryCharge;
+    final gstAmount = (itemTotal + platformCharge) * pricing.gstRate / 100;
     final couponDiscount = _appliedCoupon?.computeDiscount(itemTotal) ?? 0.0;
     final subTotal =
-        (itemTotal + gstAmount + platformCharge - couponDiscount)
+        (itemTotal + platformCharge + deliveryCharge + gstAmount - couponDiscount)
             .clamp(0.0, double.infinity);
 
     final couponBalance = walletState.wallet?.couponBalance ?? 0.0;
@@ -146,8 +156,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       const SizedBox(height: AppSizes.spacing20),
                       _buildOrderSummary(
                         itemTotal: itemTotal,
+                        gstRate: pricing.gstRate,
                         gstAmount: gstAmount,
                         platformCharge: platformCharge,
+                        deliveryCharge: deliveryCharge,
                         couponDiscount: couponDiscount,
                         subTotal: subTotal,
                         couponBalance: couponBalance,
@@ -818,8 +830,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   Widget _buildOrderSummary({
     required double itemTotal,
+    required double gstRate,
     required double gstAmount,
     required double platformCharge,
+    required double deliveryCharge,
     required double couponDiscount,
     required double subTotal,
     required double couponBalance,
@@ -848,28 +862,43 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
           child: Column(
             children: [
+              // Item total
               _buildSummaryRow(
                 '${ref.watch(cartTotalItemsProvider)} × ${AppStrings.items}',
                 '₹${itemTotal.toInt()}',
               ),
-              const SizedBox(height: AppSizes.spacing8),
-              _buildSummaryRow(
-                'GST (5%)',
-                '₹${gstAmount.toStringAsFixed(2)}',
-               // '₹${0}',
-              ),
-              const SizedBox(height: AppSizes.spacing8),
-              _buildSummaryRow(
-                'Platform Charge',
-                '₹${platformCharge.toStringAsFixed(2)}',
-                //'₹${0}',
-              ),
+
+              // Platform fee — shown only when non-zero
+              if (platformCharge > 0) ...[
+                const SizedBox(height: AppSizes.spacing8),
+                _buildSummaryRow(
+                  'Platform Fee',
+                  '₹${platformCharge.toStringAsFixed(2)}',
+                ),
+              ],
+
+              // GST — shown only when non-zero; label includes live rate
+              if (gstAmount > 0) ...[
+                const SizedBox(height: AppSizes.spacing8),
+                _buildSummaryRow(
+                  'GST (${gstRate.toStringAsFixed(0)}%)',
+                  '₹${gstAmount.toStringAsFixed(2)}',
+                ),
+              ],
+
+              // Delivery — always visible; FREE when zero
               const SizedBox(height: AppSizes.spacing8),
               _buildSummaryRow(
                 'Delivery Charge',
-                'FREE',
-                valueColor: AppColors.primaryGreen,
+                deliveryCharge > 0
+                    ? '₹${deliveryCharge.toStringAsFixed(2)}'
+                    : 'FREE',
+                valueColor: deliveryCharge > 0
+                    ? null
+                    : AppColors.primaryGreen,
               ),
+
+              // Coupon discount
               if (_appliedCoupon != null) ...[
                 const SizedBox(height: AppSizes.spacing8),
                 _buildSummaryRow(
@@ -878,12 +907,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   valueColor: AppColors.primaryGreen,
                 ),
               ],
+
               const Divider(height: AppSizes.spacing20),
+
               _buildSummaryRow(
                 'Total Payable',
                 '₹${subTotal.toStringAsFixed(2)}',
                 isBold: true,
               ),
+
               if (_selectedPaymentMethod == 'wallet') ...[
                 const Divider(height: AppSizes.spacing20),
                 _buildSummaryRow(

@@ -3,8 +3,10 @@ import '../../../core/network/api_client.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/errors/app_exception.dart';
 import '../models/app_content_model.dart';
+import '../models/app_constants_model.dart';
 
 /// Repository for fetching app content (terms & conditions, privacy policy)
+/// and app-wide runtime constants.
 class AppContentRepository {
   final ApiClient _apiClient;
 
@@ -22,6 +24,26 @@ class AppContentRepository {
       debugPrint('[AppContentRepository] Error fetching $code: $e');
       final message = ExceptionHandler.getErrorMessage(e);
       throw NetworkException(message: message, originalError: e);
+    }
+  }
+
+  /// Fetch runtime constants from /api/app/constants.
+  /// Never throws — returns [AppConstants.defaults] on any failure so the
+  /// app always has a safe value to work with.
+  ///
+  /// Parses: data.order.cancellationTime (seconds).
+  /// Falls back to [AppConstants.defaults] when the field is absent or the
+  /// request fails.
+  Future<AppConstants> getAppConstants() async {
+    debugPrint('[AppContentRepository] Fetching app constants...');
+    try {
+      final json = await _apiClient.getJson(AppConfig.appConstant);
+      debugPrint('[AppContentRepository] Constants response: $json');
+      return AppConstants.fromApiResponse(json);
+    } catch (e) {
+      debugPrint(
+          '[AppContentRepository] Constants fetch error (using defaults): $e');
+      return AppConstants.defaults;
     }
   }
 }

@@ -54,6 +54,7 @@ class AppConfig {
 
   /// App content — terms & conditions, privacy policy (public)
   static const String appContentPath = '/api/app-content';
+  static const String appConstant = '/api/app/constants';
 
   static const String eligibleCouponsPath = '/api/user/coupons';
   static const String razorpayCreateOrderPath = '/api/razorpay/create-order';

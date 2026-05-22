@@ -7,6 +7,8 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/services/razorpay_service.dart';
 import '../../../../shared/widgets/logo_widget.dart';
+import '../../../policy/models/app_constants_model.dart';
+import '../../../policy/providers/app_constants_provider.dart';
 
 class SubscriptionCheckoutScreen extends ConsumerStatefulWidget {
   final String planDays;
@@ -31,13 +33,33 @@ class _SubscriptionCheckoutScreenState
 
   late final RazorpayService _razorpayService;
 
-  // Stored after create-order so the verify callback can reference it.
   String? _razorpayOrderId;
 
   double get _planPrice {
-    final raw = widget.planPrice.replaceAll('₹', '').replaceAll(',', '').trim();
+    final raw =
+        widget.planPrice.replaceAll('₹', '').replaceAll(',', '').trim();
     return double.tryParse(raw) ?? 0.0;
   }
+
+  // ─── Pricing helpers ───────────────────────────────────────────────────────
+
+  /// Resolved at build time from the provider; stored here to be accessible
+  /// in non-build methods (dialogs, button text).
+  PricingConstants _pricing = PricingConstants.defaults;
+
+  double get _platformFee => _pricing.platformFee;
+
+  double get _gstAmount =>
+      (_planPrice + _platformFee) * _pricing.gstRate / 100;
+
+  double get _deliveryCharge => _pricing.deliveryCharge;
+
+  double get _totalAmount =>
+      _planPrice + _platformFee + _gstAmount + _deliveryCharge;
+
+  String get _formattedTotal => '₹${_totalAmount.toStringAsFixed(0)}';
+
+  // ── Razorpay lifecycle ─────────────────────────────────────────────────────
 
   @override
   void initState() {
@@ -55,14 +77,15 @@ class _SubscriptionCheckoutScreenState
     super.dispose();
   }
 
-  // ── Razorpay callbacks ────────────────────────────────────────────────────
+  // ── Razorpay callbacks ─────────────────────────────────────────────────────
 
   void _onRazorpaySuccess(
     String paymentId,
     String? sdkOrderId,
     String? signature,
   ) {
-    debugPrint('[SubscriptionCheckout] Razorpay success — paymentId=$paymentId');
+    debugPrint(
+        '[SubscriptionCheckout] Razorpay success — paymentId=$paymentId');
     _verifyAndFinalise(
       paymentId: paymentId,
       sdkOrderId: sdkOrderId,
@@ -78,7 +101,7 @@ class _SubscriptionCheckoutScreenState
     _showError(message);
   }
 
-  // ── Payment flow ──────────────────────────────────────────────────────────
+  // ── Payment flow ───────────────────────────────────────────────────────────
 
   void _onPayTapped() {
     if (_isProcessing) return;
@@ -122,7 +145,8 @@ class _SubscriptionCheckoutScreenState
               ),
               const SizedBox(height: AppSizes.spacing12),
               Text(
-                'Proceed with payment of ${widget.planPrice} for the ${widget.planDays}-day subscription plan?',
+                'Proceed with payment of $_formattedTotal for the '
+                '${widget.planDays}-day subscription plan?',
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize14,
                   fontWeight: AppTypography.regular,
@@ -140,11 +164,11 @@ class _SubscriptionCheckoutScreenState
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: AppColors.borderColor),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppSizes.radius4),
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radius4),
                         ),
                         padding: const EdgeInsets.symmetric(
-                          vertical: AppSizes.spacing8,
-                        ),
+                            vertical: AppSizes.spacing8),
                       ),
                       child: const Text(
                         'Cancel',
@@ -167,11 +191,11 @@ class _SubscriptionCheckoutScreenState
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryGreen,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppSizes.radius4),
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radius4),
                         ),
                         padding: const EdgeInsets.symmetric(
-                          vertical: AppSizes.spacing8,
-                        ),
+                            vertical: AppSizes.spacing8),
                       ),
                       child: const Text(
                         'Confirm',
@@ -214,9 +238,12 @@ class _SubscriptionCheckoutScreenState
 
       final orderData = createResponse.data!;
       _razorpayOrderId = orderData.razorpayOrderId;
+
+      // Backend is authoritative for the amount; fall back to local total
+      // only if the backend value is zero.
       final amountInPaise = orderData.amountInPaise > 0
           ? orderData.amountInPaise
-          : (_planPrice * 100).toInt();
+          : (_totalAmount * 100).toInt();
 
       debugPrint(
         '[SubscriptionCheckout] Razorpay order created — '
@@ -224,7 +251,6 @@ class _SubscriptionCheckoutScreenState
       );
 
       if (!mounted) return;
-      // Stop spinner — Razorpay SDK renders its own loading UI.
       setState(() => _isProcessing = false);
 
       final localStorage = ref.read(localStorageProvider).value;
@@ -243,7 +269,8 @@ class _SubscriptionCheckoutScreenState
         ),
       );
     } catch (e) {
-      debugPrint('[SubscriptionCheckout] createRazorpaySubscriptionOrder error: $e');
+      debugPrint(
+          '[SubscriptionCheckout] createRazorpaySubscriptionOrder error: $e');
       _razorpayOrderId = null;
       if (!mounted) return;
       setState(() => _isProcessing = false);
@@ -261,7 +288,8 @@ class _SubscriptionCheckoutScreenState
         : (sdkOrderId ?? '');
 
     if (razorpayOrderId.isEmpty) {
-      debugPrint('[SubscriptionCheckout] verifyPayment: razorpayOrderId empty');
+      debugPrint(
+          '[SubscriptionCheckout] verifyPayment: razorpayOrderId empty');
       if (!mounted) return;
       setState(() => _isProcessing = false);
       _showError('Payment verification failed. Please contact support.');
@@ -283,7 +311,6 @@ class _SubscriptionCheckoutScreenState
 
       _razorpayOrderId = null;
       if (!mounted) return;
-
       setState(() => _isProcessing = false);
 
       if (verifyResponse.success) {
@@ -302,7 +329,7 @@ class _SubscriptionCheckoutScreenState
     }
   }
 
-  // ── Dialogs ───────────────────────────────────────────────────────────────
+  // ── Dialogs ────────────────────────────────────────────────────────────────
 
   void _showSuccessDialog() {
     showDialog(
@@ -425,10 +452,18 @@ class _SubscriptionCheckoutScreenState
     );
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    // Resolve pricing from the cached provider — uses defaults while loading
+    // or if the API failed, so the UI is always in a valid state.
+    _pricing = ref
+            .watch(appConstantsProvider)
+            .valueOrNull
+            ?.pricing ??
+        PricingConstants.defaults;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -545,20 +580,57 @@ class _SubscriptionCheckoutScreenState
             color: Colors.white,
             borderRadius: BorderRadius.circular(AppSizes.radius8),
             border: Border.all(color: AppColors.borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
             children: [
+              // Plan price
               _buildSummaryRow(
                 '${widget.planDays} Days Plan',
-                widget.planPrice,
-                isBold: false,
+                _formatAmount(_planPrice),
               ),
+
+              // Platform fee — shown only when non-zero
+              if (_platformFee > 0) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                _buildSummaryRow(
+                  'Platform Fee',
+                  _formatAmount(_platformFee),
+                ),
+              ],
+
+              // GST — shown only when non-zero
+              if (_gstAmount > 0) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                _buildSummaryRow(
+                  'GST (${_pricing.gstRate.toStringAsFixed(0)}%)',
+                  _formatAmount(_gstAmount),
+                ),
+              ],
+
+              // Delivery charge — shown only when non-zero
+              if (_deliveryCharge > 0) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                _buildSummaryRow(
+                  'Delivery Charge',
+                  _formatAmount(_deliveryCharge),
+                ),
+              ],
+
               const SizedBox(height: AppSizes.spacing12),
               const Divider(height: 1, color: AppColors.borderColor),
               const SizedBox(height: AppSizes.spacing12),
+
+              // Total
               _buildSummaryRow(
                 'Total',
-                widget.planPrice,
+                _formatAmount(_totalAmount),
                 isBold: true,
               ),
             ],
@@ -571,7 +643,7 @@ class _SubscriptionCheckoutScreenState
   Widget _buildSummaryRow(
     String label,
     String value, {
-    required bool isBold,
+    bool isBold = false,
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -579,7 +651,7 @@ class _SubscriptionCheckoutScreenState
         Text(
           label,
           style: TextStyle(
-            fontSize: AppTypography.fontSize16,
+            fontSize: AppTypography.fontSize14,
             fontWeight: isBold ? AppTypography.bold : AppTypography.regular,
             color: AppColors.textPrimary,
             fontFamily: 'Lato',
@@ -588,7 +660,9 @@ class _SubscriptionCheckoutScreenState
         Text(
           value,
           style: TextStyle(
-            fontSize: AppTypography.fontSize16,
+            fontSize: isBold
+                ? AppTypography.fontSize16
+                : AppTypography.fontSize14,
             fontWeight: isBold ? AppTypography.bold : AppTypography.regular,
             color: isBold ? AppColors.primaryGreen : AppColors.textPrimary,
             fontFamily: 'Lato',
@@ -636,7 +710,7 @@ class _SubscriptionCheckoutScreenState
                   ),
                 )
               : Text(
-                  'Pay ${widget.planPrice}',
+                  'Pay $_formattedTotal',
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize18,
                     fontWeight: AppTypography.bold,
@@ -647,4 +721,7 @@ class _SubscriptionCheckoutScreenState
       ),
     );
   }
+
+  static String _formatAmount(double amount) =>
+      '₹${amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2)}';
 }

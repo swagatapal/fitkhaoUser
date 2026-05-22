@@ -6,6 +6,8 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/services/razorpay_service.dart';
+import '../../../policy/models/app_constants_model.dart';
+import '../../../policy/providers/app_constants_provider.dart';
 import '../../providers/wallet_provider.dart';
 
 class RechargeTopupModal extends ConsumerStatefulWidget {
@@ -308,6 +310,11 @@ class _RechargeTopupModalState extends ConsumerState<RechargeTopupModal> {
 
   @override
   Widget build(BuildContext context) {
+    final pricing = ref.watch(appConstantsProvider).valueOrNull?.pricing
+        ?? PricingConstants.defaults;
+    final minAmount = pricing.minTopupAmount;
+    final maxAmount = pricing.maxTopupAmount;
+
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppSizes.radius12),
@@ -375,7 +382,7 @@ class _RechargeTopupModalState extends ConsumerState<RechargeTopupModal> {
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   enabled: !_isProcessing,
                   decoration: InputDecoration(
-                    hintText: 'Enter amount (min ₹1000)',
+                    hintText: 'Enter amount (₹$minAmount – ₹$maxAmount)',
                     prefixIcon: const Icon(Icons.currency_rupee),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppSizes.radius4),
@@ -409,8 +416,12 @@ class _RechargeTopupModalState extends ConsumerState<RechargeTopupModal> {
                     }
                     final parsed = int.tryParse(value);
                     if (parsed == null) return 'Please enter a valid amount';
-                    if (parsed < 1000) return 'Minimum amount is ₹1000';
-                    //if (parsed < 0) return 'Minimum amount is ₹1000';
+                    if (parsed < minAmount) {
+                      return 'Minimum top-up amount is ₹$minAmount';
+                    }
+                    if (parsed > maxAmount) {
+                      return 'Maximum top-up amount is ₹$maxAmount';
+                    }
                     return null;
                   },
                 ),

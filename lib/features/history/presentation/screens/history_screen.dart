@@ -12,6 +12,8 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../policy/models/app_constants_model.dart';
+import '../../../policy/providers/app_constants_provider.dart';
 import '../../models/order_history_model.dart';
 import '../../providers/order_history_provider.dart';
 import 'order_tracking_screen.dart';
@@ -48,6 +50,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   Widget build(BuildContext context) {
     final historyState = ref.watch(orderHistoryProvider);
     final historyNotifier = ref.read(orderHistoryProvider.notifier);
+
+    // Pull the cancel window from the backend; fall back to defaults while
+    // loading or if the request fails — the card never shows NaN / 0.
+    final cancelWindowSeconds = ref
+        .watch(appConstantsProvider)
+        .valueOrNull
+        ?.cancelOrderWindowSeconds
+        ?? AppConstants.defaults.cancelOrderWindowSeconds;
 
     // Filter orders based on selection
     final orders = _selected == _HistoryFilter.upcoming
@@ -114,6 +124,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                             order: order,
                                             isUpcoming: _selected ==
                                                 _HistoryFilter.upcoming,
+                                            cancelWindowSeconds:
+                                                cancelWindowSeconds,
                                             onTap: () => Navigator.push<void>(
                                               context,
                                               MaterialPageRoute(
@@ -567,6 +579,7 @@ class _SegmentChip extends StatelessWidget {
 class _OrderCard extends StatefulWidget {
   final OrderHistory order;
   final bool isUpcoming;
+  final int cancelWindowSeconds;
   final VoidCallback onTap;
   final Future<void> Function(String orderId, String reason)? onCancelOrder;
   final VoidCallback? onCancelSuccess;
@@ -574,6 +587,7 @@ class _OrderCard extends StatefulWidget {
   const _OrderCard({
     required this.order,
     required this.isUpcoming,
+    required this.cancelWindowSeconds,
     required this.onTap,
     this.onCancelOrder,
     this.onCancelSuccess,
@@ -584,7 +598,6 @@ class _OrderCard extends StatefulWidget {
 }
 
 class _OrderCardState extends State<_OrderCard> {
-  static const _cancelWindow = Duration(minutes: 2);
   static const _cancellableStatuses = {'pending', 'confirmed'};
 
   Timer? _countdownTimer;
@@ -659,7 +672,9 @@ class _OrderCardState extends State<_OrderCard> {
   int _calculateRemainingSeconds() {
     try {
       final createdAt = DateTime.parse(widget.order.createdAt).toLocal();
-      final expiresAt = createdAt.add(_cancelWindow);
+      final expiresAt = createdAt.add(
+        Duration(seconds: widget.cancelWindowSeconds),
+      );
       final remaining = expiresAt.difference(DateTime.now()).inSeconds;
       return remaining > 0 ? remaining : 0;
     } catch (_) {
