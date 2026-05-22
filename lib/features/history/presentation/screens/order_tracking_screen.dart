@@ -1,20 +1,23 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../models/order_history_model.dart';
+import '../../../policy/models/app_constants_model.dart';
+import '../../../policy/providers/app_constants_provider.dart';
 
-class OrderTrackingScreen extends StatefulWidget {
+class OrderTrackingScreen extends ConsumerStatefulWidget {
   final OrderHistory order;
   const OrderTrackingScreen({super.key, required this.order});
 
   @override
-  State<OrderTrackingScreen> createState() => _OrderTrackingScreenState();
+  ConsumerState<OrderTrackingScreen> createState() => _OrderTrackingScreenState();
 }
 
-class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
+class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -332,11 +335,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   }
 
   Widget _buildPriceSummary() {
-    // Calculate charges
+    final pricing = ref
+            .watch(appConstantsProvider)
+            .valueOrNull
+            ?.pricing ??
+        PricingConstants.defaults;
+
     final subtotal = widget.order.subtotal;
-    final tax = subtotal * 0.05; // 5% of subtotal
-    final platformCharge = 7.0;
-    final deliveryCharge = 0.0;
+    final platformCharge = pricing.platformFee;
+    final deliveryCharge = pricing.deliveryCharge;
+    final tax = (subtotal + platformCharge) * pricing.gstRate / 100;
     final discount = widget.order.discount;
     final total = subtotal + tax + platformCharge + deliveryCharge - discount;
 
@@ -370,7 +378,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           const SizedBox(height: AppSizes.spacing12),
           _buildPriceRow('Subtotal', subtotal),
           const SizedBox(height: AppSizes.spacing8),
-          _buildPriceRow('GST (5%)', tax),
+          _buildPriceRow('GST (${pricing.gstRate.toStringAsFixed(0)}%)', tax),
           const SizedBox(height: AppSizes.spacing8),
           _buildPriceRow('Platform Charge', platformCharge),
           const SizedBox(height: AppSizes.spacing8),
