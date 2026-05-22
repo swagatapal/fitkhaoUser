@@ -23,7 +23,9 @@ import '../widgets/membership_popup.dart';
 import 'checkout_screen.dart';
 
 class DeliveryScreen extends ConsumerStatefulWidget {
-  const DeliveryScreen({super.key});
+  final VoidCallback? onNavigateToProfile;
+
+  const DeliveryScreen({super.key, this.onNavigateToProfile});
 
   @override
   ConsumerState<DeliveryScreen> createState() => _DeliveryScreenState();
@@ -656,7 +658,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       children: [
         // Small avatar
         GestureDetector(
-          //onTap: () => ref.read(mainNavIndexProvider.notifier).state = 1,
+          onTap: widget.onNavigateToProfile,
           child: hasValidUrl
               ? CircleAvatar(
             radius: 19,

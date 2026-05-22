@@ -54,7 +54,10 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   Widget _getCurrentScreen() {
     switch (_selectedIndex) {
       case 0:
-        return const DeliveryScreen();
+        return DeliveryScreen(
+          onNavigateToProfile: () =>
+              _onItemTapped(MainNavigationTabIndex.profile),
+        );
       // case 1:
       //   return const DashboardScreen();
       case 1:
@@ -62,7 +65,10 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       case 2:
         return const HistoryScreen();
       default:
-        return const DeliveryScreen();
+        return DeliveryScreen(
+          onNavigateToProfile: () =>
+              _onItemTapped(MainNavigationTabIndex.profile),
+        );
     }
   }
 
