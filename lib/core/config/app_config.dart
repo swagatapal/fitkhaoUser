@@ -64,6 +64,8 @@ class AppConfig {
 
   /// Google Maps / Places API key (must have Maps SDK + Places API enabled)
   static const String googleMapsApiKey = 'AIzaSyDp2r7Do-Z-cwgxiYpE1yzZecBHFz0ocaw';
+
+
   static const String exercisePath = '/api/adm/exercise';
   static const String physiologicalCategoriesPath = '/api/adm/physiological-category';
   static const String professionPath = '/api/adm/profession';

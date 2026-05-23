@@ -224,7 +224,7 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
         'components': 'country:in',
         'key': AppConfig.googleMapsApiKey,
         'language': 'en',
-        'types': 'geocode',
+        //'types': 'geocode',
       },
     );
 
