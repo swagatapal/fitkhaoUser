@@ -49,7 +49,7 @@
         <!-- Google Maps API Key must be in the application tag, not activity -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyAK5ndKV1GKCjUrbpOE6d0zr3hLJfI29FE" />
+            android:value="AIzaSyDp2r7Do-Z-cwgxiYpE1yzZecBHFz0ocaw" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

@@ -63,7 +63,7 @@ class AppConfig {
   static const String userHistoryPath = '/api/user/history';
 
   /// Google Maps / Places API key (must have Maps SDK + Places API enabled)
-  static const String googleMapsApiKey = 'AIzaSyAK5ndKV1GKCjUrbpOE6d0zr3hLJfI29FE';
+  static const String googleMapsApiKey = 'AIzaSyDp2r7Do-Z-cwgxiYpE1yzZecBHFz0ocaw';
   static const String exercisePath = '/api/adm/exercise';
   static const String physiologicalCategoriesPath = '/api/adm/physiological-category';
   static const String professionPath = '/api/adm/profession';

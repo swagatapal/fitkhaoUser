@@ -585,6 +585,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         focusNode: _nameFocusNode,
                         hint: AppStrings.nameHint,
                         onChanged: (value) => setState(() => _name = value),
+                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
                         suffixIcon: _name.isNotEmpty
                             ? IconButton(
                                 icon: const Icon(Icons.clear, size: AppSizes.icon20),
@@ -629,6 +630,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         controller: _buildingController,
                         focusNode: _buildingFocusNode,
                         hint: AppStrings.buildingNameNumber,
+                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
                         onChanged: (value) =>
                             setState(() => _building = value.trim()),
                       ),
@@ -640,6 +642,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         controller: _floorController,
                         focusNode: _floorFocusNode,
                         hint: AppStrings.floorNumber,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                         onChanged: (value) =>
                             setState(() => _floor = value.trim()),
                       ),
@@ -651,6 +657,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       _buildTextField(
                         controller: _streetController,
                         focusNode: _streetFocusNode,
+                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
                         hint: AppStrings.street,
                         onChanged: (value) =>
                             setState(() => _street = value.trim()),
@@ -680,6 +687,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         controller: _landmarkController,
                         focusNode: _landmarkFocusNode,
                         hint: AppStrings.landmark,
+                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
                         onChanged: (value) =>
                             setState(() => _landmark = value.trim()),
                       ),

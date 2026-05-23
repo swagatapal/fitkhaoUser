@@ -1737,203 +1737,206 @@ class _CouponCard extends StatelessWidget {
 
     return Opacity(
       opacity: isEligible ? 1.0 : 0.5,
-      child: Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-        border: Border.all(
-          color: isApplied
-              ? AppColors.primaryGreen.withValues(alpha: 0.4)
-              : AppColors.borderColor,
+      child: InkWell(
+        onTap:onApply,
+        child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+          border: Border.all(
+            color: isApplied
+                ? AppColors.primaryGreen.withValues(alpha: 0.4)
+                : AppColors.borderColor,
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSizes.spacing16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Left: code + details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Code badge + discount-type chip
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSizes.spacing8,
-                          vertical: AppSizes.spacing4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                          borderRadius:
-                              BorderRadius.circular(AppSizes.radius4),
-                          border: Border.all(
-                            color:
-                                AppColors.primaryGreen.withValues(alpha: 0.3),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSizes.spacing16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left: code + details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Code badge + discount-type chip
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSizes.spacing8,
+                            vertical: AppSizes.spacing4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                            borderRadius:
+                                BorderRadius.circular(AppSizes.radius4),
+                            border: Border.all(
+                              color:
+                                  AppColors.primaryGreen.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            coupon.code,
+                            style: const TextStyle(
+                              fontSize: AppTypography.fontSize13,
+                              fontWeight: AppTypography.bold,
+                              color: AppColors.primaryGreen,
+                              letterSpacing: 1.2,
+                              fontFamily: 'Lato',
+                            ),
                           ),
                         ),
-                        child: Text(
-                          coupon.code,
-                          style: const TextStyle(
-                            fontSize: AppTypography.fontSize13,
-                            fontWeight: AppTypography.bold,
-                            color: AppColors.primaryGreen,
-                            letterSpacing: 1.2,
-                            fontFamily: 'Lato',
+                        const SizedBox(width: AppSizes.spacing6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSizes.spacing6,
+                            vertical: 2,
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSizes.spacing6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSizes.spacing6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isFlat
-                              ? const Color(0xFFE8F5E9)
-                              : const Color(0xFFFFF3E0),
-                          borderRadius:
-                              BorderRadius.circular(AppSizes.radius4),
-                        ),
-                        child: Text(
-                          isFlat ? 'FLAT' : '%OFF',
-                          style: TextStyle(
-                            fontSize: AppTypography.fontSize10,
-                            fontWeight: AppTypography.bold,
+                          decoration: BoxDecoration(
                             color: isFlat
-                                ? AppColors.primaryGreen
-                                : const Color(0xFFE65100),
-                            fontFamily: 'Lato',
+                                ? const Color(0xFFE8F5E9)
+                                : const Color(0xFFFFF3E0),
+                            borderRadius:
+                                BorderRadius.circular(AppSizes.radius4),
                           ),
+                          child: Text(
+                            isFlat ? 'FLAT' : '%OFF',
+                            style: TextStyle(
+                              fontSize: AppTypography.fontSize10,
+                              fontWeight: AppTypography.bold,
+                              color: isFlat
+                                  ? AppColors.primaryGreen
+                                  : const Color(0xFFE65100),
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSizes.spacing8),
+                    // Discount headline
+                    Text(
+                      coupon.discountLabel,
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize16,
+                        fontWeight: AppTypography.semiBold,
+                        color: AppColors.textPrimary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    const SizedBox(height: AppSizes.spacing4),
+                    // Description
+                    Text(
+                      coupon.description,
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        color: AppColors.textSecondary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    const SizedBox(height: AppSizes.spacing6),
+                    // Min order condition
+                    if (coupon.minOrderAmount > 0)
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.shopping_cart_outlined,
+                            size: AppSizes.icon12,
+                            color: AppColors.textTertiary,
+                          ),
+                          const SizedBox(width: AppSizes.spacing4),
+                          Text(
+                            'Min order ₹${coupon.minOrderAmount.toInt()}',
+                            style: const TextStyle(
+                              fontSize: AppTypography.fontSize10,
+                              color: AppColors.textTertiary,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: AppSizes.spacing4),
+                    // Expiry
+                    if (coupon.formattedExpiry.isNotEmpty)
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.access_time_outlined,
+                            size: AppSizes.icon12,
+                            color: AppColors.textTertiary,
+                          ),
+                          const SizedBox(width: AppSizes.spacing4),
+                          Text(
+                            'Valid till ${coupon.formattedExpiry}',
+                            style: const TextStyle(
+                              fontSize: AppTypography.fontSize10,
+                              color: AppColors.textTertiary,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSizes.spacing12),
+              // Right: Apply / Remove
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (isApplied) ...[
+                    const Icon(
+                      Icons.check_circle,
+                      color: AppColors.primaryGreen,
+                      size: AppSizes.icon24,
+                    ),
+                    const SizedBox(height: AppSizes.spacing8),
+                    GestureDetector(
+                      onTap: onRemove,
+                      child: Text(
+                        'Remove',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          fontWeight: AppTypography.semiBold,
+                          color: AppColors.errorColor.withValues(alpha: 0.9),
+                          fontFamily: 'Lato',
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSizes.spacing8),
-                  // Discount headline
-                  Text(
-                    coupon.discountLabel,
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize16,
-                      fontWeight: AppTypography.semiBold,
-                      color: AppColors.textPrimary,
-                      fontFamily: 'Lato',
                     ),
-                  ),
-                  const SizedBox(height: AppSizes.spacing4),
-                  // Description
-                  Text(
-                    coupon.description,
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize12,
-                      color: AppColors.textSecondary,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.spacing6),
-                  // Min order condition
-                  if (coupon.minOrderAmount > 0)
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.shopping_cart_outlined,
-                          size: AppSizes.icon12,
-                          color: AppColors.textTertiary,
+                  ] else
+                    TextButton(
+                      onPressed: onApply,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.primaryGreen,
+                        backgroundColor:
+                            AppColors.primaryGreen.withValues(alpha: 0.08),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.spacing12,
+                          vertical: AppSizes.spacing8,
                         ),
-                        const SizedBox(width: AppSizes.spacing4),
-                        Text(
-                          'Min order ₹${coupon.minOrderAmount.toInt()}',
-                          style: const TextStyle(
-                            fontSize: AppTypography.fontSize10,
-                            color: AppColors.textTertiary,
-                            fontFamily: 'Lato',
-                          ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radius6),
                         ),
-                      ],
-                    ),
-                  const SizedBox(height: AppSizes.spacing4),
-                  // Expiry
-                  if (coupon.formattedExpiry.isNotEmpty)
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.access_time_outlined,
-                          size: AppSizes.icon12,
-                          color: AppColors.textTertiary,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        'Apply',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize13,
+                          fontWeight: AppTypography.semiBold,
+                          fontFamily: 'Lato',
                         ),
-                        const SizedBox(width: AppSizes.spacing4),
-                        Text(
-                          'Valid till ${coupon.formattedExpiry}',
-                          style: const TextStyle(
-                            fontSize: AppTypography.fontSize10,
-                            color: AppColors.textTertiary,
-                            fontFamily: 'Lato',
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                 ],
               ),
-            ),
-            const SizedBox(width: AppSizes.spacing12),
-            // Right: Apply / Remove
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (isApplied) ...[
-                  const Icon(
-                    Icons.check_circle,
-                    color: AppColors.primaryGreen,
-                    size: AppSizes.icon24,
-                  ),
-                  const SizedBox(height: AppSizes.spacing8),
-                  GestureDetector(
-                    onTap: onRemove,
-                    child: Text(
-                      'Remove',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize12,
-                        fontWeight: AppTypography.semiBold,
-                        color: AppColors.errorColor.withValues(alpha: 0.9),
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                  ),
-                ] else
-                  TextButton(
-                    onPressed: onApply,
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.primaryGreen,
-                      backgroundColor:
-                          AppColors.primaryGreen.withValues(alpha: 0.08),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSizes.spacing12,
-                        vertical: AppSizes.spacing8,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppSizes.radius6),
-                      ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: const Text(
-                      'Apply',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize13,
-                        fontWeight: AppTypography.semiBold,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
+            ),
       ),
-    ),
     );
   }
 }

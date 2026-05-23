@@ -329,7 +329,7 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
                 focusNode: _buildingFocusNode,
                 keyboardType: TextInputType.text,
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]')),
                 ],
                 onChanged: (value) {
                   setState(() {
@@ -358,7 +358,7 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
                 focusNode: _streetFocusNode,
                 keyboardType: TextInputType.text,
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]')),
                 ],
                 onChanged: (value) {
                   setState(() {
@@ -388,7 +388,7 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
                 focusNode: _landmarkFocusNode,
                 keyboardType: TextInputType.text,
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+                  FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]')),
                 ],
                 onChanged: (value) {
                   setState(() {

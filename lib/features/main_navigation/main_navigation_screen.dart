@@ -2,6 +2,7 @@ import 'package:fitkhao_user/features/profile/presentation/screens/detailed_heal
 import 'package:fitkhao_user/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:fitkhao_user/features/delivery/presentation/screens/delivery_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_sizes.dart';
@@ -32,6 +33,7 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
 
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   late int _selectedIndex;
+  DateTime? currentBackPressTime;
 
   @override
   void initState() {
@@ -80,23 +82,43 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        bottom: true,
-        top: false,
-        child: Stack(
-          children: [
-            // Display only the currently selected screen
-            _getCurrentScreen(),
+    return PopScope(
+        canPop: false,
+        onPopInvoked: (didPop) {
+          DateTime now = DateTime.now();
+          if (didPop ||
+              currentBackPressTime == null ||
+              now.difference(currentBackPressTime!) > Duration(seconds: 2)) {
+            currentBackPressTime = now;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("Tap back again to Exit"),
+                backgroundColor: AppColors.successColor,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+            // return false;
+          } else {
+            SystemNavigator.pop();
+          }},
+      child: Scaffold(
+        body: SafeArea(
+          bottom: true,
+          top: false,
+          child: Stack(
+            children: [
+              // Display only the currently selected screen
+              _getCurrentScreen(),
 
-            // Floating Bottom Navigation Bar
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: _buildBottomNavigationBar(context),
-            ),
-          ],
+              // Floating Bottom Navigation Bar
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: _buildBottomNavigationBar(context),
+              ),
+            ],
+          ),
         ),
       ),
     );
