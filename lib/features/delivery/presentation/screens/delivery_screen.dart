@@ -129,6 +129,125 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
+  // ── Ordering window ────────────────────────────────────────────────────────
+  // PRODUCTION  : 11 AM – 1 AM (crosses midnight)
+  //   → use ||  : hour >= 11 || hour < 1
+  //     Logic: allowed on the 11–23 side OR the 0 (midnight) side.
+  //
+  // TESTING (same-day window, e.g. 11 AM – 11 PM):
+  //   → use &&  : hour >= 11 && hour < 23
+  //     Logic: both bounds must hold; no midnight crossing.
+  //
+  // RULE: window crosses midnight → ||   |   same-day window → &&
+  // ───────────────────────────────────────────────────────────────────────────
+  bool get _isOrderingAllowed {
+    final hour = DateTime.now().hour;
+    // PRODUCTION value (11 AM – 1 AM, crosses midnight):
+    return hour >= 11 || hour < 1;
+    // To test the closed-banner right now, swap to:
+     //return hour >= 11 && hour < 23;  // closes at 11 PM
+  }
+
+  void _showOrderingClosedSnackBar() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Ordering is available from 11:00 AM to 1:00 AM'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Color(0xFFC66301),
+          duration: Duration(seconds: 3),
+        ),
+      );
+  }
+
+  Widget _buildOrderingTimeBanner() {
+    if (_isOrderingAllowed) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spacing16,
+        vertical: AppSizes.spacing12,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFB300).withValues(alpha: 0.12),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSizes.spacing8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFB300).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.access_time_rounded,
+              color: Color(0xFFC66301),
+              size: AppSizes.icon20,
+            ),
+          ),
+          const SizedBox(width: AppSizes.spacing12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Ordering Closed',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.bold,
+                    color: Color(0xFFC66301),
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: AppSizes.spacing2),
+                const Text(
+                  'Available daily: 11:00 AM – 1:00 AM',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    fontWeight: AppTypography.regular,
+                    color: Color(0xFF795548),
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.spacing8,
+              vertical: AppSizes.spacing4,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFB300).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppSizes.radius4),
+            ),
+            child: const Text(
+              'Opens 11 AM',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize10,
+                fontWeight: AppTypography.semiBold,
+                color: Color(0xFFC66301),
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   /// Load user profile data
   Future<void> _loadProfileData() async {
@@ -290,14 +409,14 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                             const SizedBox(height: AppSizes.spacing4),
                             _buildCompactHeader(authState, location),
                             const SizedBox(height: AppSizes.spacing8),
-                            serviceabilityState.isServiceable == false
-                                ? _buildServiceabilityBanner()
-                                : Column(
-                                    children: [
-                                      _buildDishSearchBar(),
-                                      _buildDishesSection(),
-                                    ],
-                                  ),
+                            if (serviceabilityState.isServiceable == false)
+                              _buildServiceabilityBanner()
+                            else if (!_isOrderingAllowed)
+                              _buildOrderingTimeBanner()
+                            else ...[
+                              //_buildDishSearchBar(),
+                              _buildDishesSection(),
+                            ],
                             const SizedBox(height: AppSizes.spacing32),
                           ],
                         ),
@@ -525,12 +644,16 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           ),
           // Proceed to checkout
           GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const CheckoutScreen(),
-              ),
-            ),
+            onTap: () {
+              if (!_isOrderingAllowed) {
+                _showOrderingClosedSnackBar();
+                return;
+              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+              );
+            },
             child: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSizes.spacing16,
@@ -1337,11 +1460,17 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                             // Add button
                             GestureDetector(
                               onTap: isAvailable
-                                  ? () => showDialog(
+                                  ? () {
+                                      if (!_isOrderingAllowed) {
+                                        _showOrderingClosedSnackBar();
+                                        return;
+                                      }
+                                      showDialog(
                                         context: context,
                                         builder: (_) =>
                                             FoodDetailPopup(menuItem: item),
-                                      )
+                                      );
+                                    }
                                   : null,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(

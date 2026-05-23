@@ -114,7 +114,7 @@ class MenuItem {
     // Image: new API sends `imageUrl` as a top-level string;
     // legacy API nested it inside `image.url`.
     const defaultImageUrl =
-        'https://img.freepik.com/free-photo/top-view-table-full-food_23-2149209253.jpg';
+        'https://media.istockphoto.com/id/2173059563/vector/coming-soon-image-on-white-background-no-photo-available.jpg?s=612x612&w=0&k=20&c=v0a_B58wPFNDPULSiw_BmPyhSNCyrP_d17i2BPPyDTk=';
     final rawImageUrl = json['imageUrl'] as String? ??
         (json['image'] as Map<String, dynamic>?)?['url'] as String? ??
         '';
