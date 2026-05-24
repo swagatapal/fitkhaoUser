@@ -5,10 +5,13 @@ import 'package:fitkhao_user/core/utils/responsive_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/router/route_names.dart';
 import '../../../core/services/firebase_notification_service.dart';
 import '../../../core/providers/providers.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../policy/models/app_version_model.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -158,47 +161,350 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _startAnimationSequence() async {
-    // Fetch and print auth token from local storage
     await _fetchAndPrintToken();
 
-    // Start background fade
     await _backgroundController.forward();
-
-    // Start logo animation
     await _logoController.forward();
-
-    // Start title animation, then subtitle after a brief pause
     await _textController.forward();
     await Future.delayed(const Duration(milliseconds: 120));
     await _subtitleController.forward();
-
-    // Wait a bit before checking profile
     await Future.delayed(const Duration(milliseconds: 400));
 
-    // Check if user has a valid profile
+    // Version check — returns false when a force-update dialog is shown
+    // (in that case we must NOT navigate; the user has to update the app).
+    final canContinue = await _checkAndHandleAppVersion();
+    if (!canContinue || !mounted) return;
+
     final hasValidProfile = await _checkUserProfile();
     final notificationService = FirebaseNotificationService.getInstance();
 
-    // Navigate based on profile status
-    if (mounted) {
-      if (hasValidProfile) {
-        if (notificationService.hasNotificationNavigationInProgress) {
-          debugPrint(
-            '[SplashScreen] Notification launch detected, skipping default home navigation',
-          );
-          notificationService.flushPendingNavigationIfPossible();
-          return;
-        }
-
-        // User has valid profile - go to home
-        debugPrint('[SplashScreen] Navigating to home');
-        context.go(RouteNames.home);
-      } else {
-        // User needs to login/complete profile - go to onboarding
-        debugPrint('[SplashScreen] Navigating to onboarding');
-        context.go(RouteNames.onboarding);
+    if (!mounted) return;
+    if (hasValidProfile) {
+      if (notificationService.hasNotificationNavigationInProgress) {
+        debugPrint(
+          '[SplashScreen] Notification launch detected, skipping default home navigation',
+        );
+        notificationService.flushPendingNavigationIfPossible();
+        return;
       }
+      debugPrint('[SplashScreen] Navigating to home');
+      context.go(RouteNames.home);
+    } else {
+      debugPrint('[SplashScreen] Navigating to onboarding');
+      context.go(RouteNames.onboarding);
     }
+  }
+
+  // ── App version check ───────────────────────────────────────────────────────
+
+  /// Returns true  → proceed normally (up-to-date or optional update handled).
+  /// Returns false → force-update dialog shown; do NOT navigate.
+  Future<bool> _checkAndHandleAppVersion() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = "1.0.0";
+      //final currentVersion = packageInfo.version;
+
+      final repo = ref.read(appContentRepositoryProvider);
+      final versionInfo = await repo.checkAppVersion(
+        currentVersion: currentVersion,
+      );
+
+      if (versionInfo == null || !mounted) return true;
+
+      print("latest version is : ${versionInfo.latestVersion}");
+      final updateAvailable = _isUpdateAvailable(
+        current: currentVersion,
+        latest: versionInfo.latestVersion,
+      );
+
+      if (!updateAvailable) return true;
+
+      if (versionInfo.isForceUpdate) {
+        // Show blocking dialog — do NOT await; we never want to proceed past it.
+        _showForceUpdateDialog(versionInfo);
+        return false;
+      } else {
+        // Show dismissible dialog and continue after user responds.
+        await _showOptionalUpdateDialog(versionInfo);
+        return true;
+      }
+    } catch (e) {
+      debugPrint('[SplashScreen] Version check error (proceeding): $e');
+      return true;
+    }
+  }
+
+  /// Returns true when [latest] is strictly greater than [current].
+  /// Parses semantic-version triples (major.minor.patch).
+  bool _isUpdateAvailable({required String current, required String latest}) {
+    try {
+      final c = current.split('.').map(int.parse).toList();
+      final l = latest.split('.').map(int.parse).toList();
+      for (var i = 0; i < 3; i++) {
+        final cv = i < c.length ? c[i] : 0;
+        final lv = i < l.length ? l[i] : 0;
+        if (lv > cv) return true;
+        if (cv > lv) return false;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _openUpdateUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      debugPrint('[SplashScreen] Could not launch update URL: $url');
+    }
+  }
+
+  /// Non-dismissible dialog. User MUST tap "Update Now" — app will not proceed.
+  void _showForceUpdateDialog(AppVersionModel info) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radius12),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(
+            AppSizes.spacing24,
+            AppSizes.spacing24,
+            AppSizes.spacing24,
+            AppSizes.spacing8,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSizes.spacing16),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.system_update_rounded,
+                  color: AppColors.primaryGreen,
+                  size: AppSizes.icon48,
+                ),
+              ),
+              const SizedBox(height: AppSizes.spacing16),
+              const Text(
+                'Update Required',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize20,
+                  fontWeight: AppTypography.bold,
+                  color: AppColors.textPrimary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              const SizedBox(height: AppSizes.spacing8),
+              const Text(
+                'A new version of FitKhao is required to continue. Please update the app to keep using all features.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  color: AppColors.textSecondary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              if (info.releaseNotes.isNotEmpty) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSizes.spacing12),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                  child: Text(
+                    info.releaseNotes,
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize13,
+                      color: AppColors.textSecondary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSizes.spacing20),
+              SizedBox(
+                width: double.infinity,
+                height: AppSizes.buttonHeight,
+                child: ElevatedButton.icon(
+                  onPressed: () => _openUpdateUrl(info.updateUrl),
+                  icon: const Icon(Icons.open_in_new, size: AppSizes.icon20),
+                  label: const Text(
+                    'Update Now',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize16,
+                      fontWeight: AppTypography.bold,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius4),
+                    ),
+                    elevation: 2,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSizes.spacing12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Dismissible dialog. User may skip and continue using the current version.
+  Future<void> _showOptionalUpdateDialog(AppVersionModel info) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(
+          AppSizes.spacing24,
+          AppSizes.spacing24,
+          AppSizes.spacing24,
+          AppSizes.spacing8,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppSizes.spacing16),
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.system_update_rounded,
+                color: AppColors.primaryGreen,
+                size: AppSizes.icon48,
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacing16),
+            const Text(
+              'Update Available',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize20,
+                fontWeight: AppTypography.bold,
+                color: AppColors.textPrimary,
+                fontFamily: 'Lato',
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacing8),
+            const Text(
+              'A new version of FitKhao is available. Update now for the latest features and improvements.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize14,
+                color: AppColors.textSecondary,
+                fontFamily: 'Lato',
+              ),
+            ),
+            if (info.releaseNotes.isNotEmpty) ...[
+              const SizedBox(height: AppSizes.spacing12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSizes.spacing12),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+                child: Text(
+                  info.releaseNotes,
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize13,
+                    color: AppColors.textSecondary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: AppSizes.spacing20),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(
+          AppSizes.spacing16,
+          0,
+          AppSizes.spacing16,
+          AppSizes.spacing16,
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary,
+                    side: const BorderSide(color: AppColors.borderColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius4),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSizes.spacing12,
+                    ),
+                  ),
+                  child: const Text(
+                    'Later',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.semiBold,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSizes.spacing12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.of(ctx).pop();
+                    await _openUpdateUrl(info.updateUrl);
+                  },
+                  icon: const Icon(Icons.open_in_new, size: AppSizes.icon20),
+                  label: const Text(
+                    'Update',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.bold,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius4),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSizes.spacing12,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override

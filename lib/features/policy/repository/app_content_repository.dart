@@ -4,6 +4,7 @@ import '../../../core/config/app_config.dart';
 import '../../../core/errors/app_exception.dart';
 import '../models/app_content_model.dart';
 import '../models/app_constants_model.dart';
+import '../models/app_version_model.dart';
 
 /// Repository for fetching app content (terms & conditions, privacy policy)
 /// and app-wide runtime constants.
@@ -44,6 +45,26 @@ class AppContentRepository {
       debugPrint(
           '[AppContentRepository] Constants fetch error (using defaults): $e');
       return AppConstants.defaults;
+    }
+  }
+
+  /// Check app version against the server.
+  /// Returns null on any failure — callers should treat null as "no update needed"
+  /// so a network error never blocks the user from opening the app.
+  Future<AppVersionModel?> checkAppVersion({
+    required String currentVersion,
+    String platform = 'android',
+  }) async {
+    debugPrint('[AppContentRepository] Checking app version: $currentVersion');
+    try {
+      final json = await _apiClient.getJson(
+        '${AppConfig.appVersionPath}?platform=$platform&currentVersion=$currentVersion',
+      );
+      debugPrint('[AppContentRepository] Version response: $json');
+      return AppVersionModel.fromJson(json);
+    } catch (e) {
+      debugPrint('[AppContentRepository] Version check error (skipping): $e');
+      return null;
     }
   }
 }
