@@ -74,9 +74,11 @@ class AppConstants {
     final data = json['data'] as Map<String, dynamic>?;
 
     final order = data?['order'] as Map<String, dynamic>?;
-    final cancellationTime =
-        (order?['cancellationTime'] as num?)?.toInt() ??
-        _kDefaultCancelWindowSeconds;
+    // API returns cancellationTime in milliseconds; convert to seconds.
+    final cancellationMs = (order?['cancellationTime'] as num?)?.toInt();
+    final cancellationTime = cancellationMs != null
+        ? (cancellationMs / 1000).round()
+        : _kDefaultCancelWindowSeconds;
 
     final pricingMap = data?['pricing'] as Map<String, dynamic>? ?? {};
     final pricing = PricingConstants.fromMap(pricingMap);
