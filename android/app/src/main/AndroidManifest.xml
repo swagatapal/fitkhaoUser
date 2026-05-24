@@ -67,5 +67,17 @@
             <action android:name="android.intent.action.VIEW" />
         </intent>
 
+        <!-- url_launcher: email -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+
+        <!-- url_launcher: phone dialer -->
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+
     </queries>
 </manifest>

@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
@@ -678,12 +679,48 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         return -1;
     }
   }
+  Future<void> _openHelpEmail() async {
+    final String subject = Uri.encodeComponent('Help & Support - FitKhao');
+    final String body = Uri.encodeComponent(
+      'Please tell me what is your problem and how can I help you ? ',
+    );
+
+    final Uri emailUri = Uri.parse(
+      'mailto:Support@fitkhao.com?subject=$subject&body=$body',
+    );
+
+    if (!await launchUrl(emailUri)) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not open email app. Please email Support@fitkhao.com',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+  Future<void> _callKitchen() async {
+    final Uri phoneUri = Uri(scheme: 'tel', path: '9635139595');
+    if (!await launchUrl(phoneUri)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open phone dialer. Call: 96351 39595'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   Widget _buildHelpRow(BuildContext context) {
     return Row(
       children: [
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: _openHelpEmail,
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
               side: const BorderSide(color: AppColors.primaryGreen),
@@ -706,7 +743,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         const SizedBox(width: AppSizes.spacing12),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () {},
+            onPressed: _callKitchen,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryGreen,
               padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
