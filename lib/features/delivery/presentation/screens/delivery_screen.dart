@@ -1244,7 +1244,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   }
 
   Widget _buildDishCard(MenuItem item) {
-    final isInCart = ref.watch(cartProvider.notifier).isInCart(item.id);
+    final cartNotifier = ref.watch(cartProvider.notifier);
+    final isInCart = cartNotifier.isInCart(item.id);
+    final cartQty = isInCart ? cartNotifier.getItemQuantity(item.id) : 0;
     final isAvailable = item.isAvailable;
 
     return Padding(
@@ -1457,51 +1459,49 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                                 ],
                               ],
                             ),
-                            // Add button
-                            GestureDetector(
-                              onTap: isAvailable
-                                  ? () {
-                                      if (!_isOrderingAllowed) {
-                                        _showOrderingClosedSnackBar();
-                                        return;
+                            // Add button / quantity stepper
+                            if (!isInCart)
+                              GestureDetector(
+                                onTap: isAvailable
+                                    ? () {
+                                        if (!_isOrderingAllowed) {
+                                          _showOrderingClosedSnackBar();
+                                          return;
+                                        }
+                                        showDialog(
+                                          context: context,
+                                          builder: (_) =>
+                                              FoodDetailPopup(menuItem: item),
+                                        );
                                       }
-                                      showDialog(
-                                        context: context,
-                                        builder: (_) =>
-                                            FoodDetailPopup(menuItem: item),
-                                      );
-                                    }
-                                  : null,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSizes.spacing16,
-                                  vertical: AppSizes.spacing4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isInCart
-                                      ? AppColors.primaryGreen
-                                          .withValues(alpha: 0.1)
-                                      : AppColors.primaryGreen,
-                                  borderRadius:
-                                      BorderRadius.circular(AppSizes.radius4),
-                                  border: Border.all(
+                                    : null,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSizes.spacing16,
+                                    vertical: AppSizes.spacing4,
+                                  ),
+                                  decoration: BoxDecoration(
                                     color: AppColors.primaryGreen,
-                                    width: AppSizes.borderThin,
+                                    borderRadius: BorderRadius.circular(
+                                        AppSizes.radius4),
+                                    border: Border.all(
+                                      color: AppColors.primaryGreen,
+                                      width: AppSizes.borderThin,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    AppStrings.add,
+                                    style: TextStyle(
+                                      fontSize: AppTypography.fontSize12,
+                                      fontWeight: AppTypography.semiBold,
+                                      color: Colors.white,
+                                      fontFamily: 'Lato',
+                                    ),
                                   ),
                                 ),
-                                child: Text(
-                                  isInCart ? AppStrings.added : AppStrings.add,
-                                  style: TextStyle(
-                                    fontSize: AppTypography.fontSize12,
-                                    fontWeight: AppTypography.semiBold,
-                                    color: isInCart
-                                        ? AppColors.primaryGreen
-                                        : Colors.white,
-                                    fontFamily: 'Lato',
-                                  ),
-                                ),
-                              ),
-                            ),
+                              )
+                            else
+                              _buildQuantityStepper(item, cartQty),
                           ],
                         ),
                       ],
@@ -1545,6 +1545,75 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildQuantityStepper(MenuItem item, int qty) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
+        border: Border.all(
+          color: AppColors.primaryGreen,
+          width: AppSizes.borderThin,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () {
+              if (!_isOrderingAllowed) {
+                _showOrderingClosedSnackBar();
+                return;
+              }
+              ref.read(cartProvider.notifier).updateQuantity(item.id, qty - 1);
+            },
+            child: Container(
+              width: 28,
+              height: 28,
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.remove,
+                size: 16,
+                color: AppColors.primaryGreen,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 28,
+            child: Text(
+              '$qty',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: AppTypography.fontSize14,
+                fontWeight: AppTypography.bold,
+                color: AppColors.primaryGreen,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              if (!_isOrderingAllowed) {
+                _showOrderingClosedSnackBar();
+                return;
+              }
+              ref.read(cartProvider.notifier).addItem(item);
+            },
+            child: Container(
+              width: 28,
+              height: 28,
+              alignment: Alignment.center,
+              child: const Icon(
+                Icons.add,
+                size: 16,
+                color: AppColors.primaryGreen,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
