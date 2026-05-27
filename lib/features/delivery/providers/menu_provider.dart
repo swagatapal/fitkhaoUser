@@ -10,11 +10,7 @@ export '../repository/menu_repository.dart' show MenuPageResult;
 final menuRepositoryProvider = Provider<MenuRepository>((ref) {
   final localStorage = ref.watch(localStorageProvider).value;
   final apiClient = ref.watch(apiClientProvider);
-
-  if (localStorage == null) {
-    throw Exception('LocalStorage not initialized');
-  }
-
+  if (localStorage == null) throw Exception('LocalStorage not initialized');
   return MenuRepository(localStorage: localStorage, apiClient: apiClient);
 });
 
@@ -22,7 +18,6 @@ final menuRepositoryProvider = Provider<MenuRepository>((ref) {
 
 class MenuNotifier extends StateNotifier<AsyncValue<List<MenuItem>>> {
   final MenuRepository _menuRepository;
-
   MenuNotifier(this._menuRepository) : super(const AsyncValue.loading());
 
   Future<void> loadMenuItems({String? mealType}) async {
@@ -30,8 +25,8 @@ class MenuNotifier extends StateNotifier<AsyncValue<List<MenuItem>>> {
     try {
       final items = await _menuRepository.getMenuItems(mealType: mealType);
       state = AsyncValue.data(items);
-    } catch (e, stackTrace) {
-      state = AsyncValue.error(e, stackTrace);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
     }
   }
 
@@ -40,41 +35,46 @@ class MenuNotifier extends StateNotifier<AsyncValue<List<MenuItem>>> {
 }
 
 final menuProvider =
-    StateNotifierProvider<MenuNotifier, AsyncValue<List<MenuItem>>>((ref) {
-  return MenuNotifier(ref.watch(menuRepositoryProvider));
-});
+    StateNotifierProvider<MenuNotifier, AsyncValue<List<MenuItem>>>(
+  (ref) => MenuNotifier(ref.watch(menuRepositoryProvider)),
+);
 
-// ─── Models for DeliveryScreen ─────────────────────────────────────────────────
+// ─── Models ───────────────────────────────────────────────────────────────────
 
-/// One category section in the "All" grouped view
+/// One category section displayed in the "All" grouped view
 class GroupedDishSection {
   final DishCategory category;
   final List<MenuItem> items;
-
   const GroupedDishSection({required this.category, required this.items});
 }
 
 // ─── AllDishesState ───────────────────────────────────────────────────────────
 
 class AllDishesState {
-  // ── Category list (from API) ───────────────────────────────────────────────
+  // ── Category tabs ──────────────────────────────────────────────────────────
   final List<DishCategory> categories;
   final bool areCategoriesLoading;
 
-  // ── "All" grouped view ────────────────────────────────────────────────────
-  final List<GroupedDishSection> sections;
-  final bool isAllViewLoading;
+  // ── "All" view cache  (categoryId = null, paginated) ──────────────────────
+  final List<MenuItem> allItems;
+  final int allPage;
+  final int allTotalPages;
 
-  // ── Per-category paginated view ───────────────────────────────────────────
+  // ── Per-category view cache (categoryId set, paginated) ───────────────────
   final List<MenuItem> categoryItems;
-  final bool isLoading;
-  final bool isLoadingMore;
-  final int currentPage;
-  final int totalPages;
-  final int totalCount;
+  final int catPage;
+  final int catTotalPages;
 
-  // ── Shared ────────────────────────────────────────────────────────────────
-  /// null → "All" grouped view; non-null → per-category view
+  // ── Active loading indicators ─────────────────────────────────────────────
+  /// true while the first page of the active view is being fetched
+  final bool isLoading;
+
+  /// true while an additional page is being appended
+  final bool isLoadingMore;
+
+  // ── Shared state ──────────────────────────────────────────────────────────
+  /// null  → "All" grouped view
+  /// non-null → per-category flat view
   final String? selectedCategoryId;
 
   /// 'all' | 'veg' | 'non-veg'
@@ -86,91 +86,100 @@ class AllDishesState {
   const AllDishesState({
     this.categories = const [],
     this.areCategoriesLoading = false,
-    this.sections = const [],
-    this.isAllViewLoading = false,
+    this.allItems = const [],
+    this.allPage = 0,
+    this.allTotalPages = 1,
     this.categoryItems = const [],
+    this.catPage = 0,
+    this.catTotalPages = 1,
     this.isLoading = false,
     this.isLoadingMore = false,
-    this.currentPage = 0,
-    this.totalPages = 1,
-    this.totalCount = 0,
     this.selectedCategoryId,
     this.selectedDishType = 'all',
     this.searchQuery = '',
     this.error,
   });
 
-  /// True when showing the "All" grouped view
+  // ── Computed ───────────────────────────────────────────────────────────────
+
   bool get isAllView => selectedCategoryId == null;
 
-  /// Only valid / meaningful in per-category view
-  bool get canLoadMore =>
-      !isAllView &&
-      !isLoading &&
-      !isLoadingMore &&
-      currentPage < totalPages - 1;
+  /// Active raw items depending on which view is shown
+  List<MenuItem> get items => isAllView ? allItems : categoryItems;
 
-  // ── Filtered accessors ────────────────────────────────────────────────────
-
-  List<GroupedDishSection> get filteredSections {
-    var src = sections;
-    return src
-        .map((section) {
-          var items = section.items;
-          if (searchQuery.isNotEmpty) {
-            final q = searchQuery.toLowerCase();
-            items = items
-                .where((i) =>
-                    i.name.toLowerCase().contains(q) ||
-                    i.category.toLowerCase().contains(q))
-                .toList();
-          }
-          switch (selectedDishType) {
-            case 'veg':
-              items = items.where((i) => i.isVeg).toList();
-              break;
-            case 'non-veg':
-              items = items.where((i) => !i.isVeg).toList();
-              break;
-          }
-          return GroupedDishSection(category: section.category, items: items);
-        })
-        .where((s) => s.items.isNotEmpty)
-        .toList();
+  /// True when another page can be fetched in the active view
+  bool get canLoadMore {
+    if (isLoading || isLoadingMore) return false;
+    final page = isAllView ? allPage : catPage;
+    final total = isAllView ? allTotalPages : catTotalPages;
+    return page < total - 1;
   }
 
-  List<MenuItem> get filteredCategoryItems {
-    var items = categoryItems;
+  /// Veg/non-veg + search applied to the active items list
+  List<MenuItem> get filteredItems {
+    var list = items;
     if (searchQuery.isNotEmpty) {
       final q = searchQuery.toLowerCase();
-      items = items
+      list = list
           .where((i) =>
               i.name.toLowerCase().contains(q) ||
-              i.category.toLowerCase().contains(q))
+              i.categoryName.toLowerCase().contains(q))
           .toList();
     }
     switch (selectedDishType) {
       case 'veg':
-        items = items.where((i) => i.isVeg).toList();
-        break;
+        return list.where((i) => i.isVeg).toList();
       case 'non-veg':
-        items = items.where((i) => !i.isVeg).toList();
-        break;
+        return list.where((i) => !i.isVeg).toList();
+      default:
+        return list;
     }
-    return items;
+  }
+
+  /// Group [filteredItems] by category preserving server order.
+  /// Used in the "All" view only.
+  List<GroupedDishSection> get groupedSections {
+    final filtered = filteredItems;
+    final seen = <String>{};
+    final order = <String>[];
+    final map = <String, List<MenuItem>>{};
+
+    for (final item in filtered) {
+      final key = item.categoryId.isNotEmpty ? item.categoryId : '__other__';
+      if (seen.add(key)) order.add(key);
+      map.putIfAbsent(key, () => []).add(item);
+    }
+
+    return order.map((key) {
+      // Try to resolve the display name from the API category list first,
+      // then fall back to the category data embedded in the item itself.
+      final cat = categories.firstWhere(
+        (c) => c.id == key,
+        orElse: () {
+          final first = map[key]!.first;
+          final name = first.categoryName.isNotEmpty
+              ? first.categoryName
+              : first.category.isNotEmpty
+                  ? first.category
+                  : 'Other';
+          return DishCategory(id: key, name: name);
+        },
+      );
+      return GroupedDishSection(category: cat, items: map[key]!);
+    }).toList();
   }
 
   AllDishesState copyWith({
     List<DishCategory>? categories,
     bool? areCategoriesLoading,
-    List<GroupedDishSection>? sections,
-    bool? isAllViewLoading,
+    List<MenuItem>? allItems,
+    int? allPage,
+    int? allTotalPages,
     List<MenuItem>? categoryItems,
+    int? catPage,
+    int? catTotalPages,
     bool? isLoading,
     bool? isLoadingMore,
-    int? currentPage,
-    int? totalPages,
-    int? totalCount,
     String? selectedCategoryId,
     bool clearCategoryFilter = false,
     String? selectedDishType,
@@ -181,14 +190,14 @@ class AllDishesState {
     return AllDishesState(
       categories: categories ?? this.categories,
       areCategoriesLoading: areCategoriesLoading ?? this.areCategoriesLoading,
-      sections: sections ?? this.sections,
-      isAllViewLoading: isAllViewLoading ?? this.isAllViewLoading,
+      allItems: allItems ?? this.allItems,
+      allPage: allPage ?? this.allPage,
+      allTotalPages: allTotalPages ?? this.allTotalPages,
       categoryItems: categoryItems ?? this.categoryItems,
+      catPage: catPage ?? this.catPage,
+      catTotalPages: catTotalPages ?? this.catTotalPages,
       isLoading: isLoading ?? this.isLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      currentPage: currentPage ?? this.currentPage,
-      totalPages: totalPages ?? this.totalPages,
-      totalCount: totalCount ?? this.totalCount,
       selectedCategoryId: clearCategoryFilter
           ? null
           : (selectedCategoryId ?? this.selectedCategoryId),
@@ -203,105 +212,72 @@ class AllDishesState {
 
 class AllDishesNotifier extends StateNotifier<AllDishesState> {
   final MenuRepository _repo;
-
   AllDishesNotifier(this._repo) : super(const AllDishesState());
 
   // ── Initial load ──────────────────────────────────────────────────────────
 
-  /// Fetch categories → then load "All" grouped view in parallel.
+  /// Fetches categories and the first page of ALL items in parallel.
+  /// Always resets to the "All" view.
   Future<void> loadMenuItems() async {
-    state = state.copyWith(
+    state = const AllDishesState(
       areCategoriesLoading: true,
-      isAllViewLoading: true,
-      clearCategoryFilter: true,
-      categoryItems: [],
-      sections: [],
-      clearError: true,
+      isLoading: true,
     );
 
-    // 1. Fetch categories
-    final categories = await _repo.getCategories();
-    state = state.copyWith(
-      categories: categories,
-      areCategoriesLoading: false,
+    // Kick off both requests immediately (parallel execution)
+    final categoriesFuture = _repo.getCategories();
+    final pageFuture = _repo.getMenuPage(
+      categoryId: null,
+      pageIndex: 0,
+      pageSize: 10,
     );
 
-    if (categories.isEmpty) {
-      state = state.copyWith(isAllViewLoading: false);
-      return;
+    try {
+      final categories = await categoriesFuture;
+      final page = await pageFuture;
+
+      state = AllDishesState(
+        categories: categories,
+        allItems: page.items,
+        allPage: 0,
+        allTotalPages: page.totalPages,
+      );
+    } catch (e) {
+      state = AllDishesState(error: e.toString());
     }
-
-    // 2. Load items for each category in parallel.
-    //    Use an indexed buffer so ordering matches the category list even if
-    //    futures resolve out of order.
-    await _loadAllViewSections(categories);
-  }
-
-  /// Re-fetches and rebuilds the "All" grouped view for [categories].
-  Future<void> _loadAllViewSections(List<DishCategory> categories) async {
-    state = state.copyWith(isAllViewLoading: true, sections: [], clearError: true);
-
-    final buffer = List<GroupedDishSection?>.filled(categories.length, null);
-    await Future.wait(
-      List.generate(categories.length, (i) async {
-        try {
-          final result = await _repo.getMenuPage(
-            categoryId: categories[i].id,
-            pageIndex: 0,
-            pageSize: 50,
-          );
-          if (result.items.isNotEmpty) {
-            buffer[i] = GroupedDishSection(
-              category: categories[i],
-              items: result.items,
-            );
-          }
-        } catch (_) {
-          // Skip failing categories — do not block the whole view
-        }
-      }),
-    );
-
-    final sections = buffer.whereType<GroupedDishSection>().toList();
-    state = state.copyWith(sections: sections, isAllViewLoading: false);
   }
 
   // ── Category selection ────────────────────────────────────────────────────
 
-  /// Pass [categoryId] = null to switch back to the "All" grouped view.
+  /// [categoryId] = null → switch back to "All" view (no API call, cache used).
+  /// [categoryId] = id   → load first page for that category.
   Future<void> selectCategory(String? categoryId) async {
     if (categoryId == null) {
-      // Sections are already in state — just switch the view
-      state = state.copyWith(
-        clearCategoryFilter: true,
-        categoryItems: [],
-        clearError: true,
-      );
+      // Restore All view instantly from cache
+      state = state.copyWith(clearCategoryFilter: true, clearError: true);
       return;
     }
 
-    // Switch to per-category paginated view
+    // Per-category: reset category cache and fetch page 0
     state = state.copyWith(
       selectedCategoryId: categoryId,
       isLoading: true,
       categoryItems: [],
+      catPage: 0,
+      catTotalPages: 1,
       clearError: true,
-      currentPage: 0,
-      totalPages: 1,
-      totalCount: 0,
     );
 
     try {
-      final result = await _repo.getMenuPage(
+      final page = await _repo.getMenuPage(
         categoryId: categoryId,
         pageIndex: 0,
-        pageSize: 20,
+        pageSize: 10,
       );
       state = state.copyWith(
-        categoryItems: result.items,
-        currentPage: result.currentPage,
-        totalPages: result.totalPages,
-        totalCount: result.totalCount,
+        categoryItems: page.items,
+        catPage: 0,
+        catTotalPages: page.totalPages,
         isLoading: false,
       );
     } catch (e) {
@@ -309,25 +285,40 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
     }
   }
 
-  // ── Pagination (per-category view only) ───────────────────────────────────
+  // ── Scroll-triggered pagination ───────────────────────────────────────────
 
+  /// Appends the next page. Works identically for both "All" and
+  /// per-category views — the correct [categoryId] is always in state.
   Future<void> loadMore() async {
     if (!state.canLoadMore) return;
-    final nextPage = state.currentPage + 1;
+
+    final isAll = state.isAllView;
+    final nextPage = (isAll ? state.allPage : state.catPage) + 1;
+
     state = state.copyWith(isLoadingMore: true);
+
     try {
-      final result = await _repo.getMenuPage(
+      final page = await _repo.getMenuPage(
         categoryId: state.selectedCategoryId,
         pageIndex: nextPage,
-        pageSize: 20,
+        pageSize: 10,
       );
-      state = state.copyWith(
-        categoryItems: [...state.categoryItems, ...result.items],
-        currentPage: nextPage,
-        totalPages: result.totalPages,
-        totalCount: result.totalCount,
-        isLoadingMore: false,
-      );
+
+      if (isAll) {
+        state = state.copyWith(
+          allItems: [...state.allItems, ...page.items],
+          allPage: nextPage,
+          allTotalPages: page.totalPages,
+          isLoadingMore: false,
+        );
+      } else {
+        state = state.copyWith(
+          categoryItems: [...state.categoryItems, ...page.items],
+          catPage: nextPage,
+          catTotalPages: page.totalPages,
+          isLoadingMore: false,
+        );
+      }
     } catch (e) {
       state = state.copyWith(isLoadingMore: false, error: e.toString());
     }
@@ -335,21 +326,18 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
 
   // ── Filters ───────────────────────────────────────────────────────────────
 
-  void setDishTypeFilter(String dishType) {
-    state = state.copyWith(selectedDishType: dishType);
-  }
+  void setDishTypeFilter(String dishType) =>
+      state = state.copyWith(selectedDishType: dishType);
 
-  void setSearchQuery(String query) {
-    state = state.copyWith(searchQuery: query);
-  }
+  void setSearchQuery(String query) =>
+      state = state.copyWith(searchQuery: query);
 
   Future<void> refresh() => loadMenuItems();
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
-/// Separate provider for the DeliveryScreen — categories + grouped / paginated.
 final allDishesProvider =
-    StateNotifierProvider<AllDishesNotifier, AllDishesState>((ref) {
-  return AllDishesNotifier(ref.watch(menuRepositoryProvider));
-});
+    StateNotifierProvider<AllDishesNotifier, AllDishesState>(
+  (ref) => AllDishesNotifier(ref.watch(menuRepositoryProvider)),
+);

@@ -97,23 +97,20 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final position = _scrollController.position;
     final dishState = ref.read(allDishesProvider);
 
-    // "All" view has no pagination — do nothing
-    if (dishState.isAllView) {
-      _hasShownNoMoreDataPopup = false;
-      return;
-    }
-
+    // Reset popup flag when user scrolls back up
     if (position.pixels < position.maxScrollExtent - 120) {
       _hasShownNoMoreDataPopup = false;
       return;
     }
 
+    // Trigger next-page load when near the bottom (both All & category views)
     if (dishState.canLoadMore) {
       ref.read(allDishesProvider.notifier).loadMore();
       return;
     }
 
-    final hasReachedEnd = dishState.categoryItems.isNotEmpty &&
+    // Show "no more data" toast only once per view exhaustion
+    final hasReachedEnd = dishState.items.isNotEmpty &&
         !dishState.isLoading &&
         !dishState.isLoadingMore &&
         !dishState.canLoadMore;
@@ -483,7 +480,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 color: AppColors.primaryGreen,
                 child: SingleChildScrollView(
                   controller: _scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(),
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
                   child: Column(
                     children: [
                       Padding(
@@ -1254,35 +1253,28 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   Widget _buildDishList() {
     final dishState = ref.watch(allDishesProvider);
 
-    // Loading state
-    if (dishState.isAllViewLoading || dishState.isLoading) {
-      return _buildDishListSkeleton();
+    // Show skeleton while first page loads
+    if (dishState.isLoading) return _buildDishListSkeleton();
+
+    // Error state — only when there is nothing to display at all
+    if (dishState.error != null && dishState.items.isEmpty) {
+      return _buildDishListError(dishState.error!);
     }
 
-    // Error state — only shown when there's nothing to display
-    if (dishState.error != null) {
-      final isEmpty = dishState.isAllView
-          ? dishState.sections.isEmpty
-          : dishState.categoryItems.isEmpty;
-      if (isEmpty) return _buildDishListError(dishState.error!);
-    }
-
-    // Render grouped or flat body
-    if (dishState.isAllView) {
-      return _buildGroupedSectionsBody(dishState);
-    } else {
-      return _buildFlatCategoryBody(dishState);
-    }
+    // Route to grouped (All) or flat (per-category) body
+    return dishState.isAllView
+        ? _buildGroupedSectionsBody(dishState)
+        : _buildFlatCategoryBody(dishState);
   }
 
   // ── "All" grouped view ─────────────────────────────────────────────────────
 
   Widget _buildGroupedSectionsBody(AllDishesState dishState) {
-    final sections = dishState.filteredSections;
+    final sections = dishState.groupedSections;
 
     if (sections.isEmpty) {
       return _buildEmptyState(
-        dishState.sections.isEmpty
+        dishState.allItems.isEmpty
             ? 'No items available'
             : 'No items match the selected filters',
       );
@@ -1293,9 +1285,14 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       children: [
         for (final section in sections) ...[
           _buildSectionHeader(section.category.name),
-          ...section.items.map((item) => _buildDishCard(item)),
+          for (final item in section.items)
+            _FadeSlideIn(
+              key: ValueKey('all_${item.id}'),
+              child: _buildDishCard(item),
+            ),
           const SizedBox(height: AppSizes.spacing8),
         ],
+        if (dishState.isLoadingMore) _buildLoadMoreIndicator(),
       ],
     );
   }
@@ -1303,7 +1300,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   // ── Per-category paginated view ─────────────────────────────────────────────
 
   Widget _buildFlatCategoryBody(AllDishesState dishState) {
-    final items = dishState.filteredCategoryItems;
+    final items = dishState.filteredItems;
 
     if (items.isEmpty) {
       return _buildEmptyState(
@@ -1315,22 +1312,29 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
     return Column(
       children: [
-        ...items.map((item) => _buildDishCard(item)),
-        if (dishState.isLoadingMore)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSizes.spacing16),
-            child: Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.primaryGreen,
-                ),
-              ),
-            ),
+        for (final item in items)
+          _FadeSlideIn(
+            key: ValueKey('cat_${dishState.selectedCategoryId}_${item.id}'),
+            child: _buildDishCard(item),
           ),
+        if (dishState.isLoadingMore) _buildLoadMoreIndicator(),
       ],
+    );
+  }
+
+  Widget _buildLoadMoreIndicator() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: AppSizes.spacing16),
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.primaryGreen,
+          ),
+        ),
+      ),
     );
   }
 
@@ -1844,6 +1848,61 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           color: color,
           fontFamily: 'Lato',
         ),
+      ),
+    );
+  }
+}
+
+// ─── Fade + slide-up animation widget ────────────────────────────────────────
+//
+// Wrapping each dish card in this widget gives a smooth "rise in" entrance
+// the first time an item appears in the tree.  Flutter preserves widget
+// identity via [Key], so existing items are never re-animated — only items
+// that are genuinely new (scroll-load appends, view switches) animate in.
+
+class _FadeSlideIn extends StatefulWidget {
+  const _FadeSlideIn({required super.key, required this.child});
+  final Widget child;
+
+  @override
+  State<_FadeSlideIn> createState() => _FadeSlideInState();
+}
+
+class _FadeSlideInState extends State<_FadeSlideIn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: widget.child,
       ),
     );
   }
