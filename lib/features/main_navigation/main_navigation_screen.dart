@@ -101,23 +101,26 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
           } else {
             SystemNavigator.pop();
           }},
-      child: Scaffold(
-        body: SafeArea(
-          bottom: true,
-          top: false,
-          child: Stack(
-            children: [
-              // Display only the currently selected screen
-              _getCurrentScreen(),
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark,
+        child: Scaffold(
+          body: SafeArea(
+            bottom: true,
+            top: false,
+            child: Stack(
+              children: [
+                // Display only the currently selected screen
+                _getCurrentScreen(),
 
-              // Floating Bottom Navigation Bar
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: _buildBottomNavigationBar(context),
-              ),
-            ],
+                // Floating Bottom Navigation Bar
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildBottomNavigationBar(context),
+                ),
+              ],
+            ),
           ),
         ),
       ),

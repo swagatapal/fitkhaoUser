@@ -26,13 +26,13 @@ void main() async {
     // Continue app execution even if notifications fail
   }
 
-  // Set system UI overlay style
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ),
-  );
+  // // Set system UI overlay style
+  // SystemChrome.setSystemUIOverlayStyle(
+  //   const SystemUiOverlayStyle(
+  //     statusBarColor: Colors.transparent,
+  //     statusBarIconBrightness: Brightness.dark,
+  //   ),
+  // );
 
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
@@ -59,7 +59,7 @@ class MyApp extends ConsumerWidget {
     return MaterialApp.router(
       title: AppStrings.appName,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
+     // theme: AppTheme.lightTheme,
       routerConfig: AppRouter.router,
     );
   }

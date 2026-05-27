@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fitkhao_user/core/utils/responsive_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -65,94 +66,97 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ? historyNotifier.upcomingOrders
         : historyNotifier.deliveredOrders;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: AppSizes.spacing12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSizes.screenPaddingHorizontal,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: AppSizes.spacing12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSizes.screenPaddingHorizontal,
+                      ),
+                      child: _buildSegmentedControl(context),
                     ),
-                    child: _buildSegmentedControl(context),
-                  ),
-                  const SizedBox(height: AppSizes.spacing12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSizes.screenPaddingHorizontal,
+                    const SizedBox(height: AppSizes.spacing12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSizes.screenPaddingHorizontal,
+                      ),
+                      child: _buildSearchBar(),
                     ),
-                    child: _buildSearchBar(),
-                  ),
-                  const SizedBox(height: AppSizes.spacing8),
-                  Expanded(
-                    child: Material(
-                      color: AppColors.textWhite,
-                      child: historyState.isLoading &&
-                              historyState.orders.isEmpty
-                          ? _buildLoadingState()
-                          : historyState.error != null &&
-                                  historyState.orders.isEmpty
-                              ? _buildErrorState(
-                                  historyState.error!,
-                                  historyNotifier,
-                                )
-                              : orders.isEmpty
-                                  ? _buildEmptyState()
-                                  : RefreshIndicator(
-                                      onRefresh: () =>
-                                          historyNotifier.refresh(),
-                                      child: ListView.separated(
-                                        padding: const EdgeInsets.only(
-                                          left:
-                                              AppSizes.screenPaddingHorizontal,
-                                          right:
-                                              AppSizes.screenPaddingHorizontal,
-                                          bottom: AppSizes.spacing24,
-                                        ),
-                                        itemCount: orders.length,
-                                        separatorBuilder: (_, __) =>
-                                            const SizedBox(
-                                                height: AppSizes.spacing12),
-                                        itemBuilder: (context, index) {
-                                          final order = orders[index];
-                                          return _OrderCard(
-                                            order: order,
-                                            isUpcoming: _selected ==
-                                                _HistoryFilter.upcoming,
-                                            cancelWindowSeconds:
-                                                cancelWindowSeconds,
-                                            onTap: () => Navigator.push<void>(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) =>
-                                                    OrderTrackingScreen(
-                                                        order: order),
+                    const SizedBox(height: AppSizes.spacing8),
+                    Expanded(
+                      child: Material(
+                        color: AppColors.textWhite,
+                        child: historyState.isLoading &&
+                                historyState.orders.isEmpty
+                            ? _buildLoadingState()
+                            : historyState.error != null &&
+                                    historyState.orders.isEmpty
+                                ? _buildErrorState(
+                                    historyState.error!,
+                                    historyNotifier,
+                                  )
+                                : orders.isEmpty
+                                    ? _buildEmptyState()
+                                    : RefreshIndicator(
+                                        onRefresh: () =>
+                                            historyNotifier.refresh(),
+                                        child: ListView.separated(
+                                          padding: const EdgeInsets.only(
+                                            left:
+                                                AppSizes.screenPaddingHorizontal,
+                                            right:
+                                                AppSizes.screenPaddingHorizontal,
+                                            bottom: AppSizes.spacing24,
+                                          ),
+                                          itemCount: orders.length,
+                                          separatorBuilder: (_, __) =>
+                                              const SizedBox(
+                                                  height: AppSizes.spacing12),
+                                          itemBuilder: (context, index) {
+                                            final order = orders[index];
+                                            return _OrderCard(
+                                              order: order,
+                                              isUpcoming: _selected ==
+                                                  _HistoryFilter.upcoming,
+                                              cancelWindowSeconds:
+                                                  cancelWindowSeconds,
+                                              onTap: () => Navigator.push<void>(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      OrderTrackingScreen(
+                                                          order: order),
+                                                ),
                                               ),
-                                            ),
-                                            onCancelOrder: _cancelOrder,
-                                            onCancelSuccess: () {
-                                              ref
-                                                  .read(orderHistoryProvider
-                                                      .notifier)
-                                                  .refresh();
-                                            },
-                                          );
-                                        },
+                                              onCancelOrder: _cancelOrder,
+                                              onCancelSuccess: () {
+                                                ref
+                                                    .read(orderHistoryProvider
+                                                        .notifier)
+                                                    .refresh();
+                                              },
+                                            );
+                                          },
+                                        ),
                                       ),
-                                    ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSizes.spacing48),
-                ],
+                    const SizedBox(height: AppSizes.spacing48),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
