@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../shared/widgets/shimmer_effect.dart';
 import '../../providers/app_content_provider.dart';
 
 class PolicyScreen extends ConsumerStatefulWidget {
@@ -346,7 +347,7 @@ class _PolicyScreenState extends ConsumerState<PolicyScreen>
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: _ShimmerEffect(child: Container(color: Colors.grey.shade100)),
+        child: ShimmerEffect(child: Container(color: Colors.grey.shade100)),
       ),
     );
   }
@@ -461,68 +462,3 @@ class _PolicyScreenState extends ConsumerState<PolicyScreen>
   }
 }
 
-/// Simple shimmer animation widget for loading skeleton
-class _ShimmerEffect extends StatefulWidget {
-  final Widget child;
-
-  const _ShimmerEffect({required this.child});
-
-  @override
-  State<_ShimmerEffect> createState() => _ShimmerEffectState();
-}
-
-class _ShimmerEffectState extends State<_ShimmerEffect>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-    _animation = Tween<double>(begin: -1.5, end: 1.5).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return ShaderMask(
-          shaderCallback: (bounds) {
-            return LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: const [
-                Color(0xFFEEEEEE),
-                Color(0xFFE0E0E0),
-                Color(0xFFD4D4D4),
-                Color(0xFFE0E0E0),
-                Color(0xFFEEEEEE),
-              ],
-              stops: [
-                0.0,
-                (_animation.value + 1.5) / 3.0 - 0.2,
-                (_animation.value + 1.5) / 3.0,
-                (_animation.value + 1.5) / 3.0 + 0.2,
-                1.0,
-              ].map((s) => s.clamp(0.0, 1.0)).toList(),
-            ).createShader(bounds);
-          },
-          child: widget.child,
-        );
-      },
-    );
-  }
-}

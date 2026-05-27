@@ -463,29 +463,42 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final totalPrice = ref.watch(cartTotalPriceProvider);
     final location = _computeLocation(authState);
     final serviceabilityState = ref.watch(serviceabilityProvider);
+    final dishState = ref.watch(allDishesProvider);
+
     // Cart bar height: icon(28) + padding(24) + margin(32) ≈ 84px
     const double cartBarHeight = 84.0;
+
+    // Show dish section only when location is serviceable, kitchen is open,
+    // and we are within the ordering window.
+    final showDishes = serviceabilityState.isServiceable != false &&
+        serviceabilityState.isKitchenOpen != false &&
+        _isOrderingAllowed;
+
+    final showCartBar = cartItems.isNotEmpty &&
+        serviceabilityState.isKitchenOpen != false &&
+        serviceabilityState.isServiceable != false;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Stack(
           children: [
-            // Positioned.fill forces the Stack to expand to its parent's full
-            // height regardless of scroll content length, so the cart bar
-            // Positioned widget always anchors to the true bottom edge.
+            // ── Scrollable content ─────────────────────────────────────────
+            // Positioned.fill ensures the Stack fills the SafeArea so the
+            // floating cart bar is always anchored to the real bottom edge.
             Positioned.fill(
               child: RefreshIndicator(
                 onRefresh: _onRefresh,
                 color: AppColors.primaryGreen,
-                child: SingleChildScrollView(
+                child: CustomScrollView(
                   controller: _scrollController,
                   physics: const BouncingScrollPhysics(
                     parent: AlwaysScrollableScrollPhysics(),
                   ),
-                  child: Column(
-                    children: [
-                      Padding(
+                  slivers: [
+                    // ── Scrollable header (profile + banners) ──────────────
+                    SliverToBoxAdapter(
+                      child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSizes.screenPaddingHorizontal,
                         ),
@@ -501,31 +514,52 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                               _buildKitchenClosedBanner(
                                   serviceabilityState.kitchenClosedReason)
                             else if (!_isOrderingAllowed)
-                              _buildOrderingTimeBanner()
-                            else ...[
-                              //_buildDishSearchBar(),
-                              _buildDishesSection(),
-                            ],
-                            const SizedBox(height: AppSizes.spacing32),
+                              _buildOrderingTimeBanner(),
                           ],
                         ),
                       ),
-                      // Extra space so last item isn't hidden behind cart bar
-                      if (cartItems.isNotEmpty &&
-                          serviceabilityState.isKitchenOpen != false)
-                        const SizedBox(height: cartBarHeight),
-                      const SizedBox(height: AppSizes.spacing32),
-                    ],
-                  ),
+                    ),
+
+                    // ── Sticky filter chips ─────────────────────────────────
+                    // Pinned = true keeps chips visible while the header
+                    // scrolls out of view.
+                    if (showDishes)
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _FilterChipsDelegate(
+                          dishState: dishState,
+                          child: _buildFilterChips(),
+                        ),
+                      ),
+
+                    // ── Dish list ───────────────────────────────────────────
+                    if (showDishes)
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.screenPaddingHorizontal,
+                        ),
+                        sliver: SliverToBoxAdapter(child: _buildDishList()),
+                      ),
+
+                    // ── Bottom padding — extra room for the cart bar ────────
+                    SliverToBoxAdapter(
+                      child: SizedBox(
+                        height: showCartBar
+                            ? cartBarHeight + AppSizes.spacing32
+                            : AppSizes.spacing32,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            if (cartItems.isNotEmpty &&
-                serviceabilityState.isKitchenOpen != false && serviceabilityState.isServiceable != false)
+
+            // ── Floating cart bar ──────────────────────────────────────────
+            if (showCartBar)
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: MediaQuery.of(context).size.height*0.1,
+                bottom: MediaQuery.of(context).size.height * 0.1,
                 child: _buildCartBar(totalItems, totalPrice),
               ),
           ],
@@ -1626,15 +1660,21 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         const SizedBox(height: AppSizes.spacing4),
                         // Macros row
                         Wrap(
+                          spacing:AppSizes.spacing6,
+                          runSpacing: AppSizes.spacing4,
                           children: [
+                            item.protein !="0.0g" ?
                             _buildMacroChip(
-                                'P', item.protein, const Color(0xFF4A7C3E)),
-                            const SizedBox(width: AppSizes.spacing6),
+                                'Protein', item.protein, const Color(0xFF4A7C3E)):SizedBox.shrink(),
+                            item.carbs !="0.0g" ?
                             _buildMacroChip(
-                                'C', item.carbs, const Color(0xFFC66301)),
-                            const SizedBox(width: AppSizes.spacing6),
+                                'Carbs', item.carbs, const Color(0xFFC66301)):SizedBox.shrink(),
+                            item.fats !="0.0g" ?
                             _buildMacroChip(
-                                'F', item.fats, const Color(0xFF6BA84F)),
+                                'Fat', item.fats, const Color(0xFF6BA84F)):SizedBox.shrink(),
+                            // item.fiber !="0.0g" ?
+                            // _buildMacroChip(
+                            //     'Fibre', item.fiber, const Color(0xFF6BA84F)):SizedBox.shrink(),
                           ],
                         ),
                         const SizedBox(height: AppSizes.spacing6),
@@ -1906,4 +1946,74 @@ class _FadeSlideInState extends State<_FadeSlideIn>
       ),
     );
   }
+}
+
+// ─── Sticky filter-chips delegate ────────────────────────────────────────────
+//
+// Used with [SliverPersistentHeader(pinned: true)] so that category tabs and
+// the veg/non-veg filter row stay visible at the top of the viewport while
+// the profile header and dish cards scroll freely underneath.
+//
+// Height breakdown (px):
+//   top padding                          8
+//   category tabs row (ListView h=36)   36
+//   gap between rows                     8
+//   veg/non-veg chip row                ~28
+//   bottom gap (AppSizes.spacing12)     12
+//   ─────────────────────────────────── ──
+//   with  category tabs             ≈  92  → 96 (safety buffer)
+//   without category tabs           ≈  48  → 52 (safety buffer)
+
+class _FilterChipsDelegate extends SliverPersistentHeaderDelegate {
+  const _FilterChipsDelegate({
+    required this.dishState,
+    required this.child,
+  });
+
+  final AllDishesState dishState;
+  final Widget child;
+
+  double get _height {
+    // Taller variant when the category-tab row is present or loading.
+    if (dishState.areCategoriesLoading || dishState.categories.isNotEmpty) {
+      return 96.0;
+    }
+    // Compact variant — only the veg/non-veg row.
+    return 52.0;
+  }
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    // Add a soft shadow once the list scrolls beneath the pinned header so
+    // there is a clear visual separation between content layers.
+    return Material(
+      color: AppColors.background,
+      elevation: overlapsContent ? 2.0 : 0.0,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
+      child: Padding(
+        padding: const EdgeInsets.only(
+          left: AppSizes.screenPaddingHorizontal,
+          right: AppSizes.screenPaddingHorizontal,
+          top: 8.0,
+        ),
+        child: child,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_FilterChipsDelegate old) =>
+      // Always rebuild so chips reflect the latest provider state and the
+      // height getters are re-evaluated when categories first load.
+      old.dishState != dishState || old.child != child;
 }

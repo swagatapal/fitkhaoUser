@@ -9,6 +9,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../../shared/widgets/primary_button.dart';
+import '../../../../shared/widgets/shimmer_effect.dart';
 import '../../../auth/models/auth_state.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../provider/physiological_category_provider.dart';
@@ -357,23 +358,31 @@ class _DetailedHealthInfoScreenState
       return Scaffold(
         //backgroundColor: Colors.white,
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
-                strokeWidth: 3,
-              ),
-              const SizedBox(height: AppSizes.spacing16),
-              Text(
-                'Loading your profile...',
-                style: TextStyle(
-                  fontSize: context.responsiveFontSize(14.0),
-                  color: AppColors.textSecondary,
-                  fontFamily: 'Lato',
-                ),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _shimmerCard(height: MediaQuery.of(context).size.height*0.2),
+                const SizedBox(height: AppSizes.spacing16),
+                _shimmerCard(height: MediaQuery.of(context).size.height*0.05),
+                const SizedBox(height: AppSizes.spacing16),
+                _shimmerCard(height: MediaQuery.of(context).size.height*0.05),
+                const SizedBox(height: AppSizes.spacing16),
+                _shimmerCard(height: MediaQuery.of(context).size.height*0.05),
+                const SizedBox(height: AppSizes.spacing16),
+                _shimmerCard(height: MediaQuery.of(context).size.height*0.4),
+                const SizedBox(height: AppSizes.spacing16),
+                // Text(
+                //   'Loading your profile...',
+                //   style: TextStyle(
+                //     fontSize: context.responsiveFontSize(14.0),
+                //     color: AppColors.textSecondary,
+                //     fontFamily: 'Lato',
+                //   ),
+                // ),
+              ],
+            ),
           ),
         ),
       );
@@ -720,6 +729,27 @@ class _DetailedHealthInfoScreenState
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _shimmerCard({required double height}) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: ShimmerEffect(child: Container(color: Colors.grey.shade100)),
       ),
     );
   }

@@ -499,7 +499,7 @@ class _FoodDetailPopupState extends ConsumerState<FoodDetailPopup> {
                       _buildNutritionItem(AppStrings.protein, widget.menuItem.protein),
                       _buildNutritionItem(AppStrings.carbs, widget.menuItem.carbs),
                       _buildNutritionItem(AppStrings.fats, widget.menuItem.fats),
-                      _buildNutritionItem(AppStrings.fiber, widget.menuItem.fiber),
+                      //_buildNutritionItem(AppStrings.fiber, widget.menuItem.fiber),
                     ],
                   ),
                   const SizedBox(height: AppSizes.spacing12),

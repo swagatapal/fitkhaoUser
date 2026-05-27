@@ -11,6 +11,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/route_names.dart';
+import '../../../../shared/widgets/shimmer_effect.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../policy/models/app_constants_model.dart';
 import '../../../policy/providers/app_constants_provider.dart';
@@ -158,10 +159,61 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   Widget _buildLoadingState() {
-    return const Center(
-      child: CircularProgressIndicator(color: AppColors.primaryGreen),
+    return  Center(
+      child: ListView.builder(
+        itemCount: 6,
+        itemBuilder: (BuildContext context, int index) {
+          return Padding(
+            padding:  EdgeInsets.only(left : 16.0, right: 16, top: 16),
+            child: _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
+          );
+        },
+      )
+
+
+      // Padding(
+      //   padding: const EdgeInsets.all(16.0),
+      //   child: Column(
+      //     children: [
+      //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
+      //       const SizedBox(height: AppSizes.spacing16),
+      //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
+      //       const SizedBox(height: AppSizes.spacing16),
+      //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
+      //       const SizedBox(height: AppSizes.spacing16),
+      //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
+      //       const SizedBox(height: AppSizes.spacing16),
+      //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
+      //       const SizedBox(height: AppSizes.spacing16),
+      //
+      //
+      //     ],
+      //   ),
+      // ),
     );
   }
+
+  Widget _shimmerCard({required double height}) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: ShimmerEffect(child: Container(color: Colors.grey.shade100)),
+      ),
+    );
+  }
+
 
   Widget _buildErrorState(String error, OrderHistoryNotifier notifier) {
     return Center(
@@ -313,28 +365,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               ],
             ),
           ),
-
-          // GestureDetector(
-          //   onTap: _showLogoutConfirmation,
-          //   child: Icon(Icons.logout_outlined, color: AppColors.darkGreen),
-          // ),
-          // CircleAvatar(
-          //   radius: AppSizes.spacing24,
-          //   backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-          //   backgroundImage: const NetworkImage(
-          //     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
-          //   ),
-          //   onBackgroundImageError: (exception, stackTrace) {},
-          //   child: Container(
-          //     decoration: BoxDecoration(
-          //       shape: BoxShape.circle,
-          //       border: Border.all(
-          //         color: AppColors.primaryGreen.withValues(alpha: 0.3),
-          //         width: AppSizes.borderThin,
-          //       ),
-          //     ),
-          //   ),
-          // ),
         ],
       ),
     );
