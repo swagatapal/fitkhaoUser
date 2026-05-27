@@ -25,7 +25,7 @@ class AppConfig {
   //static const String baseApiUrl = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net';
 
   // development url
- // static const String baseApiUrl = 'https://fitkhaodev-dtambvcxh2c2c7f3.centralindia-01.azurewebsites.net';
+  //static const String baseApiUrl = 'https://fitkhaodev-dtambvcxh2c2c7f3.centralindia-01.azurewebsites.net';
 
   // production url
    static const String baseApiUrl  = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net';
@@ -66,6 +66,9 @@ class AppConfig {
   /// Google Maps / Places API key (must have Maps SDK + Places API enabled)
   static const String googleMapsApiKey = 'AIzaSyDp2r7Do-Z-cwgxiYpE1yzZecBHFz0ocaw';
 
+
+  /// Kitchen open/close status — append /{kitchenId}/open-status
+  static const String kitchenOpenStatusPath = '/api/adm/kitchen';
 
   static const String exercisePath = '/api/adm/exercise';
   static const String physiologicalCategoriesPath = '/api/adm/physiological-category';

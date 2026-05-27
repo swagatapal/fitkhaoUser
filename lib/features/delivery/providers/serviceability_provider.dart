@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/providers.dart';
 import '../repository/serviceability_repository.dart';
 
-/// State for serviceability check
+/// State for serviceability + kitchen open/close check
 class ServiceabilityState {
   final bool? isServiceable;
   final String? kitchenId;
@@ -11,12 +11,20 @@ class ServiceabilityState {
   final bool isLoading;
   final String? error;
 
+  /// null  = kitchen status not yet fetched
+  /// true  = kitchen is open
+  /// false = kitchen is closed
+  final bool? isKitchenOpen;
+  final String? kitchenClosedReason;
+
   const ServiceabilityState({
     this.isServiceable,
     this.kitchenId,
     this.message,
     this.isLoading = false,
     this.error,
+    this.isKitchenOpen,
+    this.kitchenClosedReason,
   });
 
   ServiceabilityState copyWith({
@@ -32,6 +40,9 @@ class ServiceabilityState {
       message: message ?? this.message,
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      // preserve kitchen status fields unchanged
+      isKitchenOpen: isKitchenOpen,
+      kitchenClosedReason: kitchenClosedReason,
     );
   }
 }
@@ -43,7 +54,7 @@ class ServiceabilityNotifier extends StateNotifier<ServiceabilityState> {
   ServiceabilityNotifier(this._serviceabilityRepository)
       : super(const ServiceabilityState());
 
-  /// Check serviceability and populate kitchenId
+  /// Check serviceability then — if serviceable — also check kitchen open status.
   Future<void> checkServiceability({
     required double latitude,
     required double longitude,
@@ -61,17 +72,44 @@ class ServiceabilityNotifier extends StateNotifier<ServiceabilityState> {
       if (response.success && response.data != null) {
         final data = response.data!;
         final kitchenId = data.primaryKitchenId;
+
+        // Base serviceability result
         state = ServiceabilityState(
           isServiceable: data.isServiceable,
           kitchenId: kitchenId,
           message: response.message,
           isLoading: false,
           error: null,
+          isKitchenOpen: null,
+          kitchenClosedReason: null,
         );
+
         debugPrint(
           '[ServiceabilityNotifier] Serviceable: ${data.isServiceable}, '
           'zone: ${data.zoneName}, kitchenId: $kitchenId',
         );
+
+        // Only check kitchen status when location is serviceable and we have a kitchen ID
+        if (data.isServiceable && kitchenId != null && kitchenId.isNotEmpty) {
+          final kitchenStatus = await _serviceabilityRepository
+              .checkKitchenOpenStatus(kitchenId);
+
+          // null response → fail-open (treat kitchen as open)
+          state = ServiceabilityState(
+            isServiceable: data.isServiceable,
+            kitchenId: kitchenId,
+            message: response.message,
+            isLoading: false,
+            error: null,
+            isKitchenOpen: kitchenStatus?.isOpen ?? true,
+            kitchenClosedReason: kitchenStatus?.reason,
+          );
+
+          debugPrint(
+            '[ServiceabilityNotifier] Kitchen isOpen: ${kitchenStatus?.isOpen}, '
+            'reason: ${kitchenStatus?.reason}',
+          );
+        }
       } else {
         state = state.copyWith(
           isLoading: false,

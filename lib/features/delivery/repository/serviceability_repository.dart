@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/services/local_storage_service.dart';
@@ -51,6 +52,33 @@ class ServiceabilityRepository {
       debugPrint('[ServiceabilityRepository] Serviceability check error: $e');
       final message = ExceptionHandler.getErrorMessage(e);
       throw NetworkException(message: message, originalError: e);
+    }
+  }
+
+  /// Fetch kitchen open/close status.
+  /// Returns null on any failure — callers treat null as "kitchen is open"
+  /// so a transient network error never blocks the user from ordering.
+  Future<KitchenOpenStatusData?> checkKitchenOpenStatus(
+      String kitchenId) async {
+    debugPrint(
+        '[ServiceabilityRepository] Checking kitchen open status: $kitchenId');
+    try {
+      final token = _localStorage.getAuthToken();
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        if (token != null && token.isNotEmpty)
+          'Authorization': 'Bearer $token',
+      };
+      final json = await _apiClient.getJson(
+        '${AppConfig.kitchenOpenStatusPath}/$kitchenId/open-status',
+        headers: headers,
+      );
+      debugPrint('[ServiceabilityRepository] Kitchen open status: $json');
+      return KitchenOpenStatusData.fromJson(json);
+    } catch (e) {
+      debugPrint(
+          '[ServiceabilityRepository] Kitchen status error (fail-open): $e');
+      return null;
     }
   }
 }

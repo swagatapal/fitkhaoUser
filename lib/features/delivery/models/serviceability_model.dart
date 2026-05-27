@@ -83,6 +83,31 @@ class ServiceableKitchen {
   }
 }
 
+/// Kitchen open/close status response
+class KitchenOpenStatusData {
+  final String kitchenId;
+  final String kitchenName;
+  final bool isOpen;
+  final String? reason;
+
+  const KitchenOpenStatusData({
+    required this.kitchenId,
+    required this.kitchenName,
+    required this.isOpen,
+    this.reason,
+  });
+
+  factory KitchenOpenStatusData.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>? ?? {};
+    return KitchenOpenStatusData(
+      kitchenId: data['kitchenId'] as String? ?? '',
+      kitchenName: data['kitchenName'] as String? ?? '',
+      isOpen: data['isOpen'] as bool? ?? true,
+      reason: data['reason'] as String?,
+    );
+  }
+}
+
 /// Location coordinates
 class LocationCoordinates {
   final double latitude;

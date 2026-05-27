@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:lottie/lottie.dart';
 import 'package:fitkhao_user/core/router/app_router.dart';
 import 'package:fitkhao_user/features/delivery/presentation/screens/subscription_plan_screen.dart';
 import 'package:fitkhao_user/features/notification/presentation/notification_screen.dart';
@@ -249,6 +250,86 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   }
 
 
+  Widget _buildKitchenClosedBanner(String? reason) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spacing24,
+        vertical: AppSizes.spacing20,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border: Border.all(color: const Color(0xFFEEEEEE)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Lottie.asset(
+            'assets/images/resturent_close.json',
+            width: 180,
+            height: 180,
+            fit: BoxFit.contain,
+            repeat: true,
+          ),
+          const SizedBox(height: AppSizes.spacing8),
+          const Text(
+            'Outlet Closed',
+            style: TextStyle(
+              fontSize: AppTypography.fontSize20,
+              fontWeight: AppTypography.bold,
+              color: Color(0xFF212121),
+              fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: AppSizes.spacing6),
+          const Text(
+            'Our kitchen is not accepting orders\nright now. Please check back later.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize13,
+              fontWeight: AppTypography.regular,
+              color: Color(0xFF757575),
+              fontFamily: 'Lato',
+              height: 1.5,
+            ),
+          ),
+          if (reason != null && reason.isNotEmpty) ...[
+            const SizedBox(height: AppSizes.spacing8),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.spacing12,
+                vertical: AppSizes.spacing6,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(AppSizes.radius20),
+              ),
+              child: Text(
+                reason,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize12,
+                  fontWeight: AppTypography.medium,
+                  color: Color(0xFF9E9E9E),
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   /// Load user profile data
   Future<void> _loadProfileData() async {
     final authNotifier = ref.read(authProvider.notifier);
@@ -411,6 +492,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                             const SizedBox(height: AppSizes.spacing8),
                             if (serviceabilityState.isServiceable == false)
                               _buildServiceabilityBanner()
+                            else if (serviceabilityState.isKitchenOpen == false)
+                              _buildKitchenClosedBanner(
+                                  serviceabilityState.kitchenClosedReason)
                             else if (!_isOrderingAllowed)
                               _buildOrderingTimeBanner()
                             else ...[
@@ -422,7 +506,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         ),
                       ),
                       // Extra space so last item isn't hidden behind cart bar
-                      if (cartItems.isNotEmpty)
+                      if (cartItems.isNotEmpty &&
+                          serviceabilityState.isKitchenOpen != false)
                         const SizedBox(height: cartBarHeight),
                       const SizedBox(height: AppSizes.spacing32),
                     ],
@@ -430,7 +515,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 ),
               ),
             ),
-            if (cartItems.isNotEmpty)
+            if (cartItems.isNotEmpty &&
+                serviceabilityState.isKitchenOpen != false && serviceabilityState.isServiceable != false)
               Positioned(
                 left: 0,
                 right: 0,
