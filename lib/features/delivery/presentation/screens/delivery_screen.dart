@@ -97,6 +97,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final position = _scrollController.position;
     final dishState = ref.read(allDishesProvider);
 
+    // "All" view has no pagination — do nothing
+    if (dishState.isAllView) {
+      _hasShownNoMoreDataPopup = false;
+      return;
+    }
+
     if (position.pixels < position.maxScrollExtent - 120) {
       _hasShownNoMoreDataPopup = false;
       return;
@@ -107,7 +113,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       return;
     }
 
-    final hasReachedEnd = dishState.allItems.isNotEmpty &&
+    final hasReachedEnd = dishState.categoryItems.isNotEmpty &&
         !dishState.isLoading &&
         !dishState.isLoadingMore &&
         !dishState.canLoadMore;
@@ -1091,18 +1097,18 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   Widget _buildFilterChips() {
     final dishState = ref.watch(allDishesProvider);
-    if (dishState.isLoading || dishState.allItems.isEmpty) {
-      return const SizedBox.shrink();
-    }
 
-    final categories = dishState.categories;
     final selectedCatId = dishState.selectedCategoryId;
     final selectedType = dishState.selectedDishType;
+    final categories = dishState.categories;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (categories.isNotEmpty) ...[
+        // ── Category tabs row ──────────────────────────────────────────────
+        if (dishState.areCategoriesLoading)
+          _buildCategoryTabsSkeleton()
+        else if (categories.isNotEmpty) ...[
           SizedBox(
             height: 36,
             child: ListView(
@@ -1111,16 +1117,21 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 _chip(
                   label: 'All',
                   isSelected: selectedCatId == null,
-                  onTap: () =>
-                      ref.read(allDishesProvider.notifier).setCategoryFilter(null),
+                  onTap: () {
+                    _hasShownNoMoreDataPopup = false;
+                    ref.read(allDishesProvider.notifier).selectCategory(null);
+                  },
                 ),
                 ...categories.map(
                   (cat) => _chip(
                     label: cat.name,
                     isSelected: selectedCatId == cat.id,
-                    onTap: () => ref
-                        .read(allDishesProvider.notifier)
-                        .setCategoryFilter(cat.id),
+                    onTap: () {
+                      _hasShownNoMoreDataPopup = false;
+                      ref
+                          .read(allDishesProvider.notifier)
+                          .selectCategory(cat.id);
+                    },
                   ),
                 ),
               ],
@@ -1128,6 +1139,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           ),
           const SizedBox(height: AppSizes.spacing8),
         ],
+        // ── Veg / Non-veg filter row ───────────────────────────────────────
         Row(
           children: [
             _chip(
@@ -1157,6 +1169,31 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         ),
         const SizedBox(height: AppSizes.spacing12),
       ],
+    );
+  }
+
+  /// Skeleton for the category tabs while loading
+  Widget _buildCategoryTabsSkeleton() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSizes.spacing8),
+      child: SizedBox(
+        height: 36,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: List.generate(
+            4,
+            (_) => Container(
+              margin: const EdgeInsets.only(right: AppSizes.spacing8),
+              width: 72,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppSizes.radius20),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1217,38 +1254,62 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   Widget _buildDishList() {
     final dishState = ref.watch(allDishesProvider);
 
-    if (dishState.isLoading) return _buildDishListSkeleton();
-
-    if (dishState.error != null && dishState.allItems.isEmpty) {
-      return _buildDishListError(dishState.error!);
+    // Loading state
+    if (dishState.isAllViewLoading || dishState.isLoading) {
+      return _buildDishListSkeleton();
     }
 
-    final items = dishState.filteredItems;
+    // Error state — only shown when there's nothing to display
+    if (dishState.error != null) {
+      final isEmpty = dishState.isAllView
+          ? dishState.sections.isEmpty
+          : dishState.categoryItems.isEmpty;
+      if (isEmpty) return _buildDishListError(dishState.error!);
+    }
+
+    // Render grouped or flat body
+    if (dishState.isAllView) {
+      return _buildGroupedSectionsBody(dishState);
+    } else {
+      return _buildFlatCategoryBody(dishState);
+    }
+  }
+
+  // ── "All" grouped view ─────────────────────────────────────────────────────
+
+  Widget _buildGroupedSectionsBody(AllDishesState dishState) {
+    final sections = dishState.filteredSections;
+
+    if (sections.isEmpty) {
+      return _buildEmptyState(
+        dishState.sections.isEmpty
+            ? 'No items available'
+            : 'No items match the selected filters',
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final section in sections) ...[
+          _buildSectionHeader(section.category.name),
+          ...section.items.map((item) => _buildDishCard(item)),
+          const SizedBox(height: AppSizes.spacing8),
+        ],
+      ],
+    );
+  }
+
+  // ── Per-category paginated view ─────────────────────────────────────────────
+
+  Widget _buildFlatCategoryBody(AllDishesState dishState) {
+    final items = dishState.filteredCategoryItems;
 
     if (items.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing32),
-        alignment: Alignment.center,
-        child: Column(
-          children: [
-            Icon(
-              Icons.no_meals_outlined,
-              size: AppSizes.icon48,
-              color: AppColors.textTertiary,
-            ),
-            const SizedBox(height: AppSizes.spacing12),
-            Text(
-              dishState.allItems.isEmpty
-                  ? 'No items available'
-                  : 'No items match the selected filters',
-              style: const TextStyle(
-                fontSize: AppTypography.fontSize14,
-                color: AppColors.textSecondary,
-                fontFamily: 'Lato',
-              ),
-            ),
-          ],
-        ),
+      return _buildEmptyState(
+        dishState.categoryItems.isEmpty
+            ? 'No items available in this category'
+            : 'No items match the selected filters',
       );
     }
 
@@ -1270,6 +1331,67 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  // ── Section header ─────────────────────────────────────────────────────────
+
+  Widget _buildSectionHeader(String name) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: AppSizes.spacing16,
+        bottom: AppSizes.spacing8,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 18,
+            decoration: BoxDecoration(
+              color: AppColors.primaryGreen,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: AppSizes.spacing8),
+          Text(
+            name,
+            style: const TextStyle(
+              fontSize: AppTypography.fontSize16,
+              fontWeight: AppTypography.bold,
+              color: AppColors.textPrimary,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Empty / error states ───────────────────────────────────────────────────
+
+  Widget _buildEmptyState(String message) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing32),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          Icon(
+            Icons.no_meals_outlined,
+            size: AppSizes.icon48,
+            color: AppColors.textTertiary,
+          ),
+          const SizedBox(height: AppSizes.spacing12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: AppTypography.fontSize14,
+              color: AppColors.textSecondary,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -226,6 +226,7 @@ class MenuItem {
   }
 
   static List<MenuItem> getMockMenuItems() {
+
     return [
       const MenuItem(
         id: '1',
@@ -335,4 +336,32 @@ class MenuItem {
       ),
     ];
   }
+}
+
+/// Model for a dish category fetched from the API
+class DishCategory {
+  final String id;
+  final String name;
+  final int displayOrder;
+
+  const DishCategory({
+    required this.id,
+    required this.name,
+    this.displayOrder = 0,
+  });
+
+  factory DishCategory.fromJson(Map<String, dynamic> json) {
+    return DishCategory(
+      id: json['_id'] as String? ?? json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      displayOrder: (json['displayOrder'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || (other is DishCategory && other.id == id);
+
+  @override
+  int get hashCode => id.hashCode;
 }

@@ -70,6 +70,12 @@ class AppConfig {
   /// Kitchen open/close status — append /{kitchenId}/open-status
   static const String kitchenOpenStatusPath = '/api/adm/kitchen';
 
+  /// Dish categories (outlet-level)
+  static const String outletDishCategoryPath = '/api/adm/outlet-dish-category';
+
+  /// Dishes with optional category filter
+  static const String outletDishPath = '/api/adm/outlet-dish';
+
   static const String exercisePath = '/api/adm/exercise';
   static const String physiologicalCategoriesPath = '/api/adm/physiological-category';
   static const String professionPath = '/api/adm/profession';
