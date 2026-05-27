@@ -35,7 +35,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       image: "assets/images/o3.png",
       title: "We\nDeliver\nIt to Your\nDoorstep",
       titleGreenPart: "Get Healthy Food",
-      titleWhitePart: "\nDelivered at lowest price garrenty",
+      titleWhitePart: "\nDelivered at lowest price guarantee",
     ),
   ];
 
