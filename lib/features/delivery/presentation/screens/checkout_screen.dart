@@ -112,7 +112,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final itemTotal = totalPrice;
     final platformCharge = pricing.platformFee;
     final deliveryCharge = pricing.deliveryCharge;
-    final gstAmount = (itemTotal + platformCharge) * pricing.gstRate / 100;
+    final gstAmount = ((itemTotal + platformCharge) * pricing.gstRate) ;
     final couponDiscount = _appliedCoupon?.computeDiscount(itemTotal) ?? 0.0;
     final subTotal =
         (itemTotal + platformCharge + deliveryCharge + gstAmount - couponDiscount)
@@ -905,8 +905,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               if (gstAmount > 0) ...[
                 const SizedBox(height: AppSizes.spacing8),
                 _buildSummaryRow(
-                  'commission and taxes (${gstRate.toStringAsFixed(0)}%)',
-                  '₹${gstAmount.toStringAsFixed(2)}',
+                  'commission and taxes (${(gstRate*100).toStringAsFixed(0)}%)',
+                  '₹${(gstAmount).toStringAsFixed(2)}',
                 ),
               ],
 

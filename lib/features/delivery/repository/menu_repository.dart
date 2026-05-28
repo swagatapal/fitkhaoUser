@@ -104,7 +104,8 @@ class MenuRepository {
     try {
       final buffer = StringBuffer(
         '${AppConfig.outletDishPath}?isActive=true'
-        '&pageIndex=$pageIndex&pageSize=$pageSize',
+        '&pageIndex=$pageIndex&pageSize=${200}',
+        //'&pageIndex=$pageIndex&pageSize=$pageSize',
       );
       if (categoryId != null && categoryId.isNotEmpty) {
         buffer.write('&category=$categoryId');

@@ -131,6 +131,7 @@ class AllDishesState {
         return list.where((i) => i.isVeg).toList();
       case 'non-veg':
         return list.where((i) => !i.isVeg).toList();
+
       default:
         return list;
     }

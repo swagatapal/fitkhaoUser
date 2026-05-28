@@ -136,7 +136,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
     if (hasReachedEnd && !_hasShownNoMoreDataPopup) {
       _hasShownNoMoreDataPopup = true;
-      _showNoMoreDataPopup();
+      //_showNoMoreDataPopup();
     }
   }
 
@@ -1191,33 +1191,70 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           ),
           const SizedBox(height: AppSizes.spacing8),
         ],
-        // ── Veg / Non-veg filter row ───────────────────────────────────────
-        Row(
-          children: [
-            _chip(
-              label: 'All',
-              isSelected: selectedType == 'all',
-              onTap: () =>
-                  ref.read(allDishesProvider.notifier).setDishTypeFilter('all'),
-            ),
-            const SizedBox(width: AppSizes.spacing8),
-            _chip(
-              label: 'Veg',
-              isSelected: selectedType == 'veg',
-              dotColor: const Color(0xFF388E3C),
-              onTap: () =>
-                  ref.read(allDishesProvider.notifier).setDishTypeFilter('veg'),
-            ),
-            const SizedBox(width: AppSizes.spacing8),
-            _chip(
-              label: 'Non-Veg',
-              isSelected: selectedType == 'non-veg',
-              dotColor: const Color(0xFFD32F2F),
-              onTap: () => ref
-                  .read(allDishesProvider.notifier)
-                  .setDishTypeFilter('non-veg'),
-            ),
-          ],
+        // ── Veg / Non-veg filter row (horizontally scrollable) ────────────
+        SizedBox(
+          height: 36,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.zero,
+            children: [
+              _chip(
+                label: 'All',
+                isSelected: selectedType == 'all',
+                onTap: () => ref
+                    .read(allDishesProvider.notifier)
+                    .setDishTypeFilter('all'),
+              ),
+              _chip(
+                label: 'Veg',
+                isSelected: selectedType == 'veg',
+                dotColor: const Color(0xFF388E3C),
+                onTap: () => ref
+                    .read(allDishesProvider.notifier)
+                    .setDishTypeFilter('veg'),
+              ),
+              _chip(
+                label: 'Non-Veg',
+                isSelected: selectedType == 'non-veg',
+                dotColor: const Color(0xFFD32F2F),
+                onTap: () => ref
+                    .read(allDishesProvider.notifier)
+                    .setDishTypeFilter('non-veg'),
+              ),
+              _chip(
+                label: 'Eggetarian',
+                isSelected: selectedType == 'Eggetarian',
+                dotColor: const Color(0xFFD32F2F),
+                onTap: () => ref
+                    .read(allDishesProvider.notifier)
+                    .setDishTypeFilter('Eggetarian'),
+              ),
+              _chip(
+                label: 'Vegan',
+                isSelected: selectedType == 'Vegan',
+                dotColor: const Color(0xFF388E3C),
+                onTap: () => ref
+                    .read(allDishesProvider.notifier)
+                    .setDishTypeFilter('Vegan'),
+              ),
+              _chip(
+                label: 'Beverage',
+                isSelected: selectedType == 'Beverage',
+                dotColor: const Color(0xFF388E3C),
+                onTap: () => ref
+                    .read(allDishesProvider.notifier)
+                    .setDishTypeFilter('Beverage'),
+              ),
+              _chip(
+                label: 'Smoothie',
+                isSelected: selectedType == 'Smoothie',
+                dotColor: const Color(0xFF388E3C),
+                onTap: () => ref
+                    .read(allDishesProvider.notifier)
+                    .setDishTypeFilter('Smoothie'),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: AppSizes.spacing12),
       ],
@@ -2077,12 +2114,13 @@ class _FilterChipsDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
 
   double get _height {
-    // Taller variant when the category-tab row is present or loading.
+    // Category-tab row (36) + spacing (8) + veg-filter row (36) + top-pad (8) = 88
+    // → round up to 104 to give the last chip a touch-target bottom margin.
     if (dishState.areCategoriesLoading || dishState.categories.isNotEmpty) {
-      return 96.0;
+      return 104.0;
     }
-    // Compact variant — only the veg/non-veg row.
-    return 52.0;
+    // Compact variant — top-pad (8) + veg-filter row (36) + bottom (16) = 60
+    return 60.0;
   }
 
   @override

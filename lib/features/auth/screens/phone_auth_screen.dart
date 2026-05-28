@@ -304,14 +304,14 @@ Future<void> getPhoneNumber() async {
                               fontFamily: 'Lato',
                             ),
                       ),
-                      const SizedBox(width: AppSizes.spacing4),
-                      Text(
-                        '*',
-                        style: TextStyle(
-                          color: AppColors.errorColor,
-                          fontSize: context.responsiveFontSize(AppTypography.fontSize16),
-                        ),
-                      ),
+                      // const SizedBox(width: AppSizes.spacing4),
+                      // Text(
+                      //   '*',
+                      //   style: TextStyle(
+                      //     color: AppColors.errorColor,
+                      //     fontSize: context.responsiveFontSize(AppTypography.fontSize16),
+                      //   ),
+                      // ),
                     ],
                   ),
                   SizedBox(height: spacing8),
@@ -424,38 +424,7 @@ Future<void> getPhoneNumber() async {
                 ],
               ),
               SizedBox(height: spacing24),
-              // Get Code Button
-              PrimaryButton(
-                text: AppStrings.getCode,
-                textColor: Colors.white,
-                onPressed: authState.phoneNumber.length == AppSizes.maxLengthPhone &&
-                        authState.isTermsAccepted &&
-                        !authState.isLoading
-                    ? _handleGetCode
-                    : null,
-                isLoading: authState.isLoading,
-                height: AppSizes.buttonHeight,
-                disabledBackgroundColor: const Color(0xFFA0D488),
-                icon: Icon(
-                  Icons.arrow_forward,
-                  color: Colors.white,
-                  size: context.isSmallMobile ? AppSizes.icon18 : AppSizes.icon20,
-                ),
-              ),
-              SizedBox(height: spacing16),
-              // Auto Fetch Button
-              PrimaryButton(
-                height: AppSizes.buttonHeight,
-                text: AppStrings.autoFetchPhoneNumber,
-                onPressed: authState.isLoading ? null : getPhoneNumber,
-                textColor: Colors.white,
-                icon: Icon(
-                  Icons.call_outlined,
-                  size: context.isSmallMobile ? AppSizes.icon18 : AppSizes.icon20,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(height: spacing40),
+
               // Terms and Conditions
               Container(
                 padding: EdgeInsets.all(spacing12),
@@ -472,14 +441,15 @@ Future<void> getPhoneNumber() async {
                     Transform.scale(
                       scale: context.isSmallMobile ? 0.9 : 1.0,
                       child: Checkbox(
+                        activeColor: AppColors.primaryGreen,
                         value: authState.isTermsAccepted,
                         onChanged: authState.isLoading
                             ? null
                             : (value) {
-                                ref
-                                    .read(authProvider.notifier)
-                                    .setTermsAccepted(value ?? false);
-                              },
+                          ref
+                              .read(authProvider.notifier)
+                              .setTermsAccepted(value ?? false);
+                        },
                       ),
                     ),
                     Expanded(
@@ -491,9 +461,9 @@ Future<void> getPhoneNumber() async {
                             Text(
                               AppStrings.agreeToTerms,
                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontSize: context.responsiveFontSize(14.0),
-                                    fontFamily: "Lato"
-                                  ),
+                                  fontSize: context.responsiveFontSize(14.0),
+                                  fontFamily: "Lato"
+                              ),
                             ),
                             SizedBox(height: spacing8 / 2),
                             GestureDetector(
@@ -515,12 +485,12 @@ Future<void> getPhoneNumber() async {
                                     .textTheme
                                     .bodyMedium
                                     ?.copyWith(
-                                      color: AppColors.primaryGreen,
-                                      fontWeight: FontWeight.w600,
-                                      decoration: TextDecoration.underline,
-                                      fontSize: context.responsiveFontSize(14.0),
-                                      fontFamily: "Lato"
-                                    ),
+                                    color: AppColors.primaryGreen,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.underline,
+                                    fontSize: context.responsiveFontSize(14.0),
+                                    fontFamily: "Lato"
+                                ),
                               ),
                             ),
                           ],
@@ -530,6 +500,40 @@ Future<void> getPhoneNumber() async {
                   ],
                 ),
               ),
+              SizedBox(height: spacing40),
+              // Get Code Button
+              PrimaryButton(
+                text: "Continue",
+                textColor: Colors.white,
+                onPressed: authState.phoneNumber.length == AppSizes.maxLengthPhone &&
+                        authState.isTermsAccepted &&
+                        !authState.isLoading
+                    ? _handleGetCode
+                    : null,
+                isLoading: authState.isLoading,
+                height: AppSizes.buttonHeight,
+                disabledBackgroundColor: const Color(0xFFA0D488),
+                icon: Icon(
+                  Icons.arrow_forward,
+                  color: Colors.white,
+                  size: context.isSmallMobile ? AppSizes.icon18 : AppSizes.icon20,
+                ),
+              ),
+
+              // Auto Fetch Button
+              // PrimaryButton(
+              //   height: AppSizes.buttonHeight,
+              //   text: AppStrings.autoFetchPhoneNumber,
+              //   onPressed: authState.isLoading ? null : getPhoneNumber,
+              //   textColor: Colors.white,
+              //   icon: Icon(
+              //     Icons.call_outlined,
+              //     size: context.isSmallMobile ? AppSizes.icon18 : AppSizes.icon20,
+              //     color: Colors.white,
+              //   ),
+              // ),
+
+
             ],
           ),
         ),
