@@ -49,13 +49,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
-    // Load profile data when screen opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadProfileData();
-      _loadWalletBalance();
-      _checkServiceability();
-      _loadAllDishes();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadInitialData());
   }
 
   @override
@@ -80,15 +74,33 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     ref.read(allDishesProvider.notifier).setSearchQuery('');
   }
 
-  /// Refresh all data
-  Future<void> _onRefresh() async {
+  /// Orchestrates the full load sequence on first open and on pull-to-refresh.
+  ///
+  /// Sequence:
+  ///   1. Profile + wallet load in parallel (neither depends on serviceability).
+  ///   2. Serviceability check — must complete before dish APIs are touched.
+  ///   3. Dish APIs (categories + items) — called **only** when serviceable.
+  ///
+  /// This prevents unnecessary API calls to the menu endpoints when the user's
+  /// location is outside any serviceable zone.
+  Future<void> _loadInitialData() async {
+    // Step 1 — independent loaders run in parallel.
     await Future.wait([
       _loadProfileData(),
       _loadWalletBalance(),
-      _checkServiceability(),
-      _loadAllDishes(),
     ]);
+
+    // Step 2 — serviceability gate.
+    final isServiceable = await _checkServiceability();
+
+    // Step 3 — dish APIs only when location is confirmed serviceable.
+    if (isServiceable) {
+      await _loadAllDishes();
+    }
   }
+
+  /// Pull-to-refresh applies the same sequential gate.
+  Future<void> _onRefresh() => _loadInitialData();
 
   Future<void> _loadAllDishes() async {
     _hasShownNoMoreDataPopup = false;
@@ -166,7 +178,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   bool get _isOrderingAllowed {
     final hour = DateTime.now().hour;
     // PRODUCTION value (11 AM – 1 AM, crosses midnight):
-    return hour >= 11 || hour < 2;
+    return hour >= 11 || hour < 1;
     // To test the closed-banner right now, swap to:
      //return hour >= 11 && hour < 23;  // closes at 11 PM
   }
@@ -372,18 +384,28 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     }
   }
 
-  /// Check if delivery is serviceable for user's location
-  Future<void> _checkServiceability() async {
+  /// Check if delivery is serviceable for the user's location.
+  ///
+  /// Returns `true`  when the API confirms the location is serviceable.
+  /// Returns `false` when the API confirms it is NOT serviceable.
+  /// Returns `true`  (fail-open) when coordinates are missing or the call
+  ///   fails, so the dish section still loads for users who haven't set an
+  ///   address yet — matching the existing `showDishes` null-means-open logic.
+  Future<bool> _checkServiceability() async {
     final authState = ref.read(authProvider);
 
-    // Only check if we have valid coordinates
-    if (authState.latitude != null && authState.longitude != null) {
-      final serviceabilityNotifier = ref.read(serviceabilityProvider.notifier);
-      await serviceabilityNotifier.checkServiceability(
-        latitude: authState.latitude!,
-        longitude: authState.longitude!,
-      );
-    }
+    // No coordinates yet → fail-open so dishes are visible.
+    if (authState.latitude == null || authState.longitude == null) return true;
+
+    await ref.read(serviceabilityProvider.notifier).checkServiceability(
+      latitude: authState.latitude!,
+      longitude: authState.longitude!,
+    );
+
+    // Read the result that the notifier has just written to state.
+    // isServiceable == null means the call produced no conclusive result
+    // → treat as serviceable (fail-open), consistent with the UI gate.
+    return ref.read(serviceabilityProvider).isServiceable != false;
   }
 
   /// Show membership popup on first load
