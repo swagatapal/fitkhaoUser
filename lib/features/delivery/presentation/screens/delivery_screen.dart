@@ -41,6 +41,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   final bool _profileImageError = false;
   bool _hasShownNoMoreDataPopup = false;
 
+  /// IDs of categories that are currently collapsed in the "All" grouped view.
+  /// Using a [Set] gives O(1) contains/add/remove.
+  final Set<String> _collapsedCategories = {};
+
   @override
   void initState() {
     super.initState();
@@ -88,7 +92,22 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   Future<void> _loadAllDishes() async {
     _hasShownNoMoreDataPopup = false;
+    // Reset collapse state so fresh data starts fully expanded.
+    if (_collapsedCategories.isNotEmpty) {
+      setState(() => _collapsedCategories.clear());
+    }
     await ref.read(allDishesProvider.notifier).loadMenuItems();
+  }
+
+  /// Toggle a category section between expanded and collapsed.
+  void _toggleCategory(String categoryId) {
+    setState(() {
+      if (_collapsedCategories.contains(categoryId)) {
+        _collapsedCategories.remove(categoryId);
+      } else {
+        _collapsedCategories.add(categoryId);
+      }
+    });
   }
 
   void _handleScroll() {
@@ -1301,7 +1320,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         : _buildFlatCategoryBody(dishState);
   }
 
-  // ── "All" grouped view ─────────────────────────────────────────────────────
+  // ── "All" grouped view — collapsible sections ─────────────────────────────
 
   Widget _buildGroupedSectionsBody(AllDishesState dishState) {
     final sections = dishState.groupedSections;
@@ -1318,16 +1337,133 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final section in sections) ...[
-          _buildSectionHeader(section.category.name),
-          for (final item in section.items)
-            _FadeSlideIn(
-              key: ValueKey('all_${item.id}'),
-              child: _buildDishCard(item),
-            ),
-          const SizedBox(height: AppSizes.spacing8),
+          _buildCollapsibleSectionHeader(section),
+          _buildCollapsibleSectionItems(section),
         ],
         if (dishState.isLoadingMore) _buildLoadMoreIndicator(),
+        const SizedBox(height: AppSizes.spacing8),
       ],
+    );
+  }
+
+  /// Tappable header row that collapses / expands a category section.
+  Widget _buildCollapsibleSectionHeader(GroupedDishSection section) {
+    final isCollapsed = _collapsedCategories.contains(section.category.id);
+
+    return GestureDetector(
+      onTap: () => _toggleCategory(section.category.id),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.only(
+          top: AppSizes.spacing16,
+          bottom: AppSizes.spacing8,
+        ),
+        child: Row(
+          children: [
+            // ── Accent bar: green when expanded, grey when collapsed ────────
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              width: 4,
+              height: 18,
+              decoration: BoxDecoration(
+                color: isCollapsed
+                    ? AppColors.textTertiary
+                    : AppColors.primaryGreen,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: AppSizes.spacing8),
+
+            // ── Category name ───────────────────────────────────────────────
+            Expanded(
+              child: AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize16,
+                  fontWeight: AppTypography.bold,
+                  color: isCollapsed
+                      ? AppColors.textSecondary
+                      : AppColors.textPrimary,
+                  fontFamily: 'Lato',
+                ),
+                child: Text(section.category.name),
+              ),
+            ),
+
+            // ── Item count pill ─────────────────────────────────────────────
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.spacing8,
+                vertical: AppSizes.spacing2,
+              ),
+              decoration: BoxDecoration(
+                color: isCollapsed
+                    ? Colors.grey.withValues(alpha: 0.10)
+                    : AppColors.primaryGreen.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(AppSizes.radius20),
+              ),
+              child: Text(
+                '${section.items.length} items',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize12,
+                  fontWeight: AppTypography.semiBold,
+                  color: isCollapsed
+                      ? AppColors.textTertiary
+                      : AppColors.primaryGreen,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSizes.spacing8),
+
+            // ── Chevron — rotates 180° when section collapses ───────────────
+            AnimatedRotation(
+              turns: isCollapsed ? 0.5 : 0,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              child: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 22,
+                color: isCollapsed
+                    ? AppColors.textTertiary
+                    : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Animated body of a collapsible section.
+  ///
+  /// [AnimatedSize] smoothly interpolates the height between 0 (collapsed)
+  /// and its natural height (expanded).  [_FadeSlideIn] gives each card a
+  /// "rise-in" entrance whenever it is added to the tree, so expanding a
+  /// section looks polished without any extra controller logic.
+  Widget _buildCollapsibleSectionItems(GroupedDishSection section) {
+    final isCollapsed = _collapsedCategories.contains(section.category.id);
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeInOut,
+      alignment: Alignment.topCenter,
+      child: isCollapsed
+          ? const SizedBox.shrink()
+          : Column(
+              children: [
+                for (final item in section.items)
+                  _FadeSlideIn(
+                    key: ValueKey('all_${item.id}'),
+                    child: _buildDishCard(item),
+                  ),
+                const SizedBox(height: AppSizes.spacing8),
+              ],
+            ),
     );
   }
 
@@ -1368,39 +1504,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             color: AppColors.primaryGreen,
           ),
         ),
-      ),
-    );
-  }
-
-  // ── Section header ─────────────────────────────────────────────────────────
-
-  Widget _buildSectionHeader(String name) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        top: AppSizes.spacing16,
-        bottom: AppSizes.spacing8,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 18,
-            decoration: BoxDecoration(
-              color: AppColors.primaryGreen,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: AppSizes.spacing8),
-          Text(
-            name,
-            style: const TextStyle(
-              fontSize: AppTypography.fontSize16,
-              fontWeight: AppTypography.bold,
-              color: AppColors.textPrimary,
-              fontFamily: 'Lato',
-            ),
-          ),
-        ],
       ),
     );
   }
