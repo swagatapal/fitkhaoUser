@@ -534,6 +534,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                                   serviceabilityState.kitchenClosedReason)
                             else if (!_isOrderingAllowed)
                               _buildOrderingTimeBanner(),
+
                           ],
                         ),
                       ),
@@ -564,8 +565,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                     SliverToBoxAdapter(
                       child: SizedBox(
                         height: showCartBar
-                            ? cartBarHeight + AppSizes.spacing32
-                            : AppSizes.spacing32,
+                            ? cartBarHeight + AppSizes.spacing32+AppSizes.spacing32+AppSizes.spacing8
+                            : AppSizes.spacing32+AppSizes.spacing32+AppSizes.spacing8,
                       ),
                     ),
                   ],
@@ -1221,38 +1222,38 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                     .read(allDishesProvider.notifier)
                     .setDishTypeFilter('non-veg'),
               ),
-              _chip(
-                label: 'Eggetarian',
-                isSelected: selectedType == 'Eggetarian',
-                dotColor: const Color(0xFFD32F2F),
-                onTap: () => ref
-                    .read(allDishesProvider.notifier)
-                    .setDishTypeFilter('Eggetarian'),
-              ),
-              _chip(
-                label: 'Vegan',
-                isSelected: selectedType == 'Vegan',
-                dotColor: const Color(0xFF388E3C),
-                onTap: () => ref
-                    .read(allDishesProvider.notifier)
-                    .setDishTypeFilter('Vegan'),
-              ),
-              _chip(
-                label: 'Beverage',
-                isSelected: selectedType == 'Beverage',
-                dotColor: const Color(0xFF388E3C),
-                onTap: () => ref
-                    .read(allDishesProvider.notifier)
-                    .setDishTypeFilter('Beverage'),
-              ),
-              _chip(
-                label: 'Smoothie',
-                isSelected: selectedType == 'Smoothie',
-                dotColor: const Color(0xFF388E3C),
-                onTap: () => ref
-                    .read(allDishesProvider.notifier)
-                    .setDishTypeFilter('Smoothie'),
-              ),
+              // _chip(
+              //   label: 'Eggetarian',
+              //   isSelected: selectedType == 'Eggetarian',
+              //   dotColor: const Color(0xFFD32F2F),
+              //   onTap: () => ref
+              //       .read(allDishesProvider.notifier)
+              //       .setDishTypeFilter('Eggetarian'),
+              // ),
+              // _chip(
+              //   label: 'Vegan',
+              //   isSelected: selectedType == 'Vegan',
+              //   dotColor: const Color(0xFF388E3C),
+              //   onTap: () => ref
+              //       .read(allDishesProvider.notifier)
+              //       .setDishTypeFilter('Vegan'),
+              // ),
+              // _chip(
+              //   label: 'Beverage',
+              //   isSelected: selectedType == 'Beverage',
+              //   dotColor: const Color(0xFF388E3C),
+              //   onTap: () => ref
+              //       .read(allDishesProvider.notifier)
+              //       .setDishTypeFilter('Beverage'),
+              // ),
+              // _chip(
+              //   label: 'Smoothie',
+              //   isSelected: selectedType == 'Smoothie',
+              //   dotColor: const Color(0xFF388E3C),
+              //   onTap: () => ref
+              //       .read(allDishesProvider.notifier)
+              //       .setDishTypeFilter('Smoothie'),
+              //),
             ],
           ),
         ),

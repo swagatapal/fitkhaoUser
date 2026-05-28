@@ -77,7 +77,7 @@ class AllDishesState {
   /// non-null → per-category flat view
   final String? selectedCategoryId;
 
-  /// 'all' | 'veg' | 'non-veg'
+  /// 'all' | 'veg' | 'non-veg' | 'Eggetarian' | 'Vegan' | 'Beverage' | 'Smoothie'
   final String selectedDishType;
 
   final String searchQuery;
@@ -115,9 +115,20 @@ class AllDishesState {
     return page < total - 1;
   }
 
-  /// Veg/non-veg + search applied to the active items list
+  /// Dish-type + search filter applied to the active items list.
+  ///
+  /// [selectedDishType] values from the UI chips:
+  ///   'all' | 'veg' | 'non-veg' | 'Eggetarian' | 'Vegan' | 'Beverage' | 'Smoothie'
+  ///
+  /// [MenuItem.menuType] is normalised at parse time:
+  ///   "Veg" → "veg", "Non-Veg" → "nonveg", "Eggetarian" → "eggetarian", etc.
+  ///
+  /// We apply the same normalisation to [selectedDishType] so comparisons are
+  /// resilient to casing / hyphen differences.
   List<MenuItem> get filteredItems {
     var list = items;
+
+    // ── Search ──────────────────────────────────────────────────────────────
     if (searchQuery.isNotEmpty) {
       final q = searchQuery.toLowerCase();
       list = list
@@ -126,12 +137,30 @@ class AllDishesState {
               i.categoryName.toLowerCase().contains(q))
           .toList();
     }
-    switch (selectedDishType) {
-      case 'veg':
-        return list.where((i) => i.isVeg).toList();
-      case 'non-veg':
-        return list.where((i) => !i.isVeg).toList();
 
+    // ── Dish-type filter ────────────────────────────────────────────────────
+    if (selectedDishType == 'all') return list;
+
+    // Normalise exactly as MenuItem.fromJson does for menuType.
+    final filter = selectedDishType
+        .toLowerCase()
+        .replaceAll('-', '')
+        .replaceAll(' ', '');
+
+    switch (filter) {
+      case 'veg':
+        // Pure vegetarian only — excludes Vegan, Eggetarian, etc.
+        return list.where((i) => i.menuType == 'veg').toList();
+      case 'nonveg':
+        return list.where((i) => i.menuType == 'nonveg').toList();
+      case 'eggetarian':
+        return list.where((i) => i.menuType == 'eggetarian').toList();
+      case 'vegan':
+        return list.where((i) => i.menuType == 'vegan').toList();
+      case 'beverage':
+        return list.where((i) => i.menuType == 'beverage').toList();
+      case 'smoothie':
+        return list.where((i) => i.menuType == 'smoothie').toList();
       default:
         return list;
     }
