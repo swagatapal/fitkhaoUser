@@ -166,7 +166,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   bool get _isOrderingAllowed {
     final hour = DateTime.now().hour;
     // PRODUCTION value (11 AM – 1 AM, crosses midnight):
-    return hour >= 11 || hour < 1;
+    return hour >= 11 || hour < 2;
     // To test the closed-banner right now, swap to:
      //return hour >= 11 && hour < 23;  // closes at 11 PM
   }
