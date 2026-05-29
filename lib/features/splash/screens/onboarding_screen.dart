@@ -19,24 +19,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<OnboardingData> _onboardingData = [
     OnboardingData(
+      image: "assets/images/o3.png",
+      title: "We\nDeliver\nIt to Your\nDoorstep",
+      titleGreenPart: "Get Healthy Food",
+      titleWhitePart: "\nDelivered at The ",
+      lastPart: "Lowest Price Guaranteed"
+    ),
+    OnboardingData(
       image: "assets/images/o1.png",
       title: "Healthy eating made tasty, quick, and affordable.",
      // title: "Select\nYour\nHealth\nRecipe",
-      titleGreenPart: "Healthy eating made \n",
-      titleWhitePart: "tasty, quick, and affordable.",
+      titleGreenPart: "Healthy Eating Made \n",
+      titleWhitePart: "Tasty, Quick, and Affordable.",
+      lastPart: ""
     ),
     OnboardingData(
       image: "assets/images/o2.png",
       title: "We\nCook\nIt For\nYou",
       titleGreenPart: "Choose\nYour\n",
       titleWhitePart: "Favorite\nMeal",
+      lastPart: ""
     ),
-    OnboardingData(
-      image: "assets/images/o3.png",
-      title: "We\nDeliver\nIt to Your\nDoorstep",
-      titleGreenPart: "Get Healthy Food",
-      titleWhitePart: "\nDelivered at lowest price guarantee",
-    ),
+
   ];
 
   @override
@@ -191,11 +195,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               children: [
                 TextSpan(
                   text: data.titleGreenPart,
-                  style: const TextStyle(color: Color(0xFF5D9E40)),
+                  style: const TextStyle(color: Color(0xFF5D9E40), fontSize: 40, fontWeight: FontWeight.w600),
                 ),
                 TextSpan(
                   text: data.titleWhitePart,
-                  style: const TextStyle(color: Colors.white),
+
+                  style: const TextStyle(color: Colors.white,height: 1.5, fontSize: 40, fontWeight: FontWeight.w600, ),
+                ),
+                TextSpan(
+                  text: data.lastPart,
+                  style: const TextStyle(color: Color(0xFF5D9E40), fontSize: 40, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -229,11 +238,13 @@ class OnboardingData {
   final String title;
   final String titleGreenPart;
   final String titleWhitePart;
+  final String lastPart;
 
   OnboardingData({
     required this.image,
     required this.title,
     required this.titleGreenPart,
     required this.titleWhitePart,
+    required this.lastPart
   });
 }

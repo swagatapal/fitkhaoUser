@@ -238,7 +238,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Ordering Closed',
+                  'Outlet Closed',
                   style: TextStyle(
                     fontSize: AppTypography.fontSize14,
                     fontWeight: AppTypography.bold,
