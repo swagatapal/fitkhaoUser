@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:fitkhao_user/shared/animation/anime_entrance.dart';
 import 'package:lottie/lottie.dart';
 import 'package:fitkhao_user/core/router/app_router.dart';
 import 'package:fitkhao_user/features/delivery/presentation/screens/subscription_plan_screen.dart';
@@ -408,36 +409,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return ref.read(serviceabilityProvider).isServiceable != false;
   }
 
-  /// Show membership popup on first load
-  void _showMembershipPopup() {
-    if (!_hasShownMembershipPopup && mounted) {
-      _hasShownMembershipPopup = true;
-      Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            barrierColor: Colors.transparent,
-            builder: (context) => const MembershipPopup(),
-          );
-        }
-      });
-    }
-  }
 
-  /// Show membership popup when button is clicked
-  void _showMembershipPopupOnDemand() {
-    final walletState = ref.read(walletProvider);
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.transparent,
-      builder: (context) => MembershipPopup(
-        subscription: walletState.subscription,
-      ),
-    );
-  }
 
   /// Extract user location from address
   String _getUserLocation() {
@@ -462,25 +434,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return 'Location';
   }
 
-  /// Get formatted selected goal name
-  String _getSelectedGoalName() {
-    final authState = ref.watch(authProvider);
-    final goal = authState.selectedGoal;
-
-    // Map goal codes to display names
-    switch (goal) {
-      case 'fat-loss':
-        return 'Fat Loss';
-      case 'lean-mass-gain':
-        return 'Lean Mass Gain';
-      case 'muscle-gain':
-        return 'Muscle Gain';
-      case 'regular-bmi-maintenance':
-        return 'BMI Maintenance';
-      default:
-        return goal.isNotEmpty ? goal : AppStrings.leanMassGain;
-    }
-  }
 
   String _computeLocation(authState) {
     if ((authState.street as String).isNotEmpty) {
@@ -1543,9 +1496,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return Column(
       children: [
         for (final item in items)
-          _FadeSlideIn(
-            key: ValueKey('cat_${dishState.selectedCategoryId}_${item.id}'),
-            child: _buildDishCard(item),
+          AnimEntrance(
+            delay: AnimEntrance.stagger(items.indexOf(item)),
+            child: _FadeSlideIn(
+              key: ValueKey('cat_${dishState.selectedCategoryId}_${item.id}'),
+              child: _buildDishCard(item),
+            ),
           ),
         if (dishState.isLoadingMore) _buildLoadMoreIndicator(),
       ],
@@ -1780,12 +1736,14 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         // Calories + rating
                         Row(
                           children: [
+                            item.calories == 0?SizedBox.shrink():
                             const Icon(
                               Icons.local_fire_department,
                               size: AppSizes.icon12,
                               color: AppColors.primaryGreen,
                             ),
                             const SizedBox(width: AppSizes.spacing2),
+                            item.calories == 0?SizedBox.shrink():
                             Text(
                               '${item.calories} kcal',
                               style: const TextStyle(

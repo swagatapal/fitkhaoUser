@@ -367,6 +367,7 @@ class _FoodDetailPopupState extends ConsumerState<FoodDetailPopup> {
                   // Calories and Rating
                   Row(
                     children: [
+                      widget.menuItem.calories==0?SizedBox.shrink():
                       Text(
                         '${AppStrings.calories} ${widget.menuItem.calories}kcal',
                         style: const TextStyle(
@@ -496,8 +497,11 @@ class _FoodDetailPopupState extends ConsumerState<FoodDetailPopup> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      widget.menuItem.protein=="0.0g"?SizedBox.shrink():
                       _buildNutritionItem(AppStrings.protein, widget.menuItem.protein),
+                      widget.menuItem.carbs=="0.0g"?SizedBox.shrink():
                       _buildNutritionItem(AppStrings.carbs, widget.menuItem.carbs),
+                      widget.menuItem.fats=="0.0g"?SizedBox.shrink():
                       _buildNutritionItem(AppStrings.fats, widget.menuItem.fats),
                       //_buildNutritionItem(AppStrings.fiber, widget.menuItem.fiber),
                     ],
