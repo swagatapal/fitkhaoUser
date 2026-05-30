@@ -802,62 +802,63 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   Widget _buildServiceabilityBanner() {
     final serviceabilityState = ref.watch(serviceabilityProvider);
 
-    // Only show banner if serviceability check is complete and location is not serviceable
     if (serviceabilityState.isServiceable == false) {
       return Container(
-        width: MediaQuery.of(context).size.width,
+        width: double.infinity,
         margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSizes.spacing16,
-          vertical: AppSizes.spacing12,
-        ),
+        padding:  EdgeInsets.all(AppSizes.spacing12),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFD32F2F), Color(0xFFC62828)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(AppSizes.radius8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.red.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+
         ),
-        child: Row(
+        child: Column(
           children: [
-            const Icon(
-              Icons.warning_rounded,
-              color: Colors.white,
-              size: AppSizes.icon24,
+            SizedBox(height: MediaQuery.of(context).size.height*0.1,),
+
+            SizedBox(
+              width: MediaQuery.of(context).size.width*0.6,
+              height: MediaQuery.of(context).size.height*0.2,
+              child: Lottie.asset(
+                'assets/images/delivery_not_availabel.json',
+                fit: BoxFit.contain,
+                repeat: true,
+              ),
             ),
-            const SizedBox(width: AppSizes.spacing12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Delivery Not Available',
-                    style: TextStyle(
-                      fontSize: AppTypography.fontSize14,
-                      fontWeight: AppTypography.bold,
-                      color: Colors.white,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.spacing4),
-                  Text(
-                    'Sorry, we cannot deliver food to your current address. Please check if you are in a serviceable area.',
-                    style: TextStyle(
-                      fontSize: AppTypography.fontSize12,
-                      fontWeight: AppTypography.regular,
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ],
+            const SizedBox(height: AppSizes.spacing12),
+
+            const Text(
+              'Sorry! Area Not Serviceable',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize18,
+                fontWeight: AppTypography.bold,
+                color: Color(0xFFD32F2F),
+                fontFamily: 'Lato',
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacing4),
+            Text(
+    '( We’re currently unable to deliver to this area. )',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize15,
+                fontWeight: AppTypography.regular,
+                color: Colors.black,
+                fontFamily: 'Lato',
+                height: 1.35,
+              ),
+            ),
+
+            const SizedBox(height: AppSizes.spacing12),
+            Text(
+              "Currently, we deliver only in Chandannagar",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize16,
+                fontWeight: AppTypography.bold,
+                color: AppColors.darkGreen,
+                fontFamily: 'Lato',
+                height: 1.35,
               ),
             ),
           ],
@@ -865,7 +866,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       );
     }
 
-    // Don't show anything if serviceable or still checking
     return const SizedBox.shrink();
   }
 
