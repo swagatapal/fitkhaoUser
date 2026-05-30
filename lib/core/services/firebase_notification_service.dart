@@ -122,7 +122,7 @@ class FirebaseNotificationService {
       debugPrint('[FCM] Initializing local notifications...');
 
       // Android settings
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings = AndroidInitializationSettings('@drawable/ic_stat_notification');
 
       // iOS settings
       const iosSettings = DarwinInitializationSettings(
@@ -228,7 +228,8 @@ class FirebaseNotificationService {
         importance: Importance.high,
         priority: Priority.high,
         showWhen: true,
-        icon: '@mipmap/ic_launcher',
+        icon: '@drawable/ic_stat_notification',
+        //icon: '@mipmap/ic_launcher',
       );
 
       const iosDetails = DarwinNotificationDetails(

@@ -194,14 +194,49 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          if (item.nutritionalInfo != null)
-                            Text(
-                              '${item.nutritionalInfo!.kcal.toStringAsFixed(0)} kcal • ${item.nutritionalInfo!.protein.toStringAsFixed(1)}g Protein',
-                              style: const TextStyle(
-                                fontSize: AppTypography.fontSize12,
-                                color: AppColors.textSecondary,
-                                fontFamily: AppTypography.fontFamily,
-                              ),
+
+                            Wrap(
+                              children: [
+                                (item.nutritionalInfo?.kcal == 0.0)?SizedBox.shrink():
+                                Text(
+                                  '• ${item.nutritionalInfo!.kcal.toStringAsFixed(0)} kcal ',
+                                  style: const TextStyle(
+                                    fontSize: AppTypography.fontSize12,
+                                    color: AppColors.textSecondary,
+                                    fontFamily: AppTypography.fontFamily,
+                                  ),
+                                ),
+
+                                (item.nutritionalInfo?.protein == 0.0)?SizedBox.shrink():
+                                Text(
+                                  '• ${item.nutritionalInfo!.protein.toStringAsFixed(1)}g Protein',
+                                  style: const TextStyle(
+                                    fontSize: AppTypography.fontSize12,
+                                    color: AppColors.textSecondary,
+                                    fontFamily: AppTypography.fontFamily,
+                                  ),
+                                ),
+
+                                (item.nutritionalInfo?.fat == 0.0)?SizedBox.shrink():
+                                Text(
+                                  '• ${item.nutritionalInfo!.fat.toStringAsFixed(1)}g Fat',
+                                  style: const TextStyle(
+                                    fontSize: AppTypography.fontSize12,
+                                    color: AppColors.textSecondary,
+                                    fontFamily: AppTypography.fontFamily,
+                                  ),
+                                ),
+
+                                (item.nutritionalInfo?.carbs == 0.0)?SizedBox.shrink():
+                                Text(
+                                  '• ${item.nutritionalInfo!.carbs.toStringAsFixed(1)}g Carbs',
+                                  style: const TextStyle(
+                                    fontSize: AppTypography.fontSize12,
+                                    color: AppColors.textSecondary,
+                                    fontFamily: AppTypography.fontFamily,
+                                  ),
+                                ),
+                              ],
                             ),
                           if (item.specialInstructions != null)
                             Padding(
@@ -345,7 +380,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     final subtotal = widget.order.subtotal;
     final platformCharge = pricing.platformFee;
     final deliveryCharge = pricing.deliveryCharge;
-    final tax = (subtotal + platformCharge) * pricing.gstRate / 100;
+    final tax = (subtotal + platformCharge) * pricing.gstRate ;
     final discount = widget.order.discount;
     final total = subtotal + tax + platformCharge + deliveryCharge - discount;
 
@@ -379,9 +414,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           const SizedBox(height: AppSizes.spacing12),
           _buildPriceRow('Subtotal', subtotal),
           const SizedBox(height: AppSizes.spacing8),
-          _buildPriceRow('GST (${pricing.gstRate.toStringAsFixed(0)}%)', tax),
+          _buildPriceRow('Commission and taxes (${((pricing.gstRate)*100).toStringAsFixed(0)}%)', tax),
           const SizedBox(height: AppSizes.spacing8),
-          _buildPriceRow('Platform Charge', platformCharge),
+          platformCharge==0.0?SizedBox.shrink(): _buildPriceRow('Platform Charge', platformCharge),
           const SizedBox(height: AppSizes.spacing8),
           _buildPriceRow('Delivery Charge', deliveryCharge),
           if (discount > 0) ...[
@@ -881,7 +916,7 @@ class _OrderSummaryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  order.kitchen.name,
+                  "Fitkhao ${order.kitchen.name}",
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize16,
                     fontWeight: AppTypography.semiBold,

@@ -182,7 +182,7 @@ class AppStrings {
   static const String fats = 'Fats:';
   static const String fiber = 'Fiber:';
   static const String item = 'item';
-  static const String items = 'items';
+  static const String items = 'Items';
   static const String proceedToCheckout = 'Proceed to Checkout';
 
   // Checkout Screen

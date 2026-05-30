@@ -630,7 +630,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         controller: _buildingController,
                         focusNode: _buildingFocusNode,
                         hint: AppStrings.buildingNameNumber,
-                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
+                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ,]'))],
                         onChanged: (value) =>
                             setState(() => _building = value.trim()),
                       ),
@@ -657,7 +657,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       _buildTextField(
                         controller: _streetController,
                         focusNode: _streetFocusNode,
-                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
+                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ,]'))],
                         hint: AppStrings.street,
                         onChanged: (value) =>
                             setState(() => _street = value.trim()),
@@ -687,7 +687,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         controller: _landmarkController,
                         focusNode: _landmarkFocusNode,
                         hint: AppStrings.landmark,
-                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ]'))],
+                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ,]'))],
                         onChanged: (value) =>
                             setState(() => _landmark = value.trim()),
                       ),
