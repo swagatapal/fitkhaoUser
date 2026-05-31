@@ -1,3 +1,4 @@
+import 'package:facebook_app_events/facebook_app_events.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,12 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final fbAppEvents = FacebookAppEvents();
+
+  await fbAppEvents.setAdvertiserTracking(
+    enabled: true,
+  );
 
   // Initialize Firebase
   await Firebase.initializeApp(
