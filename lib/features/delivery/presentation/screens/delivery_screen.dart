@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import 'package:fitkhao_user/features/delivery/presentation/screens/subscription_plan_screen.dart';
 import 'package:fitkhao_user/features/notification/presentation/notification_screen.dart';
+import 'package:fitkhao_user/features/profile/presentation/screens/profile_menu_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -902,9 +903,32 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
     return Row(
       children: [
-        // Small avatar — opens the navigation drawer
+        // Menu icon — opens the navigation drawer
         GestureDetector(
           onTap: () => _scaffoldKey.currentState?.openDrawer(),
+          child: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.primaryGreen.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+            ),
+            child: const Icon(
+              Icons.menu_rounded,
+              color: AppColors.darkGreen,
+              size: 22,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+
+        // Small avatar — opens the full-screen profile menu
+        GestureDetector(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const ProfileMenuScreen(),
+            ),
+          ),
           child: hasValidUrl
               ? CircleAvatar(
             radius: 19,
