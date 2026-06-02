@@ -14,7 +14,8 @@ import '../../features/auth/screens/map_picker_screen.dart';
 import '../../features/auth/screens/bmi_analysis_screen.dart';
 import '../../features/auth/screens/health_score_screen.dart';
 import '../../features/profile/presentation/screens/detailed_health_info_screen.dart';
-import '../../features/main_navigation/main_navigation_screen.dart';
+import '../../features/delivery/presentation/screens/delivery_screen.dart';
+import '../../features/history/presentation/screens/history_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/preferences_saved_screen.dart';
 import '../services/analytics_service.dart';
@@ -150,17 +151,27 @@ class AppRouter {
         ),
       ),
 
-      // Home/Dashboard route with main navigation
+      // Home route — the menu/delivery screen (drawer-based navigation)
       GoRoute(
         path: RouteNames.home,
         name: RouteNames.home,
+        pageBuilder: (context, state) => MaterialPage(
+          key: state.pageKey,
+          child: const DeliveryScreen(),
+        ),
+      ),
+
+      // Order history — reachable from the drawer and FCM order events
+      GoRoute(
+        path: RouteNames.orderHistory,
+        name: RouteNames.orderHistory,
         pageBuilder: (context, state) {
-          final initialIndex = state.extra is int
-              ? state.extra as int
-              : MainNavigationTabIndex.menu;
+          final initialTab = state.extra is HistoryTab
+              ? state.extra as HistoryTab
+              : HistoryTab.upcoming;
           return MaterialPage(
             key: state.pageKey,
-            child: MainNavigationScreen(initialIndex: initialIndex),
+            child: HistoryScreen(initialTab: initialTab),
           );
         },
       ),

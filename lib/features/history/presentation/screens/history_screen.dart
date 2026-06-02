@@ -20,17 +20,21 @@ import '../../models/order_history_model.dart';
 import '../../providers/order_history_provider.dart';
 import 'order_tracking_screen.dart';
 
-enum _HistoryFilter { upcoming, delivered }
+/// Which tab the history screen opens on.
+enum HistoryTab { upcoming, delivered }
 
 class HistoryScreen extends ConsumerStatefulWidget {
-  const HistoryScreen({super.key});
+  /// Tab to display first — defaults to [HistoryTab.upcoming].
+  final HistoryTab initialTab;
+
+  const HistoryScreen({super.key, this.initialTab = HistoryTab.upcoming});
 
   @override
   ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
 }
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
-  _HistoryFilter _selected = _HistoryFilter.upcoming;
+  late HistoryTab _selected = widget.initialTab;
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -62,7 +66,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ?? AppConstants.defaults.cancelOrderWindowSeconds;
 
     // Filter orders based on selection
-    final orders = _selected == _HistoryFilter.upcoming
+    final orders = _selected == HistoryTab.upcoming
         ? historyNotifier.upcomingOrders
         : historyNotifier.deliveredOrders;
 
@@ -127,7 +131,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                             return _OrderCard(
                                               order: order,
                                               isUpcoming: _selected ==
-                                                  _HistoryFilter.upcoming,
+                                                  HistoryTab.upcoming,
                                               cancelWindowSeconds:
                                                   cancelWindowSeconds,
                                               onTap: () => Navigator.push<void>(
@@ -272,13 +276,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         children: [
           _SegmentChip(
             label: 'Upcoming',
-            selected: _selected == _HistoryFilter.upcoming,
-            onTap: () => setState(() => _selected = _HistoryFilter.upcoming),
+            selected: _selected == HistoryTab.upcoming,
+            onTap: () => setState(() => _selected = HistoryTab.upcoming),
           ),
           _SegmentChip(
             label: 'Delivered',
-            selected: _selected == _HistoryFilter.delivered,
-            onTap: () => setState(() => _selected = _HistoryFilter.delivered),
+            selected: _selected == HistoryTab.delivered,
+            onTap: () => setState(() => _selected = HistoryTab.delivered),
           ),
         ],
       ),
@@ -337,22 +341,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ),
       child: Row(
         children: [
-          // GestureDetector(
-          //   onTap: () => context.pop(),
-          //   child: Container(
-          //     padding: const EdgeInsets.all(AppSizes.spacing8),
-          //     decoration: BoxDecoration(
-          //       color: AppColors.darkGreen,
-          //       borderRadius: BorderRadius.circular(AppSizes.radius8),
-          //     ),
-          //     child: const Icon(
-          //       Icons.arrow_back,
-          //       color: AppColors.textWhite,
-          //       size: AppSizes.icon24,
-          //     ),
-          //   ),
-          // ),
-          // const SizedBox(width: AppSizes.spacing12),
+          GestureDetector(
+            onTap: () => Navigator.of(context).maybePop(),
+            child: Container(
+              padding: const EdgeInsets.all(AppSizes.spacing8),
+              decoration: BoxDecoration(
+                color: AppColors.darkGreen,
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+              child: const Icon(
+                Icons.arrow_back,
+                color: AppColors.textWhite,
+                size: AppSizes.icon24,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSizes.spacing12),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

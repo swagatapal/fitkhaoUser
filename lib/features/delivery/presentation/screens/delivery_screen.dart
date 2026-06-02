@@ -2,13 +2,12 @@ import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fitkhao_user/shared/animation/anime_entrance.dart';
+import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
-import 'package:fitkhao_user/core/router/app_router.dart';
 import 'package:fitkhao_user/features/delivery/presentation/screens/subscription_plan_screen.dart';
 import 'package:fitkhao_user/features/notification/presentation/notification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -19,21 +18,20 @@ import '../../providers/serviceability_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../models/menu_item.dart';
 import '../../providers/menu_provider.dart';
+import '../widgets/app_drawer.dart';
 import '../widgets/food_detail_popup.dart';
 import '../widgets/location_view_sheet.dart';
-import '../widgets/membership_popup.dart';
 import 'checkout_screen.dart';
 
 class DeliveryScreen extends ConsumerStatefulWidget {
-  final VoidCallback? onNavigateToProfile;
-
-  const DeliveryScreen({super.key, this.onNavigateToProfile});
+  const DeliveryScreen({super.key});
 
   @override
   ConsumerState<DeliveryScreen> createState() => _DeliveryScreenState();
 }
 
 class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   Timer? _searchDebounce;
@@ -472,92 +470,97 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         serviceabilityState.isKitchenOpen != false &&
         serviceabilityState.isServiceable != false;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // ── Scrollable content ─────────────────────────────────────────
-            // Positioned.fill ensures the Stack fills the SafeArea so the
-            // floating cart bar is always anchored to the real bottom edge.
-            Positioned.fill(
-              child: RefreshIndicator(
-                onRefresh: _onRefresh,
-                color: AppColors.primaryGreen,
-                child: CustomScrollView(
-                  controller: _scrollController,
-                  physics: const BouncingScrollPhysics(
-                    parent: AlwaysScrollableScrollPhysics(),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        key: _scaffoldKey,
+        backgroundColor: AppColors.background,
+        drawer: const AppDrawer(),
+        body: SafeArea(
+          child: Stack(
+            children: [
+              // ── Scrollable content ─────────────────────────────────────────
+              // Positioned.fill ensures the Stack fills the SafeArea so the
+              // floating cart bar is always anchored to the real bottom edge.
+              Positioned.fill(
+                child: RefreshIndicator(
+                  onRefresh: _onRefresh,
+                  color: AppColors.primaryGreen,
+                  child: CustomScrollView(
+                    controller: _scrollController,
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
+                    slivers: [
+                      // ── Scrollable header (profile + banners) ──────────────
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSizes.screenPaddingHorizontal,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: AppSizes.spacing4),
+                              _buildCompactHeader(authState, location),
+                              const SizedBox(height: AppSizes.spacing8),
+                              if (serviceabilityState.isServiceable == false)
+                                _buildServiceabilityBanner()
+                              else if (serviceabilityState.isKitchenOpen == false)
+                                _buildKitchenClosedBanner(
+                                    serviceabilityState.kitchenClosedReason)
+                              else if (!_isOrderingAllowed)
+                                _buildOrderingTimeBanner(),
+      
+                            ],
+                          ),
+                        ),
+                      ),
+      
+                      // ── Sticky filter chips ─────────────────────────────────
+                      // Pinned = true keeps chips visible while the header
+                      // scrolls out of view.
+                      if (showDishes)
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _FilterChipsDelegate(
+                            dishState: dishState,
+                            child: _buildFilterChips(),
+                          ),
+                        ),
+      
+                      // ── Dish list ───────────────────────────────────────────
+                      if (showDishes)
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSizes.screenPaddingHorizontal,
+                          ),
+                          sliver: SliverToBoxAdapter(child: _buildDishList()),
+                        ),
+      
+                      // ── Bottom padding — extra room for the cart bar ────────
+                      SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: showCartBar
+                              ? cartBarHeight + AppSizes.spacing32+AppSizes.spacing32+AppSizes.spacing8
+                              : AppSizes.spacing32+AppSizes.spacing32+AppSizes.spacing8,
+                        ),
+                      ),
+                    ],
                   ),
-                  slivers: [
-                    // ── Scrollable header (profile + banners) ──────────────
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSizes.screenPaddingHorizontal,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: AppSizes.spacing4),
-                            _buildCompactHeader(authState, location),
-                            const SizedBox(height: AppSizes.spacing8),
-                            if (serviceabilityState.isServiceable == false)
-                              _buildServiceabilityBanner()
-                            else if (serviceabilityState.isKitchenOpen == false)
-                              _buildKitchenClosedBanner(
-                                  serviceabilityState.kitchenClosedReason)
-                            else if (!_isOrderingAllowed)
-                              _buildOrderingTimeBanner(),
-
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // ── Sticky filter chips ─────────────────────────────────
-                    // Pinned = true keeps chips visible while the header
-                    // scrolls out of view.
-                    if (showDishes)
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: _FilterChipsDelegate(
-                          dishState: dishState,
-                          child: _buildFilterChips(),
-                        ),
-                      ),
-
-                    // ── Dish list ───────────────────────────────────────────
-                    if (showDishes)
-                      SliverPadding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSizes.screenPaddingHorizontal,
-                        ),
-                        sliver: SliverToBoxAdapter(child: _buildDishList()),
-                      ),
-
-                    // ── Bottom padding — extra room for the cart bar ────────
-                    SliverToBoxAdapter(
-                      child: SizedBox(
-                        height: showCartBar
-                            ? cartBarHeight + AppSizes.spacing32+AppSizes.spacing32+AppSizes.spacing8
-                            : AppSizes.spacing32+AppSizes.spacing32+AppSizes.spacing8,
-                      ),
-                    ),
-                  ],
                 ),
               ),
-            ),
-
-            // ── Floating cart bar ──────────────────────────────────────────
-            if (showCartBar)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: MediaQuery.of(context).size.height * 0.1,
-                child: _buildCartBar(totalItems, totalPrice),
-              ),
-          ],
+      
+              // ── Floating cart bar ──────────────────────────────────────────
+              if (showCartBar)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: MediaQuery.of(context).size.height * 0.1,
+                  child: _buildCartBar(totalItems, totalPrice),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -899,9 +902,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
     return Row(
       children: [
-        // Small avatar
+        // Small avatar — opens the navigation drawer
         GestureDetector(
-          onTap: widget.onNavigateToProfile,
+          onTap: () => _scaffoldKey.currentState?.openDrawer(),
           child: hasValidUrl
               ? CircleAvatar(
             radius: 19,

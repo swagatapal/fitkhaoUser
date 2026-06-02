@@ -441,341 +441,344 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final spacing24 = context.responsiveSpacing(24.0);
     final spacing32 = context.responsiveSpacing(32.0);
 
-    return Scaffold(
-      backgroundColor: AppColors.primaryGreen,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with green background
-            Stack(
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: AppSizes.headerHeight,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF5D9E40), Color(0xFF4A7D33)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: AppColors.primaryGreen,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with green background
+              Stack(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: AppSizes.headerHeight,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF5D9E40), Color(0xFF4A7D33)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Image.asset(
+                      "assets/images/header_bg.png",
+                      width: MediaQuery.of(context).size.width,
+                      height: AppSizes.headerHeight,
+                      fit: BoxFit.cover,
                     ),
                   ),
-                  child: Image.asset(
-                    "assets/images/header_bg.png",
-                    width: MediaQuery.of(context).size.width,
-                    height: AppSizes.headerHeight,
-                    fit: BoxFit.cover,
+
+                  // Back button
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => context.pop(),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
-                ),
-            
-                // Back button
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
+                ],
+              ),
 
-            // White rounded container
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  // borderRadius: BorderRadius.only(
-                  //   topLeft: Radius.circular(context.responsiveSpacing(32.0)),
-                  //   topRight: Radius.circular(context.responsiveSpacing(32.0)),
-                  // ),
-                ),
-                child: _isLoadingProfile
-                    ? Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primaryGreen,
+              // White rounded container
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    // borderRadius: BorderRadius.only(
+                    //   topLeft: Radius.circular(context.responsiveSpacing(32.0)),
+                    //   topRight: Radius.circular(context.responsiveSpacing(32.0)),
+                    // ),
+                  ),
+                  child: _isLoadingProfile
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primaryGreen,
+                          ),
+                        )
+                      : SingleChildScrollView(
+                    padding: EdgeInsets.all(spacing24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: spacing12),
+
+                        // Title
+                        Text(
+                          AppStrings.editPersonalProfile,
+                          style: TextStyle(
+                            fontSize: context.responsiveFontSize(18.0),
+                            fontWeight: FontWeight.w400,
+                            color: Colors.black,
+                            fontFamily: 'Lato',
+                          ),
                         ),
-                      )
-                    : SingleChildScrollView(
-                  padding: EdgeInsets.all(spacing24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: spacing12),
+                        SizedBox(height: spacing12),
 
-                      // Title
-                      Text(
-                        AppStrings.editPersonalProfile,
-                        style: TextStyle(
-                          fontSize: context.responsiveFontSize(18.0),
-                          fontWeight: FontWeight.w400,
-                          color: Colors.black,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                      SizedBox(height: spacing12),
-
-                      // Profile Image
-                      Center(
-                        child: Stack(
-                          children: [
-                            Container(
-                              width: AppSizes.profileImageWidth,
-                              height: AppSizes.profileImageHeight,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryGreen.withValues(
-                                  alpha: 0.2,
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  context.responsiveSpacing(20.0),
-                                ),
-                                image: _profileImage != null
-                                    ? DecorationImage(
-                                        image: FileImage(_profileImage!),
-                                        fit: BoxFit.cover,
-                                      )
-                                    : _uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty
-                                        ? DecorationImage(
-                                            image: NetworkImage(_uploadedImageUrl!),
-                                            fit: BoxFit.cover,
-                                          )
-                                        : null,
-                              ),
-                              child: _profileImage == null && (_uploadedImageUrl == null || _uploadedImageUrl!.isEmpty)
-                                  ? Icon(
-                                      Icons.person,
-                                      size: context.responsiveSpacing(80.0),
-                                      color: AppColors.primaryGreen,
-                                    )
-                                  : null,
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: GestureDetector(
-                                onTap: _pickImage,
-                                child: Container(
-                                  padding: EdgeInsets.all(
-                                    context.responsiveSpacing(8.0),
+                        // Profile Image
+                        Center(
+                          child: Stack(
+                            children: [
+                              Container(
+                                width: AppSizes.profileImageWidth,
+                                height: AppSizes.profileImageHeight,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryGreen.withValues(
+                                    alpha: 0.2,
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
+                                  borderRadius: BorderRadius.circular(
+                                    context.responsiveSpacing(20.0),
+                                  ),
+                                  image: _profileImage != null
+                                      ? DecorationImage(
+                                          image: FileImage(_profileImage!),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : _uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty
+                                          ? DecorationImage(
+                                              image: NetworkImage(_uploadedImageUrl!),
+                                              fit: BoxFit.cover,
+                                            )
+                                          : null,
+                                ),
+                                child: _profileImage == null && (_uploadedImageUrl == null || _uploadedImageUrl!.isEmpty)
+                                    ? Icon(
+                                        Icons.person,
+                                        size: context.responsiveSpacing(80.0),
+                                        color: AppColors.primaryGreen,
+                                      )
+                                    : null,
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: GestureDetector(
+                                  onTap: _pickImage,
+                                  child: Container(
+                                    padding: EdgeInsets.all(
+                                      context.responsiveSpacing(8.0),
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: AppColors.primaryGreen,
+                                        width: AppSizes.borderThick,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.photo_library,
                                       color: AppColors.primaryGreen,
-                                      width: AppSizes.borderThick,
+                                      size: context.responsiveSpacing(12.0),
                                     ),
                                   ),
-                                  child: Icon(
-                                    Icons.photo_library,
-                                    color: AppColors.primaryGreen,
-                                    size: context.responsiveSpacing(12.0),
-                                  ),
                                 ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: spacing32),
+
+                        // Name Field
+                        _buildLabel('${AppStrings.name} *'),
+                        SizedBox(height: spacing12),
+                        _buildTextField(
+                          controller: _nameController,
+                          focusNode: _nameFocusNode,
+                          hint: AppStrings.nameHint,
+                          onChanged: (value) => setState(() => _name = value),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.deny(
+                              RegExp(
+                                r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                r'\ud83c[\ud000-\udfff]|'
+                                r'\ud83d[\ud000-\udfff]|'
+                                r'\ud83e[\ud000-\udfff])',
                               ),
                             ),
                           ],
+                          suffixIcon: _name.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: AppSizes.icon20),
+                                  onPressed: () {
+                                    _nameController.clear();
+                                    setState(() => _name = '');
+                                  },
+                                  color: AppColors.textSecondary,
+                                )
+                              : null,
                         ),
-                      ),
-                      SizedBox(height: spacing32),
-
-                      // Name Field
-                      _buildLabel('${AppStrings.name} *'),
-                      SizedBox(height: spacing12),
-                      _buildTextField(
-                        controller: _nameController,
-                        focusNode: _nameFocusNode,
-                        hint: AppStrings.nameHint,
-                        onChanged: (value) => setState(() => _name = value),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.deny(
-                            RegExp(
-                              r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                              r'\ud83c[\ud000-\udfff]|'
-                              r'\ud83d[\ud000-\udfff]|'
-                              r'\ud83e[\ud000-\udfff])',
-                            ),
+                        SizedBox(height: spacing12),
+                        Text(
+                          AppStrings.putYourFirstAndLastName,
+                          style: TextStyle(
+                            fontSize: context.responsiveFontSize(12.0),
+                            color: AppColors.textSecondary,
+                            fontFamily: 'Lato',
                           ),
-                        ],
-                        suffixIcon: _name.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear, size: AppSizes.icon20),
-                                onPressed: () {
-                                  _nameController.clear();
-                                  setState(() => _name = '');
-                                },
-                                color: AppColors.textSecondary,
-                              )
-                            : null,
-                      ),
-                      SizedBox(height: spacing12),
-                      Text(
-                        AppStrings.putYourFirstAndLastName,
-                        style: TextStyle(
-                          fontSize: context.responsiveFontSize(12.0),
-                          color: AppColors.textSecondary,
-                          fontFamily: 'Lato',
                         ),
-                      ),
-                      SizedBox(height: spacing24),
+                        SizedBox(height: spacing24),
 
-                      // // Phone Number Field
-                      // _buildLabel('${AppStrings.phoneNumber} *'),
-                      // SizedBox(height: spacing12),
-                      // _buildPhoneField(),
-                      // SizedBox(height: spacing12),
-                      // Text(
-                      //   AppStrings.add10DigitsOnlyProfile,
-                      //   style: TextStyle(
-                      //     fontSize: context.responsiveFontSize(12.0),
-                      //     color: AppColors.textSecondary,
-                      //     fontFamily: 'Lato',
-                      //   ),
-                      // ),
-                      //SizedBox(height: spacing24),
+                        // // Phone Number Field
+                        // _buildLabel('${AppStrings.phoneNumber} *'),
+                        // SizedBox(height: spacing12),
+                        // _buildPhoneField(),
+                        // SizedBox(height: spacing12),
+                        // Text(
+                        //   AppStrings.add10DigitsOnlyProfile,
+                        //   style: TextStyle(
+                        //     fontSize: context.responsiveFontSize(12.0),
+                        //     color: AppColors.textSecondary,
+                        //     fontFamily: 'Lato',
+                        //   ),
+                        // ),
+                        //SizedBox(height: spacing24),
 
-                      // Building Name/Number Field
-                      _buildLabel('${AppStrings.buildingNameNumber} *'),
-                      SizedBox(height: spacing12),
-                      _buildTextField(
-                        controller: _buildingController,
-                        focusNode: _buildingFocusNode,
-                        hint: AppStrings.buildingNameNumber,
-                        // inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ,]'))],
-                        inputFormatters: [
-                          FilteringTextInputFormatter.deny(
-                            RegExp(
-                              r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                              r'\ud83c[\ud000-\udfff]|'
-                              r'\ud83d[\ud000-\udfff]|'
-                              r'\ud83e[\ud000-\udfff])',
+                        // Building Name/Number Field
+                        _buildLabel('${AppStrings.buildingNameNumber} *'),
+                        SizedBox(height: spacing12),
+                        _buildTextField(
+                          controller: _buildingController,
+                          focusNode: _buildingFocusNode,
+                          hint: AppStrings.buildingNameNumber,
+                          // inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ,]'))],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.deny(
+                              RegExp(
+                                r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                r'\ud83c[\ud000-\udfff]|'
+                                r'\ud83d[\ud000-\udfff]|'
+                                r'\ud83e[\ud000-\udfff])',
+                              ),
                             ),
-                          ),
-                        ],
-                        onChanged: (value) =>
-                            setState(() => _building = value.trim()),
-                      ),
-                      SizedBox(height: spacing24),
-
-                      _buildLabel('${AppStrings.floorNumber} *'),
-                      SizedBox(height: spacing12),
-                      _buildTextField(
-                        controller: _floorController,
-                        focusNode: _floorFocusNode,
-                        hint: AppStrings.floorNumber,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        onChanged: (value) =>
-                            setState(() => _floor = value.trim()),
-                      ),
-                      SizedBox(height: spacing24),
-
-                      // Street Field
-                      _buildLabel('${AppStrings.street} *'),
-                      SizedBox(height: spacing12),
-                      _buildTextField(
-                        controller: _streetController,
-                        focusNode: _streetFocusNode,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.deny(
-                            RegExp(
-                              r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                              r'\ud83c[\ud000-\udfff]|'
-                              r'\ud83d[\ud000-\udfff]|'
-                              r'\ud83e[\ud000-\udfff])',
-                            ),
-                          ),
-                        ],
-                        hint: AppStrings.street,
-                        onChanged: (value) =>
-                            setState(() => _street = value.trim()),
-                      ),
-                      SizedBox(height: spacing24),
-
-                      // Pincode Field
-                      _buildLabel('${AppStrings.pincode} *'),
-                      SizedBox(height: spacing12),
-                      _buildTextField(
-                        controller: _pincodeController,
-                        focusNode: _pincodeFocusNode,
-                        hint: AppStrings.pincode,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(6),
-                        ],
-                        onChanged: (value) =>
-                            setState(() => _pincode = value.trim()),
-                      ),
-                      SizedBox(height: spacing24),
-
-                      _buildLabel('${AppStrings.landmark} *'),
-                      SizedBox(height: spacing12),
-                      _buildTextField(
-                        controller: _landmarkController,
-                        focusNode: _landmarkFocusNode,
-                        hint: AppStrings.landmark,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.deny(
-                            RegExp(
-                              r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                              r'\ud83c[\ud000-\udfff]|'
-                              r'\ud83d[\ud000-\udfff]|'
-                              r'\ud83e[\ud000-\udfff])',
-                            ),
-                          ),
-                        ],
-                        onChanged: (value) =>
-                            setState(() => _landmark = value.trim()),
-                      ),
-                      SizedBox(height: spacing12),
-                      Text(
-                        AppStrings.putYourDetailedAddress,
-                        style: TextStyle(
-                          fontSize: context.responsiveFontSize(12.0),
-                          color: AppColors.textSecondary,
-                          fontFamily: 'Lato',
+                          ],
+                          onChanged: (value) =>
+                              setState(() => _building = value.trim()),
                         ),
-                      ),
-                      SizedBox(height: spacing20),
+                        SizedBox(height: spacing24),
 
-                      _buildMapLocationIndicator(),
-                      SizedBox(height: spacing24),
+                        _buildLabel('${AppStrings.floorNumber} *'),
+                        SizedBox(height: spacing12),
+                        _buildTextField(
+                          controller: _floorController,
+                          focusNode: _floorFocusNode,
+                          hint: AppStrings.floorNumber,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          onChanged: (value) =>
+                              setState(() => _floor = value.trim()),
+                        ),
+                        SizedBox(height: spacing24),
 
-                      // Locate on Map Button
-                      PrimaryButton(
-                        height: context.inputHeight,
-                        text: AppStrings.locateOnMap,
-                        onPressed:
-                            !_isNavigatingToMap && !_isSavingProfile
-                                ? _handleLocateOnMap
-                                : null,
-                        textColor: AppColors.textWhite,
-                        backgroundColor: const Color(0xFF5D9E40),
-                        borderRadius: AppSizes.radius4,
-                        isLoading: _isNavigatingToMap,
-                      ),
-                      SizedBox(height: spacing24),
+                        // Street Field
+                        _buildLabel('${AppStrings.street} *'),
+                        SizedBox(height: spacing12),
+                        _buildTextField(
+                          controller: _streetController,
+                          focusNode: _streetFocusNode,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.deny(
+                              RegExp(
+                                r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                r'\ud83c[\ud000-\udfff]|'
+                                r'\ud83d[\ud000-\udfff]|'
+                                r'\ud83e[\ud000-\udfff])',
+                              ),
+                            ),
+                          ],
+                          hint: AppStrings.street,
+                          onChanged: (value) =>
+                              setState(() => _street = value.trim()),
+                        ),
+                        SizedBox(height: spacing24),
 
-                      // Save Button
-                      PrimaryButton(
-                        text: AppStrings.save,
-                        onPressed: _isFormValid &&
-                                !_isSavingProfile &&
-                                !authState.isLoading
-                            ? _handleSave
-                            : null,
-                        textColor: Colors.white,
-                        height: context.inputHeight,
-                        isLoading: _isSavingProfile,
-                      ),
-                      SizedBox(height: spacing20),
-                    ],
+                        // Pincode Field
+                        _buildLabel('${AppStrings.pincode} *'),
+                        SizedBox(height: spacing12),
+                        _buildTextField(
+                          controller: _pincodeController,
+                          focusNode: _pincodeFocusNode,
+                          hint: AppStrings.pincode,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(6),
+                          ],
+                          onChanged: (value) =>
+                              setState(() => _pincode = value.trim()),
+                        ),
+                        SizedBox(height: spacing24),
+
+                        _buildLabel('${AppStrings.landmark} *'),
+                        SizedBox(height: spacing12),
+                        _buildTextField(
+                          controller: _landmarkController,
+                          focusNode: _landmarkFocusNode,
+                          hint: AppStrings.landmark,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.deny(
+                              RegExp(
+                                r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                r'\ud83c[\ud000-\udfff]|'
+                                r'\ud83d[\ud000-\udfff]|'
+                                r'\ud83e[\ud000-\udfff])',
+                              ),
+                            ),
+                          ],
+                          onChanged: (value) =>
+                              setState(() => _landmark = value.trim()),
+                        ),
+                        SizedBox(height: spacing12),
+                        Text(
+                          AppStrings.putYourDetailedAddress,
+                          style: TextStyle(
+                            fontSize: context.responsiveFontSize(12.0),
+                            color: AppColors.textSecondary,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                        SizedBox(height: spacing20),
+
+                        _buildMapLocationIndicator(),
+                        SizedBox(height: spacing24),
+
+                        // Locate on Map Button
+                        PrimaryButton(
+                          height: context.inputHeight,
+                          text: AppStrings.locateOnMap,
+                          onPressed:
+                              !_isNavigatingToMap && !_isSavingProfile
+                                  ? _handleLocateOnMap
+                                  : null,
+                          textColor: AppColors.textWhite,
+                          backgroundColor: const Color(0xFF5D9E40),
+                          borderRadius: AppSizes.radius4,
+                          isLoading: _isNavigatingToMap,
+                        ),
+                        SizedBox(height: spacing24),
+
+                        // Save Button
+                        PrimaryButton(
+                          text: AppStrings.save,
+                          onPressed: _isFormValid &&
+                                  !_isSavingProfile &&
+                                  !authState.isLoading
+                              ? _handleSave
+                              : null,
+                          textColor: Colors.white,
+                          height: context.inputHeight,
+                          isLoading: _isSavingProfile,
+                        ),
+                        SizedBox(height: spacing20),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

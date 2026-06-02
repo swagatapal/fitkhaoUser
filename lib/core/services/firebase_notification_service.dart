@@ -4,7 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:fitkhao_user/core/constants/fcm_events.dart';
 import 'package:fitkhao_user/core/router/app_router.dart';
 import 'package:fitkhao_user/core/router/route_names.dart';
-import 'package:fitkhao_user/features/main_navigation/main_navigation_screen.dart';
+import 'package:fitkhao_user/features/history/presentation/screens/history_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -433,9 +433,12 @@ class FirebaseNotificationService {
 
     if (FcmEvent.orderEvents.contains(eventType) ||
         FcmEvent.deliveryEvents.contains(eventType)) {
-      AppRouter.router.go(
-        RouteNames.home,
-        extra: MainNavigationTabIndex.history,
+      // Keep the delivery screen as the base, then surface order history on
+      // top so the back button returns to the menu.
+      AppRouter.router.go(RouteNames.home);
+      AppRouter.router.push(
+        RouteNames.orderHistory,
+        extra: HistoryTab.upcoming,
       );
       _pendingNavigationData = null;
       _notificationNavigationRequested = false;
