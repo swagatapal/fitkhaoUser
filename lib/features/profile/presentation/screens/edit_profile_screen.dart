@@ -410,7 +410,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
 
-    // Listen for errors
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next.errorMessage != null && next.errorMessage!.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -428,345 +427,345 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: const Color(0xFFF4F6F4),
-        body: Column(
+        body: Stack(
           children: [
-            Expanded(
-              child: _isLoadingProfile
-                  ? Column(
-                      children: [
-                        _buildHeader(),
-                        const Expanded(
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.primaryGreen,
+            Column(
+              children: [
+                _isLoadingProfile
+                    ? Expanded(
+                        child: Column(
+                          children: [
+                            _buildHeaderOnly(),
+                            const Expanded(
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  color: AppColors.primaryGreen,
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        _buildHeader(),
-                        Expanded(
-                          child: SingleChildScrollView(
-                            padding: EdgeInsets.zero,
-                            physics: const BouncingScrollPhysics(),
+                      )
+                    : Expanded(
+                        child: Column(
+                          children: [
+                            _buildHeaderOnly(),
+                            Expanded(
+                              child: CustomScrollView(
+                                physics: const BouncingScrollPhysics(),
+                                slivers: [
+                                  SliverPadding(
+                                    padding:
+                                        const EdgeInsets.fromLTRB(16, 72, 16, 24),
+                                    sliver: SliverToBoxAdapter(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Padding(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // \u2500\u2500 Personal information \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-                                      _sectionCard(
-                                        icon: Icons.person_outline_rounded,
-                                        title: 'Personal Information',
-                                        children: [
-                                          _field(
-                                            label: '${AppStrings.name} *',
-                                            helper: AppStrings
-                                                .putYourFirstAndLastName,
-                                            child: _buildTextField(
-                                              controller: _nameController,
-                                              focusNode: _nameFocusNode,
-                                              hint: AppStrings.nameHint,
-                                              prefixIcon: Icons.badge_outlined,
-                                              onChanged: (value) =>
-                                                  setState(() => _name = value),
-                                              inputFormatters: [
-                                                FilteringTextInputFormatter
-                                                    .deny(
-                                                  RegExp(
-                                                    r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                                    r'\ud83c[\ud000-\udfff]|'
-                                                    r'\ud83d[\ud000-\udfff]|'
-                                                    r'\ud83e[\ud000-\udfff])',
-                                                  ),
-                                                ),
-                                              ],
-                                              suffixIcon: _name.isNotEmpty
-                                                  ? IconButton(
-                                                      icon: const Icon(
-                                                          Icons.clear,
-                                                          size:
-                                                              AppSizes.icon20),
-                                                      onPressed: () {
-                                                        _nameController.clear();
-                                                        setState(
-                                                            () => _name = '');
-                                                      },
-                                                      color: AppColors
-                                                          .textSecondary,
-                                                    )
-                                                  : null,
+                                _sectionCard(
+                                  icon: Icons.person_outline_rounded,
+                                  title: 'Personal Information',
+                                  children: [
+                                    _field(
+                                      label: '${AppStrings.name} *',
+                                      helper: AppStrings
+                                          .putYourFirstAndLastName,
+                                      child: _buildTextField(
+                                        controller: _nameController,
+                                        focusNode: _nameFocusNode,
+                                        hint: AppStrings.nameHint,
+                                        prefixIcon: Icons.badge_outlined,
+                                        onChanged: (value) =>
+                                            setState(() => _name = value),
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .deny(
+                                            RegExp(
+                                              r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                              r'\ud83c[\ud000-\udfff]|'
+                                              r'\ud83d[\ud000-\udfff]|'
+                                              r'\ud83e[\ud000-\udfff])',
                                             ),
                                           ),
                                         ],
+                                        suffixIcon: _name.isNotEmpty
+                                            ? IconButton(
+                                                icon: const Icon(
+                                                    Icons.clear,
+                                                    size:
+                                                        AppSizes.icon20),
+                                                onPressed: () {
+                                                  _nameController.clear();
+                                                  setState(
+                                                      () => _name = '');
+                                                },
+                                                color: AppColors
+                                                    .textSecondary,
+                                              )
+                                            : null,
                                       ),
-                                      const SizedBox(height: 16),
-
-                                      // \u2500\u2500 Delivery address \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-                                      _sectionCard(
-                                        icon: Icons.location_on_outlined,
-                                        title: 'Delivery Address',
-                                        children: [
-                                          _field(
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                _sectionCard(
+                                  icon: Icons.location_on_outlined,
+                                  title: 'Delivery Address',
+                                  children: [
+                                    _field(
+                                      label:
+                                          '${AppStrings.buildingNameNumber} *',
+                                      child: _buildTextField(
+                                        controller: _buildingController,
+                                        focusNode: _buildingFocusNode,
+                                        hint:
+                                            AppStrings.buildingNameNumber,
+                                        prefixIcon:
+                                            Icons.apartment_rounded,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .deny(
+                                            RegExp(
+                                              r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                              r'\ud83c[\ud000-\udfff]|'
+                                              r'\ud83d[\ud000-\udfff]|'
+                                              r'\ud83e[\ud000-\udfff])',
+                                            ),
+                                          ),
+                                        ],
+                                        onChanged: (value) => setState(
+                                            () =>
+                                                _building = value.trim()),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: _field(
                                             label:
-                                                '${AppStrings.buildingNameNumber} *',
+                                                '${AppStrings.floorNumber} *',
                                             child: _buildTextField(
-                                              controller: _buildingController,
-                                              focusNode: _buildingFocusNode,
+                                              controller:
+                                                  _floorController,
+                                              focusNode: _floorFocusNode,
                                               hint:
-                                                  AppStrings.buildingNameNumber,
+                                                  AppStrings.floorNumber,
                                               prefixIcon:
-                                                  Icons.apartment_rounded,
+                                                  Icons.stairs_outlined,
+                                              keyboardType:
+                                                  TextInputType.number,
                                               inputFormatters: [
                                                 FilteringTextInputFormatter
-                                                    .deny(
-                                                  RegExp(
-                                                    r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                                    r'\ud83c[\ud000-\udfff]|'
-                                                    r'\ud83d[\ud000-\udfff]|'
-                                                    r'\ud83e[\ud000-\udfff])',
-                                                  ),
-                                                ),
+                                                    .digitsOnly,
                                               ],
-                                              onChanged: (value) => setState(
-                                                  () =>
-                                                      _building = value.trim()),
+                                              onChanged: (value) =>
+                                                  setState(() => _floor =
+                                                      value.trim()),
                                             ),
                                           ),
-                                          const SizedBox(height: 16),
-                                          Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Expanded(
-                                                child: _field(
-                                                  label:
-                                                      '${AppStrings.floorNumber} *',
-                                                  child: _buildTextField(
-                                                    controller:
-                                                        _floorController,
-                                                    focusNode: _floorFocusNode,
-                                                    hint:
-                                                        AppStrings.floorNumber,
-                                                    prefixIcon:
-                                                        Icons.stairs_outlined,
-                                                    keyboardType:
-                                                        TextInputType.number,
-                                                    inputFormatters: [
-                                                      FilteringTextInputFormatter
-                                                          .digitsOnly,
-                                                    ],
-                                                    onChanged: (value) =>
-                                                        setState(() => _floor =
-                                                            value.trim()),
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: _field(
-                                                  label:
-                                                      '${AppStrings.pincode} *',
-                                                  child: _buildTextField(
-                                                    controller:
-                                                        _pincodeController,
-                                                    focusNode:
-                                                        _pincodeFocusNode,
-                                                    hint: AppStrings.pincode,
-                                                    prefixIcon:
-                                                        Icons.pin_drop_outlined,
-                                                    keyboardType:
-                                                        TextInputType.number,
-                                                    inputFormatters: [
-                                                      FilteringTextInputFormatter
-                                                          .digitsOnly,
-                                                      LengthLimitingTextInputFormatter(
-                                                          6),
-                                                    ],
-                                                    onChanged: (value) =>
-                                                        setState(() =>
-                                                            _pincode =
-                                                                value.trim()),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 16),
-                                          _field(
-                                            label: '${AppStrings.street} *',
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: _field(
+                                            label:
+                                                '${AppStrings.pincode} *',
                                             child: _buildTextField(
-                                              controller: _streetController,
-                                              focusNode: _streetFocusNode,
-                                              hint: AppStrings.street,
+                                              controller:
+                                                  _pincodeController,
+                                              focusNode:
+                                                  _pincodeFocusNode,
+                                              hint: AppStrings.pincode,
                                               prefixIcon:
-                                                  Icons.signpost_outlined,
+                                                  Icons.pin_drop_outlined,
+                                              keyboardType:
+                                                  TextInputType.number,
                                               inputFormatters: [
                                                 FilteringTextInputFormatter
-                                                    .deny(
-                                                  RegExp(
-                                                    r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                                    r'\ud83c[\ud000-\udfff]|'
-                                                    r'\ud83d[\ud000-\udfff]|'
-                                                    r'\ud83e[\ud000-\udfff])',
-                                                  ),
-                                                ),
+                                                    .digitsOnly,
+                                                LengthLimitingTextInputFormatter(
+                                                    6),
                                               ],
-                                              onChanged: (value) => setState(
-                                                  () => _street = value.trim()),
+                                              onChanged: (value) =>
+                                                  setState(() =>
+                                                      _pincode =
+                                                          value.trim()),
                                             ),
                                           ),
-                                          const SizedBox(height: 16),
-                                          _field(
-                                            label: '${AppStrings.landmark} *',
-                                            helper: AppStrings
-                                                .putYourDetailedAddress,
-                                            child: _buildTextField(
-                                              controller: _landmarkController,
-                                              focusNode: _landmarkFocusNode,
-                                              hint: AppStrings.landmark,
-                                              prefixIcon: Icons.place_outlined,
-                                              inputFormatters: [
-                                                FilteringTextInputFormatter
-                                                    .deny(
-                                                  RegExp(
-                                                    r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                                    r'\ud83c[\ud000-\udfff]|'
-                                                    r'\ud83d[\ud000-\udfff]|'
-                                                    r'\ud83e[\ud000-\udfff])',
-                                                  ),
-                                                ),
-                                              ],
-                                              onChanged: (value) => setState(
-                                                  () =>
-                                                      _landmark = value.trim()),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _field(
+                                      label: '${AppStrings.street} *',
+                                      child: _buildTextField(
+                                        controller: _streetController,
+                                        focusNode: _streetFocusNode,
+                                        hint: AppStrings.street,
+                                        prefixIcon:
+                                            Icons.signpost_outlined,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .deny(
+                                            RegExp(
+                                              r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                              r'\ud83c[\ud000-\udfff]|'
+                                              r'\ud83d[\ud000-\udfff]|'
+                                              r'\ud83e[\ud000-\udfff])',
                                             ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          _buildMapLocationIndicator(),
-                                          const SizedBox(height: 12),
-                                          PrimaryButton(
-                                            height: context.inputHeight,
-                                            text: AppStrings.locateOnMap,
-                                            onPressed: !_isNavigatingToMap &&
-                                                    !_isSavingProfile
-                                                ? _handleLocateOnMap
-                                                : null,
-                                            textColor: AppColors.textWhite,
-                                            backgroundColor:
-                                                const Color(0xFF5D9E40),
-                                            borderRadius: AppSizes.radius8,
-                                            isLoading: _isNavigatingToMap,
                                           ),
                                         ],
+                                        onChanged: (value) => setState(
+                                            () => _street = value.trim()),
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _field(
+                                      label: '${AppStrings.landmark} *',
+                                      helper: AppStrings
+                                          .putYourDetailedAddress,
+                                      child: _buildTextField(
+                                        controller: _landmarkController,
+                                        focusNode: _landmarkFocusNode,
+                                        hint: AppStrings.landmark,
+                                        prefixIcon: Icons.place_outlined,
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .deny(
+                                            RegExp(
+                                              r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                              r'\ud83c[\ud000-\udfff]|'
+                                              r'\ud83d[\ud000-\udfff]|'
+                                              r'\ud83e[\ud000-\udfff])',
+                                            ),
+                                          ),
+                                        ],
+                                        onChanged: (value) => setState(
+                                            () =>
+                                                _landmark = value.trim()),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    _buildMapLocationIndicator(),
+                                    const SizedBox(height: 12),
+                                    PrimaryButton(
+                                      height: context.inputHeight,
+                                      text: AppStrings.locateOnMap,
+                                      onPressed: !_isNavigatingToMap &&
+                                              !_isSavingProfile
+                                          ? _handleLocateOnMap
+                                          : null,
+                                      textColor: AppColors.textWhite,
+                                      backgroundColor:
+                                          const Color(0xFF5D9E40),
+                                      borderRadius: AppSizes.radius8,
+                                      isLoading: _isNavigatingToMap,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
                           ),
                         ),
+                        SliverPadding(
+                          padding: const EdgeInsets.only(bottom: 80),
+                          sliver: SliverToBoxAdapter(child: Container()),
+                        ),
                       ],
                     ),
+                  ),
+                ],
+              ),
+              ),
+                if (!_isLoadingProfile) _buildBottomSaveBar(authState),
+              ],
             ),
-
-            // \u2500\u2500 Sticky save bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-            if (!_isLoadingProfile) _buildBottomSaveBar(authState),
+            if (!_isLoadingProfile)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: _buildAvatarOverlay(),
+              ),
           ],
         ),
       ),
     );
   }
 
-  // \u2500\u2500\u2500 Header (gradient hero + overlapping avatar) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-
-  Widget _buildHeader() {
+  Widget _buildHeaderOnly() {
     final headerHeight = MediaQuery.of(context).size.height * 0.1;
-    const avatarRadius = 52.0;
 
     return SizedBox(
-      height: headerHeight + avatarRadius,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Gradient banner with curved bottom
-          ClipRRect(
-            borderRadius:
-                const BorderRadius.vertical(bottom: Radius.circular(28)),
-            child: Container(
-              height: headerHeight,
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF5D9E40), Color(0xFF4A7D33)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Subtle texture
-                  Opacity(
-                    opacity: 0.18,
-                    child: Image.asset(
-                      'assets/images/header_bg.png',
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  // Decorative circles
-                  Positioned(top: -24, right: -16, child: _circle(110, 0.08)),
-                  Positioned(bottom: 10, left: -20, child: _circle(70, 0.06)),
-
-                  // Back button + title
-                  SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
-                      child: Row(
-                        children: [
-                          Material(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            shape: const CircleBorder(),
-                            child: InkWell(
-                              customBorder: const CircleBorder(),
-                              onTap: () => context.pop(),
-                              child: const SizedBox(
-                                width: 40,
-                                height: 40,
-                                child: Icon(Icons.arrow_back_rounded,
-                                    color: Colors.white, size: AppSizes.icon20),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+      height: headerHeight,
+      child: ClipRRect(
+        borderRadius:
+            const BorderRadius.vertical(bottom: Radius.circular(28)),
+        child: Container(
+          height: headerHeight,
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF5D9E40), Color(0xFF4A7D33)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
           ),
-
-          // Overlapping avatar with camera badge
-          Positioned(
-            top: headerHeight - avatarRadius,
-            left: 0,
-            right: 0,
-            child: Center(child: _buildAvatar(avatarRadius)),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Opacity(
+                opacity: 0.18,
+                child: Image.asset(
+                  'assets/images/header_bg.png',
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Positioned(top: -24, right: -16, child: _circle(110, 0.08)),
+              Positioned(bottom: 10, left: -20, child: _circle(70, 0.06)),
+              SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+                  child: Row(
+                    children: [
+                      Material(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () => context.pop(),
+                          child: const SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: Icon(Icons.arrow_back_rounded,
+                                color: Colors.white,
+                                size: AppSizes.icon20),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+
+  Widget _buildAvatarOverlay() {
+    final headerHeight = MediaQuery.of(context).size.height * 0.1;
+    const avatarRadius = 52.0;
+
+    return Padding(
+      padding: EdgeInsets.only(top: headerHeight - avatarRadius),
+      child: Center(child: _buildAvatar(avatarRadius)),
+    );
+  }
+
 
   Widget _buildAvatar(double radius) {
     final hasFile = _profileImage != null;
