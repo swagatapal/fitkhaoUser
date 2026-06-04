@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
@@ -93,29 +94,32 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     final allSelected =
         allIds.isNotEmpty && _selectedIds.length == allIds.length;
 
-    return Scaffold(
-      backgroundColor: AppColors.backgroundSecondary,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _isSelectionMode
-                ? _SelectionHeader(
-                    selectedCount: _selectedIds.length,
-                    allSelected: allSelected,
-                    onCancel: _cancelSelection,
-                    onToggleSelectAll: () =>
-                        _toggleSelectAll(state.notifications),
-                    onDeleteSelected: _selectedIds.isEmpty
-                        ? null
-                        : () => _deleteSelected(context),
-                  )
-                : _Header(
-                    hasUnread: state.hasUnread,
-                    unreadCount: state.unreadCount,
-                    onMarkAllRead: notifier.markAllAsRead,
-                  ),
-            Expanded(child: _buildBody(state, allIds.length, allSelected)),
-          ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundSecondary,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _isSelectionMode
+                  ? _SelectionHeader(
+                      selectedCount: _selectedIds.length,
+                      allSelected: allSelected,
+                      onCancel: _cancelSelection,
+                      onToggleSelectAll: () =>
+                          _toggleSelectAll(state.notifications),
+                      onDeleteSelected: _selectedIds.isEmpty
+                          ? null
+                          : () => _deleteSelected(context),
+                    )
+                  : _Header(
+                      hasUnread: state.hasUnread,
+                      unreadCount: state.unreadCount,
+                      onMarkAllRead: notifier.markAllAsRead,
+                    ),
+              Expanded(child: _buildBody(state, allIds.length, allSelected)),
+            ],
+          ),
         ),
       ),
     );

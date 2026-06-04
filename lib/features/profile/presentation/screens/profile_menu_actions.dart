@@ -19,7 +19,7 @@ class ProfileMenuActions {
 
   /// Support contact details. Update these to the real values.
   static const String supportEmail = 'support@fitkhao.com';
-  static const String supportPhone = '+919999999999';
+  static const String supportPhone = '9635139595';
 
   /// Push [screen], closing the drawer first when hosted inside one.
   static void open(

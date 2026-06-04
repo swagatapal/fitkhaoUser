@@ -356,34 +356,12 @@ class _DetailedHealthInfoScreenState
 
     if (authState.isLoading && !_isInitialized) {
       return Scaffold(
-        //backgroundColor: Colors.white,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _shimmerCard(height: MediaQuery.of(context).size.height*0.2),
-                const SizedBox(height: AppSizes.spacing16),
-                _shimmerCard(height: MediaQuery.of(context).size.height*0.05),
-                const SizedBox(height: AppSizes.spacing16),
-                _shimmerCard(height: MediaQuery.of(context).size.height*0.05),
-                const SizedBox(height: AppSizes.spacing16),
-                _shimmerCard(height: MediaQuery.of(context).size.height*0.05),
-                const SizedBox(height: AppSizes.spacing16),
-                _shimmerCard(height: MediaQuery.of(context).size.height*0.4),
-                const SizedBox(height: AppSizes.spacing16),
-                // Text(
-                //   'Loading your profile...',
-                //   style: TextStyle(
-                //     fontSize: context.responsiveFontSize(14.0),
-                //     color: AppColors.textSecondary,
-                //     fontFamily: 'Lato',
-                //   ),
-                // ),
-              ],
-            ),
-          ),
+        body: CustomScrollView(
+          slivers: [
+            _buildSkeletonSliverAppBar(),
+            _buildSkeletonComingSoonHeader(),
+            _buildSkeletonFormContent(),
+          ],
         ),
       );
     }
@@ -436,69 +414,6 @@ class _DetailedHealthInfoScreenState
                 ),
               ),
               const SizedBox(width: 8),
-
-              
-              // Edit button — always visible
-              Padding(
-                padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
-                child: GestureDetector(
-                  onTap: () => context.push(RouteNames.editPersonalProfile),
-                  child: Container(
-                    width: AppSizes.iconContainerSize,
-                    height: AppSizes.iconContainerSize,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF5D9E40),
-                      borderRadius: BorderRadius.circular(AppSizes.radius8),
-                    ),
-                    child: Center(
-                      child: Image.asset(
-                        "assets/images/edit_user.png",
-                        height: AppSizes.icon16,
-                        width: AppSizes.icon19,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // terms & condition and privacy policy
-              Padding(
-                padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
-                child: GestureDetector(
-                  onTap: () => context.push(RouteNames.policy),
-                  child: Container(
-                    width: AppSizes.iconContainerSize,
-                    height: AppSizes.iconContainerSize,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF5D9E40),
-                      borderRadius: BorderRadius.circular(AppSizes.radius8),
-                    ),
-                    child: Center(
-                        child: Icon(Icons.policy, color: Colors.white,)
-                    ),
-                  ),
-                ),
-              ),
-
-
-
-              Padding(
-                padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
-                child: GestureDetector(
-                  onTap: _showLogoutConfirmation,
-                  child: Container(
-                    width: AppSizes.iconContainerSize,
-                    height: AppSizes.iconContainerSize,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF5D9E40),
-                      borderRadius: BorderRadius.circular(AppSizes.radius8),
-                    ),
-                    child: Center(
-                        child: Icon(Icons.logout_outlined, color: Colors.white)
-                    ),
-                  ),
-                ),
-              ),
 
               
             ],
@@ -732,23 +647,250 @@ class _DetailedHealthInfoScreenState
     );
   }
 
-  Widget _shimmerCard({required double height}) {
+  // ─── Skeleton/Loading State Builders ───
+
+  Widget _buildSkeletonSliverAppBar() {
+    return SliverAppBar(
+      expandedHeight: 270,
+      pinned: true,
+      backgroundColor: const Color(0xFF4A7D33),
+      automaticallyImplyLeading: false,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      flexibleSpace: FlexibleSpaceBar(
+        collapseMode: CollapseMode.parallax,
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF4A7D33), Color(0xFF4A7D33)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                "assets/images/header_bg.png",
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+              Positioned(
+                top: AppSizes.headerHeight,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: _buildSkeletonBox(
+                    width: AppSizes.containerWidthLarge,
+                    height: AppSizes.containerHeightMLarge,
+                    borderRadius: AppSizes.radius16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonComingSoonHeader() {
+    return SliverPersistentHeader(
+      pinned: true,
+      delegate: _SkeletonComingSoonDelegate(),
+    );
+  }
+
+  Widget _buildSkeletonFormContent() {
+    final spacing12 = context.responsiveSpacing(12.0);
+    final spacing16 = context.responsiveSpacing(16.0);
+    final spacing20 = context.responsiveSpacing(20.0);
+    final spacing24 = context.responsiveSpacing(24.0);
+
+    return SliverPadding(
+      padding: EdgeInsets.fromLTRB(spacing20, spacing20, spacing20, spacing20),
+      sliver: SliverList(
+        delegate: SliverChildListDelegate([
+          // Title
+          _buildSkeletonBox(width: 200, height: 24, borderRadius: 4),
+          SizedBox(height: spacing16),
+
+          // Body Details Section
+          _buildSkeletonSectionHeader(),
+          SizedBox(height: spacing12),
+          _buildSkeletonFormField(),
+          SizedBox(height: spacing12),
+          _buildSkeletonFormField(),
+          SizedBox(height: spacing12),
+          _buildSkeletonFormField(),
+          SizedBox(height: spacing16),
+
+          // Goal Selection Section
+          _buildSkeletonSectionHeader(),
+          SizedBox(height: spacing12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSkeletonBox(height: 50, borderRadius: 50),
+              ),
+              SizedBox(width: spacing12),
+              Expanded(
+                child: _buildSkeletonBox(height: 50, borderRadius: 50),
+              ),
+            ],
+          ),
+          SizedBox(height: spacing12),
+          _buildSkeletonBox(height: 50, borderRadius: 50),
+          SizedBox(height: spacing16),
+
+          // Activity Level Section
+          _buildSkeletonSectionHeader(),
+          SizedBox(height: spacing16),
+          _buildSkeletonActivityOption(),
+          SizedBox(height: spacing12),
+          _buildSkeletonActivityOption(),
+          SizedBox(height: spacing16),
+
+          // Exercise Section
+          _buildSkeletonSectionHeader(),
+          SizedBox(height: spacing16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildSkeletonBox(height: 50, borderRadius: 8),
+              ),
+              SizedBox(width: spacing12),
+              Expanded(
+                child: _buildSkeletonBox(height: 50, borderRadius: 8),
+              ),
+            ],
+          ),
+          SizedBox(height: spacing16),
+
+          // Physiological Conditions Section
+          _buildSkeletonSectionHeader(),
+          SizedBox(height: spacing12),
+          _buildSkeletonBox(width: 250, height: 20, borderRadius: 4),
+          SizedBox(height: spacing12),
+          _buildSkeletonConditionCheckbox(),
+          SizedBox(height: spacing12),
+          _buildSkeletonConditionCheckbox(),
+          SizedBox(height: spacing12),
+          _buildSkeletonConditionCheckbox(),
+          SizedBox(height: spacing16),
+
+          // Regular Status Section
+          _buildSkeletonSectionHeader(),
+          SizedBox(height: spacing16),
+          _buildSkeletonRadioOption(),
+          SizedBox(height: spacing12),
+          _buildSkeletonRadioOption(),
+          SizedBox(height: spacing12),
+          _buildSkeletonRadioOption(),
+          SizedBox(height: spacing24),
+
+          // Save Button
+          _buildSkeletonBox(height: context.inputHeight, borderRadius: 8),
+          SizedBox(height: spacing20),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonBox({
+    double? width,
+    double? height = 20,
+    double borderRadius = 4,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(borderRadius),
+        ),
+        child: ShimmerEffect(
+          child: Container(color: Colors.grey.shade100),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonSectionHeader() {
+    return _buildSkeletonBox(width: 180, height: 24, borderRadius: 4);
+  }
+
+  Widget _buildSkeletonFormField() {
+    final spacing = context.responsiveSpacing(8.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSkeletonBox(width: 100, height: 18, borderRadius: 4),
+        SizedBox(height: spacing),
+        _buildSkeletonBox(height: 50, borderRadius: 4),
+      ],
+    );
+  }
+
+  Widget _buildSkeletonActivityOption() {
+    final spacing = context.responsiveSpacing(12.0);
     return Container(
-      height: height,
+      padding: EdgeInsets.all(spacing),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          _buildSkeletonBox(width: 24, height: 24, borderRadius: 4),
+          SizedBox(width: spacing),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSkeletonBox(width: 120, height: 18, borderRadius: 4),
+                SizedBox(height: 8),
+                _buildSkeletonBox(width: 180, height: 16, borderRadius: 4),
+              ],
+            ),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: ShimmerEffect(child: Container(color: Colors.grey.shade100)),
+    );
+  }
+
+  Widget _buildSkeletonConditionCheckbox() {
+    return Row(
+      children: [
+        _buildSkeletonBox(width: 20, height: 20, borderRadius: 4),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildSkeletonBox(width: 150, height: 18, borderRadius: 4),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkeletonRadioOption() {
+    final spacing = context.responsiveSpacing(12.0);
+    return Container(
+      padding: EdgeInsets.all(spacing),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          _buildSkeletonBox(width: 24, height: 24, borderRadius: 4),
+          SizedBox(width: spacing),
+          Expanded(
+            child: _buildSkeletonBox(width: 120, height: 18, borderRadius: 4),
+          ),
+        ],
       ),
     );
   }
@@ -1632,6 +1774,52 @@ class _ComingSoonHeaderDelegate extends SliverPersistentHeaderDelegate {
               ),
 
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SkeletonComingSoonDelegate extends SliverPersistentHeaderDelegate {
+  static const double _height = 78.0;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  bool shouldRebuild(_SkeletonComingSoonDelegate oldDelegate) => false;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Material(
+      color: Colors.white,
+      elevation: overlapsContent ? 2.0 : 0.0,
+      shadowColor: Colors.black26,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: ShimmerEffect(
+            child: Container(
+              color: Colors.grey.shade100,
+            ),
           ),
         ),
       ),

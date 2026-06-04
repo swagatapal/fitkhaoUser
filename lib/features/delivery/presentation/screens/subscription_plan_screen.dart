@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -35,14 +36,15 @@ class _SubscriptionPlanScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: SingleChildScrollView(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAFBFC),
+        body: SafeArea(
+          child: CustomScrollView(
+            slivers: [
+              _buildSliverAppBar(),
+              SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSizes.screenPaddingHorizontal,
@@ -50,233 +52,429 @@ class _SubscriptionPlanScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: AppSizes.spacing20),
-                      _buildFitKhaoLogo(),
-                      const SizedBox(height: AppSizes.spacing16),
-                      // Wallet balance — always visible when loaded
-                      if (ref.watch(walletProvider).wallet != null) ...[
-                        _buildWalletBalanceCard(),
-                        const SizedBox(height: AppSizes.spacing16),
-                      ],
-                      // Active subscription card
-                      if (ref.watch(walletProvider).hasActiveSubscription) ...[
-                        _buildActiveSubscriptionCard(),
-                        const SizedBox(height: AppSizes.spacing16),
-                      ],
-                      // Recharge Wallet — always visible
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => const RechargeTopupModal(),
-                            );
-                          },
-                          icon: const Icon(
-                            Icons.account_balance_wallet,
-                            size: AppSizes.icon20,
-                          ),
-                          label: const Text(
-                            'Recharge FitKhao Wallet',
-                            style: TextStyle(
-                              fontSize: AppTypography.fontSize16,
-                              fontWeight: AppTypography.semiBold,
-                              fontFamily: 'Lato',
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primaryGreen,
-                            side: const BorderSide(
-                              color: AppColors.primaryGreen,
-                              width: 2,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppSizes.radius4),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              vertical: AppSizes.spacing16,
-                            ),
-                          ),
-                        ),
-                      ),
                       const SizedBox(height: AppSizes.spacing24),
-                      if (ref.watch(walletProvider).hasActiveSubscription) ...[
-                        const Text(
-                          'Upgrade Your Plan',
-                          style: TextStyle(
-                            fontSize: AppTypography.fontSize20,
-                            fontWeight: AppTypography.bold,
-                            color: AppColors.primaryGreen,
-                            fontFamily: 'Lato',
-                          ),
-                        ),
-                        const SizedBox(height: AppSizes.spacing16),
-                      ],
-                      _buildPlansList(),
+                      _buildBrandSection(),
+                      const SizedBox(height: AppSizes.spacing32),
+                      _buildWalletSection(),
+                      const SizedBox(height: AppSizes.spacing32),
+                      if (ref.watch(walletProvider).hasActiveSubscription)
+                        _buildActiveSubscriptionSection(),
+                      if (ref.watch(walletProvider).hasActiveSubscription)
+                        const SizedBox(height: AppSizes.spacing32),
+                      _buildPlansSection(),
                       const SizedBox(height: AppSizes.spacing24),
-                      _buildTransactionHistoryButton(),
-                      const SizedBox(height: AppSizes.spacing24),
+                      _buildActionButtons(),
+                      const SizedBox(height: AppSizes.spacing32),
                     ],
-                  ),
-                ),
-              ),
-            ),
-           // _buildBottomButton(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.p20,
-        vertical: AppSizes.spacing8,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: AppSizes.shadowBlur10,
-            offset: const Offset(0, AppSizes.spacing2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => context.pop(),
-            child: Container(
-              padding: const EdgeInsets.all(AppSizes.spacing8),
-              decoration: BoxDecoration(
-                color: AppColors.darkGreen,
-                borderRadius: BorderRadius.circular(AppSizes.radius8),
-              ),
-              child: const Icon(
-                Icons.arrow_back,
-                color: AppColors.textWhite,
-                size: AppSizes.icon24,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSizes.spacing12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Choose your plan",
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize20,
-                    fontWeight: AppTypography.bold,
-                    color: AppColors.textPrimary,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-                //const SizedBox(height: AppSizes.spacing2),
-                Text(
-                  "Select the plan that fits your goal",
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize12,
-                    fontWeight: AppTypography.regular,
-                    color: AppColors.textSecondary,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // CircleAvatar(
-          //   radius: AppSizes.spacing24,
-          //   backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.1),
-          //   backgroundImage: const NetworkImage(
-          //     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFcyssMbcvEkMiCDu8zrO9VuN-Yy1aW1vycA&s",
-          //   ),
-          //   onBackgroundImageError: (exception, stackTrace) {},
-          //   child: Container(
-          //     decoration: BoxDecoration(
-          //       shape: BoxShape.circle,
-          //       border: Border.all(
-          //         color: AppColors.primaryGreen.withValues(alpha: 0.3),
-          //         width: AppSizes.borderThin,
-          //       ),
-          //     ),
-          //   ),
-          // ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFitKhaoLogo() {
-    return LogoWidget();
-  }
-
-  Widget _buildPlansList() {
-    final planState = ref.watch(subscriptionPlanProvider);
-
-    if (planState.isLoading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: AppSizes.spacing24),
-        child: Center(
-          child: CircularProgressIndicator(color: AppColors.primaryGreen),
-        ),
-      );
-    }
-
-    if (planState.error != null) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing16),
-        child: Center(
-          child: Column(
-            children: [
-              Text(
-                planState.error!,
-                style: const TextStyle(
-                  fontSize: AppTypography.fontSize14,
-                  color: AppColors.errorColor,
-                  fontFamily: 'Lato',
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSizes.spacing12),
-              TextButton(
-                onPressed: () =>
-                    ref.read(subscriptionPlanProvider.notifier).loadPlans(),
-                child: const Text(
-                  'Retry',
-                  style: TextStyle(
-                    color: AppColors.primaryGreen,
-                    fontFamily: 'Lato',
                   ),
                 ),
               ),
             ],
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    if (planState.plans.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: AppSizes.spacing16),
-        child: Center(
-          child: Text(
-            'No subscription plans available.',
-            style: TextStyle(
-              fontSize: AppTypography.fontSize14,
-              color: AppColors.textSecondary,
-              fontFamily: 'Lato',
+  // ─── Sliver App Bar ───
+  Widget _buildSliverAppBar() {
+    return SliverAppBar(
+      pinned: true,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: Colors.white,
+      foregroundColor: AppColors.textPrimary,
+      leading: GestureDetector(
+        onTap: () => context.pop(),
+        child: Container(
+          margin: const EdgeInsets.all(AppSizes.spacing8),
+          decoration: BoxDecoration(
+            color: AppColors.primaryGreen.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+          ),
+          child: const Icon(
+            Icons.arrow_back_rounded,
+            color: AppColors.primaryGreen,
+          ),
+        ),
+      ),
+      title: const Text(
+        'Choose Your Plan',
+        style: TextStyle(
+          fontSize: AppTypography.fontSize18,
+          fontWeight: AppTypography.bold,
+          color: AppColors.textPrimary,
+          fontFamily: 'Lato',
+        ),
+      ),
+      centerTitle: false,
+    );
+  }
+
+  // ─── Brand Section ───
+  Widget _buildBrandSection() {
+    return Row(
+      children: [
+        const LogoWidget(),
+        const SizedBox(width: AppSizes.spacing12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Welcome to FitKhao',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize14,
+                fontWeight: AppTypography.semiBold,
+                color: AppColors.textSecondary,
+                fontFamily: 'Lato',
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacing4),
+            Text(
+              'Find your perfect nutrition plan',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize12,
+                fontWeight: AppTypography.regular,
+                color: AppColors.textSecondary.withValues(alpha: 0.7),
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ─── Wallet Section ───
+  Widget _buildWalletSection() {
+    final walletState = ref.watch(walletProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Wallet',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize16,
+            fontWeight: AppTypography.bold,
+            color: AppColors.textPrimary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        const SizedBox(height: AppSizes.spacing12),
+        if (walletState.wallet != null)
+          _buildWalletBalanceCard()
+        else
+          _buildWalletSkeleton(),
+        const SizedBox(height: AppSizes.spacing12),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => const RechargeTopupModal(),
+              );
+            },
+            icon: const Icon(Icons.add_rounded, size: AppSizes.icon20),
+            label: const Text(
+              'Recharge Wallet',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize14,
+                fontWeight: AppTypography.semiBold,
+                fontFamily: 'Lato',
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primaryGreen,
+              side: const BorderSide(
+                color: AppColors.primaryGreen,
+                width: 1.5,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radius12),
+              ),
             ),
           ),
         ),
-      );
+      ],
+    );
+  }
+
+  Widget _buildWalletBalanceCard() {
+    final wallet = ref.watch(walletProvider).wallet!;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spacing16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF5D9E40), Color(0xFF7AB655)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryGreen.withValues(alpha: 0.2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSizes.spacing12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+            ),
+            child: const Icon(
+              Icons.wallet_giftcard_rounded,
+              color: Colors.white,
+              size: AppSizes.icon28,
+            ),
+          ),
+          const SizedBox(width: AppSizes.spacing16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '₹${wallet.couponBalance.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize22,
+                    fontWeight: AppTypography.bold,
+                    color: Colors.white,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: AppSizes.spacing4),
+                Text(
+                  'Available Balance',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    fontWeight: AppTypography.regular,
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWalletSkeleton() {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spacing16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+      ),
+      height: 80,
+    );
+  }
+
+  // ─── Active Subscription Section ───
+  Widget _buildActiveSubscriptionSection() {
+    final subscription = ref.watch(walletProvider).subscription!;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Current Plan',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize16,
+            fontWeight: AppTypography.bold,
+            color: AppColors.textPrimary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        const SizedBox(height: AppSizes.spacing12),
+        Container(
+          padding: const EdgeInsets.all(AppSizes.spacing16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primaryGreen.withValues(alpha: 0.95),
+                AppColors.primaryGreen.withValues(alpha: 0.85),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(AppSizes.radius12),
+            border: Border.all(
+              color: AppColors.primaryGreen,
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        subscription.planName,
+                        style: const TextStyle(
+                          fontSize: AppTypography.fontSize16,
+                          fontWeight: AppTypography.bold,
+                          color: Colors.white,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      const SizedBox(height: AppSizes.spacing4),
+                      Text(
+                        'Active until ${subscription.endDate}',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSizes.spacing12,
+                      vertical: AppSizes.spacing6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(AppSizes.radius20),
+                    ),
+                    child: const Text(
+                      'Active',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize10,
+                        fontWeight: AppTypography.semiBold,
+                        color: Colors.white,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSizes.spacing12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSubscriptionInfoCard(
+                      subscription.formattedPrice,
+                      'Plan Amount',
+                    ),
+                  ),
+                  const SizedBox(width: AppSizes.spacing12),
+                  Expanded(
+                    child: _buildSubscriptionInfoCard(
+                      '${subscription.remainingDays}',
+                      'Days Left',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubscriptionInfoCard(String value, String label) {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: AppTypography.fontSize16,
+              fontWeight: AppTypography.bold,
+              color: Colors.white,
+              fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: AppSizes.spacing4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize10,
+              color: Colors.white.withValues(alpha: 0.75),
+              fontFamily: 'Lato',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Plans Section ───
+  Widget _buildPlansSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Choose a Plan',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize16,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: AppSizes.spacing4),
+                Text(
+                  'Select the best plan for your needs',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    color: AppColors.textSecondary.withValues(alpha: 0.7),
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSizes.spacing16),
+        _buildPlansList(),
+      ],
+    );
+  }
+
+  Widget _buildPlansList() {
+    final planState = ref.watch(subscriptionPlanProvider);
+
+    if (planState.isLoading) {
+      return _buildPlansLoadingSkeleton();
     }
 
-    // Auto-select the basic (free) plan by default
+    if (planState.error != null) {
+      return _buildErrorState(planState.error!);
+    }
+
+    if (planState.plans.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    // Auto-select basic plan
     if (_selectedPlan == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -289,13 +487,14 @@ class _SubscriptionPlanScreenState
       });
     }
 
-    return Column(
-      children: [
-        for (int i = 0; i < planState.plans.length; i++) ...[
-          if (i > 0) const SizedBox(height: AppSizes.spacing16),
-          _buildPlanCard(planState.plans[i]),
-        ],
-      ],
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: planState.plans.length,
+      separatorBuilder: (_, __) => const SizedBox(height: AppSizes.spacing16),
+      itemBuilder: (context, index) {
+        return _buildPlanCard(planState.plans[index]);
+      },
     );
   }
 
@@ -304,177 +503,171 @@ class _SubscriptionPlanScreenState
     final isSelected = _selectedPlan?.id == plan.id;
     final f = plan.features;
 
-    final cardContent = Container(
-      padding: const EdgeInsets.all(AppSizes.spacing16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-        border: Border.all(
-          color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
-          width: isSelected ? 2 : 1,
+    final cardContent = GestureDetector(
+      onTap: isBasic ? () => setState(() => _selectedPlan = plan) : null,
+      child: Container(
+        padding: const EdgeInsets.all(AppSizes.spacing16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+          border: Border.all(
+            color: isSelected
+                ? AppColors.primaryGreen
+                : AppColors.borderColor.withValues(alpha: 0.3),
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: [
+            if (isSelected)
+              BoxShadow(
+                color: AppColors.primaryGreen.withValues(alpha: 0.15),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              )
+            else
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+          ],
         ),
-        boxShadow: [
-          if (isSelected)
-            BoxShadow(
-              color: AppColors.primaryGreen.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header: name + code badge + selection indicator
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  plan.planName,
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize16,
-                    fontWeight: AppTypography.bold,
-                    color: isBasic
-                        ? AppColors.primaryGreen
-                        : AppColors.textSecondary,
-                    fontFamily: 'Lato',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        plan.planName,
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize16,
+                          fontWeight: AppTypography.bold,
+                          color: isBasic
+                              ? AppColors.primaryGreen
+                              : AppColors.textPrimary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      const SizedBox(height: AppSizes.spacing4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.spacing8,
+                          vertical: AppSizes.spacing4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isBasic
+                              ? AppColors.primaryGreen.withValues(alpha: 0.1)
+                              : AppColors.borderColor.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(AppSizes.radius4),
+                        ),
+                        child: Text(
+                          plan.planCode,
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize10,
+                            fontWeight: AppTypography.semiBold,
+                            color: isBasic
+                                ? AppColors.primaryGreen
+                                : AppColors.textSecondary,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSizes.spacing8,
-                  vertical: AppSizes.spacing2,
-                ),
-                decoration: BoxDecoration(
-                  color: isBasic
-                      ? AppColors.primaryGreen.withValues(alpha: 0.1)
-                      : AppColors.borderColor.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(AppSizes.radius4),
-                ),
-                child: Text(
-                  plan.planCode,
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize10,
-                    fontWeight: AppTypography.semiBold,
-                    color: isBasic
-                        ? AppColors.primaryGreen
-                        : AppColors.textSecondary,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSizes.spacing8),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isSelected
-                      ? AppColors.primaryGreen
-                      : Colors.transparent,
-                  border: Border.all(
+                // Selection indicator
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
                     color: isSelected
                         ? AppColors.primaryGreen
-                        : AppColors.borderColor,
-                    width: 2,
+                        : Colors.transparent,
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.primaryGreen
+                          : AppColors.borderColor,
+                      width: 2,
+                    ),
                   ),
+                  child: isSelected
+                      ? const Icon(Icons.check, size: 14, color: Colors.white)
+                      : null,
                 ),
-                child: isSelected
-                    ? const Icon(Icons.check, size: 12, color: Colors.white)
-                    : null,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.spacing8),
-          // Price + duration
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                plan.formattedPrice,
-                style: const TextStyle(
-                  fontSize: AppTypography.fontSize20,
-                  fontWeight: AppTypography.bold,
-                  color: AppColors.textPrimary,
-                  fontFamily: 'Lato',
-                ),
-              ),
-              const SizedBox(width: AppSizes.spacing4),
-              Text(
-                '/ ${plan.planValidity}',
-                style: const TextStyle(
-                  fontSize: AppTypography.fontSize12,
-                  fontWeight: AppTypography.regular,
-                  color: AppColors.textSecondary,
-                  fontFamily: 'Lato',
-                ),
-              ),
-              if (plan.gstPercentage > 0) ...[
-                const SizedBox(width: AppSizes.spacing4),
+              ],
+            ),
+            const SizedBox(height: AppSizes.spacing12),
+
+            // Price
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
                 Text(
-                  '+${plan.gstPercentage.toStringAsFixed(0)}% GST',
+                  plan.formattedPrice,
                   style: const TextStyle(
-                    fontSize: AppTypography.fontSize10,
-                    fontWeight: AppTypography.regular,
-                    color: AppColors.textSecondary,
+                    fontSize: AppTypography.fontSize24,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.primaryGreen,
                     fontFamily: 'Lato',
                   ),
                 ),
+                const SizedBox(width: AppSizes.spacing4),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '/ ${plan.planValidity}',
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        color: AppColors.textSecondary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    if (plan.gstPercentage > 0)
+                      Text(
+                        '+${plan.gstPercentage.toStringAsFixed(0)}% GST',
+                        style: const TextStyle(
+                          fontSize: AppTypography.fontSize10,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                  ],
+                ),
               ],
-            ],
-          ),
-          const SizedBox(height: AppSizes.spacing12),
-          const Divider(height: 1),
-          const SizedBox(height: AppSizes.spacing12),
-          // Features grid
-          Wrap(
-            spacing: AppSizes.spacing8,
-            runSpacing: AppSizes.spacing8,
-            children: [
-              if (f.freeDelivery)
-                _buildFeatureChip(Icons.local_shipping_outlined, 'Free Delivery', disabled: !isBasic),
-              if (f.dietChart)
-                _buildFeatureChip(Icons.assignment_outlined, 'Diet Chart', disabled: !isBasic),
-              if (f.consultationCount > 0)
-                _buildFeatureChip(
-                  Icons.headset_mic_outlined,
-                  '${f.consultationCount} Consultation${f.consultationCount > 1 ? 's' : ''}',
-                  disabled: !isBasic,
-                ),
-              if (f.mealCountPerDay > 0)
-                _buildFeatureChip(
-                  Icons.restaurant_outlined,
-                  '${f.mealCountPerDay} Meals/Day',
-                  disabled: !isBasic,
-                ),
-              if (f.snacks)
-                _buildFeatureChip(Icons.fastfood_outlined, 'Snacks', disabled: !isBasic),
-              if (f.discountPercent > 0)
-                _buildFeatureChip(
-                  Icons.local_offer_outlined,
-                  '${f.discountPercent}% Discount',
-                  highlight: true,
-                  disabled: !isBasic,
-                ),
-              if (f.suggestedPlan)
-                _buildFeatureChip(Icons.auto_awesome_outlined, 'Suggested Plan', disabled: !isBasic),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: AppSizes.spacing16),
+
+            // Divider
+            Divider(
+              height: 1,
+              color: AppColors.borderColor.withValues(alpha: 0.3),
+            ),
+            const SizedBox(height: AppSizes.spacing16),
+
+            // Features
+            _buildFeaturesGrid(f, isBasic),
+          ],
+        ),
       ),
     );
 
     if (!isBasic) {
       return Stack(
         children: [
-          Opacity(opacity: 0.45, child: cardContent),
+          Opacity(opacity: 0.4, child: cardContent),
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppSizes.radius8),
+                borderRadius: BorderRadius.circular(AppSizes.radius12),
               ),
               child: const Center(
                 child: _ComingSoonBadge(),
@@ -485,44 +678,69 @@ class _SubscriptionPlanScreenState
       );
     }
 
-    return GestureDetector(
-      onTap: () => setState(() => _selectedPlan = plan),
-      child: cardContent,
+    return cardContent;
+  }
+
+  Widget _buildFeaturesGrid(PlanFeatures f, bool isBasic) {
+    final features = [
+      if (f.freeDelivery) _buildFeature(Icons.local_shipping_rounded, 'Free Delivery'),
+      if (f.dietChart) _buildFeature(Icons.assignment_rounded, 'Diet Chart'),
+      if (f.consultationCount > 0)
+        _buildFeature(
+          Icons.headset_mic_rounded,
+          '${f.consultationCount} Consultation${f.consultationCount > 1 ? 's' : ''}',
+        ),
+      if (f.mealCountPerDay > 0)
+        _buildFeature(Icons.restaurant_rounded, '${f.mealCountPerDay} Meals/Day'),
+      if (f.snacks) _buildFeature(Icons.fastfood_rounded, 'Snacks'),
+      if (f.discountPercent > 0)
+        _buildFeature(Icons.local_offer_rounded, '${f.discountPercent}% Discount', highlight: true),
+      if (f.suggestedPlan) _buildFeature(Icons.auto_awesome_rounded, 'Suggested'),
+    ];
+
+    return Wrap(
+      spacing: AppSizes.spacing8,
+      runSpacing: AppSizes.spacing8,
+      children: features,
     );
   }
 
-  Widget _buildFeatureChip(
-    IconData icon,
-    String label, {
-    bool highlight = false,
-    bool disabled = false,
-  }) {
-    final color = disabled
-        ? AppColors.textSecondary
-        : highlight
-            ? const Color(0xFFC66301)
-            : AppColors.primaryGreen;
+  Widget _buildFeature(IconData icon, String label, {bool highlight = false}) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.spacing8,
-        vertical: AppSizes.spacing4,
+        horizontal: AppSizes.spacing10,
+        vertical: AppSizes.spacing6,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppSizes.radius4),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        color: highlight
+            ? const Color(0xFFC66301).withValues(alpha: 0.1)
+            : AppColors.primaryGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radius6),
+        border: Border.all(
+          color: highlight
+              ? const Color(0xFFC66301).withValues(alpha: 0.2)
+              : AppColors.primaryGreen.withValues(alpha: 0.2),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
+          Icon(
+            icon,
+            size: 14,
+            color: highlight
+                ? const Color(0xFFC66301)
+                : AppColors.primaryGreen,
+          ),
+          const SizedBox(width: AppSizes.spacing4),
           Text(
             label,
             style: TextStyle(
               fontSize: AppTypography.fontSize10,
               fontWeight: AppTypography.semiBold,
-              color: color,
+              color: highlight
+                  ? const Color(0xFFC66301)
+                  : AppColors.primaryGreen,
               fontFamily: 'Lato',
             ),
           ),
@@ -531,346 +749,216 @@ class _SubscriptionPlanScreenState
     );
   }
 
-  Widget _buildTransactionHistoryButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const TransactionHistoryScreen(),
-            ),
-          );
-        },
-        icon: const Icon(
-          Icons.history,
-          size: AppSizes.icon20,
-        ),
-        label: const Text(
-          'View Transaction History',
-          style: TextStyle(
-            fontSize: AppTypography.fontSize16,
-            fontWeight: AppTypography.semiBold,
-            fontFamily: 'Lato',
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primaryGreen,
-          side: const BorderSide(
-            color: AppColors.primaryGreen,
-            width: 2,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSizes.radius4),
-          ),
-          padding: const EdgeInsets.symmetric(
-            vertical: AppSizes.spacing16,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWalletBalanceCard() {
-    final wallet = ref.watch(walletProvider).wallet;
-    if (wallet == null) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.spacing16,
-        vertical: AppSizes.spacing12,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-        border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSizes.spacing10),
-            decoration: BoxDecoration(
-              color: AppColors.primaryGreen.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppSizes.radius8),
-            ),
-            child: const Icon(
-              Icons.account_balance_wallet_outlined,
-              color: AppColors.primaryGreen,
-              size: AppSizes.icon24,
-            ),
-          ),
-          const SizedBox(width: AppSizes.spacing12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Wallet Balance',
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize12,
-                    fontWeight: AppTypography.medium,
-                    color: AppColors.textSecondary,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-                const SizedBox(height: AppSizes.spacing2),
-                Text(
-                  '₹${wallet.couponBalance.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize20,
-                    fontWeight: AppTypography.bold,
-                    color: AppColors.primaryGreen,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActiveSubscriptionCard() {
-    final subscription = ref.watch(walletProvider).subscription;
-    if (subscription == null) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.spacing16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF4A7C3E), Color(0xFF6BA84F)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primaryGreen.withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppSizes.spacing8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppSizes.radius8),
-                ),
-                child: Image.asset(
-                  'assets/images/buttonshit_logo.png',
-                  height: AppSizes.icon28,
-                  width: AppSizes.icon28,
-                ),
-              ),
-              const SizedBox(width: AppSizes.spacing12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Current Plan',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize12,
-                        fontWeight: AppTypography.medium,
-                        color: Colors.white,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                    const SizedBox(height: AppSizes.spacing2),
-                    Text(
-                      subscription.planName,
-                      style: const TextStyle(
-                        fontSize: AppTypography.fontSize16,
-                        fontWeight: AppTypography.semiBold,
-                        color: Colors.white,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSizes.spacing12,
-                  vertical: AppSizes.spacing6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(AppSizes.radius20),
-                ),
-                child: const Text(
-                  'Active',
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize12,
-                    fontWeight: AppTypography.bold,
-                    color: Colors.white,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.spacing12),
-          Container(
-            padding: const EdgeInsets.all(AppSizes.spacing8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppSizes.radius8),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      subscription.formattedPrice,
-                      style: const TextStyle(
-                        fontSize: AppTypography.fontSize16,
-                        fontWeight: AppTypography.semiBold,
-                        color: Colors.white,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                    const SizedBox(height: AppSizes.spacing2),
-                    const Text(
-                      'Plan Amount',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize12,
-                        fontWeight: AppTypography.regular,
-                        color: Colors.white,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '${subscription.remainingDays}',
-                      style: const TextStyle(
-                        fontSize: AppTypography.fontSize16,
-                        fontWeight: AppTypography.semiBold,
-                        color: Colors.white,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                    const SizedBox(height: AppSizes.spacing2),
-                    const Text(
-                      'Days Remaining',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize12,
-                        fontWeight: AppTypography.regular,
-                        color: Colors.white,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomButton() {
-    final hasActiveSubscription = ref.watch(walletProvider).hasActiveSubscription;
+  // ─── Action Buttons ───
+  Widget _buildActionButtons() {
+    final walletState = ref.watch(walletProvider);
     final isFreePlan = _selectedPlan != null && _selectedPlan!.price == 0;
+    final hasActiveSubscription = walletState.hasActiveSubscription;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.spacing20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        height: AppSizes.buttonHeight,
-        child: hasActiveSubscription
-            ? Container(
-                decoration: BoxDecoration(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppSizes.radius4),
-                  border: Border.all(
-                    color: AppColors.primaryGreen,
-                    width: 2,
+    return Column(
+      children: [
+        // Primary Action Button
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: hasActiveSubscription
+              ? Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSizes.radius12),
+                    border: Border.all(color: AppColors.primaryGreen),
                   ),
-                ),
-                child: const Center(
+                  child: const Center(
+                    child: Text(
+                      'You have an active plan',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.semiBold,
+                        color: AppColors.primaryGreen,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+                )
+              : ElevatedButton(
+                  onPressed: (_selectedPlan == null || isFreePlan)
+                      ? null
+                      : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => SubscriptionCheckoutScreen(
+                                planDays: _selectedPlan!.planDays,
+                                planPrice: _selectedPlan!.formattedPrice,
+                                planCode: _selectedPlan!.planCode,
+                              ),
+                            ),
+                          );
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: AppColors.borderColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius12),
+                    ),
+                  ),
                   child: Text(
-                    'You already have active plan',
-                    style: TextStyle(
-                      fontSize: AppTypography.fontSize16,
-                      fontWeight: AppTypography.bold,
-                      color: AppColors.primaryGreen,
+                    isFreePlan
+                        ? 'Free Plan — No Payment Needed'
+                        : _selectedPlan == null
+                            ? 'Select a Plan'
+                            : 'Subscribe to ${_selectedPlan!.planValidity}',
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.semiBold,
                       fontFamily: 'Lato',
                     ),
                   ),
                 ),
-              )
-            : ElevatedButton(
-                onPressed: (_selectedPlan == null || isFreePlan)
-                    ? null
-                    : () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => SubscriptionCheckoutScreen(
-                              planDays: _selectedPlan!.planDays,
-                              planPrice: _selectedPlan!.formattedPrice,
-                              planCode: _selectedPlan!.planCode,
-                            ),
-                          ),
-                        );
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryGreen,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: AppColors.borderColor,
-                  disabledForegroundColor: AppColors.textSecondary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSizes.radius4),
-                  ),
-                  elevation: 2,
+        ),
+        const SizedBox(height: AppSizes.spacing12),
+
+        // Secondary Action Button
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TransactionHistoryScreen(),
                 ),
-                child: Text(
-                  isFreePlan
-                      ? 'Free Plan — No Purchase Needed'
-                      : _selectedPlan == null
-                          ? 'Select a Plan'
-                          : 'Buy ${_selectedPlan!.planValidity} Plan',
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize16,
-                    fontWeight: AppTypography.semiBold,
-                    fontFamily: 'Lato',
-                  ),
-                ),
+              );
+            },
+            icon: const Icon(Icons.history_rounded, size: AppSizes.icon18),
+            label: const Text(
+              'View Transaction History',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize14,
+                fontWeight: AppTypography.semiBold,
+                fontFamily: 'Lato',
               ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primaryGreen,
+              side: const BorderSide(
+                color: AppColors.primaryGreen,
+                width: 1.5,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radius12),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ─── Error & Empty States ───
+  Widget _buildErrorState(String error) {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spacing20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEE8E6),
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border: Border.all(color: AppColors.errorColor.withValues(alpha: 0.3)),
       ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            size: 40,
+            color: AppColors.errorColor,
+          ),
+          const SizedBox(height: AppSizes.spacing12),
+          Text(
+            error,
+            style: const TextStyle(
+              fontSize: AppTypography.fontSize14,
+              color: AppColors.errorColor,
+              fontFamily: 'Lato',
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSizes.spacing12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () =>
+                  ref.read(subscriptionPlanProvider.notifier).loadPlans(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.errorColor,
+              ),
+              child: const Text(
+                'Try Again',
+                style: TextStyle(fontFamily: 'Lato'),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spacing24),
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border: Border.all(
+          color: AppColors.primaryGreen.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.inbox_rounded,
+            size: 48,
+            color: AppColors.primaryGreen.withValues(alpha: 0.4),
+          ),
+          const SizedBox(height: AppSizes.spacing12),
+          const Text(
+            'No Plans Available',
+            style: TextStyle(
+              fontSize: AppTypography.fontSize16,
+              fontWeight: AppTypography.semiBold,
+              color: AppColors.textPrimary,
+              fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: AppSizes.spacing8),
+          Text(
+            'Check back soon for subscription plans',
+            style: TextStyle(
+              fontSize: AppTypography.fontSize12,
+              color: AppColors.textSecondary,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlansLoadingSkeleton() {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 3,
+      separatorBuilder: (_, __) => const SizedBox(height: AppSizes.spacing16),
+      itemBuilder: (context, index) {
+        return Container(
+          height: 200,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(AppSizes.radius12),
+          ),
+        );
+      },
     );
   }
 }
@@ -883,20 +971,20 @@ class _ComingSoonBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF5A5A5A),
+        color: Colors.black87,
         borderRadius: BorderRadius.circular(AppSizes.radius8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.access_time_rounded, size: 14, color: Colors.white),
+          Icon(Icons.lock_clock_rounded, size: 16, color: Colors.white),
           SizedBox(width: 6),
           Text(
             'Coming Soon',

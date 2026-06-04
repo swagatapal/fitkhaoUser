@@ -509,7 +509,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                 const SizedBox(height: 16),
                                 _sectionCard(
                                   icon: Icons.location_on_outlined,
-                                  title: 'Delivery Address',
+                                  title: 'Your Home Address',
                                   children: [
                                     _field(
                                       label:
