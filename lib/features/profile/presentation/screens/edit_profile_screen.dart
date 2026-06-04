@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:country_code_picker/country_code_picker.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -26,17 +25,14 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   // Form fields
   String _name = '';
-  String _phoneNumber = '';
   String _building = '';
   String _floor = '';
   String _street = '';
   String _pincode = '';
   String _landmark = '';
-  String _countryCode = '+91';
 
   // Controllers
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _buildingController = TextEditingController();
   final TextEditingController _floorController = TextEditingController();
   final TextEditingController _streetController = TextEditingController();
@@ -45,7 +41,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   // Focus nodes
   final FocusNode _nameFocusNode = FocusNode();
-  final FocusNode _phoneFocusNode = FocusNode();
   final FocusNode _buildingFocusNode = FocusNode();
   final FocusNode _floorFocusNode = FocusNode();
   final FocusNode _streetFocusNode = FocusNode();
@@ -99,19 +94,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     setState(() {
       _name = authState.name;
-      _phoneNumber = authState.phoneNumber;
       _building = buildingParts.primary;
       _floor = buildingParts.secondary;
       _street = streetParts.primary;
       _landmark = streetParts.secondary;
       _pincode = authState.pincode;
-      _countryCode = authState.countryCode;
       _latitude = authState.latitude;
       _longitude = authState.longitude;
       _uploadedImageUrl = authState.imgUrl;
 
       _nameController.text = _name;
-      _phoneController.text = _phoneNumber;
       _buildingController.text = _building;
       _floorController.text = _floor;
       _streetController.text = _street;
@@ -123,14 +115,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _phoneController.dispose();
     _buildingController.dispose();
     _floorController.dispose();
     _streetController.dispose();
     _pincodeController.dispose();
     _landmarkController.dispose();
     _nameFocusNode.dispose();
-    _phoneFocusNode.dispose();
     _buildingFocusNode.dispose();
     _floorFocusNode.dispose();
     _streetFocusNode.dispose();
@@ -400,9 +390,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               style: TextStyle(
                 fontSize: context.responsiveFontSize(12.0),
                 fontWeight: FontWeight.w500,
-                color: isPinned
-                    ? AppColors.primaryGreen
-                    : AppColors.errorColor,
+                color: isPinned ? AppColors.primaryGreen : AppColors.errorColor,
                 fontFamily: 'Lato',
               ),
             ),
@@ -436,348 +424,527 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       }
     });
 
-    final spacing12 = context.responsiveSpacing(12.0);
-    final spacing20 = context.responsiveSpacing(20.0);
-    final spacing24 = context.responsiveSpacing(24.0);
-    final spacing32 = context.responsiveSpacing(32.0);
-
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
+      value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: AppColors.primaryGreen,
-        body: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with green background
-              Stack(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: AppSizes.headerHeight,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF5D9E40), Color(0xFF4A7D33)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+        backgroundColor: const Color(0xFFF4F6F4),
+        body: Column(
+          children: [
+            Expanded(
+              child: _isLoadingProfile
+                  ? Column(
+                      children: [
+                        _buildHeader(),
+                        const Expanded(
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.primaryGreen,
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        _buildHeader(),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            padding: EdgeInsets.zero,
+                            physics: const BouncingScrollPhysics(),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // \u2500\u2500 Personal information \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+                                      _sectionCard(
+                                        icon: Icons.person_outline_rounded,
+                                        title: 'Personal Information',
+                                        children: [
+                                          _field(
+                                            label: '${AppStrings.name} *',
+                                            helper: AppStrings
+                                                .putYourFirstAndLastName,
+                                            child: _buildTextField(
+                                              controller: _nameController,
+                                              focusNode: _nameFocusNode,
+                                              hint: AppStrings.nameHint,
+                                              prefixIcon: Icons.badge_outlined,
+                                              onChanged: (value) =>
+                                                  setState(() => _name = value),
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter
+                                                    .deny(
+                                                  RegExp(
+                                                    r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                                    r'\ud83c[\ud000-\udfff]|'
+                                                    r'\ud83d[\ud000-\udfff]|'
+                                                    r'\ud83e[\ud000-\udfff])',
+                                                  ),
+                                                ),
+                                              ],
+                                              suffixIcon: _name.isNotEmpty
+                                                  ? IconButton(
+                                                      icon: const Icon(
+                                                          Icons.clear,
+                                                          size:
+                                                              AppSizes.icon20),
+                                                      onPressed: () {
+                                                        _nameController.clear();
+                                                        setState(
+                                                            () => _name = '');
+                                                      },
+                                                      color: AppColors
+                                                          .textSecondary,
+                                                    )
+                                                  : null,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 16),
+
+                                      // \u2500\u2500 Delivery address \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+                                      _sectionCard(
+                                        icon: Icons.location_on_outlined,
+                                        title: 'Delivery Address',
+                                        children: [
+                                          _field(
+                                            label:
+                                                '${AppStrings.buildingNameNumber} *',
+                                            child: _buildTextField(
+                                              controller: _buildingController,
+                                              focusNode: _buildingFocusNode,
+                                              hint:
+                                                  AppStrings.buildingNameNumber,
+                                              prefixIcon:
+                                                  Icons.apartment_rounded,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter
+                                                    .deny(
+                                                  RegExp(
+                                                    r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                                    r'\ud83c[\ud000-\udfff]|'
+                                                    r'\ud83d[\ud000-\udfff]|'
+                                                    r'\ud83e[\ud000-\udfff])',
+                                                  ),
+                                                ),
+                                              ],
+                                              onChanged: (value) => setState(
+                                                  () =>
+                                                      _building = value.trim()),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(
+                                                child: _field(
+                                                  label:
+                                                      '${AppStrings.floorNumber} *',
+                                                  child: _buildTextField(
+                                                    controller:
+                                                        _floorController,
+                                                    focusNode: _floorFocusNode,
+                                                    hint:
+                                                        AppStrings.floorNumber,
+                                                    prefixIcon:
+                                                        Icons.stairs_outlined,
+                                                    keyboardType:
+                                                        TextInputType.number,
+                                                    inputFormatters: [
+                                                      FilteringTextInputFormatter
+                                                          .digitsOnly,
+                                                    ],
+                                                    onChanged: (value) =>
+                                                        setState(() => _floor =
+                                                            value.trim()),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: _field(
+                                                  label:
+                                                      '${AppStrings.pincode} *',
+                                                  child: _buildTextField(
+                                                    controller:
+                                                        _pincodeController,
+                                                    focusNode:
+                                                        _pincodeFocusNode,
+                                                    hint: AppStrings.pincode,
+                                                    prefixIcon:
+                                                        Icons.pin_drop_outlined,
+                                                    keyboardType:
+                                                        TextInputType.number,
+                                                    inputFormatters: [
+                                                      FilteringTextInputFormatter
+                                                          .digitsOnly,
+                                                      LengthLimitingTextInputFormatter(
+                                                          6),
+                                                    ],
+                                                    onChanged: (value) =>
+                                                        setState(() =>
+                                                            _pincode =
+                                                                value.trim()),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 16),
+                                          _field(
+                                            label: '${AppStrings.street} *',
+                                            child: _buildTextField(
+                                              controller: _streetController,
+                                              focusNode: _streetFocusNode,
+                                              hint: AppStrings.street,
+                                              prefixIcon:
+                                                  Icons.signpost_outlined,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter
+                                                    .deny(
+                                                  RegExp(
+                                                    r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                                    r'\ud83c[\ud000-\udfff]|'
+                                                    r'\ud83d[\ud000-\udfff]|'
+                                                    r'\ud83e[\ud000-\udfff])',
+                                                  ),
+                                                ),
+                                              ],
+                                              onChanged: (value) => setState(
+                                                  () => _street = value.trim()),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          _field(
+                                            label: '${AppStrings.landmark} *',
+                                            helper: AppStrings
+                                                .putYourDetailedAddress,
+                                            child: _buildTextField(
+                                              controller: _landmarkController,
+                                              focusNode: _landmarkFocusNode,
+                                              hint: AppStrings.landmark,
+                                              prefixIcon: Icons.place_outlined,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter
+                                                    .deny(
+                                                  RegExp(
+                                                    r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                                    r'\ud83c[\ud000-\udfff]|'
+                                                    r'\ud83d[\ud000-\udfff]|'
+                                                    r'\ud83e[\ud000-\udfff])',
+                                                  ),
+                                                ),
+                                              ],
+                                              onChanged: (value) => setState(
+                                                  () =>
+                                                      _landmark = value.trim()),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          _buildMapLocationIndicator(),
+                                          const SizedBox(height: 12),
+                                          PrimaryButton(
+                                            height: context.inputHeight,
+                                            text: AppStrings.locateOnMap,
+                                            onPressed: !_isNavigatingToMap &&
+                                                    !_isSavingProfile
+                                                ? _handleLocateOnMap
+                                                : null,
+                                            textColor: AppColors.textWhite,
+                                            backgroundColor:
+                                                const Color(0xFF5D9E40),
+                                            borderRadius: AppSizes.radius8,
+                                            isLoading: _isNavigatingToMap,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+            ),
+
+            // \u2500\u2500 Sticky save bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+            if (!_isLoadingProfile) _buildBottomSaveBar(authState),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // \u2500\u2500\u2500 Header (gradient hero + overlapping avatar) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+  Widget _buildHeader() {
+    final headerHeight = MediaQuery.of(context).size.height * 0.1;
+    const avatarRadius = 52.0;
+
+    return SizedBox(
+      height: headerHeight + avatarRadius,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Gradient banner with curved bottom
+          ClipRRect(
+            borderRadius:
+                const BorderRadius.vertical(bottom: Radius.circular(28)),
+            child: Container(
+              height: headerHeight,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF5D9E40), Color(0xFF4A7D33)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Subtle texture
+                  Opacity(
+                    opacity: 0.18,
                     child: Image.asset(
-                      "assets/images/header_bg.png",
-                      width: MediaQuery.of(context).size.width,
-                      height: AppSizes.headerHeight,
+                      'assets/images/header_bg.png',
                       fit: BoxFit.cover,
                     ),
                   ),
+                  // Decorative circles
+                  Positioned(top: -24, right: -16, child: _circle(110, 0.08)),
+                  Positioned(bottom: 10, left: -20, child: _circle(70, 0.06)),
 
-                  // Back button
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => context.pop(),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                  // Back button + title
+                  SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+                      child: Row(
+                        children: [
+                          Material(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: () => context.pop(),
+                              child: const SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: Icon(Icons.arrow_back_rounded,
+                                    color: Colors.white, size: AppSizes.icon20),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
+            ),
+          ),
 
-              // White rounded container
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    // borderRadius: BorderRadius.only(
-                    //   topLeft: Radius.circular(context.responsiveSpacing(32.0)),
-                    //   topRight: Radius.circular(context.responsiveSpacing(32.0)),
-                    // ),
-                  ),
-                  child: _isLoadingProfile
-                      ? Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primaryGreen,
-                          ),
-                        )
-                      : SingleChildScrollView(
-                    padding: EdgeInsets.all(spacing24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: spacing12),
+          // Overlapping avatar with camera badge
+          Positioned(
+            top: headerHeight - avatarRadius,
+            left: 0,
+            right: 0,
+            child: Center(child: _buildAvatar(avatarRadius)),
+          ),
+        ],
+      ),
+    );
+  }
 
-                        // Title
-                        Text(
-                          AppStrings.editPersonalProfile,
-                          style: TextStyle(
-                            fontSize: context.responsiveFontSize(18.0),
-                            fontWeight: FontWeight.w400,
-                            color: Colors.black,
-                            fontFamily: 'Lato',
-                          ),
-                        ),
-                        SizedBox(height: spacing12),
+  Widget _buildAvatar(double radius) {
+    final hasFile = _profileImage != null;
+    final hasUrl = _uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty;
 
-                        // Profile Image
-                        Center(
-                          child: Stack(
-                            children: [
-                              Container(
-                                width: AppSizes.profileImageWidth,
-                                height: AppSizes.profileImageHeight,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryGreen.withValues(
-                                    alpha: 0.2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(
-                                    context.responsiveSpacing(20.0),
-                                  ),
-                                  image: _profileImage != null
-                                      ? DecorationImage(
-                                          image: FileImage(_profileImage!),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : _uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty
-                                          ? DecorationImage(
-                                              image: NetworkImage(_uploadedImageUrl!),
-                                              fit: BoxFit.cover,
-                                            )
-                                          : null,
-                                ),
-                                child: _profileImage == null && (_uploadedImageUrl == null || _uploadedImageUrl!.isEmpty)
-                                    ? Icon(
-                                        Icons.person,
-                                        size: context.responsiveSpacing(80.0),
-                                        color: AppColors.primaryGreen,
-                                      )
-                                    : null,
-                              ),
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: GestureDetector(
-                                  onTap: _pickImage,
-                                  child: Container(
-                                    padding: EdgeInsets.all(
-                                      context.responsiveSpacing(8.0),
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: AppColors.primaryGreen,
-                                        width: AppSizes.borderThick,
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      Icons.photo_library,
-                                      color: AppColors.primaryGreen,
-                                      size: context.responsiveSpacing(12.0),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(height: spacing32),
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: CircleAvatar(
+            radius: radius,
+            backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.12),
+            backgroundImage: hasFile
+                ? FileImage(_profileImage!)
+                : hasUrl
+                    ? NetworkImage(_uploadedImageUrl!) as ImageProvider
+                    : null,
+            child: (!hasFile && !hasUrl)
+                ? Icon(Icons.person_rounded,
+                    size: radius, color: AppColors.primaryGreen)
+                : null,
+          ),
+        ),
+        Positioned(
+          bottom: 0,
+          right: 0,
+          child: GestureDetector(
+            onTap: _pickImage,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2.5),
+              ),
+              child: const Icon(
+                Icons.camera_alt_rounded,
+                color: Colors.white,
+                size: AppSizes.icon16,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-                        // Name Field
-                        _buildLabel('${AppStrings.name} *'),
-                        SizedBox(height: spacing12),
-                        _buildTextField(
-                          controller: _nameController,
-                          focusNode: _nameFocusNode,
-                          hint: AppStrings.nameHint,
-                          onChanged: (value) => setState(() => _name = value),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.deny(
-                              RegExp(
-                                r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                r'\ud83c[\ud000-\udfff]|'
-                                r'\ud83d[\ud000-\udfff]|'
-                                r'\ud83e[\ud000-\udfff])',
-                              ),
-                            ),
-                          ],
-                          suffixIcon: _name.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear, size: AppSizes.icon20),
-                                  onPressed: () {
-                                    _nameController.clear();
-                                    setState(() => _name = '');
-                                  },
-                                  color: AppColors.textSecondary,
-                                )
-                              : null,
-                        ),
-                        SizedBox(height: spacing12),
-                        Text(
-                          AppStrings.putYourFirstAndLastName,
-                          style: TextStyle(
-                            fontSize: context.responsiveFontSize(12.0),
-                            color: AppColors.textSecondary,
-                            fontFamily: 'Lato',
-                          ),
-                        ),
-                        SizedBox(height: spacing24),
+  Widget _circle(double size, double opacity) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: opacity),
+      ),
+    );
+  }
 
-                        // // Phone Number Field
-                        // _buildLabel('${AppStrings.phoneNumber} *'),
-                        // SizedBox(height: spacing12),
-                        // _buildPhoneField(),
-                        // SizedBox(height: spacing12),
-                        // Text(
-                        //   AppStrings.add10DigitsOnlyProfile,
-                        //   style: TextStyle(
-                        //     fontSize: context.responsiveFontSize(12.0),
-                        //     color: AppColors.textSecondary,
-                        //     fontFamily: 'Lato',
-                        //   ),
-                        // ),
-                        //SizedBox(height: spacing24),
+  // \u2500\u2500\u2500 Section card \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
-                        // Building Name/Number Field
-                        _buildLabel('${AppStrings.buildingNameNumber} *'),
-                        SizedBox(height: spacing12),
-                        _buildTextField(
-                          controller: _buildingController,
-                          focusNode: _buildingFocusNode,
-                          hint: AppStrings.buildingNameNumber,
-                          // inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9 ,]'))],
-                          inputFormatters: [
-                            FilteringTextInputFormatter.deny(
-                              RegExp(
-                                r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                r'\ud83c[\ud000-\udfff]|'
-                                r'\ud83d[\ud000-\udfff]|'
-                                r'\ud83e[\ud000-\udfff])',
-                              ),
-                            ),
-                          ],
-                          onChanged: (value) =>
-                              setState(() => _building = value.trim()),
-                        ),
-                        SizedBox(height: spacing24),
-
-                        _buildLabel('${AppStrings.floorNumber} *'),
-                        SizedBox(height: spacing12),
-                        _buildTextField(
-                          controller: _floorController,
-                          focusNode: _floorFocusNode,
-                          hint: AppStrings.floorNumber,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          onChanged: (value) =>
-                              setState(() => _floor = value.trim()),
-                        ),
-                        SizedBox(height: spacing24),
-
-                        // Street Field
-                        _buildLabel('${AppStrings.street} *'),
-                        SizedBox(height: spacing12),
-                        _buildTextField(
-                          controller: _streetController,
-                          focusNode: _streetFocusNode,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.deny(
-                              RegExp(
-                                r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                r'\ud83c[\ud000-\udfff]|'
-                                r'\ud83d[\ud000-\udfff]|'
-                                r'\ud83e[\ud000-\udfff])',
-                              ),
-                            ),
-                          ],
-                          hint: AppStrings.street,
-                          onChanged: (value) =>
-                              setState(() => _street = value.trim()),
-                        ),
-                        SizedBox(height: spacing24),
-
-                        // Pincode Field
-                        _buildLabel('${AppStrings.pincode} *'),
-                        SizedBox(height: spacing12),
-                        _buildTextField(
-                          controller: _pincodeController,
-                          focusNode: _pincodeFocusNode,
-                          hint: AppStrings.pincode,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(6),
-                          ],
-                          onChanged: (value) =>
-                              setState(() => _pincode = value.trim()),
-                        ),
-                        SizedBox(height: spacing24),
-
-                        _buildLabel('${AppStrings.landmark} *'),
-                        SizedBox(height: spacing12),
-                        _buildTextField(
-                          controller: _landmarkController,
-                          focusNode: _landmarkFocusNode,
-                          hint: AppStrings.landmark,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.deny(
-                              RegExp(
-                                r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                r'\ud83c[\ud000-\udfff]|'
-                                r'\ud83d[\ud000-\udfff]|'
-                                r'\ud83e[\ud000-\udfff])',
-                              ),
-                            ),
-                          ],
-                          onChanged: (value) =>
-                              setState(() => _landmark = value.trim()),
-                        ),
-                        SizedBox(height: spacing12),
-                        Text(
-                          AppStrings.putYourDetailedAddress,
-                          style: TextStyle(
-                            fontSize: context.responsiveFontSize(12.0),
-                            color: AppColors.textSecondary,
-                            fontFamily: 'Lato',
-                          ),
-                        ),
-                        SizedBox(height: spacing20),
-
-                        _buildMapLocationIndicator(),
-                        SizedBox(height: spacing24),
-
-                        // Locate on Map Button
-                        PrimaryButton(
-                          height: context.inputHeight,
-                          text: AppStrings.locateOnMap,
-                          onPressed:
-                              !_isNavigatingToMap && !_isSavingProfile
-                                  ? _handleLocateOnMap
-                                  : null,
-                          textColor: AppColors.textWhite,
-                          backgroundColor: const Color(0xFF5D9E40),
-                          borderRadius: AppSizes.radius4,
-                          isLoading: _isNavigatingToMap,
-                        ),
-                        SizedBox(height: spacing24),
-
-                        // Save Button
-                        PrimaryButton(
-                          text: AppStrings.save,
-                          onPressed: _isFormValid &&
-                                  !_isSavingProfile &&
-                                  !authState.isLoading
-                              ? _handleSave
-                              : null,
-                          textColor: Colors.white,
-                          height: context.inputHeight,
-                          isLoading: _isSavingProfile,
-                        ),
-                        SizedBox(height: spacing20),
-                      ],
-                    ),
-                  ),
+  Widget _sectionCard({
+    required IconData icon,
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+                child: Icon(icon, color: AppColors.primaryGreen, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize15,
+                  fontWeight: AppTypography.bold,
+                  color: AppColors.textPrimary,
+                  fontFamily: 'Lato',
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  /// Label + field (+ optional helper text), used inside section cards.
+  Widget _field({
+    required String label,
+    required Widget child,
+    String? helper,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel(label),
+        const SizedBox(height: 8),
+        child,
+        if (helper != null) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 2),
+            child: Text(
+              helper,
+              style: TextStyle(
+                fontSize: context.responsiveFontSize(11.5),
+                color: AppColors.textTertiary,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildBottomSaveBar(AuthState authState) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: PrimaryButton(
+            text: AppStrings.save,
+            onPressed: _isFormValid && !_isSavingProfile && !authState.isLoading
+                ? _handleSave
+                : null,
+            textColor: Colors.white,
+            height: context.inputHeight,
+            borderRadius: AppSizes.radius8,
+            isLoading: _isSavingProfile,
           ),
         ),
       ),
@@ -785,13 +952,16 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: context.responsiveFontSize(14.0),
-        fontWeight: FontWeight.w600,
-        color: AppColors.textPrimary,
-        fontFamily: 'Lato',
+    return Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: context.responsiveFontSize(13.0),
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+          fontFamily: 'Lato',
+        ),
       ),
     );
   }
@@ -801,6 +971,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     required FocusNode focusNode,
     required String hint,
     required Function(String) onChanged,
+    IconData? prefixIcon,
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
     Widget? suffixIcon,
@@ -812,105 +983,37 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       inputFormatters: inputFormatters,
       onChanged: onChanged,
       style: TextStyle(
-        fontSize: context.responsiveFontSize(16.0),
+        fontSize: context.responsiveFontSize(15.0),
+        fontWeight: FontWeight.w500,
         color: AppColors.textPrimary,
         fontFamily: 'Lato',
       ),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(
-          fontSize: context.responsiveFontSize(16.0),
-          color: AppColors.textSecondary.withValues(alpha: 0.5),
+          fontSize: context.responsiveFontSize(14.0),
+          color: AppColors.textTertiary,
           fontFamily: 'Lato',
         ),
-        filled: true,
-        fillColor: Colors.white,
+        prefixIcon: prefixIcon != null
+            ? Icon(prefixIcon,
+                size: AppSizes.icon20, color: AppColors.textSecondary)
+            : null,
         suffixIcon: suffixIcon,
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: context.responsiveSpacing(20.0),
-          vertical: context.responsiveSpacing(16.0),
-        ),
+        filled: true,
+        fillColor: const Color(0xFFF6F8F6),
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(context.responsiveSpacing(4.0)),
-          borderSide: const BorderSide(
-            color: AppColors.primaryGreen,
-            width: AppSizes.borderMedium,
-          ),
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+          borderSide: const BorderSide(color: Color(0xFFE6E9E6), width: 1.2),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(context.responsiveSpacing(AppSizes.radius4)),
-          borderSide: const BorderSide(color: AppColors.primaryGreen, width: AppSizes.borderThick),
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+          borderSide:
+              const BorderSide(color: AppColors.primaryGreen, width: 1.6),
         ),
-      ),
-    );
-  }
-
-  Widget _buildPhoneField() {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.primaryGreen, width: AppSizes.borderMedium),
-        borderRadius: BorderRadius.circular(context.responsiveSpacing(AppSizes.radius4)),
-      ),
-      child: Row(
-        children: [
-          // Country Code Picker
-          CountryCodePicker(
-            onChanged: (country) {
-              setState(() {
-                _countryCode = country.dialCode ?? '+91';
-              });
-            },
-            initialSelection: 'IN',
-            favorite: const ['+91', 'IN'],
-            showCountryOnly: false,
-            showOnlyCountryWhenClosed: false,
-            alignLeft: false,
-            padding: EdgeInsets.zero,
-            textStyle: TextStyle(
-              fontSize: context.responsiveFontSize(16.0),
-              color: AppColors.textPrimary,
-              fontFamily: 'Lato',
-            ),
-          ),
-
-          // Vertical divider
-          Container(
-            width: AppSizes.dividerWidth,
-            height: context.responsiveSpacing(AppSizes.dividerHeightMedium),
-            color: AppColors.borderColor,
-          ),
-
-          // Phone number input
-          Expanded(
-            child: TextField(
-              controller: _phoneController,
-              focusNode: _phoneFocusNode,
-              keyboardType: TextInputType.phone,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(AppSizes.maxLengthPhone),
-              ],
-              onChanged: (value) => setState(() => _phoneNumber = value),
-              style: TextStyle(
-                fontSize: context.responsiveFontSize(16.0),
-                color: AppColors.textPrimary,
-                fontFamily: 'Lato',
-              ),
-              decoration: InputDecoration(
-                hintText: AppStrings.phoneNumberHint,
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                            
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: context.responsiveFontSize(16.0),
-                                vertical: context.responsiveFontSize(16.0),
-                              ),
-                              counterText: '',
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

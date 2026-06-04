@@ -77,18 +77,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         body: SafeArea(
           child: Column(
             children: [
-              _buildHeader(),
+              _buildHeader(widget.initialTab),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: AppSizes.spacing12),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSizes.screenPaddingHorizontal,
-                      ),
-                      child: _buildSegmentedControl(context),
-                    ),
                     const SizedBox(height: AppSizes.spacing12),
                     Padding(
                       padding: const EdgeInsets.symmetric(
@@ -155,7 +148,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                       ),
                       ),
                     ),
-                    const SizedBox(height: AppSizes.spacing48),
                   ],
                 ),
               ),
@@ -323,7 +315,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(HistoryTab tabStatus) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSizes.p20,
@@ -357,13 +349,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             ),
           ),
           const SizedBox(width: AppSizes.spacing12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Order History",
-                  style: TextStyle(
+                  tabStatus == HistoryTab.upcoming
+                      ? 'Upcoming Orders'
+                      : 'Delivered Orders',
+                  style: const TextStyle(
                     fontSize: AppTypography.fontSize20,
                     fontWeight: AppTypography.bold,
                     color: AppColors.textPrimary,
