@@ -77,8 +77,10 @@ class AllDishesState {
   /// non-null → per-category flat view
   final String? selectedCategoryId;
 
-  /// 'all' | 'veg' | 'non-veg' | 'Eggetarian' | 'Vegan' | 'Beverage' | 'Smoothie'
-  final String selectedDishType;
+  /// Selected dish-type filters (multi-select), each value normalized:
+  /// 'veg' | 'nonveg' | 'eggetarian' | 'vegan' | 'beverage' | 'smoothie'.
+  /// Empty set → no type filter (show all).
+  final Set<String> selectedDishTypes;
 
   final String searchQuery;
   final String? error;
@@ -95,7 +97,7 @@ class AllDishesState {
     this.isLoading = false,
     this.isLoadingMore = false,
     this.selectedCategoryId,
-    this.selectedDishType = 'all',
+    this.selectedDishTypes = const {},
     this.searchQuery = '',
     this.error,
   });
@@ -117,14 +119,11 @@ class AllDishesState {
 
   /// Dish-type + search filter applied to the active items list.
   ///
-  /// [selectedDishType] values from the UI chips:
-  ///   'all' | 'veg' | 'non-veg' | 'Eggetarian' | 'Vegan' | 'Beverage' | 'Smoothie'
-  ///
-  /// [MenuItem.menuType] is normalised at parse time:
-  ///   "Veg" → "veg", "Non-Veg" → "nonveg", "Eggetarian" → "eggetarian", etc.
-  ///
-  /// We apply the same normalisation to [selectedDishType] so comparisons are
-  /// resilient to casing / hyphen differences.
+  /// [selectedDishTypes] holds normalized values from the UI chips:
+  ///   'veg' | 'nonveg' | 'eggetarian' | 'vegan' | 'beverage' | 'smoothie'.
+  /// Empty → no type filter. When multiple types are selected, an item is kept
+  /// if ANY of its [MenuItem.menuTypes] matches ANY selected type (union/OR),
+  /// so an egg dish tagged ['nonveg','eggetarian'] surfaces under both filters.
   List<MenuItem> get filteredItems {
     var list = items;
 
@@ -138,32 +137,12 @@ class AllDishesState {
           .toList();
     }
 
-    // ── Dish-type filter ────────────────────────────────────────────────────
-    if (selectedDishType == 'all') return list;
+    // ── Dish-type filter (multi-select, OR semantics) ─────────────────────────
+    if (selectedDishTypes.isEmpty) return list;
 
-    // Normalise exactly as MenuItem.fromJson does for menuType.
-    final filter = selectedDishType
-        .toLowerCase()
-        .replaceAll('-', '')
-        .replaceAll(' ', '');
-
-    switch (filter) {
-      case 'veg':
-        // Pure vegetarian only — excludes Vegan, Eggetarian, etc.
-        return list.where((i) => i.menuType == 'veg').toList();
-      case 'nonveg':
-        return list.where((i) => i.menuType == 'nonveg').toList();
-      case 'eggetarian':
-        return list.where((i) => i.menuType == 'eggetarian').toList();
-      case 'vegan':
-        return list.where((i) => i.menuType == 'vegan').toList();
-      case 'beverage':
-        return list.where((i) => i.menuType == 'beverage').toList();
-      case 'smoothie':
-        return list.where((i) => i.menuType == 'smoothie').toList();
-      default:
-        return list;
-    }
+    return list
+        .where((i) => i.menuTypes.any(selectedDishTypes.contains))
+        .toList();
   }
 
   /// Group [filteredItems] by category preserving server order.
@@ -212,7 +191,7 @@ class AllDishesState {
     bool? isLoadingMore,
     String? selectedCategoryId,
     bool clearCategoryFilter = false,
-    String? selectedDishType,
+    Set<String>? selectedDishTypes,
     String? searchQuery,
     String? error,
     bool clearError = false,
@@ -231,7 +210,7 @@ class AllDishesState {
       selectedCategoryId: clearCategoryFilter
           ? null
           : (selectedCategoryId ?? this.selectedCategoryId),
-      selectedDishType: selectedDishType ?? this.selectedDishType,
+      selectedDishTypes: selectedDishTypes ?? this.selectedDishTypes,
       searchQuery: searchQuery ?? this.searchQuery,
       error: clearError ? null : (error ?? this.error),
     );
@@ -356,13 +335,47 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
 
   // ── Filters ───────────────────────────────────────────────────────────────
 
-  void setDishTypeFilter(String dishType) =>
-      state = state.copyWith(selectedDishType: dishType);
+  /// Toggle a single dish-type filter on/off (multi-select).
+  /// [type] must already be normalized ('veg','nonveg','eggetarian', …).
+  void toggleDishType(String type) {
+    final next = Set<String>.from(state.selectedDishTypes);
+    if (!next.add(type)) next.remove(type);
+    state = state.copyWith(selectedDishTypes: next);
+  }
+
+  /// Clear all dish-type filters (back to "All").
+  void clearDishTypes() =>
+      state = state.copyWith(selectedDishTypes: const {});
 
   void setSearchQuery(String query) =>
       state = state.copyWith(searchQuery: query);
 
   Future<void> refresh() => loadMenuItems();
+
+  /// Cache-friendly refresh: re-fetches categories + the first "All" page
+  /// WITHOUT flipping the loading flags, so the currently rendered items stay
+  /// on screen (no skeleton flash) until fresh data swaps in. Used on re-entry
+  /// when state already holds cached dishes.
+  Future<void> silentRefresh() async {
+    try {
+      final categories = await _repo.getCategories();
+      final page = await _repo.getMenuPage(
+        categoryId: null,
+        pageIndex: 0,
+        pageSize: 10,
+      );
+      // Only swap if nothing else changed the view in the meantime.
+      state = state.copyWith(
+        categories: categories,
+        allItems: page.items,
+        allPage: 0,
+        allTotalPages: page.totalPages,
+        clearError: true,
+      );
+    } catch (_) {
+      // Silent — keep showing cached data on failure.
+    }
+  }
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────

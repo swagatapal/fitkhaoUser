@@ -17,6 +17,10 @@ class MenuItem {
   final String fats;
   final String fiber;
   final String menuType;
+
+  /// All dish types a dish belongs to, normalized (e.g. ['nonveg','eggetarian']).
+  /// A single dish can carry multiple types — the API sends `dishType` as an array.
+  final List<String> menuTypes;
   final String mealType;
   final List<String> applicableMealTypes;
   final List<String> goalCategory;
@@ -46,6 +50,7 @@ class MenuItem {
     this.fats = '0g',
     this.fiber = '0g',
     this.menuType = 'veg',
+    this.menuTypes = const ['veg'],
     this.mealType = 'lunch',
     this.applicableMealTypes = const [],
     this.goalCategory = const [],
@@ -96,19 +101,36 @@ class MenuItem {
       fiber = (legacyNutrition['fiber'] as num?)?.toDouble() ?? 0;
     }
 
-    // Dish type: new API uses 'dishType' array [{_id, dishType: "Veg"/"Non-Veg"}]
+    // Dish type: new API uses 'dishType' array [{_id, dishType: "Veg"/"Non-Veg"}].
+    // A dish can belong to MULTIPLE types (e.g. an egg dish is Non-Veg + Eggetarian),
+    // so we collect every type, normalized, into [menuTypes].
+    String normalizeType(String raw) =>
+        raw.toLowerCase().replaceAll('-', '').replaceAll(' ', '').trim();
+
     bool isVeg = true;
     String menuType = 'veg';
+    var menuTypes = <String>['veg'];
     final dishTypeList = json['dishType'] as List<dynamic>?;
     if (dishTypeList != null && dishTypeList.isNotEmpty) {
-      final firstType = dishTypeList[0] as Map<String, dynamic>?;
-      final typeStr = firstType?['dishType'] as String? ?? 'Veg';
-      isVeg = typeStr.toLowerCase() == 'veg';
-      menuType = typeStr.toLowerCase().replaceAll('-', '').replaceAll(' ', '');
+      final parsed = dishTypeList
+          .whereType<Map<String, dynamic>>()
+          .map((e) => (e['dishType'] as String?)?.trim() ?? '')
+          .where((s) => s.isNotEmpty)
+          .map(normalizeType)
+          .toList();
+      // De-duplicate while preserving order.
+      menuTypes = parsed.toSet().toList();
+      if (menuTypes.isEmpty) menuTypes = ['veg'];
+      menuType = menuTypes.first;
+      // A dish is "veg" for the indicator only when it is purely vegetarian.
+      isVeg = menuTypes.contains('veg') &&
+          !menuTypes.contains('nonveg') &&
+          !menuTypes.contains('eggetarian');
     } else {
       final foodType = json['foodType'] as String? ?? 'veg';
       isVeg = foodType.toLowerCase() == 'veg';
-      menuType = foodType;
+      menuType = normalizeType(foodType);
+      menuTypes = [menuType];
     }
 
     // Image: new API sends `imageUrl` as a top-level string;
@@ -209,6 +231,7 @@ class MenuItem {
       fats: '${fat.toStringAsFixed(1)}g',
       fiber: '${fiber.toStringAsFixed(1)}g',
       menuType: menuType,
+      menuTypes: menuTypes,
       mealType: mealType,
       applicableMealTypes: applicableMealTypes,
       goalCategory: goalCategories.isNotEmpty ? goalCategories : [],
