@@ -11,13 +11,19 @@ class OrderHistoryState {
   final bool hasMore;
   final int currentOffset;
 
+  /// Per-order invoice loading state (keyed by orderId).
+  final Map<String, bool> invoiceLoading;
+
   const OrderHistoryState({
     this.orders = const [],
     this.isLoading = false,
     this.error,
     this.hasMore = true,
     this.currentOffset = 0,
+    this.invoiceLoading = const {},
   });
+
+  bool isInvoiceLoading(String orderId) => invoiceLoading[orderId] == true;
 
   OrderHistoryState copyWith({
     List<OrderHistory>? orders,
@@ -25,6 +31,7 @@ class OrderHistoryState {
     String? error,
     bool? hasMore,
     int? currentOffset,
+    Map<String, bool>? invoiceLoading,
   }) {
     return OrderHistoryState(
       orders: orders ?? this.orders,
@@ -32,6 +39,7 @@ class OrderHistoryState {
       error: error,
       hasMore: hasMore ?? this.hasMore,
       currentOffset: currentOffset ?? this.currentOffset,
+      invoiceLoading: invoiceLoading ?? this.invoiceLoading,
     );
   }
 }
@@ -95,6 +103,24 @@ class OrderHistoryNotifier extends StateNotifier<OrderHistoryState> {
   /// Refresh order history
   Future<void> refresh() async {
     await loadOrderHistory(refresh: true);
+  }
+
+  /// Generates the invoice for [orderId] and returns the PDF URL.
+  /// Tracks per-order loading state so the caller can show a spinner.
+  /// Throws on error so the UI can show a snackbar.
+  Future<String> fetchInvoiceUrl(String orderId) async {
+    state = state.copyWith(
+      invoiceLoading: {...state.invoiceLoading, orderId: true},
+    );
+    try {
+      final repository = ref.read(orderHistoryRepositoryProvider);
+      final url = await repository.getInvoiceUrl(orderId);
+      return url;
+    } finally {
+      state = state.copyWith(
+        invoiceLoading: {...state.invoiceLoading, orderId: false},
+      );
+    }
   }
 
   /// Get upcoming orders

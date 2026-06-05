@@ -7,6 +7,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../models/order_history_model.dart';
+import '../../providers/order_history_provider.dart';
 import '../../../policy/models/app_constants_model.dart';
 import '../../../policy/providers/app_constants_provider.dart';
 
@@ -43,6 +44,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     _buildDeliveryDetails(),
                     const SizedBox(height: AppSizes.spacing16),
                     _buildPriceSummary(),
+                    const SizedBox(height: AppSizes.spacing16),
+                    _buildInvoiceButton(),
                     const SizedBox(height: AppSizes.spacing16),
                     // if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
                     //   _buildTimeline(context),
@@ -318,9 +321,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           _buildDetailRow(Icons.location_on, 'Address',
               '${widget.order.deliveryAddress.buildingName}, ${widget.order.deliveryAddress.street}'),
           const SizedBox(height: AppSizes.spacing8),
-          _buildDetailRow(Icons.calendar_today, 'Delivery Date',
-              _formatDeliveryDate(widget.order.deliveryDate)),
-          const SizedBox(height: AppSizes.spacing8),
+          // _buildDetailRow(Icons.calendar_today, 'Delivery Date',
+          //     _formatDeliveryDate(widget.order.deliveryDate)),
+          // const SizedBox(height: AppSizes.spacing8),
           // _buildDetailRow(
           //     Icons.access_time, 'Delivery Slot', _formatDeliverySlot(widget.order.deliverySlot)),
           // const SizedBox(height: AppSizes.spacing8),
@@ -714,6 +717,75 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         return -1;
     }
   }
+  Widget _buildInvoiceButton() {
+    final isLoading = ref.watch(
+      orderHistoryProvider.select((s) => s.isInvoiceLoading(widget.order.id)),
+    );
+
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: isLoading ? null : _handleViewInvoice,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
+          side: const BorderSide(color: AppColors.primaryGreen, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+          ),
+          foregroundColor: AppColors.primaryGreen,
+        ),
+        icon: isLoading
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primaryGreen,
+                ),
+              )
+            : const Icon(Icons.receipt_long_rounded, size: AppSizes.icon20),
+        label: Text(
+          isLoading ? 'Generating Invoice…' : 'View Invoice',
+          style: const TextStyle(
+            fontSize: AppTypography.fontSize14,
+            fontWeight: AppTypography.semiBold,
+            fontFamily: AppTypography.fontFamily,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleViewInvoice() async {
+    final orderId = widget.order.id;
+    try {
+      final url = await ref
+          .read(orderHistoryProvider.notifier)
+          .fetchInvoiceUrl(orderId);
+
+      final uri = Uri.parse(url);
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open the invoice. Please try again.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.errorColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.errorColor,
+        ),
+      );
+    }
+  }
+
   Future<void> _openHelpEmail() async {
     final String subject = Uri.encodeComponent('Help & Support - FitKhao');
     final String body = Uri.encodeComponent(

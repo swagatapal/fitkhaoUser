@@ -356,7 +356,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: MediaQuery.of(context).size.height * 0.02,
+                bottom: MediaQuery.of(context).size.height * 0.03,
                 child: Consumer(
                   builder: (context, ref, _) {
                     final totalItems = ref.watch(cartTotalItemsProvider);
