@@ -5,6 +5,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../models/kitchen_model.dart';
+import '../../providers/kitchen_provider.dart';
 import '../../../history/presentation/screens/history_screen.dart';
 import '../../../notification/presentation/notification_screen.dart';
 import '../../../policy/presentation/screens/policy_screen.dart';
@@ -45,6 +47,9 @@ class AppMenuContent extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing8),
             children: [
+              const _KitchenSelectorSection(),
+              const Divider(
+                  height: AppSizes.spacing24, indent: 16, endIndent: 16),
               _DrawerItem(
                 icon: Icons.person_outline,
                 label: 'Profile Details',
@@ -207,6 +212,245 @@ class AppMenuContent extends ConsumerWidget {
               fontWeight: AppTypography.semiBold,
               color: AppColors.textTertiary,
               fontFamily: 'Lato',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Kitchen selector ──────────────────────────────────────────────────────
+
+/// Drawer section that shows the currently selected kitchen and opens a picker.
+/// Multiple kitchens may be returned; the first is default-selected upstream.
+class _KitchenSelectorSection extends ConsumerWidget {
+  const _KitchenSelectorSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kitchenState = ref.watch(kitchenProvider);
+    final selected = kitchenState.selectedKitchen;
+    final isOpen = kitchenState.isKitchenOpen != false;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.spacing16,
+        AppSizes.spacing4,
+        AppSizes.spacing16,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Selected Kitchen',
+            style: TextStyle(
+              fontSize: AppTypography.fontSize12,
+              fontWeight: AppTypography.semiBold,
+              color: AppColors.textSecondary,
+              fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: AppSizes.spacing8),
+          GestureDetector(
+            onTap: kitchenState.isLoading
+                ? null
+                : () => _openKitchenPicker(context, ref),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.spacing12,
+                vertical: AppSizes.spacing12,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(AppSizes.radius12),
+                border: Border.all(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(AppSizes.spacing8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.storefront_rounded,
+                        size: AppSizes.icon20, color: AppColors.primaryGreen),
+                  ),
+                  const SizedBox(width: AppSizes.spacing12),
+                  Expanded(
+                    child: kitchenState.isLoading && selected == null
+                        ? Text(
+                            'Loading kitchens…',
+                            style: TextStyle(
+                              fontSize: AppTypography.fontSize14,
+                              color: AppColors.textSecondary,
+                              fontFamily: 'Lato',
+                            ),
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                selected?.name ?? 'No kitchen available',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: AppTypography.fontSize14,
+                                  fontWeight: AppTypography.bold,
+                                  color: AppColors.textPrimary,
+                                  fontFamily: 'Lato',
+                                ),
+                              ),
+                              if (selected != null) ...[
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 7,
+                                      height: 7,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isOpen
+                                            ? AppColors.primaryGreen
+                                            : AppColors.errorColor,
+                                      ),
+                                    ),
+                                    const SizedBox(width: AppSizes.spacing4),
+                                    Text(
+                                      isOpen ? 'Open now' : 'Closed',
+                                      style: TextStyle(
+                                        fontSize: AppTypography.fontSize12,
+                                        color: isOpen
+                                            ? AppColors.primaryGreen
+                                            : AppColors.errorColor,
+                                        fontFamily: 'Lato',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                  ),
+                  if (kitchenState.kitchens.length > 1)
+                    const Icon(Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.textSecondary),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openKitchenPicker(BuildContext context, WidgetRef ref) {
+    final kitchens = ref.read(kitchenProvider).kitchens;
+    if (kitchens.length <= 1) return; // nothing to choose from
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => _KitchenPickerSheet(
+        onSelect: (kitchen) {
+          ref.read(kitchenProvider.notifier).selectKitchen(kitchen);
+          Navigator.of(sheetContext).pop();
+        },
+      ),
+    );
+  }
+}
+
+/// Bottom sheet listing all active kitchens for selection.
+class _KitchenPickerSheet extends ConsumerWidget {
+  final ValueChanged<KitchenModel> onSelect;
+
+  const _KitchenPickerSheet({required this.onSelect});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kitchenState = ref.watch(kitchenProvider);
+    final selectedId = kitchenState.selectedKitchenId;
+
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: AppSizes.spacing12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(AppSizes.spacing20, AppSizes.spacing16,
+                AppSizes.spacing20, AppSizes.spacing8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Choose a Kitchen',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize18,
+                  fontWeight: AppTypography.bold,
+                  color: AppColors.textPrimary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing8),
+              itemCount: kitchenState.kitchens.length,
+              itemBuilder: (_, i) {
+                final kitchen = kitchenState.kitchens[i];
+                final isSelected = kitchen.id == selectedId;
+                return ListTile(
+                  onTap: () => onSelect(kitchen),
+                  leading: Icon(
+                    Icons.storefront_rounded,
+                    color: isSelected
+                        ? AppColors.primaryGreen
+                        : AppColors.textSecondary,
+                  ),
+                  title: Text(
+                    kitchen.name,
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: isSelected
+                          ? AppTypography.bold
+                          : AppTypography.medium,
+                      color: AppColors.textPrimary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  subtitle: Text(
+                    kitchen.isOpen ? 'Open now' : 'Closed',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      color: kitchen.isOpen
+                          ? AppColors.primaryGreen
+                          : AppColors.errorColor,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_circle,
+                          color: AppColors.primaryGreen)
+                      : null,
+                );
+              },
             ),
           ),
         ],

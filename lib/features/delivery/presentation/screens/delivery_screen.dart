@@ -12,7 +12,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../providers/wallet_provider.dart';
-import '../../providers/serviceability_provider.dart';
+import '../../providers/kitchen_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../models/menu_item.dart';
 import '../../providers/menu_provider.dart';
@@ -134,7 +134,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   Future<void> _loadInitialData() async {
     unawaited(_loadProfileData());
     unawaited(_loadWalletBalance());
-    unawaited(_resolveServiceabilityInBackground());
+    unawaited(_loadKitchens());
 
     final hasCachedDishes = ref.read(allDishesProvider).items.isNotEmpty;
     if (hasCachedDishes) {
@@ -147,7 +147,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   Future<void> _onRefresh() async {
     await Future.wait([
       ref.read(allDishesProvider.notifier).silentRefresh(),
-      _resolveServiceabilityInBackground(),
+      _loadKitchens(),
     ]);
   }
 
@@ -166,15 +166,11 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     await ref.read(walletProvider.notifier).loadWalletBalance();
   }
 
-  /// Background-only serviceability resolution. The UI never blocks on this;
-  /// it simply populates kitchenId + kitchen open/close status in the provider.
-  Future<void> _resolveServiceabilityInBackground() async {
-    final authState = ref.read(authProvider);
-    if (authState.latitude == null || authState.longitude == null) return;
-    await ref.read(serviceabilityProvider.notifier).checkServiceability(
-          latitude: authState.latitude!,
-          longitude: authState.longitude!,
-        );
+  /// Background-only kitchen resolution. The UI never blocks on this; it loads
+  /// the active kitchen list, default-selects a kitchen, and resolves its
+  /// open/close status (used to gate ordering and surface the closed banner).
+  Future<void> _loadKitchens() async {
+    await ref.read(kitchenProvider.notifier).loadKitchens();
   }
 
   void _toggleCategory(String categoryId) {
@@ -262,10 +258,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final location = _computeLocation(authState);
     final dishState = ref.watch(allDishesProvider);
 
-    // Kitchen open/close comes from the background serviceability resolution.
+    // Kitchen open/close comes from the background kitchen resolution.
     // null / true → treat as open (fail-open). false → kitchen manually closed.
     final kitchenOpen = ref.watch(
-      serviceabilityProvider.select((s) => s.isKitchenOpen != false),
+      kitchenProvider.select((s) => s.isKitchenOpen != false),
     );
 
     // ACTIVE  → within ordering window AND kitchen open  → colorful, can order.
@@ -274,8 +270,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
     final closedReason = !_isWithinOrderingWindow
         ? 'Ordering opens at 11:00 AM'
-        : ref.watch(serviceabilityProvider
-                .select((s) => s.kitchenClosedReason)) ??
+        : ref.watch(kitchenProvider.select((s) => s.kitchenClosedReason)) ??
             'The outlet is currently closed';
 
     return AnnotatedRegion<SystemUiOverlayStyle>(

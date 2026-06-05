@@ -12,7 +12,7 @@ import '../../models/coupon_model.dart';
 import '../../models/order_placement_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/coupon_provider.dart';
-import '../../providers/serviceability_provider.dart';
+import '../../providers/kitchen_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../../policy/models/app_constants_model.dart';
 import '../../../policy/providers/app_constants_provider.dart';
@@ -78,12 +78,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(walletProvider.notifier).loadWalletBalance();
-      final serviceState = ref.read(serviceabilityProvider);
-      if (serviceState.kitchenId == null && !serviceState.isLoading) {
-        ref.read(serviceabilityProvider.notifier).checkServiceability(
-              latitude: 22.8671,
-              longitude: 88.3674,
-            );
+      // Ensure a kitchen is resolved (default-selected) for order placement.
+      final kitchenState = ref.read(kitchenProvider);
+      if (kitchenState.selectedKitchenId == null && !kitchenState.isLoading) {
+        ref.read(kitchenProvider.notifier).loadKitchens();
       }
     });
   }
@@ -1171,9 +1169,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   /// • wallet  → POST /api/orders/place directly
   /// • gateway → POST /razorpay/create-order → open Razorpay SDK
   Future<void> _placeOrder(List<CartItem> cartItems, double subTotal) async {
-    final kitchenId = ref.read(serviceabilityProvider).kitchenId;
+    final kitchenId = ref.read(kitchenProvider).selectedKitchenId;
     if (kitchenId == null || kitchenId.isEmpty) {
-      _showErrorSnackbar('Service not available in your area. Please try again.');
+      _showErrorSnackbar('No kitchen selected. Please try again.');
       return;
     }
 
