@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
@@ -19,6 +20,16 @@ import '../../../policy/models/app_constants_model.dart';
 import '../../../policy/providers/app_constants_provider.dart';
 import '../../../profile/models/delivery_address_model.dart';
 import '../../../profile/presentation/screens/address_list_screen.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Dark status-bar icons so the system bar stays visible over this screen's
+/// light/white header (regardless of the previous screen's overlay style).
+const SystemUiOverlayStyle _kLightScreenOverlay = SystemUiOverlayStyle(
+  statusBarColor: Colors.transparent,
+  statusBarIconBrightness: Brightness.dark, // Android
+  statusBarBrightness: Brightness.light, // iOS
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -159,74 +170,77 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       });
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          SafeArea(
-        child: Column(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: _kLightScreenOverlay,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: Stack(
           children: [
-            _buildHeader(),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSizes.screenPaddingHorizontal,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: AppSizes.spacing10),
-                      const _DeliveryAddressSection(),
-                      const SizedBox(height: AppSizes.spacing10),
-                      _buildCartItems(cartItems),
-                      const SizedBox(height: AppSizes.spacing10),
-                      _buildCouponSection(),
-                      const SizedBox(height: AppSizes.spacing10),
-                      _buildPaymentMethodSection(
-                        subTotal: subTotal,
-                        couponBalance: couponBalance,
-                        isWalletSufficient: isWalletSufficient,
-                      ),
-                      const SizedBox(height: AppSizes.spacing10),
-                      _buildOrderSummary(
-                        itemTotal: itemTotal,
-                        gstRate: pricing.gstRate,
-                        gstAmount: gstAmount,
-                        platformCharge: platformCharge,
-                        deliveryCharge: deliveryCharge,
-                        couponDiscount: couponDiscount,
-                        subTotal: subTotal,
-                        couponBalance: couponBalance,
-                      ),
-                      const SizedBox(height: AppSizes.spacing10),
-                      _buildInstructionsSection(),
-                      const SizedBox(height: AppSizes.spacing16),
-                      _buildConfirmOrderButton(
-                        cartItems: cartItems,
-                        subTotal: subTotal,
-                        isWalletSufficient: isWalletSufficient,
-                        walletState: walletState,
-                        canDeliver: canDeliver,
-                      ),
-                      const SizedBox(height: AppSizes.spacing24),
-                    ],
+            SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSizes.screenPaddingHorizontal,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: AppSizes.spacing10),
+                        const _DeliveryAddressSection(),
+                        const SizedBox(height: AppSizes.spacing10),
+                        _buildCartItems(cartItems),
+                        const SizedBox(height: AppSizes.spacing10),
+                        _buildCouponSection(),
+                        const SizedBox(height: AppSizes.spacing10),
+                        _buildPaymentMethodSection(
+                          subTotal: subTotal,
+                          couponBalance: couponBalance,
+                          isWalletSufficient: isWalletSufficient,
+                        ),
+                        const SizedBox(height: AppSizes.spacing10),
+                        _buildOrderSummary(
+                          itemTotal: itemTotal,
+                          gstRate: pricing.gstRate,
+                          gstAmount: gstAmount,
+                          platformCharge: platformCharge,
+                          deliveryCharge: deliveryCharge,
+                          couponDiscount: couponDiscount,
+                          subTotal: subTotal,
+                          couponBalance: couponBalance,
+                        ),
+                        const SizedBox(height: AppSizes.spacing10),
+                        _buildInstructionsSection(),
+                        const SizedBox(height: AppSizes.spacing16),
+                        _buildConfirmOrderButton(
+                          cartItems: cartItems,
+                          subTotal: subTotal,
+                          isWalletSufficient: isWalletSufficient,
+                          walletState: walletState,
+                          canDeliver: canDeliver,
+                        ),
+                        const SizedBox(height: AppSizes.spacing24),
+                      ],
+                    ),
                   ),
                 ),
               ),
+            ],
+          ),
             ),
+            // One-shot success animation overlay after a coupon is applied.
+            if (_couponSuccessTick != null)
+              _CouponSuccessOverlay(
+                key: ValueKey(_couponSuccessTick),
+                onCompleted: () {
+                  if (mounted) setState(() => _couponSuccessTick = null);
+                },
+              ),
           ],
         ),
-          ),
-          // One-shot success animation overlay after a coupon is applied.
-          if (_couponSuccessTick != null)
-            _CouponSuccessOverlay(
-              key: ValueKey(_couponSuccessTick),
-              onCompleted: () {
-                if (mounted) setState(() => _couponSuccessTick = null);
-              },
-            ),
-        ],
       ),
     );
   }

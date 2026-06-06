@@ -72,6 +72,9 @@ class AppConfig {
   static const String notificationsPath = '/api/notifications';
   static const String userHistoryPath = '/api/user/history';
 
+  /// Server-backed cart (GET fetch / POST upsert+remove).
+  static const String cartPath = '/api/cart';
+
   /// Google Maps / Places API key (must have Maps SDK + Places API enabled)
   static const String googleMapsApiKey = 'AIzaSyDp2r7Do-Z-cwgxiYpE1yzZecBHFz0ocaw';
 

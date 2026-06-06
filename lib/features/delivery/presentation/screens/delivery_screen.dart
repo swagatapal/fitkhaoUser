@@ -135,6 +135,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     unawaited(_loadProfileData());
     unawaited(_loadWalletBalance());
     unawaited(_loadKitchens());
+    // Keep the server cart fresh on every entry (badge, steppers, totals).
+    unawaited(ref.read(cartProvider.notifier).loadCart());
 
     final hasCachedDishes = ref.read(allDishesProvider).items.isNotEmpty;
     if (hasCachedDishes) {

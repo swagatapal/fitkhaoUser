@@ -11,6 +11,7 @@ import '../../features/policy/repository/app_content_repository.dart';
 import '../../features/dashboard/repository/meal_plan_repository.dart';
 import '../../features/delivery/repository/delivery_slot_repository.dart';
 import '../../features/delivery/repository/coupon_repository.dart';
+import '../../features/delivery/repository/cart_repository.dart';
 
 /// Provider for LocalStorageService
 final localStorageProvider = FutureProvider<LocalStorageService>((ref) async {
@@ -146,4 +147,17 @@ final couponRepositoryProvider = Provider<CouponRepository>((ref) {
   }
 
   return CouponRepository(apiClient: apiClient, localStorage: localStorage);
+});
+
+/// Provider for CartRepository
+/// Handles the server-backed cart (fetch / upsert / remove).
+final cartRepositoryProvider = Provider<CartRepository>((ref) {
+  final localStorage = ref.watch(localStorageProvider).value;
+  final apiClient = ref.watch(apiClientProvider);
+
+  if (localStorage == null) {
+    throw Exception('LocalStorage not initialized');
+  }
+
+  return CartRepository(apiClient: apiClient, localStorage: localStorage);
 });

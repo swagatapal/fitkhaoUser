@@ -10,6 +10,7 @@ import '../../../history/presentation/screens/history_screen.dart';
 import '../../../notification/presentation/notification_screen.dart';
 import '../../../policy/presentation/screens/policy_screen.dart';
 import '../../../delivery/presentation/screens/subscription_plan_screen.dart';
+import '../../../delivery/presentation/screens/cart_screen.dart';
 import 'address_list_screen.dart';
 import 'detailed_health_info_screen.dart';
 import 'edit_profile_screen.dart';
@@ -103,7 +104,8 @@ class ProfileMenuScreen extends ConsumerWidget {
                             color: const Color(0xFFC66301),
                             title: 'Cart Items',
                             subtitle: 'Your save items',
-                            onTap: () {}),
+                            onTap: () => ProfileMenuActions.open(
+                                context, const CartScreen())),
                         _MenuEntry(
                           icon: Icons.schedule_rounded,
                           color: const Color(0xFFC66301),
