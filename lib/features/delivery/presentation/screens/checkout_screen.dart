@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -65,6 +66,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   // Coupon state
   CouponModel? _appliedCoupon;
+
+  // One-shot success animation shown right after a coupon is applied.
+  // Bumped on each apply so the overlay remounts and replays from frame 0.
+  int? _couponSuccessTick;
 
   // Razorpay
   late final RazorpayService _razorpayService;
@@ -156,7 +161,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
+      body: Stack(
+        children: [
+          SafeArea(
         child: Column(
           children: [
             _buildHeader(),
@@ -210,6 +217,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
           ],
         ),
+          ),
+          // One-shot success animation overlay after a coupon is applied.
+          if (_couponSuccessTick != null)
+            _CouponSuccessOverlay(
+              key: ValueKey(_couponSuccessTick),
+              onCompleted: () {
+                if (mounted) setState(() => _couponSuccessTick = null);
+              },
+            ),
+        ],
       ),
     );
   }
@@ -697,7 +714,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             );
             return;
           }
-          setState(() => _appliedCoupon = coupon);
+          setState(() {
+            _appliedCoupon = coupon;
+            // Trigger (or retrigger) the one-shot success animation.
+            _couponSuccessTick = DateTime.now().millisecondsSinceEpoch;
+          });
           Navigator.of(context).pop();
         },
         onRemove: () {
@@ -1569,6 +1590,77 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       Navigator.of(context).pop();
       Navigator.of(context).popUntil((route) => route.isFirst);
     });
+  }
+}
+
+// ─── Coupon Success Animation Overlay ─────────────────────────────────────────
+//
+// A transient, full-screen overlay that plays assets/images/success.json once
+// (driven by its own controller so playback can't loop or hang), then calls
+// [onCompleted] so the parent can dismiss it. Tapping anywhere also dismisses.
+
+class _CouponSuccessOverlay extends StatefulWidget {
+  final VoidCallback onCompleted;
+
+  const _CouponSuccessOverlay({super.key, required this.onCompleted});
+
+  @override
+  State<_CouponSuccessOverlay> createState() => _CouponSuccessOverlayState();
+}
+
+class _CouponSuccessOverlayState extends State<_CouponSuccessOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  bool _completed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Fires [onCompleted] exactly once, whether reached by the animation
+  /// finishing or by the user tapping to dismiss early.
+  void _finish() {
+    if (_completed) return;
+    _completed = true;
+    widget.onCompleted();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: _finish,
+        behavior: HitTestBehavior.opaque,
+        child: ColoredBox(
+          color: Colors.black.withValues(alpha: 0.35),
+          child: Center(
+            child: Lottie.asset(
+              'assets/images/success.json',
+              controller: _controller,
+              width: AppSizes.icon80 * 2.6,
+              repeat: false,
+              onLoaded: (composition) {
+                // Play faster than the source clip — ~1.8× speed, capped so it
+                // never lingers on screen.
+                final scaled = composition.duration ;
+                const maxDuration = Duration(milliseconds: 2500);
+                _controller
+                  ..duration = scaled < maxDuration ? scaled : maxDuration
+                  ..forward(from: 0).whenComplete(_finish);
+              },
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
