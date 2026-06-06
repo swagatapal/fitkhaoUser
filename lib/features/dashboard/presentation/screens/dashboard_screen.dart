@@ -32,7 +32,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Future<void> _loadData() async {
     await Future.wait([
       ref.read(authProvider.notifier).loadProfile(),
-      ref.read(nutritionProgressProvider.notifier).getDailyNutritionProgress(),
+     // ref.read(nutritionProgressProvider.notifier).getDailyNutritionProgress(),
       ref.read(walletProvider.notifier).loadWalletBalance(),
       ref.read(subscriptionPlanProvider.notifier).loadPlans(),
     ]);
@@ -804,89 +804,89 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
         const SizedBox(height: AppSizes.spacing12),
-        _buildNutritionProgress(),
+        //_buildNutritionProgress(),
       ],
     );
   }
 
-  Widget _buildNutritionProgress() {
-    final progressState = ref.watch(nutritionProgressProvider);
-
-    if (progressState.isLoading) {
-      return Container(
-        height: 200,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppSizes.radius8),
-          border: Border.all(
-            color: AppColors.primaryGreen.withValues(alpha: 0.3),
-          ),
-        ),
-        child: const Center(
-          child: CircularProgressIndicator(color: AppColors.primaryGreen),
-        ),
-      );
-    }
-
-    if (progressState.error != null) {
-      return _buildErrorState(progressState.error!);
-    }
-
-    if (progressState.progressData == null) {
-      return const SizedBox.shrink();
-    }
-
-    final targets = progressState.progressData!.targets;
-    final progress = progressState.progressData!.progress;
-
-    return Column(
-      children: [
-        _buildCaloriesCard(
-          consumed: progress.calories.consumed,
-          target: targets.calories,
-          remaining: progress.calories.remaining,
-          percentage: progress.calories.percentage,
-        ),
-        const SizedBox(height: AppSizes.spacing12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildMacroCard(
-                label: 'Protein',
-                consumed: progress.protein.consumed,
-                target: targets.protein,
-                percentage: progress.protein.percentage,
-                unit: 'g',
-                color: const Color(0xFF4A7C3E),
-              ),
-            ),
-            const SizedBox(width: AppSizes.spacing12),
-            Expanded(
-              child: _buildMacroCard(
-                label: 'Carbs',
-                consumed: progress.carbs.consumed,
-                target: targets.carbs,
-                percentage: progress.carbs.percentage,
-                unit: 'g',
-                color: const Color(0xFFC66301),
-              ),
-            ),
-            const SizedBox(width: AppSizes.spacing12),
-            Expanded(
-              child: _buildMacroCard(
-                label: 'Fat',
-                consumed: progress.fat.consumed,
-                target: targets.fat,
-                percentage: progress.fat.percentage,
-                unit: 'g',
-                color: const Color(0xFF6BA84F),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+  // Widget _buildNutritionProgress() {
+  //   final progressState = ref.watch(nutritionProgressProvider);
+  //
+  //   if (progressState.isLoading) {
+  //     return Container(
+  //       height: 200,
+  //       decoration: BoxDecoration(
+  //         color: Colors.white,
+  //         borderRadius: BorderRadius.circular(AppSizes.radius8),
+  //         border: Border.all(
+  //           color: AppColors.primaryGreen.withValues(alpha: 0.3),
+  //         ),
+  //       ),
+  //       child: const Center(
+  //         child: CircularProgressIndicator(color: AppColors.primaryGreen),
+  //       ),
+  //     );
+  //   }
+  //
+  //   if (progressState.error != null) {
+  //     return _buildErrorState(progressState.error!);
+  //   }
+  //
+  //   if (progressState.progressData == null) {
+  //     return const SizedBox.shrink();
+  //   }
+  //
+  //   final targets = progressState.progressData!.targets;
+  //   final progress = progressState.progressData!.progress;
+  //
+  //   return Column(
+  //     children: [
+  //       _buildCaloriesCard(
+  //         consumed: progress.calories.consumed,
+  //         target: targets.calories,
+  //         remaining: progress.calories.remaining,
+  //         percentage: progress.calories.percentage,
+  //       ),
+  //       const SizedBox(height: AppSizes.spacing12),
+  //       Row(
+  //         children: [
+  //           Expanded(
+  //             child: _buildMacroCard(
+  //               label: 'Protein',
+  //               consumed: progress.protein.consumed,
+  //               target: targets.protein,
+  //               percentage: progress.protein.percentage,
+  //               unit: 'g',
+  //               color: const Color(0xFF4A7C3E),
+  //             ),
+  //           ),
+  //           const SizedBox(width: AppSizes.spacing12),
+  //           Expanded(
+  //             child: _buildMacroCard(
+  //               label: 'Carbs',
+  //               consumed: progress.carbs.consumed,
+  //               target: targets.carbs,
+  //               percentage: progress.carbs.percentage,
+  //               unit: 'g',
+  //               color: const Color(0xFFC66301),
+  //             ),
+  //           ),
+  //           const SizedBox(width: AppSizes.spacing12),
+  //           Expanded(
+  //             child: _buildMacroCard(
+  //               label: 'Fat',
+  //               consumed: progress.fat.consumed,
+  //               target: targets.fat,
+  //               percentage: progress.fat.percentage,
+  //               unit: 'g',
+  //               color: const Color(0xFF6BA84F),
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //     ],
+  //   );
+  // }
 
   Widget _buildCaloriesCard({
     required double consumed,

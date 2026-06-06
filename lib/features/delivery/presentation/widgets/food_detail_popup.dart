@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
-import '../../../auth/providers/auth_provider.dart';
 import '../../models/menu_item.dart';
 import '../../providers/cart_provider.dart';
-import '../../providers/nutrition_provider.dart';
 
 class FoodDetailPopup extends ConsumerStatefulWidget {
   final MenuItem menuItem;
@@ -23,240 +20,10 @@ class FoodDetailPopup extends ConsumerStatefulWidget {
 }
 
 class _FoodDetailPopupState extends ConsumerState<FoodDetailPopup> {
-  bool _isChecking = false;
-
-  /// Check protein consumption before adding to cart
-  Future<void> _handleAddToCart() async {
-    final authState = ref.read(authProvider);
-
-    // Only check if target protein is set in profile
-    if (authState.targetProtein != null && authState.targetProtein! > 0) {
-      setState(() {
-        _isChecking = true;
-      });
-
-      try {
-        // Get today's date in yyyy-MM-dd format
-        final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-        // Fetch today's nutrition summary
-        await ref.read(nutritionProvider.notifier).getDailyNutritionSummary(date: today);
-
-        final nutritionState = ref.read(nutritionProvider);
-
-        if (nutritionState.totals != null) {
-          final currentProtein = nutritionState.totals!.protein;
-          final itemProtein = double.tryParse(widget.menuItem.protein.replaceAll('g', '').trim()) ?? 0.0;
-          final totalProtein = currentProtein + itemProtein;
-          final targetProtein = authState.targetProtein!;
-
-          debugPrint('[FoodDetailPopup] Current protein: $currentProtein, Item protein: $itemProtein, Target: $targetProtein');
-
-          // Check if adding this item exceeds protein target
-          if (totalProtein > targetProtein) {
-            setState(() {
-              _isChecking = false;
-            });
-
-            // Show alert dialog
-            if (mounted) {
-              _showProteinExceededAlert(
-                currentProtein: currentProtein,
-                itemProtein: itemProtein,
-                totalProtein: totalProtein,
-                targetProtein: targetProtein,
-              );
-            }
-            return;
-          }
-        }
-
-        setState(() {
-          _isChecking = false;
-        });
-
-        // Protein check passed, add to cart
-        if (mounted) {
-          ref.read(cartProvider.notifier).addItem(widget.menuItem);
-          Navigator.of(context).pop();
-        }
-      } catch (e) {
-        debugPrint('[FoodDetailPopup] Error checking nutrition: $e');
-        setState(() {
-          _isChecking = false;
-        });
-
-        // If API fails, still allow add to cart (graceful degradation)
-        if (mounted) {
-          ref.read(cartProvider.notifier).addItem(widget.menuItem);
-          Navigator.of(context).pop();
-        }
-      }
-    } else {
-      // No target protein set, add to cart directly
-      ref.read(cartProvider.notifier).addItem(widget.menuItem);
-      Navigator.of(context).pop();
-    }
-  }
-
-  /// Show alert when protein target is exceeded
-  void _showProteinExceededAlert({
-    required double currentProtein,
-    required double itemProtein,
-    required double totalProtein,
-    required double targetProtein,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radius12),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppSizes.spacing8),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppSizes.radius8),
-              ),
-              child: const Icon(
-                Icons.warning_rounded,
-                color: Colors.orange,
-                size: AppSizes.icon24,
-              ),
-            ),
-            const SizedBox(width: AppSizes.spacing12),
-            const Expanded(
-              child: Text(
-                'Protein Limit Exceeded',
-                style: TextStyle(
-                  fontSize: AppTypography.fontSize18,
-                  fontWeight: AppTypography.bold,
-                  color: AppColors.textPrimary,
-                  fontFamily: 'Lato',
-                ),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Adding this item will exceed your daily protein target.',
-              style: const TextStyle(
-                fontSize: AppTypography.fontSize14,
-                color: AppColors.textSecondary,
-                fontFamily: 'Lato',
-              ),
-            ),
-            const SizedBox(height: AppSizes.spacing16),
-            Container(
-              padding: const EdgeInsets.all(AppSizes.spacing12),
-              decoration: BoxDecoration(
-                color: AppColors.primaryGreen.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(AppSizes.radius8),
-                border: Border.all(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.2),
-                ),
-              ),
-              child: Column(
-                children: [
-                  _buildProteinRow('Current Consumption', '${currentProtein.toStringAsFixed(1)}g'),
-                  const SizedBox(height: AppSizes.spacing8),
-                  _buildProteinRow('Item Protein', '+${itemProtein.toStringAsFixed(1)}g', isHighlight: true),
-                  const Divider(height: AppSizes.spacing16),
-                  _buildProteinRow('Total', '${totalProtein.toStringAsFixed(1)}g', isBold: true),
-                  const SizedBox(height: AppSizes.spacing8),
-                  _buildProteinRow('Your Target', '${targetProtein.toStringAsFixed(1)}g', isTarget: true),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSizes.spacing12),
-            Container(
-              padding: const EdgeInsets.all(AppSizes.spacing12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppSizes.radius8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.info_outline,
-                    color: Colors.orange,
-                    size: AppSizes.icon20,
-                  ),
-                  const SizedBox(width: AppSizes.spacing8),
-                  Expanded(
-                    child: Text(
-                      'You cannot proceed with adding this item to your cart.',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize12,
-                        color: Colors.orange.shade800,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryGreen,
-                padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSizes.radius8),
-                ),
-              ),
-              child: const Text(
-                'Understood',
-                style: TextStyle(
-                  fontSize: AppTypography.fontSize14,
-                  fontWeight: AppTypography.semiBold,
-                  color: Colors.white,
-                  fontFamily: 'Lato',
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProteinRow(String label, String value, {bool isHighlight = false, bool isBold = false, bool isTarget = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: AppTypography.fontSize13,
-            fontWeight: isBold ? AppTypography.semiBold : AppTypography.regular,
-            color: isTarget ? AppColors.primaryGreen : AppColors.textSecondary,
-            fontFamily: 'Lato',
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: AppTypography.fontSize14,
-            fontWeight: isBold ? AppTypography.bold : (isHighlight ? AppTypography.semiBold : AppTypography.medium),
-            color: isTarget ? AppColors.primaryGreen : (isHighlight ? Colors.orange : AppColors.textPrimary),
-            fontFamily: 'Lato',
-          ),
-        ),
-      ],
-    );
+  /// Add the item to the cart and close the popup.
+  void _handleAddToCart() {
+    ref.read(cartProvider.notifier).addItem(widget.menuItem);
+    Navigator.of(context).pop();
   }
 
   @override
@@ -551,7 +318,7 @@ class _FoodDetailPopupState extends ConsumerState<FoodDetailPopup> {
                 width: double.infinity,
                 height: AppSizes.buttonHeight,
                 child: ElevatedButton(
-                  onPressed: _isChecking ? null : _handleAddToCart,
+                  onPressed: _handleAddToCart,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryGreen,
                     disabledBackgroundColor: AppColors.primaryGreen.withValues(alpha: 0.6),
@@ -559,35 +326,26 @@ class _FoodDetailPopupState extends ConsumerState<FoodDetailPopup> {
                       borderRadius: BorderRadius.circular(AppSizes.radius8),
                     ),
                   ),
-                  child: _isChecking
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.shopping_cart,
-                              color: Colors.white,
-                              size: AppSizes.icon20,
-                            ),
-                            const SizedBox(width: AppSizes.spacing8),
-                            const Text(
-                              AppStrings.addToCart,
-                              style: TextStyle(
-                                fontSize: AppTypography.fontSize16,
-                                fontWeight: AppTypography.semiBold,
-                                color: Colors.white,
-                                fontFamily: 'Lato',
-                              ),
-                            ),
-                          ],
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.shopping_cart,
+                        color: Colors.white,
+                        size: AppSizes.icon20,
+                      ),
+                      const SizedBox(width: AppSizes.spacing8),
+                      const Text(
+                        AppStrings.addToCart,
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize16,
+                          fontWeight: AppTypography.semiBold,
+                          color: Colors.white,
+                          fontFamily: 'Lato',
                         ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
