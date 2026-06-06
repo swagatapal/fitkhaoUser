@@ -12,10 +12,12 @@ import '../../models/coupon_model.dart';
 import '../../models/order_placement_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/coupon_provider.dart';
-import '../../providers/kitchen_provider.dart';
+import '../../providers/checkout_delivery_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../../policy/models/app_constants_model.dart';
 import '../../../policy/providers/app_constants_provider.dart';
+import '../../../profile/models/delivery_address_model.dart';
+import '../../../profile/presentation/screens/address_list_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -78,11 +80,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(walletProvider.notifier).loadWalletBalance();
-      // Ensure a kitchen is resolved (default-selected) for order placement.
-      final kitchenState = ref.read(kitchenProvider);
-      if (kitchenState.selectedKitchenId == null && !kitchenState.isLoading) {
-        ref.read(kitchenProvider.notifier).loadKitchens();
-      }
+      // Load delivery addresses, default-select one, and verify serviceability
+      // (which also resolves the kitchen used for order placement).
+      ref.read(checkoutDeliveryProvider.notifier).initialize();
     });
   }
 
@@ -118,6 +118,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     final couponBalance = walletState.wallet?.couponBalance ?? 0.0;
     final isWalletSufficient = couponBalance >= subTotal;
+
+    // Serviceability gate — only a serviceable address can place an order.
+    final canDeliver =
+        ref.watch(checkoutDeliveryProvider.select((s) => s.canOrder));
 
     // Auto-switch to gateway if wallet becomes insufficient
     if (!isWalletSufficient && _selectedPaymentMethod == 'wallet') {
@@ -165,17 +169,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: AppSizes.spacing16),
+                      const SizedBox(height: AppSizes.spacing10),
+                      const _DeliveryAddressSection(),
+                      const SizedBox(height: AppSizes.spacing10),
                       _buildCartItems(cartItems),
-                      const SizedBox(height: AppSizes.spacing20),
+                      const SizedBox(height: AppSizes.spacing10),
                       _buildCouponSection(),
-                      const SizedBox(height: AppSizes.spacing20),
+                      const SizedBox(height: AppSizes.spacing10),
                       _buildPaymentMethodSection(
                         subTotal: subTotal,
                         couponBalance: couponBalance,
                         isWalletSufficient: isWalletSufficient,
                       ),
-                      const SizedBox(height: AppSizes.spacing20),
+                      const SizedBox(height: AppSizes.spacing10),
                       _buildOrderSummary(
                         itemTotal: itemTotal,
                         gstRate: pricing.gstRate,
@@ -186,16 +192,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         subTotal: subTotal,
                         couponBalance: couponBalance,
                       ),
-                      const SizedBox(height: AppSizes.spacing20),
+                      const SizedBox(height: AppSizes.spacing10),
                       _buildInstructionsSection(),
-                      const SizedBox(height: AppSizes.spacing24),
+                      const SizedBox(height: AppSizes.spacing16),
                       _buildConfirmOrderButton(
                         cartItems: cartItems,
                         subTotal: subTotal,
                         isWalletSufficient: isWalletSufficient,
                         walletState: walletState,
+                        canDeliver: canDeliver,
                       ),
-                      const SizedBox(height: AppSizes.spacing32),
+                      const SizedBox(height: AppSizes.spacing24),
                     ],
                   ),
                 ),
@@ -448,7 +455,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             const Text(
               'Apply Coupon',
               style: TextStyle(
-                fontSize: AppTypography.fontSize18,
+                fontSize: AppTypography.fontSize16,
                 fontWeight: AppTypography.bold,
                 color: AppColors.primaryGreen,
                 fontFamily: 'Lato',
@@ -456,7 +463,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
           ],
         ),
-        const SizedBox(height: AppSizes.spacing12),
+        const SizedBox(height: AppSizes.spacing8),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 280),
           switchInCurve: Curves.easeOutCubic,
@@ -714,13 +721,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         const Text(
           'Payment Method',
           style: TextStyle(
-            fontSize: AppTypography.fontSize18,
+            fontSize: AppTypography.fontSize16,
             fontWeight: AppTypography.bold,
             color: AppColors.primaryGreen,
             fontFamily: 'Lato',
           ),
         ),
-        const SizedBox(height: AppSizes.spacing12),
+        const SizedBox(height: AppSizes.spacing8),
         GestureDetector(
           onTap: isWalletSufficient
               ? () => setState(() => _selectedPaymentMethod = 'wallet')
@@ -868,13 +875,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         const Text(
           'Order Summary',
           style: TextStyle(
-            fontSize: AppTypography.fontSize18,
+            fontSize: AppTypography.fontSize16,
             fontWeight: AppTypography.bold,
             color: AppColors.primaryGreen,
             fontFamily: 'Lato',
           ),
         ),
-        const SizedBox(height: AppSizes.spacing12),
+        const SizedBox(height: AppSizes.spacing8),
         Container(
           padding: const EdgeInsets.all(AppSizes.spacing16),
           decoration: BoxDecoration(
@@ -1004,7 +1011,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             const Text(
               'Delivery Instructions',
               style: TextStyle(
-                fontSize: AppTypography.fontSize18,
+                fontSize: AppTypography.fontSize16,
                 fontWeight: AppTypography.bold,
                 color: AppColors.primaryGreen,
                 fontFamily: 'Lato',
@@ -1032,10 +1039,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
           ],
         ),
-        const SizedBox(height: AppSizes.spacing12),
+        const SizedBox(height: AppSizes.spacing8),
         TextField(
           controller: _instructionsController,
-          maxLines: 3,
+          maxLines: 2,
           maxLength: 200,
           textInputAction: TextInputAction.done,
           style: const TextStyle(
@@ -1079,16 +1086,49 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     required double subTotal,
     required bool isWalletSufficient,
     required WalletState walletState,
+    required bool canDeliver,
   }) {
     final canPlace = !_isProcessing &&
         cartItems.isNotEmpty &&
+        canDeliver &&
         (_selectedPaymentMethod == 'gateway' ||
             (_selectedPaymentMethod == 'wallet' && isWalletSufficient));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!canPlace &&
+        if (!canDeliver && !_isProcessing && cartItems.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(bottom: AppSizes.spacing12),
+            padding: const EdgeInsets.all(AppSizes.spacing12),
+            decoration: BoxDecoration(
+              color: AppColors.errorColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+              border: Border.all(
+                color: AppColors.errorColor.withValues(alpha: 0.3),
+              ),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.location_off_outlined,
+                    color: AppColors.errorColor, size: AppSizes.icon20),
+                SizedBox(width: AppSizes.spacing8),
+                Expanded(
+                  child: Text(
+                    'Select a serviceable delivery address to place your order.',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      fontWeight: AppTypography.medium,
+                      color: AppColors.errorColor,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (canDeliver &&
+            !canPlace &&
             !_isProcessing &&
             cartItems.isNotEmpty &&
             _selectedPaymentMethod == 'wallet')
@@ -1169,9 +1209,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   /// • wallet  → POST /api/orders/place directly
   /// • gateway → POST /razorpay/create-order → open Razorpay SDK
   Future<void> _placeOrder(List<CartItem> cartItems, double subTotal) async {
-    final kitchenId = ref.read(kitchenProvider).selectedKitchenId;
-    if (kitchenId == null || kitchenId.isEmpty) {
-      _showErrorSnackbar('No kitchen selected. Please try again.');
+    final deliveryState = ref.read(checkoutDeliveryProvider);
+    final selectedAddress = deliveryState.selected;
+    final kitchenId = deliveryState.kitchenId;
+
+    if (selectedAddress == null) {
+      _showErrorSnackbar('Please select a delivery address.');
+      return;
+    }
+    if (!deliveryState.canOrder || kitchenId == null || kitchenId.isEmpty) {
+      _showErrorSnackbar(
+          'This address is not serviceable. Please choose another address.');
       return;
     }
 
@@ -1183,28 +1231,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final userName = localStorage.getUserName() ?? 'FitKhao User';
       final userEmail = localStorage.getUserEmail() ?? '';
 
-      final authRepo = ref.read(authRepositoryProvider);
-      final profileResponse = await authRepo.getProfile();
-
-      Map<String, dynamic>? address;
-      if (profileResponse['data'] != null) {
-        final data = profileResponse['data'] as Map<String, dynamic>?;
-        final user = data?['user'] as Map<String, dynamic>?;
-        final profile = user?['profile'] as Map<String, dynamic>?;
-        address = profile?['address'] as Map<String, dynamic>?;
-        address ??= data?['address'] as Map<String, dynamic>?;
-      }
-      address ??= profileResponse['address'] as Map<String, dynamic>?;
-
       final instructions = _instructionsController.text.trim();
 
+      // Delivery address now comes from the selected (serviceable) address.
       final deliveryAddress = DeliveryAddress(
-        buildingName: address?['buildingName'] as String? ?? '',
-        street: address?['street'] as String? ?? '',
-        pincode: address?['pincode'] as String? ?? '000000',
-        contactNumber: userPhone,
-        latitude: (address?['latitude'] as num?)?.toDouble() ?? 0.0,
-        longitude: (address?['longitude'] as num?)?.toDouble() ?? 0.0,
+        buildingName: selectedAddress.buildingName,
+        street: selectedAddress.street,
+        pincode: selectedAddress.pincode.isNotEmpty
+            ? selectedAddress.pincode
+            : '000000',
+        contactNumber: selectedAddress.contactNumber.isNotEmpty
+            ? selectedAddress.contactNumber
+            : userPhone,
+        latitude: selectedAddress.latitude,
+        longitude: selectedAddress.longitude,
         deliveryInstructions: instructions.isNotEmpty ? instructions : null,
       );
 
@@ -1529,6 +1569,626 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       Navigator.of(context).pop();
       Navigator.of(context).popUntil((route) => route.isFirst);
     });
+  }
+}
+
+// ─── Delivery Address Section ─────────────────────────────────────────────────
+//
+// Isolated ConsumerWidget — address + serviceability state changes rebuild only
+// this section, not the whole checkout screen.
+
+class _DeliveryAddressSection extends ConsumerWidget {
+  const _DeliveryAddressSection();
+
+  static const _sectionTitleStyle = TextStyle(
+    fontSize: AppTypography.fontSize16,
+    fontWeight: AppTypography.bold,
+    color: AppColors.primaryGreen,
+    fontFamily: 'Lato',
+  );
+
+  ({IconData icon, String text}) _labelMeta(String label) {
+    switch (label.toLowerCase()) {
+      case 'work':
+        return (icon: Icons.work_rounded, text: 'Work');
+      case 'other':
+        return (icon: Icons.place_rounded, text: 'Other');
+      default:
+        return (icon: Icons.home_rounded, text: 'Home');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(checkoutDeliveryProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.location_on_outlined,
+                size: AppSizes.icon20, color: AppColors.primaryGreen),
+            const SizedBox(width: AppSizes.spacing8),
+            const Text('Delivery Address', style: _sectionTitleStyle),
+            const Spacer(),
+            if (state.selected != null)
+              GestureDetector(
+                onTap: () => _openPicker(context, ref),
+                child: const Text(
+                  'Change',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize13,
+                    fontWeight: AppTypography.semiBold,
+                    color: AppColors.primaryGreen,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSizes.spacing8),
+        _buildBody(context, ref, state),
+      ],
+    );
+  }
+
+  Widget _buildBody(
+      BuildContext context, WidgetRef ref, CheckoutDeliveryState state) {
+    if (state.isLoadingAddresses && state.selected == null) {
+      return _shell(
+        child: const Row(
+          children: [
+            SizedBox(
+              width: AppSizes.icon20,
+              height: AppSizes.icon20,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: AppColors.primaryGreen),
+            ),
+            SizedBox(width: AppSizes.spacing12),
+            Text('Loading addresses…',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize13,
+                  color: AppColors.textSecondary,
+                  fontFamily: 'Lato',
+                )),
+          ],
+        ),
+      );
+    }
+
+    if (state.selected == null) {
+      // No address selected / none saved → prompt to add one.
+      return GestureDetector(
+        onTap: () => _openAddressManager(context),
+        child: _shell(
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSizes.spacing8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppSizes.radius6),
+                ),
+                child: const Icon(Icons.add_location_alt_outlined,
+                    size: AppSizes.icon20, color: AppColors.primaryGreen),
+              ),
+              const SizedBox(width: AppSizes.spacing12),
+              const Expanded(
+                child: Text(
+                  'Add a delivery address',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.semiBold,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+              const Icon(Icons.chevron_right,
+                  color: AppColors.textSecondary, size: AppSizes.icon24),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final address = state.selected!;
+    final meta = _labelMeta(address.label);
+
+    return _shell(
+      borderColor: state.isServiceable
+          ? AppColors.primaryGreen.withValues(alpha: 0.45)
+          : (state.status == AddressServiceStatus.notServiceable ||
+                  state.status == AddressServiceStatus.error)
+              ? AppColors.errorColor.withValues(alpha: 0.45)
+              : AppColors.borderColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(meta.icon,
+                  size: AppSizes.icon18, color: AppColors.primaryGreen),
+              const SizedBox(width: AppSizes.spacing6),
+              Text(
+                meta.text,
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.bold,
+                  color: AppColors.textPrimary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              const Spacer(),
+              _StatusChip(state: state),
+            ],
+          ),
+          const SizedBox(height: AppSizes.spacing6),
+          Text(
+            address.formattedAddress,
+            style: const TextStyle(
+              fontSize: AppTypography.fontSize13,
+              color: AppColors.textSecondary,
+              height: 1.35,
+              fontFamily: 'Lato',
+            ),
+          ),
+          if (address.contactNumber.isNotEmpty) ...[
+            const SizedBox(height: AppSizes.spacing4),
+            Text(
+              '📞 ${address.contactNumber}',
+              style: const TextStyle(
+                fontSize: AppTypography.fontSize12,
+                color: AppColors.textTertiary,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
+          if (state.status == AddressServiceStatus.notServiceable ||
+              state.status == AddressServiceStatus.error) ...[
+            const SizedBox(height: AppSizes.spacing8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    state.statusMessage ??
+                        'We don’t deliver to this address yet.',
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      color: AppColors.errorColor,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => _openPicker(context, ref),
+                  child: const Text(
+                    'Choose another',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      fontWeight: AppTypography.bold,
+                      color: AppColors.primaryGreen,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _shell({required Widget child, Color? borderColor}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(color: borderColor ?? AppColors.borderColor),
+      ),
+      child: child,
+    );
+  }
+
+  void _openPicker(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => const _AddressPickerSheet(),
+    );
+  }
+
+  void _openAddressManager(BuildContext context) {
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(
+            builder: (_) => const AddressListScreen()))
+        .then((_) {
+      // Refresh the list when returning from address management.
+      // (ref not available here; handled by the sheet / re-init on next open.)
+    });
+  }
+}
+
+/// Small serviceability status pill shown on the selected-address card.
+class _StatusChip extends StatelessWidget {
+  final CheckoutDeliveryState state;
+  const _StatusChip({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    late final Color color;
+    late final String text;
+    late final Widget leading;
+
+    switch (state.status) {
+      case AddressServiceStatus.checking:
+        color = AppColors.textSecondary;
+        text = 'Checking…';
+        leading = const SizedBox(
+          width: 10,
+          height: 10,
+          child: CircularProgressIndicator(
+              strokeWidth: 1.6, color: AppColors.textSecondary),
+        );
+        break;
+      case AddressServiceStatus.serviceable:
+        color = AppColors.primaryGreen;
+        text = state.zoneName != null && state.zoneName!.isNotEmpty
+            ? 'Deliverable'
+            : 'Deliverable';
+        leading = const Icon(Icons.check_circle,
+            size: AppSizes.icon12, color: AppColors.primaryGreen);
+        break;
+      case AddressServiceStatus.notServiceable:
+        color = AppColors.errorColor;
+        text = 'Not serviceable';
+        leading = const Icon(Icons.cancel_outlined,
+            size: AppSizes.icon12, color: AppColors.errorColor);
+        break;
+      case AddressServiceStatus.error:
+        color = AppColors.errorColor;
+        text = 'Check failed';
+        leading = const Icon(Icons.error_outline,
+            size: AppSizes.icon12, color: AppColors.errorColor);
+        break;
+      case AddressServiceStatus.idle:
+        return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.spacing8, vertical: AppSizes.spacing2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppSizes.radius20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          leading,
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize10,
+              fontWeight: AppTypography.bold,
+              color: color,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Address Picker Sheet ─────────────────────────────────────────────────────
+
+class _AddressPickerSheet extends ConsumerStatefulWidget {
+  const _AddressPickerSheet();
+
+  @override
+  ConsumerState<_AddressPickerSheet> createState() =>
+      _AddressPickerSheetState();
+}
+
+class _AddressPickerSheetState extends ConsumerState<_AddressPickerSheet> {
+  String? _checkingId;
+
+  Future<void> _pick(DeliveryAddressModel address) async {
+    if (_checkingId != null) return; // a check is already running
+    setState(() => _checkingId = address.id);
+
+    final ok =
+        await ref.read(checkoutDeliveryProvider.notifier).trySelect(address);
+
+    if (!mounted) return;
+    setState(() => _checkingId = null);
+
+    if (ok) {
+      Navigator.of(context).pop();
+    } else {
+      _showNotServiceableAlert(address);
+    }
+  }
+
+  void _showNotServiceableAlert(DeliveryAddressModel address) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radius12)),
+        title: const Row(
+          children: [
+            Icon(Icons.location_off_outlined, color: AppColors.errorColor),
+            SizedBox(width: AppSizes.spacing8),
+            Text(
+              'Not Serviceable',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize18,
+                fontWeight: AppTypography.bold,
+                color: AppColors.textPrimary,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'We don’t deliver to "${address.formattedAddress}" yet. '
+          'Please choose a different address.',
+          style: const TextStyle(
+            fontSize: AppTypography.fontSize14,
+            color: AppColors.textSecondary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text(
+              'OK',
+              style: TextStyle(
+                color: AppColors.primaryGreen,
+                fontWeight: AppTypography.bold,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  ({IconData icon, String text}) _labelMeta(String label) {
+    switch (label.toLowerCase()) {
+      case 'work':
+        return (icon: Icons.work_rounded, text: 'Work');
+      case 'other':
+        return (icon: Icons.place_rounded, text: 'Other');
+      default:
+        return (icon: Icons.home_rounded, text: 'Home');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(checkoutDeliveryProvider);
+    final selectedId = state.selected?.id;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFFF6F6F6),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: AppSizes.spacing12),
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSizes.spacing20,
+                AppSizes.spacing16, AppSizes.spacing16, AppSizes.spacing4),
+            child: Row(
+              children: [
+                const Icon(Icons.location_on_outlined,
+                    color: AppColors.primaryGreen, size: AppSizes.icon20),
+                const SizedBox(width: AppSizes.spacing8),
+                const Expanded(
+                  child: Text(
+                    'Select Delivery Address',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize18,
+                      fontWeight: AppTypography.bold,
+                      color: AppColors.textPrimary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon:
+                      const Icon(Icons.close, color: AppColors.textSecondary),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Flexible(
+            child: state.addresses.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(AppSizes.spacing24),
+                    child: Text(
+                      'No saved addresses. Add one to continue.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        color: AppColors.textSecondary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.all(AppSizes.spacing16),
+                    shrinkWrap: true,
+                    itemCount: state.addresses.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: AppSizes.spacing12),
+                    itemBuilder: (_, i) {
+                      final address = state.addresses[i];
+                      final meta = _labelMeta(address.label);
+                      final isSelected = address.id == selectedId;
+                      final isChecking = _checkingId == address.id;
+
+                      return GestureDetector(
+                        onTap: () => _pick(address),
+                        child: Container(
+                          padding: const EdgeInsets.all(AppSizes.spacing12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius:
+                                BorderRadius.circular(AppSizes.radius8),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.primaryGreen.withValues(alpha: 0.5)
+                                  : AppColors.borderColor,
+                              width: isSelected
+                                  ? AppSizes.borderMedium
+                                  : AppSizes.borderThin,
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(meta.icon,
+                                  size: AppSizes.icon20,
+                                  color: AppColors.primaryGreen),
+                              const SizedBox(width: AppSizes.spacing12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          meta.text,
+                                          style: const TextStyle(
+                                            fontSize: AppTypography.fontSize14,
+                                            fontWeight: AppTypography.bold,
+                                            color: AppColors.textPrimary,
+                                            fontFamily: 'Lato',
+                                          ),
+                                        ),
+                                        if (address.isDefault) ...[
+                                          const SizedBox(
+                                              width: AppSizes.spacing6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: AppSizes.spacing6,
+                                                vertical: 1),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primaryGreen
+                                                  .withValues(alpha: 0.12),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      AppSizes.radius4),
+                                            ),
+                                            child: const Text(
+                                              'DEFAULT',
+                                              style: TextStyle(
+                                                fontSize:
+                                                    AppTypography.fontSize10,
+                                                fontWeight: AppTypography.bold,
+                                                color: AppColors.primaryGreen,
+                                                fontFamily: 'Lato',
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    const SizedBox(height: AppSizes.spacing2),
+                                    Text(
+                                      address.formattedAddress,
+                                      style: const TextStyle(
+                                        fontSize: AppTypography.fontSize12,
+                                        color: AppColors.textSecondary,
+                                        height: 1.3,
+                                        fontFamily: 'Lato',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: AppSizes.spacing8),
+                              if (isChecking)
+                                const SizedBox(
+                                  width: AppSizes.icon20,
+                                  height: AppSizes.icon20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primaryGreen),
+                                )
+                              else if (isSelected)
+                                const Icon(Icons.check_circle,
+                                    color: AppColors.primaryGreen,
+                                    size: AppSizes.icon24),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          // Add new address
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSizes.spacing16, 0,
+                AppSizes.spacing16, AppSizes.spacing8),
+            child: SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: () async {
+                  await Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) => const AddressListScreen()));
+                  // Refresh addresses after returning.
+                  await ref
+                      .read(checkoutDeliveryProvider.notifier)
+                      .loadAddresses();
+                },
+                icon: const Icon(Icons.add, color: AppColors.primaryGreen),
+                label: const Text(
+                  'Add / Manage Addresses',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.primaryGreen,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(
+            height: MediaQuery.of(context).padding.bottom + AppSizes.spacing8,
+          ),
+        ],
+      ),
+    );
   }
 }
 
