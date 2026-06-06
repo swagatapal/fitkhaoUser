@@ -10,6 +10,7 @@ import '../../../history/presentation/screens/history_screen.dart';
 import '../../../notification/presentation/notification_screen.dart';
 import '../../../policy/presentation/screens/policy_screen.dart';
 import '../../../delivery/presentation/screens/subscription_plan_screen.dart';
+import 'address_list_screen.dart';
 import 'detailed_health_info_screen.dart';
 import 'edit_profile_screen.dart';
 import 'profile_menu_actions.dart';
@@ -82,11 +83,13 @@ class ProfileMenuScreen extends ConsumerWidget {
                               context, const EditProfileScreen()),
                         ),
                         _MenuEntry(
-                            icon: Icons.home,
-                            color: const Color(0xFF2E7CF6),
-                            title: 'All Address',
-                            subtitle: 'Your saved address',
-                            onTap: () => {})
+                          icon: Icons.home,
+                          color: const Color(0xFF2E7CF6),
+                          title: 'All Address',
+                          subtitle: 'Your saved address',
+                          onTap: () => ProfileMenuActions.open(
+                              context, const AddressListScreen()),
+                        ),
                       ],
                     ),
                     const SizedBox(height: AppSizes.spacing20),

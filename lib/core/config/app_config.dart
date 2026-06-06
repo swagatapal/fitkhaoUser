@@ -35,6 +35,14 @@ class AppConfig {
   static const String sendOtpPath = '/api/auth/send-otp';
   static const String verifyOtpPath = '/api/auth/verify-otp';
   static const String updateProfilePath = '/api/user/profile';
+
+  /// Delivery addresses (user-managed)
+  /// • list   → GET    deliveryAddressesPath
+  /// • create → POST   deliveryAddressPath
+  /// • update → PUT    deliveryAddressPath/{id}
+  /// • delete → DELETE deliveryAddressPath/{id}
+  static const String deliveryAddressPath = '/api/user/delivery-address';
+  static const String deliveryAddressesPath = '/api/user/delivery-addresses';
   static const String createSubscriptionPath = '/api/subscription/create';
   static const String walletTopupPath = '/api/wallet/topup';
   static const String placeOrderPath = '/api/orders/place';

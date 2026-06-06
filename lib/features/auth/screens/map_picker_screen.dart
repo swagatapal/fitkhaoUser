@@ -78,23 +78,35 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
   // ─── Location ──────────────────────────────────────────────────────────────
 
   Future<void> _getCurrentLocation() async {
+    // 1) Instant centring from the cached last-known fix — no GPS wait, so the
+    //    map jumps to roughly the right place the moment it appears.
+    try {
+      final last = await Geolocator.getLastKnownPosition();
+      if (last != null && mounted) {
+        _currentPosition = LatLng(last.latitude, last.longitude);
+        _animateTo(_currentPosition, zoom: 15);
+      }
+    } catch (_) {/* ignore — refined below */}
+
+    // 2) Accurate fix (permission-gated) refines the camera and clears loading.
     try {
       final position = await _determinePosition();
+      if (!mounted) return;
       if (position == null) {
         setState(() => _isLoadingLocation = false);
         return;
       }
-      setState(() {
-        _currentPosition = LatLng(position.latitude, position.longitude);
-        _isLoadingLocation = false;
-      });
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(_currentPosition, 15),
-      );
+      _currentPosition = LatLng(position.latitude, position.longitude);
+      setState(() => _isLoadingLocation = false);
+      _animateTo(_currentPosition, zoom: 16);
     } catch (e) {
       debugPrint('[MapPicker] getCurrentLocation error: $e');
-      setState(() => _isLoadingLocation = false);
+      if (mounted) setState(() => _isLoadingLocation = false);
     }
+  }
+
+  void _animateTo(LatLng target, {double zoom = 15}) {
+    _mapController?.animateCamera(CameraUpdate.newLatLngZoom(target, zoom));
   }
 
   Future<Position?> _determinePosition() async {
@@ -119,10 +131,18 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
         return null;
       }
 
-      return Geolocator.getCurrentPosition(
-        locationSettings:
-            const LocationSettings(accuracy: LocationAccuracy.high),
-      );
+      // Cap the GPS wait so a weak signal never hangs the flow; fall back to
+      // the last-known fix if the high-accuracy read times out.
+      try {
+        return await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 10),
+          ),
+        );
+      } on TimeoutException {
+        return await Geolocator.getLastKnownPosition();
+      }
     } catch (e) {
       debugPrint('[MapPicker] determinePosition error: $e');
       if (mounted) {
@@ -137,8 +157,12 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
     }
   }
 
+  /// Camera moves update the target in a plain field — deliberately WITHOUT
+  /// setState. The centre pin is a fixed overlay and nothing on screen depends
+  /// on the live target while dragging, so skipping rebuilds keeps panning at
+  /// a smooth 60fps. The final target is read on confirm / camera-idle.
   void _onCameraMove(CameraPosition position) {
-    setState(() => _currentPosition = position.target);
+    _currentPosition = position.target;
   }
 
   // ─── Places Autocomplete ────────────────────────────────────────────────────
@@ -719,14 +743,37 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Move the map to select your delivery location',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize14,
-                        color: AppColors.textSecondary,
-                        fontFamily: 'Lato',
+                    if (_isLoadingLocation)
+                      Row(
+                        children: const [
+                          SizedBox(
+                            width: AppSizes.scaleLoading,
+                            height: AppSizes.scaleLoading,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primaryGreen,
+                            ),
+                          ),
+                          SizedBox(width: AppSizes.spacing8),
+                          Text(
+                            'Locating you…',
+                            style: TextStyle(
+                              fontSize: AppTypography.fontSize14,
+                              color: AppColors.textSecondary,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      const Text(
+                        'Move the map to select your delivery location',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize14,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
                       ),
-                    ),
                     const SizedBox(height: AppSizes.spacing12),
                     PrimaryButton(
                       text: 'Confirm Location',
@@ -741,16 +788,6 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
               ),
             ),
 
-            // Full-screen loading overlay while fetching initial location
-            if (_isLoadingLocation)
-              Container(
-                color: Colors.black54,
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primaryGreen,
-                  ),
-                ),
-              ),
           ],
         ),
       ),
