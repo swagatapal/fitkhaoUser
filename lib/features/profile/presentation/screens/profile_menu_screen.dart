@@ -1,3 +1,4 @@
+import 'package:fitkhao_user/shared/animation/anime_entrance.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -64,118 +65,137 @@ class ProfileMenuScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Account ───────────────────────────────────────────────
-                    const _SectionLabel('Account'),
-                    _MenuCard(
-                      items: [
-                        // _MenuEntry(
-                        //   icon: Icons.person_outline_rounded,
-                        //   color: AppColors.primaryGreen,
-                        //   title: 'Profile Details',
-                        //   subtitle: 'Health, body & goals',
-                        //   onTap: () => ProfileMenuActions.open(
-                        //       context, const DetailedHealthInfoScreen()),
-                        // ),
-                        _MenuEntry(
-                          icon: Icons.edit_outlined,
-                          color: const Color(0xFF2E7CF6),
-                          title: 'My Profile',
-                          subtitle: 'Name, address & photo',
-                          onTap: () => ProfileMenuActions.open(
-                              context, const EditProfileScreen()),
-                        ),
-                        _MenuEntry(
-                          icon: Icons.home,
-                          color: const Color(0xFF2E7CF6),
-                          title: 'Saved Addresses',
-                          subtitle: 'Your saved address',
-                          onTap: () => ProfileMenuActions.open(
-                              context, const AddressListScreen()),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSizes.spacing20),
-                
-                    // ── Orders ────────────────────────────────────────────────
-                    const _SectionLabel('Orders'),
-                    _MenuCard(
-                      items: [
-                        _MenuEntry(
-                            icon: Icons.add_shopping_cart,
-                            color: const Color(0xFFC66301),
-                            title: 'Your Cart',
-                            subtitle: 'Your save items',
-                            onTap: () => ProfileMenuActions.open(
-                                context, const CartScreen())),
-                        _MenuEntry(
-                          icon: Icons.schedule_rounded,
-                          color: const Color(0xFFC66301),
-                          title: 'Orders',
-                          subtitle: 'Track active orders',
-                          onTap: () => ProfileMenuActions.open(
-                            context,
-                            const HistoryScreen(initialTab: HistoryTab.upcoming),
-                          ),
-                        ),
-                        _MenuEntry(
-                          icon: Icons.receipt_long_outlined,
-                          color: const Color(0xFF20A39E),
-                          title: 'Order History',
-                          subtitle: 'Your past orders',
-                          onTap: () => ProfileMenuActions.open(
-                            context,
-                            const HistoryScreen(initialTab: HistoryTab.delivered),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSizes.spacing20),
-                
-                    // ── Membership & more ─────────────────────────────────────
-                    const _SectionLabel('Membership & More'),
-                    _MenuCard(
-                      items: [
-                        _MenuEntry(
-                          icon: Icons.card_membership_outlined,
-                          color: const Color(0xFF8B5CF6),
-                          title: 'Membership',
-                          subtitle: 'Plans & wallet balance',
-                          onTap: () => ProfileMenuActions.open(
-                              context, const SubscriptionPlanScreen()),
-                        ),
-                        _MenuEntry(
-                          icon: Icons.notifications_none_rounded,
-                          color: const Color(0xFFF5A623),
-                          title: 'Notifications',
-                          subtitle: 'Alerts & updates',
-                          onTap: () => ProfileMenuActions.open(
-                              context, const NotificationScreen()),
-                        ),
-                        _MenuEntry(
-                          icon: Icons.phone,
-                          color: const Color(0xFF1E9E63),
-                          title: 'Help & Support',
-                          subtitle: 'We’re here to help',
-                          onTap: () => ProfileMenuActions.showContactUs(context),
-                        ),
-                        _MenuEntry(
-                          icon: Icons.policy_outlined,
-                          color: const Color(0xFF607D8B),
-                          title: 'Terms & Conditions',
-                          subtitle: 'Policies & privacy',
-                          onTap: () => ProfileMenuActions.open(
-                              context, const PolicyScreen()),
-                        ),
+                    AnimEntrance(
+                        delay: AnimEntrance.stagger(0),
+                        child: _SectionLabel('Account')),
+                    AnimEntrance(
+                      delay: AnimEntrance.stagger(1),
+                      child: _MenuCard(
+                        items: [
+                          // _MenuEntry(
+                          //   icon: Icons.person_outline_rounded,
+                          //   color: AppColors.primaryGreen,
+                          //   title: 'Profile Details',
+                          //   subtitle: 'Health, body & goals',
+                          //   onTap: () => ProfileMenuActions.open(
+                          //       context, const DetailedHealthInfoScreen()),
+                          // ),
 
-                      ],
+                          _MenuEntry(
+                            icon: Icons.edit_outlined,
+                            color: const Color(0xFF2E7CF6),
+                            title: 'My Profile',
+                            subtitle: 'Name, address & photo',
+                            onTap: () => ProfileMenuActions.open(
+                                context, const EditProfileScreen()),
+                          ),
+                          _MenuEntry(
+                            icon: Icons.home,
+                            color: const Color(0xFF2E7CF6),
+                            title: 'Saved Addresses',
+                            subtitle: 'Your saved address',
+                            onTap: () => ProfileMenuActions.open(
+                                context, const AddressListScreen()),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSizes.spacing20),
+
+                    // ── Orders ────────────────────────────────────────────────
+                    AnimEntrance(
+                        delay: AnimEntrance.stagger(2),
+                        child: const _SectionLabel('Orders')),
+                    AnimEntrance(
+                      delay: AnimEntrance.stagger(3),
+                      child: _MenuCard(
+                        items: [
+                          _MenuEntry(
+                              icon: Icons.add_shopping_cart,
+                              color: const Color(0xFFC66301),
+                              title: 'Your Cart',
+                              subtitle: 'Your save items',
+                              onTap: () => ProfileMenuActions.open(
+                                  context, const CartScreen())),
+                          _MenuEntry(
+                            icon: Icons.schedule_rounded,
+                            color: const Color(0xFFC66301),
+                            title: 'Orders',
+                            subtitle: 'Track active orders',
+                            onTap: () => ProfileMenuActions.open(
+                              context,
+                              const HistoryScreen(
+                                  initialTab: HistoryTab.upcoming),
+                            ),
+                          ),
+                          _MenuEntry(
+                            icon: Icons.receipt_long_outlined,
+                            color: const Color(0xFF20A39E),
+                            title: 'Order History',
+                            subtitle: 'Your past orders',
+                            onTap: () => ProfileMenuActions.open(
+                              context,
+                              const HistoryScreen(
+                                  initialTab: HistoryTab.delivered),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSizes.spacing20),
+
+                    // ── Membership & more ─────────────────────────────────────
+                    AnimEntrance(
+                        delay: AnimEntrance.stagger(4),
+                        child: const _SectionLabel('Membership & More')),
+                    AnimEntrance(
+                      delay: AnimEntrance.stagger(5),
+                      child: _MenuCard(
+                        items: [
+                          _MenuEntry(
+                            icon: Icons.card_membership_outlined,
+                            color: const Color(0xFF8B5CF6),
+                            title: 'Membership',
+                            subtitle: 'Plans & wallet balance',
+                            onTap: () => ProfileMenuActions.open(
+                                context, const SubscriptionPlanScreen()),
+                          ),
+                          _MenuEntry(
+                            icon: Icons.notifications_none_rounded,
+                            color: const Color(0xFFF5A623),
+                            title: 'Notifications',
+                            subtitle: 'Alerts & updates',
+                            onTap: () => ProfileMenuActions.open(
+                                context, const NotificationScreen()),
+                          ),
+                          _MenuEntry(
+                            icon: Icons.phone,
+                            color: const Color(0xFF1E9E63),
+                            title: 'Help & Support',
+                            subtitle: 'We’re here to help',
+                            onTap: () =>
+                                ProfileMenuActions.showContactUs(context),
+                          ),
+                          _MenuEntry(
+                            icon: Icons.policy_outlined,
+                            color: const Color(0xFF607D8B),
+                            title: 'Terms & Conditions',
+                            subtitle: 'Policies & privacy',
+                            onTap: () => ProfileMenuActions.open(
+                                context, const PolicyScreen()),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: AppSizes.spacing24),
-                
+
                     // ── Logout ────────────────────────────────────────────────
                     _LogoutButton(
-                      onTap: () => ProfileMenuActions.confirmLogout(context, ref),
+                      onTap: () =>
+                          ProfileMenuActions.confirmLogout(context, ref),
                     ),
                     const SizedBox(height: AppSizes.spacing20),
-                
+
                     // ── Version footer ────────────────────────────────────────
                     Center(
                       child: Text(

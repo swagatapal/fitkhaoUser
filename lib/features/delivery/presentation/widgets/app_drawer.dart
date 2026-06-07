@@ -87,31 +87,31 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
     final authState = ref.watch(authProvider);
 
     // Declarative groups → rendered as cards. Behaviour preserved verbatim.
-    final account = <_NavItem>[
-      _NavItem(
-        icon: Icons.person_outline_rounded,
-        color: AppColors.primaryGreen,
-        label: 'Profile Details',
-        subtitle: 'Health, body & goals',
-        onTap: () => ProfileMenuActions.open(
-            context, const DetailedHealthInfoScreen(),
-            insideDrawer: true),
-      ),
-      _NavItem(
-        icon: Icons.edit_outlined,
-        color: const Color(0xFF2E7CF6),
-        label: 'Edit Profile',
-        subtitle: 'Name, address & photo',
-        onTap: () => ProfileMenuActions.open(context, const EditProfileScreen(),
-            insideDrawer: true),
-      ),
-    ];
+    //final account = <_NavItem>[
+    //   _NavItem(
+    //     icon: Icons.person_outline_rounded,
+    //     color: AppColors.primaryGreen,
+    //     label: 'Profile Details',
+    //     subtitle: 'Health, body & goals',
+    //     onTap: () => ProfileMenuActions.open(
+    //         context, const DetailedHealthInfoScreen(),
+    //         insideDrawer: true),
+    //   ),
+    //   _NavItem(
+    //     icon: Icons.edit_outlined,
+    //     color: const Color(0xFF2E7CF6),
+    //     label: 'Edit Profile',
+    //     subtitle: 'Name, address & photo',
+    //     onTap: () => ProfileMenuActions.open(context, const EditProfileScreen(),
+    //         insideDrawer: true),
+    //   ),
+    // ];
 
     final orders = <_NavItem>[
       _NavItem(
         icon: Icons.schedule_rounded,
         color: const Color(0xFFC66301),
-        label: 'Upcoming Orders',
+        label: 'Orders',
         subtitle: 'Track active orders',
         onTap: () => ProfileMenuActions.open(
             context, const HistoryScreen(initialTab: HistoryTab.upcoming),
@@ -120,7 +120,7 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
       _NavItem(
         icon: Icons.receipt_long_outlined,
         color: const Color(0xFF20A39E),
-        label: 'Delivered Orders',
+        label: 'Order History',
         subtitle: 'Your past orders',
         onTap: () => ProfileMenuActions.open(
             context, const HistoryScreen(initialTab: HistoryTab.delivered),
@@ -129,7 +129,7 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
       _NavItem(
         icon: Icons.card_membership_outlined,
         color: const Color(0xFF8B5CF6),
-        label: 'Subscription Details',
+        label: 'Membership',
         subtitle: 'Plans & wallet balance',
         onTap: () => ProfileMenuActions.open(
             context, const SubscriptionPlanScreen(),
@@ -148,6 +148,14 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
             insideDrawer: true),
       ),
       _NavItem(
+        icon: Icons.support_agent_outlined,
+        color: const Color(0xFF1E9E63),
+        label: 'Help & Support',
+        subtitle: 'We’re here to help',
+        onTap: () =>
+            ProfileMenuActions.showContactUs(context, insideDrawer: true),
+      ),
+      _NavItem(
         icon: Icons.policy_outlined,
         color: const Color(0xFF607D8B),
         label: 'Terms & Conditions',
@@ -155,21 +163,14 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
         onTap: () => ProfileMenuActions.open(context, const PolicyScreen(),
             insideDrawer: true),
       ),
-      _NavItem(
-        icon: Icons.support_agent_outlined,
-        color: const Color(0xFF1E9E63),
-        label: 'Contact Us',
-        subtitle: 'We’re here to help',
-        onTap: () =>
-            ProfileMenuActions.showContactUs(context, insideDrawer: true),
-      ),
+
     ];
 
     // Ordered list of animated blocks — each gets a sequential stagger slot.
     final blocks = <Widget>[
       const _KitchenSelectorSection(),
-      const _SectionLabel('Account'),
-      _MenuCard(items: account),
+      //const _SectionLabel('Account'),
+      //_MenuCard(items: account),
       const _SectionLabel('Orders'),
       _MenuCard(items: orders),
       const _SectionLabel('More'),
@@ -305,12 +306,12 @@ class _Header extends StatelessWidget {
                           hasImage: hasImage,
                           imgUrl: imgUrl,
                           initial: initial),
-                      const Spacer(),
-                      _EditChip(
-                        onTap: () => ProfileMenuActions.open(
-                            context, const EditProfileScreen(),
-                            insideDrawer: true),
-                      ),
+                      // const Spacer(),
+                      // _EditChip(
+                      //   onTap: () => ProfileMenuActions.open(
+                      //       context, const EditProfileScreen(),
+                      //       insideDrawer: true),
+                      // ),
                     ],
                   ),
                   const SizedBox(height: AppSizes.spacing16),
@@ -640,7 +641,7 @@ class _Footer extends StatelessWidget {
               size: AppSizes.icon16, color: AppColors.textTertiary),
           const SizedBox(width: AppSizes.spacing6),
           Text(
-            'FitKhao • Eat Smart  •  v1.0.0',
+            'FitKhao • FitRaho  •  v1.0.0',
             style: TextStyle(
               fontSize: AppTypography.fontSize12,
               fontWeight: AppTypography.semiBold,

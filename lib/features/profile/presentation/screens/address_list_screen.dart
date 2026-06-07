@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -7,6 +8,13 @@ import '../../../../core/constants/app_typography.dart';
 import '../../models/delivery_address_model.dart';
 import '../../providers/delivery_address_provider.dart';
 import 'address_form_screen.dart';
+
+/// Dark status-bar icons so the system bar stays visible over the white header.
+const SystemUiOverlayStyle _kHeaderOverlay = SystemUiOverlayStyle(
+  statusBarColor: Colors.transparent,
+  statusBarIconBrightness: Brightness.dark, // Android
+  statusBarBrightness: Brightness.light, // iOS
+);
 
 /// Lists the user's saved delivery addresses with full CRUD entry points.
 class AddressListScreen extends ConsumerStatefulWidget {
@@ -163,7 +171,7 @@ class _AddressListScreenState extends ConsumerState<AddressListScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Saved Orders',
+                  'Saved Addresses',
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize20,
                     fontWeight: AppTypography.bold,
@@ -184,10 +192,19 @@ class _AddressListScreenState extends ConsumerState<AddressListScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(addressProvider);
 
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: _kHeaderOverlay,
+      child: Scaffold(
       backgroundColor: const Color(0xFFF4F6F4),
-
-      body: _buildBody(state),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(child: _buildBody(state)),
+          ],
+        ),
+      ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.all(AppSizes.spacing16),
         child: SizedBox(
@@ -195,12 +212,11 @@ class _AddressListScreenState extends ConsumerState<AddressListScreen> {
           height: AppSizes.buttonHeight,
           child: ElevatedButton.icon(
             onPressed: () => _openForm(),
-            icon: const Icon(Icons.add_rounded, color: Colors.white),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryGreen,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSizes.radius12)),
+                  borderRadius: BorderRadius.circular(AppSizes.radius8)),
             ),
             label: const Text(
               'Add New Address',
@@ -214,6 +230,7 @@ class _AddressListScreenState extends ConsumerState<AddressListScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 

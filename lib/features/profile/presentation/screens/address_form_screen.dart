@@ -11,6 +11,13 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../models/delivery_address_model.dart';
 import '../../providers/delivery_address_provider.dart';
 
+/// Dark status-bar icons so the system bar stays visible over the white header.
+const SystemUiOverlayStyle _kHeaderOverlay = SystemUiOverlayStyle(
+  statusBarColor: Colors.transparent,
+  statusBarIconBrightness: Brightness.dark, // Android
+  statusBarBrightness: Brightness.light, // iOS
+);
+
 /// Add / edit a delivery address.
 ///
 /// Pass [existing] to edit; omit it to create a new address. Coordinates are
@@ -202,32 +209,80 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
     );
   }
 
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.p20,
+        vertical: AppSizes.spacing8,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: AppSizes.shadowBlur10,
+            offset: const Offset(0, AppSizes.spacing2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).maybePop(),
+            child: Container(
+              padding: const EdgeInsets.all(AppSizes.spacing8),
+              decoration: BoxDecoration(
+                color: AppColors.darkGreen,
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+              child: const Icon(
+                Icons.arrow_back,
+                color: AppColors.textWhite,
+                size: AppSizes.icon24,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSizes.spacing12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.isEditing ? 'Edit Address' : 'Add Address',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize20,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: _kHeaderOverlay,
+      child: Scaffold(
       backgroundColor: const Color(0xFFF4F6F4),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 1,
-        foregroundColor: AppColors.textPrimary,
-        title: Text(
-          widget.isEditing ? 'Edit Address' : 'Add New Address',
-          style: const TextStyle(
-            fontSize: AppTypography.fontSize18,
-            fontWeight: AppTypography.bold,
-            color: AppColors.textPrimary,
-            fontFamily: 'Lato',
-          ),
-        ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          controller: _scrollController,
-          padding: const EdgeInsets.fromLTRB(AppSizes.spacing16,
-              AppSizes.spacing16, AppSizes.spacing16, AppSizes.spacing32),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
           children: [
+            _buildHeader(),
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(AppSizes.spacing16,
+                      AppSizes.spacing16, AppSizes.spacing16, AppSizes.spacing32),
+                  children: [
             // ── Location ──────────────────────────────────────────────────
             _SectionCard(
               icon: Icons.map_outlined,
@@ -398,9 +453,14 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
               isSaving: _isSaving,
               onTap: _save,
             ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
+    ),
     );
   }
 

@@ -485,29 +485,29 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                   fontFamily: 'Lato',
                 ),
               ),
-              const SizedBox(height: 2),
-              GestureDetector(
-                onTap: _openLocationMap,
-                child: Row(
-                  children: [
-                    const Icon(Icons.location_on,
-                        size: 11, color: AppColors.primaryGreen),
-                    const SizedBox(width: 3),
-                    Expanded(
-                      child: Text(
-                        location,
-                        style: const TextStyle(
-                          fontSize: AppTypography.fontSize12,
-                          color: AppColors.textSecondary,
-                          fontFamily: 'Lato',
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // const SizedBox(height: 2),
+              // GestureDetector(
+              //   onTap: _openLocationMap,
+              //   child: Row(
+              //     children: [
+              //       const Icon(Icons.location_on,
+              //           size: 11, color: AppColors.primaryGreen),
+              //       const SizedBox(width: 3),
+              //       Expanded(
+              //         child: Text(
+              //           location,
+              //           style: const TextStyle(
+              //             fontSize: AppTypography.fontSize12,
+              //             color: AppColors.textSecondary,
+              //             fontFamily: 'Lato',
+              //           ),
+              //           maxLines: 1,
+              //           overflow: TextOverflow.ellipsis,
+              //         ),
+              //       ),
+              //     ],
+              //   ),
+              // ),
             ],
           ),
         ),

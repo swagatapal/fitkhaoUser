@@ -47,7 +47,7 @@ class OtpResponseModel {
     return OtpResponseModel(
       success: json['success'] as bool? ?? false,
       message: json['message'] as String? ?? '',
-      otpId: json['otp_id'] as String?, // legacy mock field
+      otpId: json['data']['otp'] as String?, // legacy mock field
       expiresIn: json['expires_in'] as int?, // legacy mock field
       data: dataJson is Map<String, dynamic> ? OtpData.fromJson(dataJson) : null,
       timestamp: json['timestamp'] as String?,
