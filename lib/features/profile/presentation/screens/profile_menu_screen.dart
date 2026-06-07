@@ -67,18 +67,18 @@ class ProfileMenuScreen extends ConsumerWidget {
                     const _SectionLabel('Account'),
                     _MenuCard(
                       items: [
-                        _MenuEntry(
-                          icon: Icons.person_outline_rounded,
-                          color: AppColors.primaryGreen,
-                          title: 'Profile Details',
-                          subtitle: 'Health, body & goals',
-                          onTap: () => ProfileMenuActions.open(
-                              context, const DetailedHealthInfoScreen()),
-                        ),
+                        // _MenuEntry(
+                        //   icon: Icons.person_outline_rounded,
+                        //   color: AppColors.primaryGreen,
+                        //   title: 'Profile Details',
+                        //   subtitle: 'Health, body & goals',
+                        //   onTap: () => ProfileMenuActions.open(
+                        //       context, const DetailedHealthInfoScreen()),
+                        // ),
                         _MenuEntry(
                           icon: Icons.edit_outlined,
                           color: const Color(0xFF2E7CF6),
-                          title: 'Edit Profile',
+                          title: 'My Profile',
                           subtitle: 'Name, address & photo',
                           onTap: () => ProfileMenuActions.open(
                               context, const EditProfileScreen()),
@@ -86,7 +86,7 @@ class ProfileMenuScreen extends ConsumerWidget {
                         _MenuEntry(
                           icon: Icons.home,
                           color: const Color(0xFF2E7CF6),
-                          title: 'All Address',
+                          title: 'Saved Addresses',
                           subtitle: 'Your saved address',
                           onTap: () => ProfileMenuActions.open(
                               context, const AddressListScreen()),
@@ -102,14 +102,14 @@ class ProfileMenuScreen extends ConsumerWidget {
                         _MenuEntry(
                             icon: Icons.add_shopping_cart,
                             color: const Color(0xFFC66301),
-                            title: 'Cart Items',
+                            title: 'Your Cart',
                             subtitle: 'Your save items',
                             onTap: () => ProfileMenuActions.open(
                                 context, const CartScreen())),
                         _MenuEntry(
                           icon: Icons.schedule_rounded,
                           color: const Color(0xFFC66301),
-                          title: 'Upcoming Orders',
+                          title: 'Orders',
                           subtitle: 'Track active orders',
                           onTap: () => ProfileMenuActions.open(
                             context,
@@ -119,7 +119,7 @@ class ProfileMenuScreen extends ConsumerWidget {
                         _MenuEntry(
                           icon: Icons.receipt_long_outlined,
                           color: const Color(0xFF20A39E),
-                          title: 'Delivered Orders',
+                          title: 'Order History',
                           subtitle: 'Your past orders',
                           onTap: () => ProfileMenuActions.open(
                             context,
@@ -137,7 +137,7 @@ class ProfileMenuScreen extends ConsumerWidget {
                         _MenuEntry(
                           icon: Icons.card_membership_outlined,
                           color: const Color(0xFF8B5CF6),
-                          title: 'Subscription Details',
+                          title: 'Membership',
                           subtitle: 'Plans & wallet balance',
                           onTap: () => ProfileMenuActions.open(
                               context, const SubscriptionPlanScreen()),
@@ -151,6 +151,13 @@ class ProfileMenuScreen extends ConsumerWidget {
                               context, const NotificationScreen()),
                         ),
                         _MenuEntry(
+                          icon: Icons.phone,
+                          color: const Color(0xFF1E9E63),
+                          title: 'Help & Support',
+                          subtitle: 'We’re here to help',
+                          onTap: () => ProfileMenuActions.showContactUs(context),
+                        ),
+                        _MenuEntry(
                           icon: Icons.policy_outlined,
                           color: const Color(0xFF607D8B),
                           title: 'Terms & Conditions',
@@ -158,13 +165,7 @@ class ProfileMenuScreen extends ConsumerWidget {
                           onTap: () => ProfileMenuActions.open(
                               context, const PolicyScreen()),
                         ),
-                        _MenuEntry(
-                          icon: Icons.phone,
-                          color: const Color(0xFF1E9E63),
-                          title: 'Contact Us',
-                          subtitle: 'We’re here to help',
-                          onTap: () => ProfileMenuActions.showContactUs(context),
-                        ),
+
                       ],
                     ),
                     const SizedBox(height: AppSizes.spacing24),

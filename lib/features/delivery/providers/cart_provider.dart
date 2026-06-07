@@ -62,7 +62,10 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
   String? _lastError;
 
   CartNotifier(this._ref) : super(const []) {
-    loadCart();
+    // Defer the initial fetch off the provider-init phase — writing to
+    // [cartStatusProvider] synchronously here would violate Riverpod's
+    // "providers can't modify other providers while building" rule.
+    Future.microtask(loadCart);
   }
 
   CartRepository get _repo => _ref.read(cartRepositoryProvider);

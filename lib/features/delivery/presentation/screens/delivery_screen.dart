@@ -61,12 +61,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   final ScrollController _scrollController = ScrollController();
   Timer? _searchDebounce;
 
-  /// Re-evaluates the time-based ordering window so the screen flips between
-  /// active/passive exactly at the 11 AM / 1 AM boundaries without a manual
-  /// refresh. Only triggers a rebuild when the boolean actually changes.
-  Timer? _windowTimer;
-  bool _isWithinOrderingWindow = true;
-
   final bool _profileImageError = false;
 
   /// IDs of categories that are currently collapsed in the "All" grouped view.
@@ -75,18 +69,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   @override
   void initState() {
     super.initState();
-    _isWithinOrderingWindow = _computeOrderingWindow();
     _scrollController.addListener(_handleScroll);
-    _windowTimer = Timer.periodic(
-      const Duration(minutes: 1),
-      (_) => _refreshOrderingWindow(),
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadInitialData());
   }
 
   @override
   void dispose() {
-    _windowTimer?.cancel();
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     _searchDebounce?.cancel();
@@ -94,30 +82,18 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     super.dispose();
   }
 
-  // ── Ordering window ────────────────────────────────────────────────────────
-  // PRODUCTION: 11 AM – 1 AM (crosses midnight) → hour >= 11 || hour < 1
-  bool _computeOrderingWindow() {
-    final hour = DateTime.now().hour;
-    return hour >= 11 || hour < 1;
-  }
-
-  void _refreshOrderingWindow() {
-    final next = _computeOrderingWindow();
-    if (next != _isWithinOrderingWindow && mounted) {
-      setState(() => _isWithinOrderingWindow = next);
-    }
-  }
-
   void _showOrderingClosedSnackBar() {
     if (!mounted) return;
+    final reason = ref.read(kitchenProvider).kitchenClosedReason ??
+        'The outlet is currently closed';
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
-          content: Text('Ordering is available from 11:00 AM to 1:00 AM'),
+        SnackBar(
+          content: Text(reason),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Color(0xFFC66301),
-          duration: Duration(seconds: 3),
+          backgroundColor: const Color(0xFFC66301),
+          duration: const Duration(seconds: 3),
         ),
       );
   }
@@ -260,19 +236,19 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final location = _computeLocation(authState);
     final dishState = ref.watch(allDishesProvider);
 
-    // Kitchen open/close comes from the background kitchen resolution.
-    // null / true → treat as open (fail-open). false → kitchen manually closed.
+    // Outlet open/close is the authoritative kitchen open-status from the API
+    // (it already encodes the kitchen's operating hours/schedule server-side).
+    // null → not yet resolved (fail-open, treat as open). false → closed.
     final kitchenOpen = ref.watch(
       kitchenProvider.select((s) => s.isKitchenOpen != false),
     );
 
-    // ACTIVE  → within ordering window AND kitchen open  → colorful, can order.
-    // PASSIVE → otherwise                                → grayscale, view-only.
-    final isOrderingActive = _isWithinOrderingWindow && kitchenOpen;
+    // ACTIVE  → kitchen open  → colorful, can order.
+    // PASSIVE → kitchen closed → grayscale, view-only.
+    final isOrderingActive = kitchenOpen;
 
-    final closedReason = !_isWithinOrderingWindow
-        ? 'Ordering opens at 11:00 AM'
-        : ref.watch(kitchenProvider.select((s) => s.kitchenClosedReason)) ??
+    final closedReason =
+        ref.watch(kitchenProvider.select((s) => s.kitchenClosedReason)) ??
             'The outlet is currently closed';
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -422,7 +398,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 ),
                 const SizedBox(height: 1),
                 Text(
-                  "Opening Soon , Thank you for your patience",
+                  reason,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize12,
                     fontWeight: AppTypography.regular,
