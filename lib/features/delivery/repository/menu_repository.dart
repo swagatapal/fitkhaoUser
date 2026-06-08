@@ -162,4 +162,63 @@ class MenuRepository {
     final result = await getMenuPage(mealType: mealType);
     return result.items;
   }
+
+  // ─── Search ──────────────────────────────────────────────────────────────────
+
+  /// Backend dish search for [query], scoped to [kitchenId] when provided.
+  /// Response shape matches the dish-list endpoint, so the same parser is used.
+  Future<MenuPageResult> searchDishes({
+    required String query,
+    String? kitchenId,
+    int pageIndex = 0,
+    int pageSize = 20,
+  }) async {
+    debugPrint('[MenuRepository] Searching "$query" '
+        '(kitchen: $kitchenId, page: $pageIndex)…');
+
+    try {
+      final buffer = StringBuffer(
+        '${AppConfig.outletDishSearchPath}'
+        '?q=${Uri.encodeQueryComponent(query)}'
+        '&isActive=true&pageIndex=$pageIndex&pageSize=$pageSize',
+      );
+      if (kitchenId != null && kitchenId.isNotEmpty) {
+        buffer.write('&kitchenId=$kitchenId');
+      }
+
+      final json = await _apiClient.getJson(
+        buffer.toString(),
+        headers: _authHeaders(),
+      );
+      return _parsePage(json, pageIndex);
+    } catch (e) {
+      debugPrint('[MenuRepository] Error searching dishes: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw Exception(message);
+    }
+  }
+
+  /// Parses the shared `{ data: { dishes/items, count, totalPages } }` page shape.
+  MenuPageResult _parsePage(Map<String, dynamic> json, int pageIndex) {
+    final data = json['data'] as Map<String, dynamic>? ?? {};
+    final rawItems = data['dishes'] as List<dynamic>? ??
+        data['items'] as List<dynamic>? ??
+        [];
+    final totalCount = (data['count'] as num?)?.toInt() ??
+        (data['totalCount'] as num?)?.toInt() ??
+        rawItems.length;
+    final totalPages = (data['totalPages'] as num?)?.toInt() ?? 1;
+
+    final items = rawItems
+        .whereType<Map<String, dynamic>>()
+        .map(MenuItem.fromJson)
+        .toList();
+
+    return MenuPageResult(
+      items: items,
+      totalCount: totalCount,
+      totalPages: totalPages,
+      currentPage: pageIndex,
+    );
+  }
 }

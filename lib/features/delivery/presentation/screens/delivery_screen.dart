@@ -15,6 +15,7 @@ import '../../providers/wallet_provider.dart';
 import '../../providers/kitchen_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/delivery_gate_provider.dart';
+import '../../providers/dish_search_provider.dart';
 import '../../models/menu_item.dart';
 import '../../providers/menu_provider.dart';
 import '../widgets/app_drawer.dart';
@@ -170,27 +171,34 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   void _handleScroll() {
     if (!_scrollController.hasClients) return;
     final position = _scrollController.position;
-    final dishState = ref.read(allDishesProvider);
 
     if (position.pixels < position.maxScrollExtent - 120) {
       return;
     }
-    if (dishState.canLoadMore) {
+
+    // Paginate the active view — search results or the browse list.
+    if (ref.read(dishSearchProvider).isActive) {
+      ref.read(dishSearchProvider.notifier).loadMore();
+    } else if (ref.read(allDishesProvider).canLoadMore) {
       ref.read(allDishesProvider.notifier).loadMore();
     }
   }
 
   void _onDishSearchChanged(String value) {
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-      ref.read(allDishesProvider.notifier).setSearchQuery(value.trim());
+    // Debounce keystrokes; the provider sequences requests to drop stale ones.
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      final kitchenId = ref.read(kitchenProvider).selectedKitchenId;
+      ref
+          .read(dishSearchProvider.notifier)
+          .search(value.trim(), kitchenId: kitchenId);
     });
   }
 
   void _clearDishSearch() {
     _searchController.clear();
     _searchDebounce?.cancel();
-    ref.read(allDishesProvider.notifier).setSearchQuery('');
+    ref.read(dishSearchProvider.notifier).clear();
   }
 
   // ── Location helpers ──────────────────────────────────────────────────────
@@ -259,6 +267,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       kitchenProvider.select((s) => s.isKitchenOpen != false),
     );
 
+    // Backend search — when active, results replace the browse view + filters.
+    final search = ref.watch(dishSearchProvider);
+    final isSearching = search.isActive;
+
     // Entry-gate state: area serviceability + location / notification prompts.
     final gate = ref.watch(deliveryGateProvider);
     final areaBlocked = gate.areaBlocksOrdering;
@@ -325,22 +337,25 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         ),
                       ),
 
-                      // ── Sticky compact filters ──────────────────────────
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: _FilterHeaderDelegate(
-                          dishState: dishState,
-                          child: _buildFilters(dishState),
+                      // ── Sticky compact filters (hidden while searching) ──
+                      if (!isSearching)
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _FilterHeaderDelegate(
+                            dishState: dishState,
+                            child: _buildFilters(dishState),
+                          ),
                         ),
-                      ),
 
-                      // ── Food list (grayscale in passive state) ──────────
+                      // ── Food list / search results (grayscale in passive) ─
                       SliverPadding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSizes.screenPaddingHorizontal,
                         ),
                         sliver: SliverToBoxAdapter(
-                          child: _buildDishList(dishState, isOrderingActive),
+                          child: isSearching
+                              ? _buildSearchResults(search, isOrderingActive)
+                              : _buildDishList(dishState, isOrderingActive),
                         ),
                       ),
 
@@ -961,6 +976,65 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
+  // ── Search results ────────────────────────────────────────────────────────────
+
+  Widget _buildSearchResults(DishSearchState search, bool isActive) {
+    Widget content;
+    switch (search.status) {
+      case DishSearchStatus.loading:
+        content = _buildDishListSkeleton();
+        break;
+      case DishSearchStatus.error:
+        content = _buildDishListError(
+          search.error ?? 'Search failed. Please try again.',
+          onRetry: () => ref.read(dishSearchProvider.notifier).retry(),
+        );
+        break;
+      case DishSearchStatus.empty:
+        content = _buildEmptyState('No dishes found for “${search.query}”');
+        break;
+      default: // success / loadingMore
+        content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(
+                  top: AppSizes.spacing8, bottom: AppSizes.spacing4),
+              child: Text(
+                '${search.results.length} '
+                '${search.results.length == 1 ? 'result' : 'results'} '
+                'for “${search.query}”',
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize12,
+                  color: AppColors.textSecondary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ),
+            for (final item in search.results)
+              _FadeSlideIn(
+                key: ValueKey('search_${item.id}'),
+                child: _DishCard(
+                  item: item,
+                  isOrderingEnabled: isActive,
+                  onOrderingDisabledTap: _showOrderingClosedSnackBar,
+                ),
+              ),
+            if (search.isLoadingMore) _buildLoadMoreIndicator(),
+            const SizedBox(height: AppSizes.spacing8),
+          ],
+        );
+    }
+
+    if (!isActive) {
+      content = ColorFiltered(colorFilter: _kGrayscaleFilter, child: content);
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSizes.spacing4),
+      child: content,
+    );
+  }
+
   Widget _buildGroupedSectionsBody(AllDishesState dishState, bool isActive) {
     final sections = dishState.groupedSections;
     if (sections.isEmpty) {
@@ -1178,7 +1252,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
-  Widget _buildDishListError(String message) {
+  Widget _buildDishListError(String message, {VoidCallback? onRetry}) {
     return Container(
       padding: const EdgeInsets.all(AppSizes.spacing16),
       decoration: BoxDecoration(
@@ -1202,7 +1276,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             ),
           ),
           GestureDetector(
-            onTap: _loadAllDishes,
+            onTap: onRetry ?? _loadAllDishes,
             child: const Text(
               'Retry',
               style: TextStyle(
