@@ -14,6 +14,7 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/kitchen_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/delivery_gate_provider.dart';
 import '../../models/menu_item.dart';
 import '../../providers/menu_provider.dart';
 import '../widgets/app_drawer.dart';
@@ -84,8 +85,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   void _showOrderingClosedSnackBar() {
     if (!mounted) return;
-    final reason = ref.read(kitchenProvider).kitchenClosedReason ??
-        'The outlet is currently closed';
+    final areaBlocked =
+        ref.read(deliveryGateProvider).areaBlocksOrdering;
+    final reason = areaBlocked
+        ? 'We don’t deliver to your area yet.'
+        : (ref.read(kitchenProvider).kitchenClosedReason ??
+            'The outlet is currently closed');
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -113,6 +118,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     unawaited(_loadKitchens());
     // Keep the server cart fresh on every entry (badge, steppers, totals).
     unawaited(ref.read(cartProvider.notifier).loadCart());
+    // Resolve the delivery-area serviceability + location/notification prompts.
+    unawaited(ref.read(deliveryGateProvider.notifier).evaluate());
 
     final hasCachedDishes = ref.read(allDishesProvider).items.isNotEmpty;
     if (hasCachedDishes) {
@@ -126,6 +133,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     await Future.wait([
       ref.read(allDishesProvider.notifier).silentRefresh(),
       _loadKitchens(),
+      ref.read(deliveryGateProvider.notifier).evaluate(),
     ]);
   }
 
@@ -243,9 +251,13 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       kitchenProvider.select((s) => s.isKitchenOpen != false),
     );
 
-    // ACTIVE  → kitchen open  → colorful, can order.
-    // PASSIVE → kitchen closed → grayscale, view-only.
-    final isOrderingActive = kitchenOpen;
+    // Entry-gate state: area serviceability + location / notification prompts.
+    final gate = ref.watch(deliveryGateProvider);
+    final areaBlocked = gate.areaBlocksOrdering;
+
+    // ACTIVE  → kitchen open AND area serviceable → colorful, can order.
+    // PASSIVE → otherwise                         → grayscale, view-only.
+    final isOrderingActive = kitchenOpen && !areaBlocked;
 
     final closedReason =
         ref.watch(kitchenProvider.select((s) => s.kitchenClosedReason)) ??
@@ -283,8 +295,16 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                               _buildCompactHeader(authState, location),
                               const SizedBox(height: AppSizes.spacing8),
                               _buildDishSearchBar(),
-                              if (!isOrderingActive)
+                              // Area not serviceable → blocks ordering.
+                              if (areaBlocked) _buildNotServiceableBanner(),
+                              // Kitchen closed (independent of area).
+                              if (!kitchenOpen)
                                 _buildPassiveBanner(closedReason),
+                              // Location permission missing (food stays enabled).
+                              if (gate.showLocationInfo) _buildLocationInfo(),
+                              // Notifications off — soft nudge.
+                              if (gate.showNotificationInfo)
+                                _buildNotificationInfo(),
                             ],
                           ),
                         ),
@@ -413,6 +433,101 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // ── Not-serviceable banner ───────────────────────────────────────────────────
+
+  Widget _buildNotServiceableBanner() {
+    final zone = ref.watch(deliveryGateProvider.select((s) => s.zoneName));
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spacing12,
+        vertical: AppSizes.spacing10,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.errorColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border:
+            Border.all(color: AppColors.errorColor.withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSizes.spacing6),
+            decoration: BoxDecoration(
+              color: AppColors.errorColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.location_off_rounded,
+                color: AppColors.errorColor, size: AppSizes.icon16),
+          ),
+          const SizedBox(width: AppSizes.spacing10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Area not serviceable',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize13,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.errorColor,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  zone != null && zone.isNotEmpty
+                      ? 'We don’t deliver to your area yet. Browse the menu below.'
+                      : 'We don’t deliver to your area yet. Try a different address.',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    color: Color(0xFF7A4A4A),
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Location-permission info box ──────────────────────────────────────────────
+
+  Widget _buildLocationInfo() {
+    return _InfoBanner(
+      icon: Icons.my_location_rounded,
+      accent: const Color(0xFF2E7CF6),
+      title: 'Turn on location',
+      message:
+          'Enable location so we can check delivery availability for your area.',
+      actionLabel: 'Enable',
+      onAction: () =>
+          ref.read(deliveryGateProvider.notifier).enableLocation(),
+      onDismiss: () =>
+          ref.read(deliveryGateProvider.notifier).dismissLocationInfo(),
+    );
+  }
+
+  // ── Notification-permission info box ──────────────────────────────────────────
+
+  Widget _buildNotificationInfo() {
+    return _InfoBanner(
+      icon: Icons.notifications_active_outlined,
+      accent: const Color(0xFFF5A623),
+      title: 'Stay in the loop',
+      message:
+          'Enable notifications so you don’t miss order updates and offers.',
+      actionLabel: 'Enable',
+      onAction: () =>
+          ref.read(deliveryGateProvider.notifier).enableNotifications(),
+      onDismiss: () =>
+          ref.read(deliveryGateProvider.notifier).dismissNotificationInfo(),
     );
   }
 
@@ -1748,6 +1863,115 @@ class _FadeSlideInState extends State<_FadeSlideIn>
     return FadeTransition(
       opacity: _fade,
       child: SlideTransition(position: _slide, child: widget.child),
+    );
+  }
+}
+
+// ─── Dismissible info banner (location / notification prompts) ────────────────
+
+class _InfoBanner extends StatelessWidget {
+  final IconData icon;
+  final Color accent;
+  final String title;
+  final String message;
+  final String actionLabel;
+  final VoidCallback onAction;
+  final VoidCallback onDismiss;
+
+  const _InfoBanner({
+    required this.icon,
+    required this.accent,
+    required this.title,
+    required this.message,
+    required this.actionLabel,
+    required this.onAction,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
+      padding: const EdgeInsets.all(AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSizes.spacing8),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: accent, size: AppSizes.icon18),
+          ),
+          const SizedBox(width: AppSizes.spacing10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize13,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    color: AppColors.textSecondary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSizes.spacing8),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: onDismiss,
+                child: const Padding(
+                  padding: EdgeInsets.only(bottom: AppSizes.spacing4),
+                  child: Icon(Icons.close_rounded,
+                      size: AppSizes.icon16, color: AppColors.textTertiary),
+                ),
+              ),
+              GestureDetector(
+                onTap: onAction,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSizes.spacing12,
+                      vertical: AppSizes.spacing6),
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(AppSizes.radius6),
+                  ),
+                  child: Text(
+                    actionLabel,
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      fontWeight: AppTypography.bold,
+                      color: Colors.white,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

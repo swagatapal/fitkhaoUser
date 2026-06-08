@@ -408,6 +408,13 @@ class FirebaseNotificationService {
     }
   }
 
+  /// Prompts the OS notification-permission dialog and returns whether
+  /// notifications ended up authorized. Safe to call from the UI.
+  Future<bool> requestPermission() async {
+    await _requestPermissions();
+    return areNotificationsEnabled();
+  }
+
   void _navigateFromNotificationData(Map<String, dynamic> data) {
     final eventType = _extractEventType(data);
     if (eventType == null || eventType.isEmpty) {
