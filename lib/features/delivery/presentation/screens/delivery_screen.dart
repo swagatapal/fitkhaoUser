@@ -219,10 +219,18 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   }
 
   void _openLocationMap() {
+    // Prefer the coordinate the availability was resolved against; fall back to
+    // the profile address coordinate.
+    final gate = ref.read(deliveryGateProvider);
     final authState = ref.read(authProvider);
-    final lat = authState.latitude;
-    final lng = authState.longitude;
+    final lat = gate.latitude ?? authState.latitude;
+    final lng = gate.longitude ?? authState.longitude;
     if (lat == null || lng == null) return;
+
+    final address =
+        (gate.resolvedAddress != null && gate.resolvedAddress!.isNotEmpty)
+            ? gate.resolvedAddress!
+            : _getUserLocation();
 
     showModalBottomSheet(
       context: context,
@@ -231,7 +239,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       builder: (context) => LocationViewSheet(
         latitude: lat,
         longitude: lng,
-        address: _getUserLocation(),
+        address: address,
       ),
     );
   }
@@ -254,6 +262,13 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     // Entry-gate state: area serviceability + location / notification prompts.
     final gate = ref.watch(deliveryGateProvider);
     final areaBlocked = gate.areaBlocksOrdering;
+
+    // Header location label: the address the availability was resolved against
+    // (reverse-geocoded for the device location), falling back to the profile.
+    final displayAddress =
+        (gate.resolvedAddress != null && gate.resolvedAddress!.isNotEmpty)
+            ? gate.resolvedAddress!
+            : location;
 
     // ACTIVE  → kitchen open AND area serviceable → colorful, can order.
     // PASSIVE → otherwise                         → grayscale, view-only.
@@ -292,7 +307,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: AppSizes.spacing4),
-                              _buildCompactHeader(authState, location),
+                              _buildCompactHeader(authState, displayAddress),
                               const SizedBox(height: AppSizes.spacing8),
                               _buildDishSearchBar(),
                               // Area not serviceable → blocks ordering.
@@ -600,29 +615,32 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                   fontFamily: 'Lato',
                 ),
               ),
-              // const SizedBox(height: 2),
-              // GestureDetector(
-              //   onTap: _openLocationMap,
-              //   child: Row(
-              //     children: [
-              //       const Icon(Icons.location_on,
-              //           size: 11, color: AppColors.primaryGreen),
-              //       const SizedBox(width: 3),
-              //       Expanded(
-              //         child: Text(
-              //           location,
-              //           style: const TextStyle(
-              //             fontSize: AppTypography.fontSize12,
-              //             color: AppColors.textSecondary,
-              //             fontFamily: 'Lato',
-              //           ),
-              //           maxLines: 1,
-              //           overflow: TextOverflow.ellipsis,
-              //         ),
-              //       ),
-              //     ],
-              //   ),
-              // ),
+              const SizedBox(height: 2),
+              GestureDetector(
+                onTap: _openLocationMap,
+                behavior: HitTestBehavior.opaque,
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_on,
+                        size: 12, color: AppColors.primaryGreen),
+                    const SizedBox(width: 3),
+                    Flexible(
+                      child: Text(
+                        location,
+                        style: const TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 16, color: AppColors.textSecondary),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -35,6 +36,15 @@ class DeliveryGateState {
   /// location"…) — purely informational.
   final String? sourceLabel;
 
+  /// Human-readable address the availability was resolved against. For a saved
+  /// address it is its formatted address; for the device location it is the
+  /// reverse-geocoded address. Shown in the header.
+  final String? resolvedAddress;
+
+  /// Coordinate the availability was resolved against (used by the map sheet).
+  final double? latitude;
+  final double? longitude;
+
   final bool notificationsEnabled;
   final bool notificationChecked;
 
@@ -49,6 +59,9 @@ class DeliveryGateState {
     this.location = LocationAccess.unknown,
     this.zoneName,
     this.sourceLabel,
+    this.resolvedAddress,
+    this.latitude,
+    this.longitude,
     this.notificationsEnabled = true,
     this.notificationChecked = false,
     this.isEvaluating = false,
@@ -75,6 +88,9 @@ class DeliveryGateState {
     LocationAccess? location,
     String? zoneName,
     String? sourceLabel,
+    String? resolvedAddress,
+    double? latitude,
+    double? longitude,
     bool? notificationsEnabled,
     bool? notificationChecked,
     bool? isEvaluating,
@@ -86,6 +102,9 @@ class DeliveryGateState {
       location: location ?? this.location,
       zoneName: zoneName ?? this.zoneName,
       sourceLabel: sourceLabel ?? this.sourceLabel,
+      resolvedAddress: resolvedAddress ?? this.resolvedAddress,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       notificationChecked: notificationChecked ?? this.notificationChecked,
       isEvaluating: isEvaluating ?? this.isEvaluating,
@@ -124,6 +143,7 @@ class DeliveryGateNotifier extends StateNotifier<DeliveryGateState> {
       double? lat;
       double? lng;
       String? label;
+      String? resolvedAddress;
       LocationAccess loc = LocationAccess.unknown;
 
       if (chosen != null &&
@@ -131,6 +151,10 @@ class DeliveryGateNotifier extends StateNotifier<DeliveryGateState> {
         lat = chosen.latitude;
         lng = chosen.longitude;
         label = _addressLabel(chosen);
+        // Saved addresses already carry a decoded, formatted address.
+        resolvedAddress = chosen.formattedAddress.isNotEmpty
+            ? chosen.formattedAddress
+            : await _reverseGeocode(lat, lng);
       } else {
         // 1b ── No usable address → fall back to the device location.
         final resolved = await _resolveCurrentLocation();
@@ -153,6 +177,8 @@ class DeliveryGateNotifier extends StateNotifier<DeliveryGateState> {
         lat = resolved.position!.latitude;
         lng = resolved.position!.longitude;
         label = 'Current location';
+        // Decode the device coordinate into a readable address for the header.
+        resolvedAddress = await _reverseGeocode(lat, lng);
       }
 
       // 2 ── Serviceability check for the resolved coordinate.
@@ -183,6 +209,9 @@ class DeliveryGateNotifier extends StateNotifier<DeliveryGateState> {
         location: loc == LocationAccess.unknown ? state.location : loc,
         zoneName: zone,
         sourceLabel: label,
+        resolvedAddress: resolvedAddress,
+        latitude: lat,
+        longitude: lng,
         notificationsEnabled: notif,
         notificationChecked: true,
         isEvaluating: false,
@@ -287,6 +316,36 @@ class DeliveryGateNotifier extends StateNotifier<DeliveryGateState> {
     } catch (e) {
       debugPrint('[DeliveryGate] location error: $e');
       return (access: LocationAccess.denied, position: null);
+    }
+  }
+
+  /// Reverse-geocodes a coordinate into a compact, readable address.
+  /// Returns null on any failure — callers fall back to a generic label.
+  Future<String?> _reverseGeocode(double lat, double lng) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(lat, lng);
+      if (placemarks.isEmpty) return null;
+      final p = placemarks.first;
+
+      // Build "name, subLocality, locality, postalCode", skipping blanks and
+      // consecutive duplicates (geocoding often repeats parts).
+      final raw = <String?>[
+        p.name,
+        p.subLocality,
+        p.locality,
+        p.postalCode,
+      ];
+      final parts = <String>[];
+      for (final value in raw) {
+        final v = value?.trim() ?? '';
+        if (v.isEmpty) continue;
+        if (parts.isNotEmpty && parts.last == v) continue;
+        parts.add(v);
+      }
+      return parts.isEmpty ? null : parts.join(', ');
+    } catch (e) {
+      debugPrint('[DeliveryGate] reverseGeocode error: $e');
+      return null;
     }
   }
 
