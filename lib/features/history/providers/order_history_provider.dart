@@ -142,3 +142,13 @@ class OrderHistoryNotifier extends StateNotifier<OrderHistoryState> {
 final orderHistoryProvider = StateNotifierProvider<OrderHistoryNotifier, OrderHistoryState>((ref) {
   return OrderHistoryNotifier(ref);
 });
+
+/// Fetches the full, up-to-date details for a single order (GET /api/orders/:id).
+///
+/// Keyed by orderId, so each order's details are fetched and cached
+/// independently. The tracking screen watches this and refreshes on entry.
+final orderDetailsProvider =
+    FutureProvider.family<OrderHistory, String>((ref, orderId) async {
+  final repository = ref.read(orderHistoryRepositoryProvider);
+  return repository.getOrderById(orderId);
+});

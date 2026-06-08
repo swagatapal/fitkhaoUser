@@ -22,49 +22,77 @@ class OrderTrackingScreen extends ConsumerStatefulWidget {
 class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   @override
   Widget build(BuildContext context) {
+    final orderId = widget.order.id;
+    final detailsAsync = ref.watch(orderDetailsProvider(orderId));
+
+    // Show the order passed from the list instantly; swap in the freshly
+    // fetched details the moment they arrive (no blank-screen flash).
+    final order = detailsAsync.valueOrNull ?? widget.order;
+    final isRefreshing = detailsAsync.isLoading;
+
+    // A fetch failure is non-blocking — the fallback order stays on screen.
+    ref.listen<AsyncValue<OrderHistory>>(orderDetailsProvider(orderId),
+        (prev, next) {
+      if (next.hasError && !next.isLoading && mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text('Couldn’t refresh the latest order details.'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppColors.errorColor,
+              duration: Duration(seconds: 3),
+            ),
+          );
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(context),
+            if (isRefreshing)
+              const LinearProgressIndicator(
+                minHeight: 2,
+                backgroundColor: Color(0x14000000),
+                valueColor:
+                    AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
+              ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSizes.screenPaddingHorizontal,
-                  vertical: AppSizes.screenPaddingVertical,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _OrderSummaryCard(order: widget.order),
-                    const SizedBox(height: AppSizes.spacing16),
-                    _buildOrderItems(),
-                    const SizedBox(height: AppSizes.spacing16),
-                    _buildDeliveryDetails(),
-                    const SizedBox(height: AppSizes.spacing16),
-                    _buildPriceSummary(),
-                    const SizedBox(height: AppSizes.spacing16),
-                    _buildInvoiceButton(),
-                    const SizedBox(height: AppSizes.spacing16),
-                    // if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
-                    //   _buildTimeline(context),
-                    // if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
-                    //   const SizedBox(height: AppSizes.spacing20),
-                    // if (widget.order.orderStatus != 'delivered' && widget.order.orderStatus != 'cancelled')
-                    //   _buildHelpRow(context),
-                    // const SizedBox(height: AppSizes.spacing20),
-
-                    const SizedBox(height: AppSizes.spacing16),
-                    _buildTimeline(context),
-
-                    if (!_shouldHideHelpActions(widget.order.orderStatus)) ...[
+              child: RefreshIndicator(
+                color: AppColors.primaryGreen,
+                onRefresh: () =>
+                    ref.refresh(orderDetailsProvider(orderId).future),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.screenPaddingHorizontal,
+                    vertical: AppSizes.screenPaddingVertical,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _OrderSummaryCard(order: order),
+                      const SizedBox(height: AppSizes.spacing16),
+                      _buildOrderItems(order),
+                      const SizedBox(height: AppSizes.spacing16),
+                      _buildDeliveryDetails(order),
+                      const SizedBox(height: AppSizes.spacing16),
+                      _buildPriceSummary(order),
+                      const SizedBox(height: AppSizes.spacing16),
+                      _buildInvoiceButton(order),
+                      const SizedBox(height: AppSizes.spacing16),
+                      const SizedBox(height: AppSizes.spacing16),
+                      _buildTimeline(context, order),
+                      if (!_shouldHideHelpActions(order.orderStatus)) ...[
+                        const SizedBox(height: AppSizes.spacing20),
+                        _buildHelpRow(context),
+                      ],
                       const SizedBox(height: AppSizes.spacing20),
-                      _buildHelpRow(context),
                     ],
-
-                    const SizedBox(height: AppSizes.spacing20),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -147,7 +175,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   }
 
 
-  Widget _buildOrderItems() {
+  Widget _buildOrderItems(OrderHistory order) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSizes.p16),
@@ -176,7 +204,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             ),
           ),
           const SizedBox(height: AppSizes.spacing12),
-          ...widget.order.items.map((item) => Padding(
+          ...order.items.map((item) => Padding(
                 padding: const EdgeInsets.only(bottom: AppSizes.spacing12),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,7 +317,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     );
   }
 
-  Widget _buildDeliveryDetails() {
+  Widget _buildDeliveryDetails(OrderHistory order) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSizes.p16),
@@ -319,19 +347,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           ),
           const SizedBox(height: AppSizes.spacing12),
           _buildDetailRow(Icons.location_on, 'Address',
-              '${widget.order.deliveryAddress.buildingName}, ${widget.order.deliveryAddress.street}'),
+              '${order.deliveryAddress.buildingName}, ${order.deliveryAddress.street}'),
           const SizedBox(height: AppSizes.spacing8),
-          // _buildDetailRow(Icons.calendar_today, 'Delivery Date',
-          //     _formatDeliveryDate(widget.order.deliveryDate)),
-          // const SizedBox(height: AppSizes.spacing8),
-          // _buildDetailRow(
-          //     Icons.access_time, 'Delivery Slot', _formatDeliverySlot(widget.order.deliverySlot)),
-          // const SizedBox(height: AppSizes.spacing8),
-          _buildDetailRow(Icons.phone, 'Contact', widget.order.deliveryAddress.contactNumber),
-          if (widget.order.deliveryAddress.deliveryInstructions != null) ...[
+          _buildDetailRow(Icons.phone, 'Contact', order.deliveryAddress.contactNumber),
+          if (order.deliveryAddress.deliveryInstructions != null) ...[
             const SizedBox(height: AppSizes.spacing8),
             _buildDetailRow(Icons.note, 'Delivery Instructions',
-                widget.order.deliveryAddress.deliveryInstructions!),
+                order.deliveryAddress.deliveryInstructions!),
           ],
         ],
       ),
@@ -373,18 +395,18 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     );
   }
 
-  Widget _buildPriceSummary() {
+  Widget _buildPriceSummary(OrderHistory order) {
     final pricing = ref
             .watch(appConstantsProvider)
             .valueOrNull
             ?.pricing ??
         PricingConstants.defaults;
 
-    final subtotal = widget.order.subtotal;
+    final subtotal = order.subtotal;
     final platformCharge = pricing.platformFee;
     final deliveryCharge = pricing.deliveryCharge;
     final tax = (subtotal + platformCharge) * pricing.gstRate ;
-    final discount = widget.order.discount;
+    final discount = order.discount;
     final total = subtotal + tax + platformCharge + deliveryCharge - discount;
 
     return Container(
@@ -460,13 +482,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             child: Row(
               children: [
                 Icon(
-                  _getPaymentIcon(widget.order.paymentMethod),
+                  _getPaymentIcon(order.paymentMethod),
                   size: 18,
                   color: AppColors.primaryGreen,
                 ),
                 const SizedBox(width: AppSizes.spacing8),
                 Text(
-                  'Paid via ${_formatPaymentMethod(widget.order.paymentMethod)}',
+                  'Paid via ${_formatPaymentMethod(order.paymentMethod)}',
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize12,
                     fontWeight: AppTypography.medium,
@@ -510,8 +532,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   }
 
 
-  Widget _buildTimeline(BuildContext context) {
-    final currentStatus = _normalizeOrderStatus(widget.order.orderStatus);
+  Widget _buildTimeline(BuildContext context, OrderHistory order) {
+    final currentStatus = _normalizeOrderStatus(order.orderStatus);
     final steps = _getTimelineSteps(currentStatus);
     final currentStatusIndex = _getStatusIndex(currentStatus);
     final isNegativeTerminal = _isNegativeTerminalStatus(currentStatus);
@@ -717,9 +739,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         return -1;
     }
   }
-  Widget _buildInvoiceButton() {
+  Widget _buildInvoiceButton(OrderHistory order) {
     final isLoading = ref.watch(
-      orderHistoryProvider.select((s) => s.isInvoiceLoading(widget.order.id)),
+      orderHistoryProvider.select((s) => s.isInvoiceLoading(order.id)),
     );
 
     return SizedBox(

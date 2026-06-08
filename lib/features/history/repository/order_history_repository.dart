@@ -55,6 +55,62 @@ class OrderHistoryRepository {
     }
   }
 
+  /// Fetch the full, up-to-date details for a single order.
+  ///
+  /// GET /api/orders/:orderId/details — the payload is the order object, parsed
+  /// with the same [OrderHistory.fromJson] used by the list. Handles both
+  /// `data: {...}` and `data: { order: {...} }` envelope shapes.
+  Future<OrderHistory> getOrderById(String orderId) async {
+    debugPrint('[OrderHistoryRepository] Fetching order details: $orderId');
+
+    if (orderId.isEmpty) {
+      throw NetworkException(message: 'Invalid order id', originalError: null);
+    }
+
+    final token = _localStorage.getAuthToken();
+    if (token == null || token.isEmpty) {
+      throw AuthException(
+        message: 'Authentication required. Please login again.',
+      );
+    }
+
+    try {
+      final json = await _apiClient.getJson(
+        '${AppConfig.orderInvoicePath}/$orderId/details',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      // Endpoints sometimes omit `success`; default to true when absent.
+      final success = json['success'] as bool? ?? true;
+
+      Map<String, dynamic>? orderJson;
+      final data = json['data'];
+      if (data is Map<String, dynamic>) {
+        orderJson = data['order'] is Map<String, dynamic>
+            ? data['order'] as Map<String, dynamic>
+            : data;
+      } else if (json['order'] is Map<String, dynamic>) {
+        orderJson = json['order'] as Map<String, dynamic>;
+      }
+
+      if (!success || orderJson == null || orderJson.isEmpty) {
+        throw NetworkException(
+          message: json['message'] as String? ?? 'Order details not found',
+          originalError: null,
+        );
+      }
+
+      return OrderHistory.fromJson(orderJson);
+    } catch (e) {
+      debugPrint('[OrderHistoryRepository] Order details error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
   /// Fetch order history with pagination
   Future<OrderHistoryResponse> getOrderHistory({
     int limit = 20,
