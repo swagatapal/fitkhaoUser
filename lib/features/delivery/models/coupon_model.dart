@@ -17,6 +17,17 @@ class CouponModel {
   final String validFrom;
   final String validUntil;
 
+  /// Promotional banner image. When present, the card renders this image
+  /// instead of the text-based design.
+  final String? couponImage;
+
+  /// Optional rich content (currently unused in the card design).
+  final String? couponContent;
+
+  /// Downloadable promotion documents (e.g. PDFs). When present alongside
+  /// [couponImage], a download button is overlaid on the banner image.
+  final List<String> promotionFiles;
+
   const CouponModel({
     required this.id,
     required this.code,
@@ -31,10 +42,23 @@ class CouponModel {
     required this.priority,
     required this.validFrom,
     required this.validUntil,
+    this.couponImage,
+    this.couponContent,
+    this.promotionFiles = const [],
   });
+
+  /// True when a promotional banner image should be shown instead of the
+  /// text-based card layout.
+  bool get hasImage => couponImage != null && couponImage!.isNotEmpty;
+
+  /// True when downloadable promotion files are attached.
+  bool get hasPromotionFiles => promotionFiles.isNotEmpty;
 
   factory CouponModel.fromJson(Map<String, dynamic> json) {
     final rawType = (json['discountType'] as String? ?? '').toLowerCase();
+    final rawImage = json['couponImage'] as String?;
+    final rawContent = json['couponContent'] as String?;
+    final rawFiles = json['promotionFiles'];
     return CouponModel(
       id: json['_id'] as String? ?? json['id'] as String? ?? '',
       code: json['code'] as String? ?? '',
@@ -51,6 +75,15 @@ class CouponModel {
       priority: (json['priority'] as num?)?.toInt() ?? 0,
       validFrom: json['validFrom'] as String? ?? '',
       validUntil: json['validUntil'] as String? ?? '',
+      couponImage: (rawImage != null && rawImage.isNotEmpty) ? rawImage : null,
+      couponContent:
+          (rawContent != null && rawContent.isNotEmpty) ? rawContent : null,
+      promotionFiles: rawFiles is List
+          ? rawFiles
+              .whereType<String>()
+              .where((s) => s.isNotEmpty)
+              .toList()
+          : const [],
     );
   }
 

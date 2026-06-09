@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -2497,6 +2498,231 @@ class _CouponCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // When the coupon carries a promotional banner image, render it directly
+    // in place of the text-based design.
+    if (coupon.hasImage) return _buildImageCard(context);
+    return _buildTextCard(context);
+  }
+
+  // ─── Image-based card ──────────────────────────────────────────────────────
+
+  Widget _buildImageCard(BuildContext context) {
+    return Opacity(
+      opacity: isEligible ? 1.0 : 0.5,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        child: Stack(
+          children: [
+            // Banner image — tap to apply (when eligible & not applied).
+            InkWell(
+              onTap: onApply,
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isApplied
+                          ? AppColors.primaryGreen
+                          : AppColors.borderColor,
+                      width: isApplied
+                          ? AppSizes.borderMedium
+                          : AppSizes.borderThin,
+                    ),
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    child: Image.network(
+                      coupon.couponImage!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return Container(
+                          color: AppColors.primaryGreen.withValues(alpha: 0.06),
+                          alignment: Alignment.center,
+                          child: const SizedBox(
+                            width: AppSizes.icon24,
+                            height: AppSizes.icon24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.primaryGreen,
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (_, __, ___) => Container(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.local_offer_outlined,
+                          size: AppSizes.icon32,
+                          color: AppColors.primaryGreen,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Applied badge (top-left).
+            if (isApplied)
+              Positioned(
+                top: AppSizes.spacing8,
+                left: AppSizes.spacing8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.spacing8,
+                    vertical: AppSizes.spacing4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen,
+                    borderRadius: BorderRadius.circular(AppSizes.radius20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle,
+                          color: Colors.white, size: AppSizes.icon12),
+                      SizedBox(width: AppSizes.spacing4),
+                      Text(
+                        'Applied',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize10,
+                          fontWeight: AppTypography.bold,
+                          color: Colors.white,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // Download button (top-right) — only when promotion files exist.
+            if (coupon.hasPromotionFiles)
+              Positioned(
+                top: AppSizes.spacing8,
+                right: AppSizes.spacing8,
+                child: Material(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => _handleDownload(context),
+                    child: const Padding(
+                      padding: EdgeInsets.all(AppSizes.spacing8),
+                      child: Icon(
+                        Icons.download_rounded,
+                        color: Colors.white,
+                        size: AppSizes.icon20,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Remove action (bottom-right) when applied.
+            if (isApplied)
+              Positioned(
+                bottom: AppSizes.spacing8,
+                right: AppSizes.spacing8,
+                child: Material(
+                  color: AppColors.errorColor.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(AppSizes.radius6),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppSizes.radius6),
+                    onTap: onRemove,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppSizes.spacing12,
+                        vertical: AppSizes.spacing6,
+                      ),
+                      child: Text(
+                        'Remove',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          fontWeight: AppTypography.semiBold,
+                          color: Colors.white,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Ineligible overlay note (bottom-left).
+            if (!isEligible && coupon.minOrderAmount > 0)
+              Positioned(
+                bottom: AppSizes.spacing8,
+                left: AppSizes.spacing8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.spacing8,
+                    vertical: AppSizes.spacing4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(AppSizes.radius4),
+                  ),
+                  child: Text(
+                    'Min order ₹${coupon.minOrderAmount.toInt()}',
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize10,
+                      fontWeight: AppTypography.semiBold,
+                      color: Colors.white,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Opens the first promotion file in the external browser (Chrome), which
+  /// triggers the platform's native download handling for the PDF.
+  Future<void> _handleDownload(BuildContext context) async {
+    final fileUrl = coupon.promotionFiles.first;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final uri = Uri.parse(fileUrl);
+      final launched =
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not open the file. Please try again.',
+              style: TextStyle(fontFamily: 'Lato'),
+            ),
+            backgroundColor: AppColors.errorColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[CouponCard] Download error: $e');
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not open the file. Please try again.',
+            style: TextStyle(fontFamily: 'Lato'),
+          ),
+          backgroundColor: AppColors.errorColor,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // ─── Text-based card (default) ─────────────────────────────────────────────
+
+  Widget _buildTextCard(BuildContext context) {
     final isFlat = coupon.discountType == CouponDiscountType.flat;
 
     return Opacity(

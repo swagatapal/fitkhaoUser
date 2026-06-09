@@ -481,8 +481,8 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
     address += ', ${last.country ?? ''}';
 
     return {
-      'latitude': position.latitude,
-      'longitude': position.longitude,
+      'latitude': double.parse(position.latitude.toStringAsFixed(6)),
+      'longitude': double.parse(position.longitude.toStringAsFixed(6)),
       'building': building,
       'street': address,
       'pincode': place.postalCode ?? '',
