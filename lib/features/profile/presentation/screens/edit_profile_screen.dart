@@ -130,14 +130,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   bool get _isFormValid {
-    return _name.trim().isNotEmpty &&
-        _building.trim().isNotEmpty &&
-        _floor.trim().isNotEmpty &&
-        _street.trim().isNotEmpty &&
-        _pincode.trim().length == AppSizes.maxLengthPincode &&
-        _landmark.trim().isNotEmpty &&
-        _latitude != null &&
-        _longitude != null;
+    return _name.trim().isNotEmpty ;
+        // &&
+        // _building.trim().isNotEmpty &&
+        // _floor.trim().isNotEmpty &&
+        // _street.trim().isNotEmpty &&
+        // _pincode.trim().length == AppSizes.maxLengthPincode &&
+        // _landmark.trim().isNotEmpty &&
+        // _latitude != null &&
+        // _longitude != null;
   }
 
   Future<void> _pickImage() async {
@@ -504,166 +505,171 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                             : null,
                                       ),
                                     ),
+                                    const SizedBox(height: 16),
+
+                                    _field(label: "Phone number (can not editable)", child: Text(authState.phoneNumber))
+
+
                                   ],
                                 ),
                                 const SizedBox(height: 16),
-                                _sectionCard(
-                                  icon: Icons.location_on_outlined,
-                                  title: 'Your Home Address',
-                                  children: [
-                                    _field(
-                                      label:
-                                          '${AppStrings.buildingNameNumber} *',
-                                      child: _buildTextField(
-                                        controller: _buildingController,
-                                        focusNode: _buildingFocusNode,
-                                        hint:
-                                            AppStrings.buildingNameNumber,
-                                        prefixIcon:
-                                            Icons.apartment_rounded,
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter
-                                              .deny(
-                                            RegExp(
-                                              r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                              r'\ud83c[\ud000-\udfff]|'
-                                              r'\ud83d[\ud000-\udfff]|'
-                                              r'\ud83e[\ud000-\udfff])',
-                                            ),
-                                          ),
-                                        ],
-                                        onChanged: (value) => setState(
-                                            () =>
-                                                _building = value.trim()),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(
-                                          child: _field(
-                                            label:
-                                                '${AppStrings.floorNumber} *',
-                                            child: _buildTextField(
-                                              controller:
-                                                  _floorController,
-                                              focusNode: _floorFocusNode,
-                                              hint:
-                                                  AppStrings.floorNumber,
-                                              prefixIcon:
-                                                  Icons.stairs_outlined,
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              inputFormatters: [
-                                                FilteringTextInputFormatter
-                                                    .digitsOnly,
-                                              ],
-                                              onChanged: (value) =>
-                                                  setState(() => _floor =
-                                                      value.trim()),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: _field(
-                                            label:
-                                                '${AppStrings.pincode} *',
-                                            child: _buildTextField(
-                                              controller:
-                                                  _pincodeController,
-                                              focusNode:
-                                                  _pincodeFocusNode,
-                                              hint: AppStrings.pincode,
-                                              prefixIcon:
-                                                  Icons.pin_drop_outlined,
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              inputFormatters: [
-                                                FilteringTextInputFormatter
-                                                    .digitsOnly,
-                                                LengthLimitingTextInputFormatter(
-                                                    6),
-                                              ],
-                                              onChanged: (value) =>
-                                                  setState(() =>
-                                                      _pincode =
-                                                          value.trim()),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _field(
-                                      label: '${AppStrings.street} *',
-                                      child: _buildTextField(
-                                        controller: _streetController,
-                                        focusNode: _streetFocusNode,
-                                        hint: AppStrings.street,
-                                        prefixIcon:
-                                            Icons.signpost_outlined,
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter
-                                              .deny(
-                                            RegExp(
-                                              r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                              r'\ud83c[\ud000-\udfff]|'
-                                              r'\ud83d[\ud000-\udfff]|'
-                                              r'\ud83e[\ud000-\udfff])',
-                                            ),
-                                          ),
-                                        ],
-                                        onChanged: (value) => setState(
-                                            () => _street = value.trim()),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _field(
-                                      label: '${AppStrings.landmark} *',
-                                      helper: AppStrings
-                                          .putYourDetailedAddress,
-                                      child: _buildTextField(
-                                        controller: _landmarkController,
-                                        focusNode: _landmarkFocusNode,
-                                        hint: AppStrings.landmark,
-                                        prefixIcon: Icons.place_outlined,
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter
-                                              .deny(
-                                            RegExp(
-                                              r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                              r'\ud83c[\ud000-\udfff]|'
-                                              r'\ud83d[\ud000-\udfff]|'
-                                              r'\ud83e[\ud000-\udfff])',
-                                            ),
-                                          ),
-                                        ],
-                                        onChanged: (value) => setState(
-                                            () =>
-                                                _landmark = value.trim()),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _buildMapLocationIndicator(),
-                                    const SizedBox(height: 12),
-                                    PrimaryButton(
-                                      height: context.inputHeight,
-                                      text: AppStrings.locateOnMap,
-                                      onPressed: !_isNavigatingToMap &&
-                                              !_isSavingProfile
-                                          ? _handleLocateOnMap
-                                          : null,
-                                      textColor: AppColors.textWhite,
-                                      backgroundColor:
-                                          const Color(0xFF5D9E40),
-                                      borderRadius: AppSizes.radius8,
-                                      isLoading: _isNavigatingToMap,
-                                    ),
-                                  ],
-                                ),
+                                // _sectionCard(
+                                //   icon: Icons.location_on_outlined,
+                                //   title: 'Your Home Address',
+                                //   children: [
+                                //     _field(
+                                //       label:
+                                //           '${AppStrings.buildingNameNumber} *',
+                                //       child: _buildTextField(
+                                //         controller: _buildingController,
+                                //         focusNode: _buildingFocusNode,
+                                //         hint:
+                                //             AppStrings.buildingNameNumber,
+                                //         prefixIcon:
+                                //             Icons.apartment_rounded,
+                                //         inputFormatters: [
+                                //           FilteringTextInputFormatter
+                                //               .deny(
+                                //             RegExp(
+                                //               r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                //               r'\ud83c[\ud000-\udfff]|'
+                                //               r'\ud83d[\ud000-\udfff]|'
+                                //               r'\ud83e[\ud000-\udfff])',
+                                //             ),
+                                //           ),
+                                //         ],
+                                //         onChanged: (value) => setState(
+                                //             () =>
+                                //                 _building = value.trim()),
+                                //       ),
+                                //     ),
+                                //     const SizedBox(height: 16),
+                                //     Row(
+                                //       crossAxisAlignment:
+                                //           CrossAxisAlignment.start,
+                                //       children: [
+                                //         Expanded(
+                                //           child: _field(
+                                //             label:
+                                //                 '${AppStrings.floorNumber} *',
+                                //             child: _buildTextField(
+                                //               controller:
+                                //                   _floorController,
+                                //               focusNode: _floorFocusNode,
+                                //               hint:
+                                //                   AppStrings.floorNumber,
+                                //               prefixIcon:
+                                //                   Icons.stairs_outlined,
+                                //               keyboardType:
+                                //                   TextInputType.number,
+                                //               inputFormatters: [
+                                //                 FilteringTextInputFormatter
+                                //                     .digitsOnly,
+                                //               ],
+                                //               onChanged: (value) =>
+                                //                   setState(() => _floor =
+                                //                       value.trim()),
+                                //             ),
+                                //           ),
+                                //         ),
+                                //         const SizedBox(width: 12),
+                                //         Expanded(
+                                //           child: _field(
+                                //             label:
+                                //                 '${AppStrings.pincode} *',
+                                //             child: _buildTextField(
+                                //               controller:
+                                //                   _pincodeController,
+                                //               focusNode:
+                                //                   _pincodeFocusNode,
+                                //               hint: AppStrings.pincode,
+                                //               prefixIcon:
+                                //                   Icons.pin_drop_outlined,
+                                //               keyboardType:
+                                //                   TextInputType.number,
+                                //               inputFormatters: [
+                                //                 FilteringTextInputFormatter
+                                //                     .digitsOnly,
+                                //                 LengthLimitingTextInputFormatter(
+                                //                     6),
+                                //               ],
+                                //               onChanged: (value) =>
+                                //                   setState(() =>
+                                //                       _pincode =
+                                //                           value.trim()),
+                                //             ),
+                                //           ),
+                                //         ),
+                                //       ],
+                                //     ),
+                                //     const SizedBox(height: 16),
+                                //     _field(
+                                //       label: '${AppStrings.street} *',
+                                //       child: _buildTextField(
+                                //         controller: _streetController,
+                                //         focusNode: _streetFocusNode,
+                                //         hint: AppStrings.street,
+                                //         prefixIcon:
+                                //             Icons.signpost_outlined,
+                                //         inputFormatters: [
+                                //           FilteringTextInputFormatter
+                                //               .deny(
+                                //             RegExp(
+                                //               r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                //               r'\ud83c[\ud000-\udfff]|'
+                                //               r'\ud83d[\ud000-\udfff]|'
+                                //               r'\ud83e[\ud000-\udfff])',
+                                //             ),
+                                //           ),
+                                //         ],
+                                //         onChanged: (value) => setState(
+                                //             () => _street = value.trim()),
+                                //       ),
+                                //     ),
+                                //     const SizedBox(height: 16),
+                                //     _field(
+                                //       label: '${AppStrings.landmark} *',
+                                //       helper: AppStrings
+                                //           .putYourDetailedAddress,
+                                //       child: _buildTextField(
+                                //         controller: _landmarkController,
+                                //         focusNode: _landmarkFocusNode,
+                                //         hint: AppStrings.landmark,
+                                //         prefixIcon: Icons.place_outlined,
+                                //         inputFormatters: [
+                                //           FilteringTextInputFormatter
+                                //               .deny(
+                                //             RegExp(
+                                //               r'(\u00a9|\u00ae|[\u2000-\u3300]|'
+                                //               r'\ud83c[\ud000-\udfff]|'
+                                //               r'\ud83d[\ud000-\udfff]|'
+                                //               r'\ud83e[\ud000-\udfff])',
+                                //             ),
+                                //           ),
+                                //         ],
+                                //         onChanged: (value) => setState(
+                                //             () =>
+                                //                 _landmark = value.trim()),
+                                //       ),
+                                //     ),
+                                //     const SizedBox(height: 16),
+                                //     _buildMapLocationIndicator(),
+                                //     const SizedBox(height: 12),
+                                //     PrimaryButton(
+                                //       height: context.inputHeight,
+                                //       text: AppStrings.locateOnMap,
+                                //       onPressed: !_isNavigatingToMap &&
+                                //               !_isSavingProfile
+                                //           ? _handleLocateOnMap
+                                //           : null,
+                                //       textColor: AppColors.textWhite,
+                                //       backgroundColor:
+                                //           const Color(0xFF5D9E40),
+                                //       borderRadius: AppSizes.radius8,
+                                //       isLoading: _isNavigatingToMap,
+                                //     ),
+                                //   ],
+                                // ),
                               ],
                             ),
                           ),

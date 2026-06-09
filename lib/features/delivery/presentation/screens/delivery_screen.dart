@@ -89,7 +89,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final areaBlocked =
         ref.read(deliveryGateProvider).areaBlocksOrdering;
     final reason = areaBlocked
-        ? 'We don’t deliver to your area yet.'
+        ? 'We don’t deliver to your area yet. Add another address for delivery'
         : (ref.read(kitchenProvider).kitchenClosedReason ??
             'The outlet is currently closed');
     ScaffoldMessenger.of(context)

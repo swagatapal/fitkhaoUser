@@ -10,6 +10,7 @@ import '../../../core/router/route_names.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../shared/widgets/logo_widget.dart';
 import '../../../shared/widgets/primary_button.dart';
+import '../models/auth_state.dart';
 import '../providers/auth_provider.dart';
 
 class NameInputScreen extends ConsumerStatefulWidget {
@@ -23,6 +24,7 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
   final TextEditingController _nameController = TextEditingController();
   final FocusNode _nameFocusNode = FocusNode();
   String _name = '';
+  bool _isProcessing = false;
 
   @override
   void dispose() {
@@ -31,27 +33,54 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
     super.dispose();
   }
 
-  void _handleContinue() {
-    // Save name to auth provider
+  Future<void> _handleContinue() async {
     ref.read(authProvider.notifier).saveName(_name);
 
-    // Navigate to address input screen
-    context.go(RouteNames.addressInput);
+    setState(() => _isProcessing = true);
+    // Address fields are not collected here; AuthState defaults ('' / 0.0)
+    // are serialised correctly by Address.toFullJson().
+    final success = await ref.read(authProvider.notifier).completeRegistration();
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registration completed successfully!'),
+          backgroundColor: AppColors.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      context.go(RouteNames.home);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Get responsive values
+    final authState = ref.watch(authProvider);
+
+    ref.listen<AuthState>(authProvider, (_, next) {
+      if (next.errorMessage != null && next.errorMessage!.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.errorMessage!),
+            backgroundColor: AppColors.errorColor,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    });
+
     final horizontalPadding = context.horizontalPadding;
     final verticalPadding = context.verticalPadding;
     final spacing8 = context.responsiveSpacing(8.0);
-    final spacing16 = context.responsiveSpacing(16.0);
     final spacing24 = context.responsiveSpacing(24.0);
     final spacing40 = context.responsiveSpacing(40.0);
     final spacing48 = context.responsiveSpacing(48.0);
-    final radiusSmall = context.responsiveSpacing(4.0);
 
-    final inputHeight = context.inputHeight;
+    final isSubmitting = _isProcessing || authState.isLoading;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -65,10 +94,8 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(height: spacing40),
-              // Logo
               const Center(child: LogoWidget()),
               SizedBox(height: spacing48),
-              // Title
               Text(
                 AppStrings.tellUsYourName,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
@@ -78,7 +105,6 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
                 ),
               ),
               SizedBox(height: spacing8),
-              // Subtitle
               Text(
                 AppStrings.pleaseEnterYourName,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -89,7 +115,6 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
                 ),
               ),
               SizedBox(height: spacing40),
-              // Name Input Field
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -120,22 +145,19 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
                     focusNode: _nameFocusNode,
                     keyboardType: TextInputType.name,
                     textCapitalization: TextCapitalization.words,
-
+                    enabled: !isSubmitting,
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
                     ],
-
                     onChanged: (value) {
                       setState(() {
                         _name = value.trim();
                       });
                     },
-
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       fontSize: context.responsiveFontSize(16.0),
                       fontFamily: 'Lato',
                     ),
-
                     decoration: InputDecoration(
                       hintText: 'Your Name',
                       hintStyle: TextStyle(
@@ -167,6 +189,15 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
                           width: AppSizes.borderMedium,
                         ),
                       ),
+                      disabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          context.responsiveSpacing(4.0),
+                        ),
+                        borderSide: const BorderSide(
+                          color: AppColors.borderColor,
+                          width: AppSizes.borderMedium,
+                        ),
+                      ),
                     ),
                   ),
                   SizedBox(height: spacing8),
@@ -181,12 +212,11 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
                 ],
               ),
               SizedBox(height: spacing24),
-              // Continue Button
               PrimaryButton(
                 text: AppStrings.continueText,
                 textColor: Colors.white,
-                onPressed: _name.isNotEmpty ? _handleContinue : null,
-                isLoading: false,
+                onPressed: _name.isNotEmpty && !isSubmitting ? _handleContinue : null,
+                isLoading: isSubmitting,
                 height: AppSizes.buttonHeight,
                 disabledBackgroundColor: const Color(0xFFA0D488),
               ),

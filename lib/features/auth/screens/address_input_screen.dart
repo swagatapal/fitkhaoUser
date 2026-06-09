@@ -39,7 +39,7 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
   String _pincode = '';
   String _landmark = '';
   bool _isNavigatingToMap = false;
-  bool _isProcessing = false;
+  bool _isSaving = false;
   double? _latitude;
   double? _longitude;
 
@@ -69,7 +69,6 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
   }
 
   Future<void> _handleContinue() async {
-    // Concatenate building + floor, and street + landmark
     final buildingFull = '${_building.trim()}, Floor number :  ${_floor.trim()}';
     final streetFull = '${_street.trim()},Landmark :  ${_landmark.trim()}';
 
@@ -81,16 +80,15 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
       longitude: _longitude,
     );
 
-    setState(() => _isProcessing = true);
-    final success =
-        await ref.read(authProvider.notifier).completeRegistration();
+    setState(() => _isSaving = true);
+    final success = await ref.read(authProvider.notifier).updateProfile();
     if (!mounted) return;
-    setState(() => _isProcessing = false);
+    setState(() => _isSaving = false);
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Registration completed successfully!'),
+          content: Text('Address saved successfully!'),
           backgroundColor: AppColors.primaryGreen,
           behavior: SnackBarBehavior.floating,
           duration: Duration(seconds: 2),
@@ -435,7 +433,7 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
               PrimaryButton(
                 height: AppSizes.buttonHeight,
                 text: AppStrings.locateOnMap,
-                onPressed: !_isNavigatingToMap && !_isProcessing
+                onPressed: !_isNavigatingToMap && !_isSaving
                     ? _handleLocateOnMap
                     : null,
                 textColor: AppColors.textWhite,
@@ -444,14 +442,13 @@ class _AddressInputScreenState extends ConsumerState<AddressInputScreen> {
                 isLoading: _isNavigatingToMap,
               ),
               SizedBox(height: spacing16),
-              // Continue Button
               PrimaryButton(
                 text: AppStrings.continueText,
                 textColor: Colors.white,
-                onPressed: _isFormValid && !_isProcessing && !authState.isLoading
-                    ? () { _handleContinue(); }
+                onPressed: _isFormValid && !_isSaving && !authState.isLoading
+                    ? _handleContinue
                     : null,
-                isLoading: _isProcessing || authState.isLoading,
+                isLoading: _isSaving || authState.isLoading,
                 height: AppSizes.buttonHeight,
                 disabledBackgroundColor: const Color(0xFFA0D488),
               ),

@@ -92,7 +92,7 @@ class RazorpayService {
   void _handleFailure(PaymentFailureResponse response) {
     debugPrint(
         '[RazorpayService] FAILURE — code=${response.code} msg=${response.message}');
-    onFailure(response.code ?? -1, _buildErrorMessage(response));
+    //onFailure(response.code ?? -1, _buildErrorMessage(response));
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
