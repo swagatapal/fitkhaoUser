@@ -84,13 +84,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: AppSizes.spacing12),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSizes.screenPaddingHorizontal,
-                      ),
-                      child: _buildSearchBar(),
-                    ),
-                    const SizedBox(height: AppSizes.spacing8),
+                    // Padding(
+                    //   padding: const EdgeInsets.symmetric(
+                    //     horizontal: AppSizes.screenPaddingHorizontal,
+                    //   ),
+                    //   child: _buildSearchBar(),
+                    // ),
+                    // const SizedBox(height: AppSizes.spacing8),
                     Expanded(
                       child: Material(
                         color: AppColors.textWhite,
@@ -815,7 +815,7 @@ class _OrderCardState extends State<_OrderCard> {
                           ],
                         ),
                         Text(
-                          'Order #${widget.order.orderNumber} • ${widget.order.items.length} items • (${widget.order.kitchen.name} kitchen)',
+                          'Order #${widget.order.orderNumber} • ${widget.order.items.length} items • (${widget.order.kitchen.name} )',
                           style: const TextStyle(
                             fontSize: AppTypography.fontSize12,
                             color: AppColors.textSecondary,
