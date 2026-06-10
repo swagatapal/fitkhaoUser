@@ -16,6 +16,49 @@ class OrderHistoryRepository {
   })  : _apiClient = apiClient,
         _localStorage = localStorage;
 
+  /// Submit per-dish ratings and optional overall feedback for a delivered order.
+  ///
+  /// POST /api/user/dish/review
+  Future<void> submitReview({
+    required String orderId,
+    required List<DishRatingInput> items,
+    String? feedback,
+  }) async {
+    debugPrint('[OrderHistoryRepository] Submitting review for order: $orderId');
+
+    final token = _localStorage.getAuthToken();
+    if (token == null || token.isEmpty) {
+      throw AuthException(message: 'Authentication required. Please login again.');
+    }
+
+    final body = <String, dynamic>{
+      'orderId': orderId,
+      'items': items.map((e) => e.toJson()).toList(),
+      if (feedback != null && feedback.isNotEmpty) 'feedback': feedback,
+    };
+
+    try {
+      final json = await _apiClient.postJson(
+        AppConfig.dishReviewPath,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: body,
+      );
+
+      final success = json['success'] as bool? ?? false;
+      if (!success) {
+        final msg = json['message'] as String? ?? 'Failed to submit review';
+        throw NetworkException(message: msg, originalError: null);
+      }
+    } catch (e) {
+      debugPrint('[OrderHistoryRepository] Review submission error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
   /// Generate and fetch the invoice URL for a given order.
   Future<String> getInvoiceUrl(String orderId) async {
     debugPrint('[OrderHistoryRepository] Generating invoice for order: $orderId');

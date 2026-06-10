@@ -71,6 +71,7 @@ class AppConfig {
   static const String razorpayVerifyPaymentPath = '/api/razorpay/verify-payment';
   static const String notificationsPath = '/api/notifications';
   static const String userHistoryPath = '/api/user/history';
+  static const String dishReviewPath = '/api/user/dish/review';
 
   /// Server-backed cart (GET fetch / POST upsert+remove).
   static const String cartPath = '/api/cart';

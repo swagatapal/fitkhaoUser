@@ -14,6 +14,9 @@ class OrderHistoryState {
   /// Per-order invoice loading state (keyed by orderId).
   final Map<String, bool> invoiceLoading;
 
+  /// Order IDs that have a review submission in-flight.
+  final Set<String> reviewSubmitting;
+
   const OrderHistoryState({
     this.orders = const [],
     this.isLoading = false,
@@ -21,9 +24,11 @@ class OrderHistoryState {
     this.hasMore = true,
     this.currentOffset = 0,
     this.invoiceLoading = const {},
+    this.reviewSubmitting = const {},
   });
 
   bool isInvoiceLoading(String orderId) => invoiceLoading[orderId] == true;
+  bool isReviewSubmitting(String orderId) => reviewSubmitting.contains(orderId);
 
   OrderHistoryState copyWith({
     List<OrderHistory>? orders,
@@ -32,6 +37,7 @@ class OrderHistoryState {
     bool? hasMore,
     int? currentOffset,
     Map<String, bool>? invoiceLoading,
+    Set<String>? reviewSubmitting,
   }) {
     return OrderHistoryState(
       orders: orders ?? this.orders,
@@ -40,6 +46,7 @@ class OrderHistoryState {
       hasMore: hasMore ?? this.hasMore,
       currentOffset: currentOffset ?? this.currentOffset,
       invoiceLoading: invoiceLoading ?? this.invoiceLoading,
+      reviewSubmitting: reviewSubmitting ?? this.reviewSubmitting,
     );
   }
 }
@@ -119,6 +126,32 @@ class OrderHistoryNotifier extends StateNotifier<OrderHistoryState> {
     } finally {
       state = state.copyWith(
         invoiceLoading: {...state.invoiceLoading, orderId: false},
+      );
+    }
+  }
+
+  /// Submit per-dish ratings and optional overall feedback for a delivered order.
+  /// Throws on failure so the UI can display an error snackbar.
+  /// On success, invalidates the cached order details so the screen refreshes.
+  Future<void> submitReview({
+    required String orderId,
+    required List<DishRatingInput> items,
+    String? feedback,
+  }) async {
+    state = state.copyWith(
+      reviewSubmitting: {...state.reviewSubmitting, orderId},
+    );
+    try {
+      final repository = ref.read(orderHistoryRepositoryProvider);
+      await repository.submitReview(
+        orderId: orderId,
+        items: items,
+        feedback: feedback,
+      );
+      ref.invalidate(orderDetailsProvider(orderId));
+    } finally {
+      state = state.copyWith(
+        reviewSubmitting: state.reviewSubmitting.difference({orderId}),
       );
     }
   }

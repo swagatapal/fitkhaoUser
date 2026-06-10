@@ -157,6 +157,12 @@ class OrderHistory {
   /// (preparation + delivery). Drives the live ETA countdown.
   final int? totalEstimatedDeliveryTimeMinutes;
 
+  /// Whether the user has already submitted a review for this order.
+  final bool isReviewed;
+
+  /// Overall feedback text submitted by the user (null until reviewed).
+  final String? feedback;
+
   const OrderHistory({
     required this.id,
     required this.orderNumber,
@@ -185,6 +191,8 @@ class OrderHistory {
     this.preparationTimeMinutes,
     this.deliveryTimeMinutes,
     this.totalEstimatedDeliveryTimeMinutes,
+    this.isReviewed = false,
+    this.feedback,
   });
 
   /// Statuses during which a live delivery ETA is meaningful — i.e. after the
@@ -276,6 +284,8 @@ class OrderHistory {
       deliveryTimeMinutes: (json['deliveryTimeMinutes'] as num?)?.toInt(),
       totalEstimatedDeliveryTimeMinutes:
           (json['totalEstimatedDeliveryTimeMinutes'] as num?)?.toInt(),
+      isReviewed: json['isReviewed'] as bool? ?? false,
+      feedback: json['feedback'] as String?,
     );
   }
 }
@@ -354,6 +364,40 @@ class DeliveryAddressHistory {
   }
 }
 
+/// Dish review submitted by the user after delivery
+class DishReview {
+  final int rating;
+  final String? review;
+
+  const DishReview({required this.rating, this.review});
+
+  factory DishReview.fromJson(Map<String, dynamic> json) {
+    return DishReview(
+      rating: (json['rating'] as num?)?.toInt() ?? 0,
+      review: json['review'] as String?,
+    );
+  }
+}
+
+/// Per-dish rating payload for the review submission API
+class DishRatingInput {
+  final String dishId;
+  final int rating;
+  final String? review;
+
+  const DishRatingInput({
+    required this.dishId,
+    required this.rating,
+    this.review,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'dishId': dishId,
+        'rating': rating,
+        if (review != null && review!.isNotEmpty) 'review': review,
+      };
+}
+
 /// Individual order item
 class OrderHistoryItem {
   final String id;
@@ -371,6 +415,7 @@ class OrderHistoryItem {
   final String deliveryDate;
   final String deliverySlot;
   final String? dishImage;
+  final DishReview? dishReview;
   final String createdAt;
   final String updatedAt;
 
@@ -390,6 +435,7 @@ class OrderHistoryItem {
     required this.deliveryDate,
     required this.deliverySlot,
     this.dishImage,
+    this.dishReview,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -413,6 +459,9 @@ class OrderHistoryItem {
       deliveryDate: json['deliveryDate'] as String? ?? '',
       deliverySlot: json['deliverySlot'] as String? ?? '',
       dishImage: json['dishImage'] as String?,
+      dishReview: json['dishReview'] is Map<String, dynamic>
+          ? DishReview.fromJson(json['dishReview'] as Map<String, dynamic>)
+          : null,
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
     );

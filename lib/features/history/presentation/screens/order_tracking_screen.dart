@@ -9,6 +9,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../models/order_history_model.dart';
 import '../../providers/order_history_provider.dart';
 import '../widgets/eta_countdown.dart';
+import '../widgets/order_review_sheet.dart';
 import '../../../policy/models/app_constants_model.dart';
 import '../../../policy/providers/app_constants_provider.dart';
 
@@ -93,6 +94,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                       const SizedBox(height: AppSizes.spacing16),
                       const SizedBox(height: AppSizes.spacing16),
                       _buildTimeline(context, order),
+                      if (_canReview(order)) ...[
+                        const SizedBox(height: AppSizes.spacing20),
+                        _buildReviewPrompt(context, order),
+                      ],
                       if (!_shouldHideHelpActions(order.orderStatus)) ...[
                         const SizedBox(height: AppSizes.spacing20),
                         _buildHelpRow(context),
@@ -849,6 +854,111 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         ),
       );
     }
+  }
+
+  bool _canReview(OrderHistory order) {
+    final status = _normalizeOrderStatus(order.orderStatus);
+    return status == 'delivered' && !order.isReviewed;
+  }
+
+  Widget _buildReviewPrompt(BuildContext context, OrderHistory order) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSizes.p16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
+        border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: AppSizes.opacity08),
+            blurRadius: AppSizes.shadowBlur12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSizes.spacing8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.star_rounded,
+                  color: AppColors.primaryGreen,
+                  size: AppSizes.icon20,
+                ),
+              ),
+              const SizedBox(width: AppSizes.spacing12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'How was your meal?',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize15,
+                        fontWeight: AppTypography.semiBold,
+                        color: AppColors.textPrimary,
+                        fontFamily: AppTypography.fontFamily,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Your feedback helps us serve you better',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        color: AppColors.textSecondary,
+                        fontFamily: AppTypography.fontFamily,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSizes.spacing12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => _openReviewSheet(context, order),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                padding:
+                    const EdgeInsets.symmetric(vertical: AppSizes.spacing12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Rate Your Order',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.semiBold,
+                  color: Colors.white,
+                  fontFamily: AppTypography.fontFamily,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openReviewSheet(BuildContext context, OrderHistory order) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => OrderReviewSheet(order: order),
+    );
   }
 
   Widget _buildHelpRow(BuildContext context) {
