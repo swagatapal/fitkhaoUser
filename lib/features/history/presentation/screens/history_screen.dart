@@ -18,6 +18,7 @@ import '../../../policy/models/app_constants_model.dart';
 import '../../../policy/providers/app_constants_provider.dart';
 import '../../models/order_history_model.dart';
 import '../../providers/order_history_provider.dart';
+import '../widgets/eta_countdown.dart';
 import 'order_tracking_screen.dart';
 
 /// Which tab the history screen opens on.
@@ -839,6 +840,17 @@ class _OrderCardState extends State<_OrderCard> {
                             ),
                           ],
                         ),
+                        if (widget.order.hasLiveEta) ...[
+                          const SizedBox(height: AppSizes.spacing8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: EtaCountdown(
+                              estimatedDeliveryAt:
+                                  widget.order.estimatedDeliveryAt!,
+                              compact: true,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -1016,11 +1028,13 @@ class _OrderCardState extends State<_OrderCard> {
   }
 
   static String _getStatusText(String status) {
-    switch (status.toLowerCase()) {
+    switch (status.trim().toLowerCase().replaceAll('-', '_')) {
       case 'pending':
         return 'Pending';
       case 'confirmed':
         return 'Confirmed';
+      case 'accepted_by_kitchen':
+        return 'Accepted';
       case 'preparing':
         return 'Preparing';
       case 'prepared':
@@ -1028,32 +1042,37 @@ class _OrderCardState extends State<_OrderCard> {
       case 'assigned':
         return 'Out for Delivery';
       case 'out_for_delivery':
-      case 'out-for-delivery':
         return 'On the way';
       case 'delivered':
         return 'Delivered';
       case 'cancelled':
         return 'Cancelled';
+      case 'rejected':
+        return 'Rejected';
+      case 'failed':
+        return 'Failed';
       default:
         return status;
     }
   }
 
   static Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
+    switch (status.trim().toLowerCase().replaceAll('-', '_')) {
       case 'pending':
       case 'confirmed':
-      case 'preparing':
         return Colors.orange;
+      case 'accepted_by_kitchen':
+      case 'preparing':
       case 'prepared':
         return AppColors.primaryGreen;
       case 'assigned':
       case 'out_for_delivery':
-      case 'out-for-delivery':
         return Colors.blue;
       case 'delivered':
         return AppColors.textSecondary;
       case 'cancelled':
+      case 'rejected':
+      case 'failed':
         return AppColors.errorColor;
       default:
         return AppColors.textSecondary;

@@ -144,6 +144,19 @@ class OrderHistory {
   final String createdAt;
   final String updatedAt;
 
+  /// ISO-8601 timestamp (UTC) of when the kitchen accepted the order.
+  final String? acceptedAt;
+
+  /// Kitchen's estimated minutes to prepare the order.
+  final int? preparationTimeMinutes;
+
+  /// Estimated minutes for the rider to deliver after pickup.
+  final int? deliveryTimeMinutes;
+
+  /// Total estimated minutes from acceptance to delivery
+  /// (preparation + delivery). Drives the live ETA countdown.
+  final int? totalEstimatedDeliveryTimeMinutes;
+
   const OrderHistory({
     required this.id,
     required this.orderNumber,
@@ -168,7 +181,44 @@ class OrderHistory {
     this.specialInstructions,
     required this.createdAt,
     required this.updatedAt,
+    this.acceptedAt,
+    this.preparationTimeMinutes,
+    this.deliveryTimeMinutes,
+    this.totalEstimatedDeliveryTimeMinutes,
   });
+
+  /// Statuses during which a live delivery ETA is meaningful — i.e. after the
+  /// kitchen accepts and before the order reaches a terminal state.
+  static const Set<String> _etaActiveStatuses = {
+    'accepted_by_kitchen',
+    'preparing',
+    'prepared',
+    'assigned',
+    'out_for_delivery',
+  };
+
+  /// Absolute (UTC) instant the order is estimated to be delivered:
+  /// [acceptedAt] + [totalEstimatedDeliveryTimeMinutes]. Null when either
+  /// input is missing/invalid.
+  DateTime? get estimatedDeliveryAt {
+    final accepted = acceptedAt;
+    final mins = totalEstimatedDeliveryTimeMinutes;
+    if (accepted == null || accepted.isEmpty || mins == null || mins <= 0) {
+      return null;
+    }
+    try {
+      return DateTime.parse(accepted).add(Duration(minutes: mins));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Whether a live ETA countdown should be shown for this order.
+  bool get hasLiveEta {
+    final normalized = orderStatus.trim().toLowerCase().replaceAll('-', '_');
+    return _etaActiveStatuses.contains(normalized) &&
+        estimatedDeliveryAt != null;
+  }
 
   factory OrderHistory.fromJson(Map<String, dynamic> json) {
     // deliverySlot: new API → object, legacy → string
@@ -220,6 +270,12 @@ class OrderHistory {
       specialInstructions: json['specialInstructions'] as String?,
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
+      acceptedAt: json['acceptedAt'] as String?,
+      preparationTimeMinutes:
+          (json['preparationTimeMinutes'] as num?)?.toInt(),
+      deliveryTimeMinutes: (json['deliveryTimeMinutes'] as num?)?.toInt(),
+      totalEstimatedDeliveryTimeMinutes:
+          (json['totalEstimatedDeliveryTimeMinutes'] as num?)?.toInt(),
     );
   }
 }

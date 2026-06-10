@@ -2516,49 +2516,46 @@ class _CouponCard extends StatelessWidget {
             // Banner image — tap to apply (when eligible & not applied).
             InkWell(
               onTap: onApply,
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: isApplied
-                          ? AppColors.primaryGreen
-                          : AppColors.borderColor,
-                      width: isApplied
-                          ? AppSizes.borderMedium
-                          : AppSizes.borderThin,
-                    ),
-                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: isApplied
+                        ? AppColors.primaryGreen
+                        : AppColors.borderColor,
+                    width: isApplied
+                        ? AppSizes.borderMedium
+                        : AppSizes.borderThin,
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(AppSizes.radius8),
-                    child: Image.network(
-                      coupon.couponImage!,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      loadingBuilder: (context, child, progress) {
-                        if (progress == null) return child;
-                        return Container(
-                          color: AppColors.primaryGreen.withValues(alpha: 0.06),
-                          alignment: Alignment.center,
-                          child: const SizedBox(
-                            width: AppSizes.icon24,
-                            height: AppSizes.icon24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.primaryGreen,
-                            ),
-                          ),
-                        );
-                      },
-                      errorBuilder: (_, __, ___) => Container(
-                        color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  child: Image.network(
+                    coupon.couponImage!,
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return Container(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.06),
                         alignment: Alignment.center,
-                        child: const Icon(
-                          Icons.local_offer_outlined,
-                          size: AppSizes.icon32,
-                          color: AppColors.primaryGreen,
+                        child: const SizedBox(
+                          width: AppSizes.icon24,
+                          height: AppSizes.icon24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primaryGreen,
+                          ),
                         ),
+                      );
+                    },
+                    errorBuilder: (_, __, ___) => Container(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.local_offer_outlined,
+                        size: AppSizes.icon32,
+                        color: AppColors.primaryGreen,
                       ),
                     ),
                   ),
@@ -2567,43 +2564,43 @@ class _CouponCard extends StatelessWidget {
             ),
 
             // Applied badge (top-left).
-            if (isApplied)
-              Positioned(
-                top: AppSizes.spacing8,
-                left: AppSizes.spacing8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSizes.spacing8,
-                    vertical: AppSizes.spacing4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryGreen,
-                    borderRadius: BorderRadius.circular(AppSizes.radius20),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.check_circle,
-                          color: Colors.white, size: AppSizes.icon12),
-                      SizedBox(width: AppSizes.spacing4),
-                      Text(
-                        'Applied',
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize10,
-                          fontWeight: AppTypography.bold,
-                          color: Colors.white,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            // if (isApplied)
+            //   Positioned(
+            //     top: AppSizes.spacing8,
+            //     left: AppSizes.spacing8,
+            //     child: Container(
+            //       padding: const EdgeInsets.symmetric(
+            //         horizontal: AppSizes.spacing8,
+            //         vertical: AppSizes.spacing4,
+            //       ),
+            //       decoration: BoxDecoration(
+            //         color: AppColors.primaryGreen,
+            //         borderRadius: BorderRadius.circular(AppSizes.radius20),
+            //       ),
+            //       child: const Row(
+            //         mainAxisSize: MainAxisSize.min,
+            //         children: [
+            //           Icon(Icons.check_circle,
+            //               color: Colors.white, size: AppSizes.icon12),
+            //           SizedBox(width: AppSizes.spacing4),
+            //           Text(
+            //             'Applied',
+            //             style: TextStyle(
+            //               fontSize: AppTypography.fontSize10,
+            //               fontWeight: AppTypography.bold,
+            //               color: Colors.white,
+            //               fontFamily: 'Lato',
+            //             ),
+            //           ),
+            //         ],
+            //       ),
+            //     ),
+            //   ),
 
             // Download button (top-right) — only when promotion files exist.
             if (coupon.hasPromotionFiles)
               Positioned(
-                top: AppSizes.spacing8,
+                bottom: AppSizes.spacing8,
                 right: AppSizes.spacing8,
                 child: Material(
                   color: Colors.black.withValues(alpha: 0.55),
@@ -2624,34 +2621,34 @@ class _CouponCard extends StatelessWidget {
               ),
 
             // Remove action (bottom-right) when applied.
-            if (isApplied)
-              Positioned(
-                bottom: AppSizes.spacing8,
-                right: AppSizes.spacing8,
-                child: Material(
-                  color: AppColors.errorColor.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(AppSizes.radius6),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(AppSizes.radius6),
-                    onTap: onRemove,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: AppSizes.spacing12,
-                        vertical: AppSizes.spacing6,
-                      ),
-                      child: Text(
-                        'Remove',
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize12,
-                          fontWeight: AppTypography.semiBold,
-                          color: Colors.white,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            // if (isApplied)
+            //   Positioned(
+            //     bottom: AppSizes.spacing8,
+            //     right: AppSizes.spacing8,
+            //     child: Material(
+            //       color: AppColors.errorColor.withValues(alpha: 0.9),
+            //       borderRadius: BorderRadius.circular(AppSizes.radius6),
+            //       child: InkWell(
+            //         borderRadius: BorderRadius.circular(AppSizes.radius6),
+            //         onTap: onRemove,
+            //         child: const Padding(
+            //           padding: EdgeInsets.symmetric(
+            //             horizontal: AppSizes.spacing12,
+            //             vertical: AppSizes.spacing6,
+            //           ),
+            //           child: Text(
+            //             'Remove',
+            //             style: TextStyle(
+            //               fontSize: AppTypography.fontSize12,
+            //               fontWeight: AppTypography.semiBold,
+            //               color: Colors.white,
+            //               fontFamily: 'Lato',
+            //             ),
+            //           ),
+            //         ),
+            //       ),
+            //     ),
+            //   ),
 
             // Ineligible overlay note (bottom-left).
             if (!isEligible && coupon.minOrderAmount > 0)

@@ -8,6 +8,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../models/order_history_model.dart';
 import '../../providers/order_history_provider.dart';
+import '../widgets/eta_countdown.dart';
 import '../../../policy/models/app_constants_model.dart';
 import '../../../policy/providers/app_constants_provider.dart';
 
@@ -75,6 +76,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _OrderSummaryCard(order: order),
+                      if (order.hasLiveEta) ...[
+                        const SizedBox(height: AppSizes.spacing16),
+                        EtaCountdown(
+                          estimatedDeliveryAt: order.estimatedDeliveryAt!,
+                        ),
+                      ],
                       const SizedBox(height: AppSizes.spacing16),
                       _buildOrderItems(order),
                       const SizedBox(height: AppSizes.spacing16),
