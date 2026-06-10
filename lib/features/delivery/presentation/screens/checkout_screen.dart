@@ -113,6 +113,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final cartItems = ref.watch(cartProvider);
+
+    // ── Empty cart state ──────────────────────────────────────────────────────
+    if (cartItems.isEmpty) {
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: _kLightScreenOverlay,
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          body: SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                const Expanded(child: _EmptyCartView()),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final totalPrice = ref.watch(cartTotalPriceProvider);
     final walletState = ref.watch(walletProvider);
 
@@ -2923,6 +2942,103 @@ class _CouponCard extends StatelessWidget {
           ),
         ),
             ),
+      ),
+    );
+  }
+}
+
+// ─── Empty Cart View ──────────────────────────────────────────────────────────
+//
+// Shown when the user lands on checkout with nothing in the cart.
+// Keeps the header (back button) and replaces the body with an illustration,
+// copy, and a "Browse Restaurants" CTA that navigates to the home screen.
+
+class _EmptyCartView extends StatelessWidget {
+  const _EmptyCartView();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSizes.p32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ── Illustration ──────────────────────────────────────────────
+            Image.asset(
+              'assets/images/cook.png',
+              // width: 240,
+              // height: 240,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 160,
+                height: 160,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.shopping_cart_outlined,
+                  size: 72,
+                  color: AppColors.primaryGreen,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacing24),
+
+            // ── Title ─────────────────────────────────────────────────────
+            const Text(
+              'Good Food is Always Cooking',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize20,
+                fontWeight: AppTypography.bold,
+                color: AppColors.textPrimary,
+                fontFamily: 'Lato',
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacing10),
+
+            // ── Subtitle ──────────────────────────────────────────────────
+            const Text(
+              'Your cart is empty. Add something from the menu',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize14,
+                color: AppColors.textSecondary,
+                fontFamily: 'Lato',
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacing32),
+
+            // ── CTA ───────────────────────────────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () =>
+                    Navigator.of(context).popUntil((route) => route.isFirst),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSizes.spacing16,
+                  ),
+                  shape: const StadiumBorder(),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Browse Restaurants Menu',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize16,
+                    fontWeight: AppTypography.bold,
+                    color: Colors.white,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
