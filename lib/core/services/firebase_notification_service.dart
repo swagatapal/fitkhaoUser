@@ -25,6 +25,21 @@ class FirebaseNotificationService {
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
 
+  // ── Notification channel / sound constants ──────────────────────────────
+  //
+  // Channel ID is versioned (v2) because Android notification channels are
+  // immutable once created on a device — changing the sound requires a new
+  // channel ID.  Devices that had the old `fitkhao_notifications` channel
+  // will automatically pick up this new one on next launch.
+  static const String _kChannelId   = 'fitkhao_notifications_v2';
+  static const String _kChannelName = 'FitKhao Notifications';
+
+  // Android: filename WITHOUT extension (file lives in res/raw/)
+  static const String _kAndroidSound = 'fitkhao_notification';
+
+  // iOS: filename WITH extension (file lives in ios/Runner/ Xcode bundle)
+  static const String _kIosSound = 'fitkhao_notification.aiff';
+
   String? _fcmToken;
   bool _isInitialized = false;
   bool _isAppReady = false;
@@ -153,23 +168,29 @@ class FirebaseNotificationService {
     }
   }
 
-  /// Create Android notification channel
+  /// Create Android notification channel with custom sound.
+  ///
+  /// Channel properties are set once at creation time and are immutable
+  /// afterwards — the versioned [_kChannelId] ensures a fresh channel is
+  /// created whenever the sound or importance changes.
   Future<void> _createAndroidNotificationChannel() async {
     try {
-      const channel = AndroidNotificationChannel(
-        'fitkhao_notifications', // ID
-        'Fitkhao Notifications', // Name
-        description: 'Notifications for Fitkhao app',
+      final channel = AndroidNotificationChannel(
+        _kChannelId,
+        _kChannelName,
+        description: 'Order updates and alerts from FitKhao',
         importance: Importance.high,
         playSound: true,
         enableVibration: true,
+        sound: const RawResourceAndroidNotificationSound(_kAndroidSound),
       );
 
       await _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
 
-      debugPrint('[FCM] Android notification channel created');
+      debugPrint('[FCM] Android notification channel created: $_kChannelId');
     } catch (e) {
       debugPrint('[FCM] Error creating notification channel: $e');
     }
@@ -215,27 +236,34 @@ class FirebaseNotificationService {
     }
   }
 
-  /// Show local notification
+  /// Show a local notification for a foreground FCM message.
+  ///
+  /// Android uses [_kChannelId] (which has the custom sound baked in at channel
+  /// creation time) and also sets the sound on the notification itself for
+  /// completeness.  iOS sets the sound file name explicitly.
   Future<void> _showLocalNotification(RemoteMessage message) async {
     try {
       final notification = message.notification;
       if (notification == null) return;
 
       const androidDetails = AndroidNotificationDetails(
-        'fitkhao_notifications',
-        'Fitkhao Notifications',
-        channelDescription: 'Notifications for Fitkhao app',
+        _kChannelId,
+        _kChannelName,
+        channelDescription: 'Order updates and alerts from FitKhao',
         importance: Importance.high,
         priority: Priority.high,
         showWhen: true,
         icon: '@drawable/ic_stat_notification',
-        //icon: '@mipmap/ic_launcher',
+        sound: RawResourceAndroidNotificationSound(_kAndroidSound),
+        playSound: true,
+        enableVibration: true,
       );
 
       const iosDetails = DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
         presentSound: true,
+        sound: _kIosSound,
       );
 
       const details = NotificationDetails(
@@ -251,7 +279,7 @@ class FirebaseNotificationService {
         payload: jsonEncode(message.data),
       );
 
-      debugPrint('[FCM] Local notification shown');
+      debugPrint('[FCM] Local notification shown with custom sound');
     } catch (e) {
       debugPrint('[FCM] Error showing local notification: $e');
     }
