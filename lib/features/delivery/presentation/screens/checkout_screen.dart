@@ -1356,6 +1356,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         deliveryAddress: pending.deliveryAddress,
         paymentMethod: 'wallet',
         specialInstructions: pending.specialInstructions,
+        couponIds: pending.couponIds,
       );
 
       _pendingOrder = null;
@@ -2621,19 +2622,22 @@ class _CouponCard extends StatelessWidget {
               Positioned(
                 bottom: AppSizes.spacing8,
                 right: AppSizes.spacing8,
-                child: Material(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => _handleDownload(context),
+                child: InkWell(
+                  onTap: () => _handleDownload(context),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Color(0XFFEFF5EB),
+                      borderRadius: BorderRadius.circular(4)
+                    ),
                     child: const Padding(
-                      padding: EdgeInsets.all(AppSizes.spacing8),
-                      child: Icon(
-                        Icons.download_rounded,
-                        color: Colors.white,
-                        size: AppSizes.icon20,
+                      padding: EdgeInsets.symmetric(vertical:AppSizes.spacing4,
+                      horizontal: AppSizes.spacing8
                       ),
+                      child: Text("Download Fixture", style: TextStyle(
+                        color: Color(0XFF639654),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600
+                      ),)
                     ),
                   ),
                 ),

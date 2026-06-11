@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:fitkhao_user/features/profile/presentation/screens/profile_menu_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -964,32 +965,32 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   Widget _buildHelpRow(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _openHelpEmail,
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
-              side: const BorderSide(color: AppColors.primaryGreen),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSizes.radius4),
-              ),
-            ),
-            icon: const Icon(Icons.support_agent, color: AppColors.primaryGreen),
-            label: const Text(
-              'Help & Support',
-              style: TextStyle(
-                fontSize: AppTypography.fontSize14,
-                fontWeight: AppTypography.semiBold,
-                color: AppColors.primaryGreen,
-                fontFamily: AppTypography.fontFamily,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: AppSizes.spacing12),
+        // Expanded(
+        //   child: OutlinedButton.icon(
+        //     onPressed: _openHelpEmail,
+        //     style: OutlinedButton.styleFrom(
+        //       padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
+        //       side: const BorderSide(color: AppColors.primaryGreen),
+        //       shape: RoundedRectangleBorder(
+        //         borderRadius: BorderRadius.circular(AppSizes.radius4),
+        //       ),
+        //     ),
+        //     icon: const Icon(Icons.support_agent, color: AppColors.primaryGreen),
+        //     label: const Text(
+        //       'Help & Support',
+        //       style: TextStyle(
+        //         fontSize: AppTypography.fontSize14,
+        //         fontWeight: AppTypography.semiBold,
+        //         color: AppColors.primaryGreen,
+        //         fontFamily: AppTypography.fontFamily,
+        //       ),
+        //     ),
+        //   ),
+        // ),
+        // const SizedBox(width: AppSizes.spacing12),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: _callKitchen,
+            onPressed:()=>  ProfileMenuActions.showContactUs(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryGreen,
               padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),

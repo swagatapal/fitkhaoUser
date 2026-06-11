@@ -38,16 +38,21 @@ class _DishTypeOption {
   final String label;
   final IconData icon;
   final Color color;
+
   const _DishTypeOption(this.value, this.label, this.icon, this.color);
 }
 
 const List<_DishTypeOption> _kDishTypeOptions = [
   _DishTypeOption('veg', 'Veg', Icons.eco_rounded, Color(0xFF388E3C)),
-  _DishTypeOption('eggetarian', 'Eggetarian', Icons.egg_rounded, Color(0xFFF57C00)),
-  _DishTypeOption('nonveg', 'Non-Veg', Icons.set_meal_rounded, Color(0xFFD32F2F)),
+  _DishTypeOption(
+      'eggetarian', 'Eggetarian', Icons.egg_rounded, Color(0xFFF57C00)),
+  _DishTypeOption(
+      'nonveg', 'Non-Veg', Icons.set_meal_rounded, Color(0xFFD32F2F)),
   _DishTypeOption('vegan', 'Vegan', Icons.spa_rounded, Color(0xFF6A1B9A)),
-  _DishTypeOption('beverage', 'Beverage', Icons.local_cafe_rounded, Color(0xFF1976D2)),
-  _DishTypeOption('smoothie', 'Smoothie', Icons.local_drink_rounded, Color(0xFFEC407A)),
+  _DishTypeOption(
+      'beverage', 'Beverage', Icons.local_cafe_rounded, Color(0xFF1976D2)),
+  _DishTypeOption(
+      'smoothie', 'Smoothie', Icons.local_drink_rounded, Color(0xFFEC407A)),
 ];
 
 class DeliveryScreen extends ConsumerStatefulWidget {
@@ -68,6 +73,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   /// IDs of categories that are currently collapsed in the "All" grouped view.
   final Set<String> _collapsedCategories = {};
 
+  DateTime? currentBackPressTime;
+
   @override
   void initState() {
     super.initState();
@@ -86,8 +93,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   void _showOrderingClosedSnackBar() {
     if (!mounted) return;
-    final areaBlocked =
-        ref.read(deliveryGateProvider).areaBlocksOrdering;
+    final areaBlocked = ref.read(deliveryGateProvider).areaBlocksOrdering;
     final reason = areaBlocked
         ? 'We don’t deliver to your area yet. Add another address for delivery'
         : (ref.read(kitchenProvider).kitchenClosedReason ??
@@ -134,6 +140,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     await Future.wait([
       ref.read(allDishesProvider.notifier).silentRefresh(),
       _loadKitchens(),
+      ref.read(cartProvider.notifier).loadCart(),
       ref.read(deliveryGateProvider.notifier).evaluate(),
     ]);
   }
@@ -290,113 +297,131 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         ref.watch(kitchenProvider.select((s) => s.kitchenClosedReason)) ??
             'The outlet is currently closed';
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
-      child: Scaffold(
-        key: _scaffoldKey,
-        backgroundColor: AppColors.background,
-        drawer: const AppDrawer(),
-        body: SafeArea(
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: RefreshIndicator(
-                  onRefresh: _onRefresh,
-                  color: AppColors.primaryGreen,
-                  child: CustomScrollView(
-                    controller: _scrollController,
-                    physics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics(),
-                    ),
-                    slivers: [
-                      // ── Header + search + (passive banner) ──────────────
-                      SliverToBoxAdapter(
-                        child: Padding(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        DateTime now = DateTime.now();
+        if (didPop ||
+            currentBackPressTime == null ||
+            now.difference(currentBackPressTime!) > Duration(seconds: 2)) {
+          currentBackPressTime = now;
+          SnackBar(
+              backgroundColor: AppColors.darkGreen,
+              content:  Text( 'Tap back again to Exit', style: TextStyle(color: AppColors.textWhite),));
+          // return false;
+        } else {
+          SystemNavigator.pop();
+        }
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark,
+        child: Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: AppColors.background,
+          drawer: const AppDrawer(),
+          body: SafeArea(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: RefreshIndicator(
+                    onRefresh: _onRefresh,
+                    color: AppColors.primaryGreen,
+                    child: CustomScrollView(
+                      controller: _scrollController,
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
+                      slivers: [
+                        // ── Header + search + (passive banner) ──────────────
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSizes.screenPaddingHorizontal,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: AppSizes.spacing4),
+                                _buildCompactHeader(authState, displayAddress),
+                                const SizedBox(height: AppSizes.spacing8),
+                                _buildDishSearchBar(),
+                                // Area not serviceable → blocks ordering.
+                                if (areaBlocked) _buildNotServiceableBanner(),
+                                // Kitchen closed (independent of area).
+                                if (!kitchenOpen)
+                                  _buildPassiveBanner(closedReason),
+                                // Location permission missing (food stays enabled).
+                                if (gate.showLocationInfo) _buildLocationInfo(),
+                                // Notifications off — soft nudge.
+                                if (gate.showNotificationInfo)
+                                  _buildNotificationInfo(),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // ── Sticky compact filters (hidden while searching) ──
+                        if (!isSearching)
+                          SliverPersistentHeader(
+                            pinned: true,
+                            delegate: _FilterHeaderDelegate(
+                              dishState: dishState,
+                              child: _buildFilters(dishState),
+                            ),
+                          ),
+
+                        // ── Food list / search results (grayscale in passive) ─
+                        SliverPadding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSizes.screenPaddingHorizontal,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: AppSizes.spacing4),
-                              _buildCompactHeader(authState, displayAddress),
-                              const SizedBox(height: AppSizes.spacing8),
-                              _buildDishSearchBar(),
-                              // Area not serviceable → blocks ordering.
-                              if (areaBlocked) _buildNotServiceableBanner(),
-                              // Kitchen closed (independent of area).
-                              if (!kitchenOpen)
-                                _buildPassiveBanner(closedReason),
-                              // Location permission missing (food stays enabled).
-                              if (gate.showLocationInfo) _buildLocationInfo(),
-                              // Notifications off — soft nudge.
-                              if (gate.showNotificationInfo)
-                                _buildNotificationInfo(),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // ── Sticky compact filters (hidden while searching) ──
-                      if (!isSearching)
-                        SliverPersistentHeader(
-                          pinned: true,
-                          delegate: _FilterHeaderDelegate(
-                            dishState: dishState,
-                            child: _buildFilters(dishState),
+                          sliver: SliverToBoxAdapter(
+                            child: isSearching
+                                ? _buildSearchResults(search, isOrderingActive)
+                                : _buildDishList(dishState, isOrderingActive),
                           ),
                         ),
 
-                      // ── Food list / search results (grayscale in passive) ─
-                      SliverPadding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSizes.screenPaddingHorizontal,
+                        // ── Bottom spacer (reserves room for the cart bar) ──
+                        SliverToBoxAdapter(
+                          child: Consumer(
+                            builder: (context, ref, _) {
+                              final hasItems =
+                                  ref.watch(cartTotalItemsProvider) > 0;
+                              final reserve = hasItems && isOrderingActive;
+                              return SizedBox(height: reserve ? 168 : 96);
+                            },
+                          ),
                         ),
-                        sliver: SliverToBoxAdapter(
-                          child: isSearching
-                              ? _buildSearchResults(search, isOrderingActive)
-                              : _buildDishList(dishState, isOrderingActive),
-                        ),
-                      ),
-
-                      // ── Bottom spacer (reserves room for the cart bar) ──
-                      SliverToBoxAdapter(
-                        child: Consumer(
-                          builder: (context, ref, _) {
-                            final hasItems =
-                                ref.watch(cartTotalItemsProvider) > 0;
-                            final reserve = hasItems && isOrderingActive;
-                            return SizedBox(height: reserve ? 168 : 96);
-                          },
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
 
-              // ── Floating cart bar (only when active + non-empty) ────────
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: MediaQuery.of(context).size.height * 0.03,
-                child: Consumer(
-                  builder: (context, ref, _) {
-                    final totalItems = ref.watch(cartTotalItemsProvider);
-                    if (totalItems == 0 || !isOrderingActive) {
-                      return const SizedBox.shrink();
-                    }
-                    return _CartBar(
-                      onClear: _showClearCartDialog,
-                      onCheckout: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CheckoutScreen()),
-                      ),
-                    );
-                  },
+                // ── Floating cart bar (only when active + non-empty) ────────
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: MediaQuery.of(context).size.height * 0.03,
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final totalItems = ref.watch(cartTotalItemsProvider);
+                      if (totalItems == 0 || !isOrderingActive) {
+                        return const SizedBox.shrink();
+                      }
+                      return _CartBar(
+                        onClear: _showClearCartDialog,
+                        onCheckout: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const CheckoutScreen()),
+                        ),
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -416,7 +441,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFFFF8E1),
         borderRadius: BorderRadius.circular(AppSizes.radius12),
-        border: Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.35)),
+        border:
+            Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
@@ -480,8 +506,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       decoration: BoxDecoration(
         color: AppColors.errorColor.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(AppSizes.radius12),
-        border:
-            Border.all(color: AppColors.errorColor.withValues(alpha: 0.30)),
+        border: Border.all(color: AppColors.errorColor.withValues(alpha: 0.30)),
       ),
       child: Row(
         children: [
@@ -537,8 +562,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       message:
           'Enable location so we can check delivery availability for your area.',
       actionLabel: 'Enable',
-      onAction: () =>
-          ref.read(deliveryGateProvider.notifier).enableLocation(),
+      onAction: () => ref.read(deliveryGateProvider.notifier).enableLocation(),
       onDismiss: () =>
           ref.read(deliveryGateProvider.notifier).dismissLocationInfo(),
     );
@@ -904,8 +928,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon,
-                size: 14,
-                color: isSelected ? color : AppColors.textSecondary),
+                size: 14, color: isSelected ? color : AppColors.textSecondary),
             const SizedBox(width: AppSizes.spacing4),
             Text(
               label,
@@ -1921,6 +1944,7 @@ class _CartBar extends ConsumerWidget {
 
 class _FadeSlideIn extends StatefulWidget {
   const _FadeSlideIn({required super.key, required this.child});
+
   final Widget child;
 
   @override

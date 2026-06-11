@@ -74,7 +74,7 @@ class _EtaCountdownState extends State<EtaCountdown> {
 
   /// "08:42 min" while counting; collapses to a friendly message at zero.
   String get _countdownText {
-    if (_elapsed) return 'Arriving any moment';
+    if (_elapsed) return 'Arriving at any moment';
     final m = _remaining.inMinutes;
     final s = _remaining.inSeconds % 60;
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')} min';
@@ -189,7 +189,7 @@ class _EtaCountdownState extends State<EtaCountdown> {
           Flexible(
             child: Text(
               _elapsed
-                  ? 'Arriving any moment'
+                  ? 'Arriving at any moment'
                   : '$_countdownText • by $_istEtaLabel',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

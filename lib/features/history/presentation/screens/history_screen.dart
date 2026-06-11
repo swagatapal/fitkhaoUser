@@ -1115,49 +1115,64 @@ class _OrderCardState extends State<_OrderCard> {
     switch (status.trim().toLowerCase().replaceAll('-', '_')) {
       case 'pending':
         return 'Pending';
+
       case 'confirmed':
         return 'Confirmed';
+
       case 'accepted_by_kitchen':
-        return 'Accepted';
+        return 'Accepted by Kitchen';
+
       case 'preparing':
         return 'Preparing';
+
       case 'prepared':
-        return 'Ready';
+        return 'Prepared';
+
       case 'assigned':
-        return 'Out for Delivery';
+        return 'Rider Assigned';
+
       case 'out_for_delivery':
         return 'On the way';
+
       case 'delivered':
         return 'Delivered';
+
       case 'cancelled':
         return 'Cancelled';
+
       case 'rejected':
         return 'Rejected';
+
       case 'failed':
         return 'Failed';
+
       default:
         return status;
     }
   }
-
   static Color _getStatusColor(String status) {
     switch (status.trim().toLowerCase().replaceAll('-', '_')) {
       case 'pending':
       case 'confirmed':
         return Colors.orange;
+
       case 'accepted_by_kitchen':
       case 'preparing':
       case 'prepared':
         return AppColors.primaryGreen;
+
       case 'assigned':
       case 'out_for_delivery':
         return Colors.blue;
+
       case 'delivered':
-        return AppColors.textSecondary;
+        return AppColors.successColor;
+
       case 'cancelled':
       case 'rejected':
       case 'failed':
         return AppColors.errorColor;
+
       default:
         return AppColors.textSecondary;
     }

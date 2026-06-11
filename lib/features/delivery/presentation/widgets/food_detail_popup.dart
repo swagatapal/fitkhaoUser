@@ -129,7 +129,19 @@ class _FoodDetailPopupState extends ConsumerState<FoodDetailPopup> {
                       fontFamily: 'Lato',
                     ),
                   ),
-                  //const SizedBox(height: AppSizes.spacing8),
+
+                      Text(
+                        "Price : ₹ ${widget.menuItem.price.toString()}",
+                        style: const TextStyle(
+                          fontSize: AppTypography.fontSize16,
+                          fontWeight: AppTypography.medium,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+
+
+                  const SizedBox(height: AppSizes.spacing8),
 
                   // Calories and Rating
                   Row(

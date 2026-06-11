@@ -24,6 +24,7 @@ class OrderRepository {
     required DeliveryAddress deliveryAddress,
     required String paymentMethod,
     String? specialInstructions,
+    List<String> couponIds = const [],
   }) async {
     debugPrint('[OrderRepository] Placing order via API...');
 
@@ -46,6 +47,7 @@ class OrderRepository {
         deliveryAddress: deliveryAddress,
         paymentMethod: paymentMethod,
         specialInstructions: specialInstructions,
+        couponIds: couponIds,
       );
 
       debugPrint('[OrderRepository] Payload: ${request.toJson()}');

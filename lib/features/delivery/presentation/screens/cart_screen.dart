@@ -111,7 +111,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
 
     if (items.isEmpty) {
-      return _EmptyState(onBrowse: () => Navigator.of(context).maybePop());
+      return _EmptyState(onBrowse: () =>  Navigator.of(context).popUntil((route) => route.isFirst));
     }
 
     return ListView.separated(

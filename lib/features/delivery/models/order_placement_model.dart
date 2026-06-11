@@ -216,6 +216,7 @@ class OrderPlacementRequest {
   final DeliveryAddress deliveryAddress;
   final String paymentMethod;
   final String? specialInstructions;
+  final List<String> couponIds;
 
   const OrderPlacementRequest({
     required this.kitchenId,
@@ -223,6 +224,7 @@ class OrderPlacementRequest {
     required this.deliveryAddress,
     required this.paymentMethod,
     this.specialInstructions,
+    this.couponIds = const [],
   });
 
   Map<String, dynamic> toJson() {
@@ -233,6 +235,7 @@ class OrderPlacementRequest {
       'paymentMethod': paymentMethod,
       if (specialInstructions != null && specialInstructions!.isNotEmpty)
         'specialInstructions': specialInstructions,
+      if (couponIds.isNotEmpty) 'couponIds': couponIds,
     };
   }
 }

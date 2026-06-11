@@ -606,44 +606,54 @@ class _SubscriptionPlanScreenState
             const SizedBox(height: AppSizes.spacing12),
 
             // Price
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  plan.formattedPrice,
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize24,
-                    fontWeight: AppTypography.bold,
-                    color: AppColors.primaryGreen,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-                const SizedBox(width: AppSizes.spacing4),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '/ ${plan.planValidity}',
-                      style: const TextStyle(
-                        fontSize: AppTypography.fontSize12,
-                        color: AppColors.textSecondary,
-                        fontFamily: 'Lato',
-                      ),
+            isBasic
+                ? Text(
+                    "Free Plan",
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize20,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryGreen,
+                      fontFamily: 'Lato',
                     ),
-                    if (plan.gstPercentage > 0)
+                  )
+                : Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
                       Text(
-                        '+${plan.gstPercentage.toStringAsFixed(0)}% GST',
+                        plan.formattedPrice,
                         style: const TextStyle(
-                          fontSize: AppTypography.fontSize10,
-                          color: AppColors.textSecondary,
+                          fontSize: AppTypography.fontSize24,
+                          fontWeight: AppTypography.bold,
+                          color: AppColors.primaryGreen,
                           fontFamily: 'Lato',
                         ),
                       ),
-                  ],
-                ),
-              ],
-            ),
+                      const SizedBox(width: AppSizes.spacing4),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '/ ${plan.planValidity}',
+                            style: const TextStyle(
+                              fontSize: AppTypography.fontSize12,
+                              color: AppColors.textSecondary,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                          if (plan.gstPercentage > 0)
+                            Text(
+                              '+${plan.gstPercentage.toStringAsFixed(0)}% GST',
+                              style: const TextStyle(
+                                fontSize: AppTypography.fontSize10,
+                                color: AppColors.textSecondary,
+                                fontFamily: 'Lato',
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
             const SizedBox(height: AppSizes.spacing16),
 
             // Divider
@@ -683,7 +693,8 @@ class _SubscriptionPlanScreenState
 
   Widget _buildFeaturesGrid(PlanFeatures f, bool isBasic) {
     final features = [
-      if (f.freeDelivery) _buildFeature(Icons.local_shipping_rounded, 'Free Delivery'),
+      if (f.freeDelivery)
+        _buildFeature(Icons.local_shipping_rounded, 'Free Delivery'),
       if (f.dietChart) _buildFeature(Icons.assignment_rounded, 'Diet Chart'),
       if (f.consultationCount > 0)
         _buildFeature(
@@ -691,11 +702,15 @@ class _SubscriptionPlanScreenState
           '${f.consultationCount} Consultation${f.consultationCount > 1 ? 's' : ''}',
         ),
       if (f.mealCountPerDay > 0)
-        _buildFeature(Icons.restaurant_rounded, '${f.mealCountPerDay} Meals/Day'),
+        _buildFeature(
+            Icons.restaurant_rounded, '${f.mealCountPerDay} Meals/Day'),
       if (f.snacks) _buildFeature(Icons.fastfood_rounded, 'Snacks'),
       if (f.discountPercent > 0)
-        _buildFeature(Icons.local_offer_rounded, '${f.discountPercent}% Discount', highlight: true),
-      if (f.suggestedPlan) _buildFeature(Icons.auto_awesome_rounded, 'Suggested'),
+        _buildFeature(
+            Icons.local_offer_rounded, '${f.discountPercent}% Discount',
+            highlight: true),
+      if (f.suggestedPlan)
+        _buildFeature(Icons.auto_awesome_rounded, 'Suggested'),
     ];
 
     return Wrap(
@@ -728,9 +743,7 @@ class _SubscriptionPlanScreenState
           Icon(
             icon,
             size: 14,
-            color: highlight
-                ? const Color(0xFFC66301)
-                : AppColors.primaryGreen,
+            color: highlight ? const Color(0xFFC66301) : AppColors.primaryGreen,
           ),
           const SizedBox(width: AppSizes.spacing4),
           Text(
@@ -738,9 +751,8 @@ class _SubscriptionPlanScreenState
             style: TextStyle(
               fontSize: AppTypography.fontSize10,
               fontWeight: AppTypography.semiBold,
-              color: highlight
-                  ? const Color(0xFFC66301)
-                  : AppColors.primaryGreen,
+              color:
+                  highlight ? const Color(0xFFC66301) : AppColors.primaryGreen,
               fontFamily: 'Lato',
             ),
           ),
