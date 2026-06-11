@@ -153,6 +153,30 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     );
   }
 
+  /// Replaces the entire cart with [items]. Existing items are removed on the
+  /// server and each new item is pushed with its target quantity. Optimistic —
+  /// the local state updates immediately so the checkout screen sees the new
+  /// items without waiting for the server round-trips.
+  void reorder(List<CartItem> items) {
+    if (items.isEmpty) return;
+    final snapshot = state;
+    final idsToRemove = state.map((c) => c.menuItem.id).toList();
+    state = items;
+    _push(
+      () async {
+        for (final id in idsToRemove) {
+          await _repo.setItemQuantity(outletDishId: id, quantity: 0);
+        }
+        for (final item in items) {
+          await _repo.setItemQuantity(
+              outletDishId: item.menuItem.id, quantity: item.quantity);
+        }
+        return _repo.getCart();
+      },
+      rollback: snapshot,
+    );
+  }
+
   /// Re-fetches and surfaces errors via the status provider; used by retry.
   Future<void> refresh() => loadCart();
 

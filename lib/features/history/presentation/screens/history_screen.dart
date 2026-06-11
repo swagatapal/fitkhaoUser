@@ -20,6 +20,10 @@ import '../../models/order_history_model.dart';
 import '../../providers/order_history_provider.dart';
 import '../widgets/eta_countdown.dart';
 import 'order_tracking_screen.dart';
+import '../../../delivery/models/cart_item.dart';
+import '../../../delivery/models/menu_item.dart';
+import '../../../delivery/providers/cart_provider.dart';
+import '../../../delivery/presentation/screens/checkout_screen.dart';
 
 /// Which tab the history screen opens on.
 enum HistoryTab { upcoming, delivered }
@@ -143,6 +147,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                                         .notifier)
                                                     .refresh();
                                               },
+                                              onReorder: () => _reorder(order),
                                             );
                                           },
                                         ),
@@ -499,6 +504,39 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
+  /// Replaces the cart with items from [order] and navigates to checkout.
+  void _reorder(OrderHistory order) {
+    final cartItems = order.items.map((item) {
+      return CartItem(
+        menuItem: MenuItem(
+          id: item.dishId,
+          name: item.itemName,
+          imageUrl: item.dishImage ?? '',
+          calories: item.nutritionalInfo?.kcal.toInt() ?? 0,
+          price: item.itemPrice,
+          category: '',
+          isVeg: true,
+          protein: item.nutritionalInfo != null
+              ? '${item.nutritionalInfo!.protein.toStringAsFixed(1)}g'
+              : '0g',
+          carbs: item.nutritionalInfo != null
+              ? '${item.nutritionalInfo!.carbs.toStringAsFixed(1)}g'
+              : '0g',
+          fats: item.nutritionalInfo != null
+              ? '${item.nutritionalInfo!.fat.toStringAsFixed(1)}g'
+              : '0g',
+        ),
+        quantity: item.quantity,
+      );
+    }).toList();
+
+    ref.read(cartProvider.notifier).reorder(cartItems);
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+    );
+  }
+
   /// Handle logout process
   Future<void> _handleLogout() async {
     try {
@@ -616,6 +654,7 @@ class _OrderCard extends StatefulWidget {
   final VoidCallback onTap;
   final Future<void> Function(String orderId, String reason)? onCancelOrder;
   final VoidCallback? onCancelSuccess;
+  final VoidCallback? onReorder;
 
   const _OrderCard({
     required this.order,
@@ -624,6 +663,7 @@ class _OrderCard extends StatefulWidget {
     required this.onTap,
     this.onCancelOrder,
     this.onCancelSuccess,
+    this.onReorder,
   });
 
   @override
@@ -643,6 +683,8 @@ class _OrderCardState extends State<_OrderCard> {
         _cancellableStatuses.contains(status) &&
         _remainingSeconds > 0;
   }
+
+  bool get _canReorder => !widget.isUpcoming && widget.onReorder != null;
 
   @override
   void initState() {
@@ -858,9 +900,51 @@ class _OrderCardState extends State<_OrderCard> {
               ),
             ),
             if (_canCancel) _buildCancelSection(context),
+            if (_canReorder) _buildReorderSection(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildReorderSection() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Divider(height: 1, color: AppColors.borderColor),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.p12,
+            vertical: AppSizes.spacing8,
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: widget.onReorder,
+              icon: const Icon(Icons.refresh_rounded, size: AppSizes.icon16),
+              label: const Text(
+                'Reorder',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.semiBold,
+                  fontFamily: AppTypography.fontFamily,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 40),
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppSizes.spacing8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radius4),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

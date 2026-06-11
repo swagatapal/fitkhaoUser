@@ -82,14 +82,14 @@ class AppRouter {
         ),
       ),
 
-      GoRoute(
-        path: RouteNames.addressInput,
-        name: RouteNames.addressInput,
-        pageBuilder: (context, state) => MaterialPage(
-          key: state.pageKey,
-          child: const AddressInputScreen(),
-        ),
-      ),
+      // GoRoute(
+      //   path: RouteNames.addressInput,
+      //   name: RouteNames.addressInput,
+      //   pageBuilder: (context, state) => MaterialPage(
+      //     key: state.pageKey,
+      //     child: const AddressInputScreen(),
+      //   ),
+      // ),
 
       GoRoute(
         path: RouteNames.mapPicker,
@@ -100,29 +100,29 @@ class AppRouter {
         ),
       ),
 
-      GoRoute(
-        path: RouteNames.bmiAnalysis,
-        name: RouteNames.bmiAnalysis,
-        pageBuilder: (context, state) => MaterialPage(
-          key: state.pageKey,
-          child: const BmiAnalysisScreen(),
-        ),
-      ),
+      // GoRoute(
+      //   path: RouteNames.bmiAnalysis,
+      //   name: RouteNames.bmiAnalysis,
+      //   pageBuilder: (context, state) => MaterialPage(
+      //     key: state.pageKey,
+      //     child: const BmiAnalysisScreen(),
+      //   ),
+      // ),
 
-      GoRoute(
-        path: RouteNames.healthScore,
-        name: RouteNames.healthScore,
-        pageBuilder: (context, state) {
-          final healthData = state.extra as Map<String, dynamic>;
-          return MaterialPage(
-            key: state.pageKey,
-            child: HealthScoreScreen(
-              healthScore: healthData['healthScore'] as int,
-              scoreLevel: healthData['scoreLevel'] as String,
-            ),
-          );
-        },
-      ),
+      // GoRoute(
+      //   path: RouteNames.healthScore,
+      //   name: RouteNames.healthScore,
+      //   pageBuilder: (context, state) {
+      //     final healthData = state.extra as Map<String, dynamic>;
+      //     return MaterialPage(
+      //       key: state.pageKey,
+      //       child: HealthScoreScreen(
+      //         healthScore: healthData['healthScore'] as int,
+      //         scoreLevel: healthData['scoreLevel'] as String,
+      //       ),
+      //     );
+      //   },
+      // ),
 
       GoRoute(
         path: RouteNames.detailedHealthInfo,

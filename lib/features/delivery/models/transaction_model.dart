@@ -91,18 +91,23 @@ class Transaction {
 
   String get formattedDateShort {
     try {
-      final date = DateTime.parse(createdAt);
-      final now = DateTime.now();
-      final difference = now.difference(date);
+      final utcDate = DateTime.parse(createdAt).toUtc();
+
+      final istDate = utcDate.add(const Duration(hours: 5, minutes: 30));
+      final istNow = DateTime.now().toUtc().add(
+        const Duration(hours: 5, minutes: 30),
+      );
+
+      final difference = istNow.difference(istDate);
 
       if (difference.inDays == 0) {
-        return 'Today, ${DateFormat('hh:mm a').format(date)}';
+        return 'Today, ${DateFormat('hh:mm a').format(istDate)}';
       } else if (difference.inDays == 1) {
-        return 'Yesterday, ${DateFormat('hh:mm a').format(date)}';
+        return 'Yesterday, ${DateFormat('hh:mm a').format(istDate)}';
       } else if (difference.inDays < 7) {
         return '${difference.inDays} days ago';
       } else {
-        return DateFormat('dd MMM yyyy').format(date);
+        return DateFormat('dd MMM yyyy').format(istDate);
       }
     } catch (e) {
       return createdAt;

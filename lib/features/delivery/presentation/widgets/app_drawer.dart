@@ -159,7 +159,7 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
         icon: Icons.policy_outlined,
         color: const Color(0xFF607D8B),
         label: 'Terms & Conditions',
-        subtitle: 'Policies & privacy',
+        subtitle: 'Privacy & Policies',
         onTap: () => ProfileMenuActions.open(context, const PolicyScreen(),
             insideDrawer: true),
       ),
