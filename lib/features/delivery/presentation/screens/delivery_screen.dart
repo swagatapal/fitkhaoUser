@@ -222,17 +222,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return 'Location';
   }
 
-  String _computeLocation(authState) {
-    if ((authState.street as String).isNotEmpty) {
-      final parts = (authState.street as String).split(',');
-      return "${parts.join(', ')}, ${authState.pincode as String}";
-    }
-    if ((authState.buildingNameNumber as String).isNotEmpty) {
-      return authState.buildingNameNumber as String;
-    }
-    return 'Location';
-  }
-
   void _openLocationMap() {
     // Prefer the coordinate the availability was resolved against; fall back to
     // the profile address coordinate.
@@ -264,7 +253,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    final location = _computeLocation(authState);
     final dishState = ref.watch(allDishesProvider);
 
     // Outlet open/close is the authoritative kitchen open-status from the API
@@ -282,12 +270,13 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final gate = ref.watch(deliveryGateProvider);
     final areaBlocked = gate.areaBlocksOrdering;
 
-    // Header location label: the address the availability was resolved against
-    // (reverse-geocoded for the device location), falling back to the profile.
-    final displayAddress =
-        (gate.resolvedAddress != null && gate.resolvedAddress!.isNotEmpty)
+    // Header location label: GPS/saved-address resolution only — never the
+    // profile API address. Shows a neutral state while evaluation is in flight.
+    final displayAddress = gate.isEvaluating
+        ? 'Detecting location…'
+        : (gate.resolvedAddress != null && gate.resolvedAddress!.isNotEmpty)
             ? gate.resolvedAddress!
-            : location;
+            : 'Set your location';
 
     // ACTIVE  → kitchen open AND area serviceable → colorful, can order.
     // PASSIVE → otherwise                         → grayscale, view-only.
