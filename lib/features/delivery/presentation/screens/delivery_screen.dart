@@ -525,7 +525,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Area not serviceable',
+                  'Your Current Area is not serviceable',
                   style: TextStyle(
                     fontSize: AppTypography.fontSize13,
                     fontWeight: AppTypography.bold,
@@ -536,8 +536,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 const SizedBox(height: 1),
                 Text(
                   zone != null && zone.isNotEmpty
-                      ? 'We don’t deliver to your area yet. Browse the menu below.'
-                      : 'We don’t deliver to your area yet. Try a different address.',
+                      ? 'We don’t deliver to your area yet. Browse the menu below. \nAdd different address from profile section'
+                      : 'We don’t deliver to your area yet. Try a different address. \nAdd different address from profile section',
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize12,
                     color: Color(0xFF7A4A4A),

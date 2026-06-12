@@ -269,198 +269,203 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: _kHeaderOverlay,
       child: Scaffold(
-      backgroundColor: const Color(0xFFF4F6F4),
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: Form(
-                key: _formKey,
-                child: ListView(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(AppSizes.spacing16,
-                      AppSizes.spacing16, AppSizes.spacing16, AppSizes.spacing32),
-                  children: [
-            // ── Location ──────────────────────────────────────────────────
-            _SectionCard(
-              icon: Icons.map_outlined,
-              title: 'Delivery Location',
-              child: _LocationPickerTile(
-                hasLocation: _hasLocation,
-                addressLabel: _mapAddressLabel,
-                latitude: _latitude,
-                longitude: _longitude,
-                hasError: _locationError,
-                onTap: _openMapPicker,
-              ),
-            ),
-            const SizedBox(height: AppSizes.spacing16),
+        backgroundColor: const Color(0xFFF4F6F4),
+        body: SafeArea(
+          bottom: true,
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: Form(
+                  key: _formKey,
+                  child: ListView(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSizes.spacing16,
+                        AppSizes.spacing16,
+                        AppSizes.spacing16,
+                        AppSizes.spacing32),
+                    children: [
+                      // ── Location ──────────────────────────────────────────────────
+                      _SectionCard(
+                        icon: Icons.map_outlined,
+                        title: 'Delivery Location',
+                        child: _LocationPickerTile(
+                          hasLocation: _hasLocation,
+                          addressLabel: _mapAddressLabel,
+                          latitude: _latitude,
+                          longitude: _longitude,
+                          hasError: _locationError,
+                          onTap: _openMapPicker,
+                        ),
+                      ),
+                      const SizedBox(height: AppSizes.spacing16),
 
-            // ── Address details ───────────────────────────────────────────
-            _SectionCard(
-              icon: Icons.home_work_outlined,
-              title: 'Address Details',
-              child: Column(
-                children: [
-                  _field(
-                    controller: _buildingName,
-                    label: 'Building / Flat / House',
-                    hint: 'e.g. 47, Nursing Home',
-                    icon: Icons.apartment_rounded,
-                    required: true,
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                  _field(
-                    controller: _street,
-                    label: 'Street / Road',
-                    hint: 'e.g. Strand Road',
-                    icon: Icons.signpost_outlined,
-                    required: true,
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _field(
-                          controller: _floor,
-                          label: 'Floor',
-                          hint: 'e.g. 1',
-                          icon: Icons.stairs_outlined,
-                        ),
-                      ),
-                      const SizedBox(width: AppSizes.spacing12),
-                      Expanded(
-                        child: _field(
-                          controller: _room,
-                          label: 'Room',
-                          hint: 'e.g. 101',
-                          icon: Icons.meeting_room_outlined,
-                        ),
-                      ),
-                    ],
-                  ),
-                  _field(
-                    controller: _area,
-                    label: 'Area / Locality',
-                    hint: 'e.g. Sukhsanatantala',
-                    icon: Icons.location_city_outlined,
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _field(
-                          controller: _city,
-                          label: 'City',
-                          hint: 'e.g. Chandannagar',
-                          icon: Icons.location_on_outlined,
-                          textCapitalization: TextCapitalization.words,
-                        ),
-                      ),
-                      const SizedBox(width: AppSizes.spacing12),
-                      Expanded(
-                        child: _field(
-                          controller: _pincode,
-                          label: 'Pincode',
-                          hint: '712136',
-                          icon: Icons.markunread_mailbox_outlined,
-                          required: true,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(6),
+                      // ── Address details ───────────────────────────────────────────
+                      _SectionCard(
+                        icon: Icons.home_work_outlined,
+                        title: 'Address Details',
+                        child: Column(
+                          children: [
+                            _field(
+                              controller: _buildingName,
+                              label: 'Building / Flat / House',
+                              hint: 'e.g. 47, Nursing Home',
+                              icon: Icons.apartment_rounded,
+                              required: true,
+                              textCapitalization: TextCapitalization.words,
+                            ),
+                            _field(
+                              controller: _street,
+                              label: 'Street / Road',
+                              hint: 'e.g. Strand Road',
+                              icon: Icons.signpost_outlined,
+                              required: true,
+                              textCapitalization: TextCapitalization.words,
+                            ),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: _field(
+                                    controller: _floor,
+                                    label: 'Floor',
+                                    hint: 'e.g. 1',
+                                    icon: Icons.stairs_outlined,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSizes.spacing12),
+                                Expanded(
+                                  child: _field(
+                                    controller: _room,
+                                    label: 'Room',
+                                    hint: 'e.g. 101',
+                                    icon: Icons.meeting_room_outlined,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            _field(
+                              controller: _area,
+                              label: 'Area / Locality',
+                              hint: 'e.g. Sukhsanatantala',
+                              icon: Icons.location_city_outlined,
+                              textCapitalization: TextCapitalization.words,
+                            ),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: _field(
+                                    controller: _city,
+                                    label: 'City',
+                                    hint: 'e.g. Chandannagar',
+                                    icon: Icons.location_on_outlined,
+                                    textCapitalization:
+                                        TextCapitalization.words,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSizes.spacing12),
+                                Expanded(
+                                  child: _field(
+                                    controller: _pincode,
+                                    label: 'Pincode',
+                                    hint: '712136',
+                                    icon: Icons.markunread_mailbox_outlined,
+                                    required: true,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(6),
+                                    ],
+                                    validator: (v) {
+                                      final t = v?.trim() ?? '';
+                                      if (t.isEmpty) return 'Required';
+                                      if (t.length != 6)
+                                        return 'Enter 6 digits';
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            _field(
+                              controller: _landmark,
+                              label: 'Landmark',
+                              hint: 'e.g. Near Rani Ghat',
+                              icon: Icons.flag_outlined,
+                              textCapitalization: TextCapitalization.sentences,
+                              isLast: true,
+                            ),
                           ],
-                          validator: (v) {
-                            final t = v?.trim() ?? '';
-                            if (t.isEmpty) return 'Required';
-                            if (t.length != 6) return 'Enter 6 digits';
-                            return null;
-                          },
                         ),
+                      ),
+                      const SizedBox(height: AppSizes.spacing16),
+
+                      // ── Contact & instructions ────────────────────────────────────
+                      _SectionCard(
+                        icon: Icons.contact_phone_outlined,
+                        title: 'Contact & Instructions',
+                        child: Column(
+                          children: [
+                            _field(
+                              controller: _contact,
+                              label: 'Contact Number',
+                              hint: '10-digit mobile number',
+                              icon: Icons.phone_outlined,
+                              required: true,
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(10),
+                              ],
+                              validator: (v) {
+                                final t = v?.trim() ?? '';
+                                if (t.isEmpty) return 'Required';
+                                if (t.length != 10) {
+                                  return 'Enter a valid 10-digit number';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSizes.spacing16),
+
+                      // ── Save as ───────────────────────────────────────────────────
+                      _SectionCard(
+                        icon: Icons.bookmark_outline_rounded,
+                        title: 'Save As',
+                        child: Column(
+                          children: [
+                            _LabelSelector(
+                              selected: _label,
+                              onChanged: (v) => setState(() => _label = v),
+                            ),
+                            const SizedBox(height: AppSizes.spacing12),
+                            _DefaultToggle(
+                              value: _isDefault,
+                              onChanged: (v) => setState(() => _isDefault = v),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSizes.spacing24),
+
+                      _SaveButton(
+                        isEditing: widget.isEditing,
+                        isSaving: _isSaving,
+                        onTap: _save,
                       ),
                     ],
                   ),
-                  _field(
-                    controller: _landmark,
-                    label: 'Landmark',
-                    hint: 'e.g. Near Rani Ghat',
-                    icon: Icons.flag_outlined,
-                    textCapitalization: TextCapitalization.sentences,
-                    isLast: true,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSizes.spacing16),
-
-            // ── Contact & instructions ────────────────────────────────────
-            _SectionCard(
-              icon: Icons.contact_phone_outlined,
-              title: 'Contact & Instructions',
-              child: Column(
-                children: [
-                  _field(
-                    controller: _contact,
-                    label: 'Contact Number',
-                    hint: '10-digit mobile number',
-                    icon: Icons.phone_outlined,
-                    required: true,
-                    keyboardType: TextInputType.phone,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(10),
-                    ],
-                    validator: (v) {
-                      final t = v?.trim() ?? '';
-                      if (t.isEmpty) return 'Required';
-                      if (t.length != 10) {
-                        return 'Enter a valid 10-digit number';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSizes.spacing16),
-
-            // ── Save as ───────────────────────────────────────────────────
-            _SectionCard(
-              icon: Icons.bookmark_outline_rounded,
-              title: 'Save As',
-              child: Column(
-                children: [
-                  _LabelSelector(
-                    selected: _label,
-                    onChanged: (v) => setState(() => _label = v),
-                  ),
-                  const SizedBox(height: AppSizes.spacing12),
-                  _DefaultToggle(
-                    value: _isDefault,
-                    onChanged: (v) => setState(() => _isDefault = v),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSizes.spacing24),
-
-            _SaveButton(
-              isEditing: widget.isEditing,
-              isSaving: _isSaving,
-              onTap: _save,
-            ),
-                  ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 
@@ -499,8 +504,7 @@ class _AddressFormScreenState extends ConsumerState<AddressFormScreen> {
             ),
             validator: validator ??
                 (required
-                    ? (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Required' : null
+                    ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null
                     : null),
             decoration: InputDecoration(
               hintText: hint,
@@ -706,7 +710,9 @@ class _LocationPickerTile extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSizes.spacing8),
                 Icon(
-                  hasLocation ? Icons.edit_location_alt_outlined : Icons.chevron_right,
+                  hasLocation
+                      ? Icons.edit_location_alt_outlined
+                      : Icons.chevron_right,
                   color: AppColors.primaryGreen,
                   size: AppSizes.icon20,
                 ),
@@ -735,6 +741,7 @@ class _LocationPickerTile extends StatelessWidget {
 class _FieldLabel extends StatelessWidget {
   final String text;
   final bool required;
+
   const _FieldLabel(this.text, {this.required = false});
 
   @override
