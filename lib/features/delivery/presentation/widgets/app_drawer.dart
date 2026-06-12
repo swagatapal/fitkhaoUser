@@ -6,12 +6,11 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../models/kitchen_model.dart';
+import '../../providers/delivery_gate_provider.dart';
 import '../../providers/kitchen_provider.dart';
 import '../../../history/presentation/screens/history_screen.dart';
 import '../../../notification/presentation/notification_screen.dart';
 import '../../../policy/presentation/screens/policy_screen.dart';
-import '../../../profile/presentation/screens/detailed_health_info_screen.dart';
-import '../../../profile/presentation/screens/edit_profile_screen.dart';
 import '../../../profile/presentation/screens/profile_menu_actions.dart';
 import '../screens/subscription_plan_screen.dart';
 
@@ -169,10 +168,10 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
     // Ordered list of animated blocks — each gets a sequential stagger slot.
     final blocks = <Widget>[
       const _KitchenSelectorSection(),
-      //const _SectionLabel('Account'),
-      //_MenuCard(items: account),
       const _SectionLabel('Orders'),
       _MenuCard(items: orders),
+      const _SectionLabel('Preferences'),
+      const _NotificationToggleCard(),
       const _SectionLabel('More'),
       _MenuCard(items: more),
       const SizedBox(height: AppSizes.spacing8),
@@ -918,6 +917,277 @@ class _KitchenPickerSheet extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Notification toggle card ─────────────────────────────────────────────────
+
+/// Drawer card that lets the user enable or disable push notifications.
+/// Reflects [DeliveryGateState.effectiveNotifEnabled] — which combines the
+/// OS permission status with any explicit in-session user preference.
+class _NotificationToggleCard extends ConsumerWidget {
+  const _NotificationToggleCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final checked = ref.watch(
+      deliveryGateProvider.select((s) => s.notificationChecked),
+    );
+    // effectiveNotifEnabled = OS granted AND user hasn't explicitly disabled.
+    final isOn = ref.watch(
+      deliveryGateProvider.select((s) => s.effectiveNotifEnabled),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.spacing16,
+          vertical: AppSizes.spacing12,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5A623).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppSizes.radius12),
+              ),
+              child: Icon(
+                isOn
+                    ? Icons.notifications_active_outlined
+                    : Icons.notifications_off_outlined,
+                color: const Color(0xFFF5A623),
+                size: AppSizes.icon20,
+              ),
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Push Notifications',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.semiBold,
+                      color: AppColors.textPrimary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    !checked
+                        ? 'Checking status…'
+                        : isOn
+                            ? 'Order updates & alerts active'
+                            : 'Tap to enable alerts',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      color: isOn
+                          ? AppColors.primaryGreen
+                          : AppColors.textSecondary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch.adaptive(
+              value: isOn,
+              activeThumbColor: Colors.white,
+              activeTrackColor: AppColors.primaryGreen,
+              onChanged: checked
+                  ? (value) {
+                      if (value) {
+                        _showEnableDialog(context, ref);
+                      } else {
+                        _showDisableDialog(context, ref);
+                      }
+                    }
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEnableDialog(BuildContext context, WidgetRef ref) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _NotificationDialog(
+        title: 'Enable Notifications',
+        icon: Icons.notifications_active_rounded,
+        iconColor: AppColors.primaryGreen,
+        message:
+            'Stay up to date with real-time order updates, exclusive offers, and important delivery alerts.',
+        confirmLabel: 'Enable',
+        confirmColor: AppColors.primaryGreen,
+        cancelLabel: 'Not Now',
+        onConfirm: () async {
+          Navigator.of(context).pop();
+          await ref.read(deliveryGateProvider.notifier).enableNotifications();
+        },
+      ),
+    );
+  }
+
+  void _showDisableDialog(BuildContext context, WidgetRef ref) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _NotificationDialog(
+        title: 'Disable Notifications',
+        icon: Icons.notifications_off_outlined,
+        iconColor: AppColors.errorColor,
+        message:
+            'If you disable notifications, you\'ll miss live order updates, delivery alerts, and special offers. You can re-enable them anytime.',
+        confirmLabel: 'Disable',
+        confirmColor: AppColors.errorColor,
+        cancelLabel: 'Keep Enabled',
+        onConfirm: () {
+          Navigator.of(context).pop();
+          ref.read(deliveryGateProvider.notifier).disableNotifications();
+        },
+      ),
+    );
+  }
+}
+
+// ─── Notification confirmation dialog ─────────────────────────────────────────
+
+class _NotificationDialog extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color iconColor;
+  final String message;
+  final String confirmLabel;
+  final Color confirmColor;
+  final String cancelLabel;
+  final VoidCallback onConfirm;
+
+  const _NotificationDialog({
+    required this.title,
+    required this.icon,
+    required this.iconColor,
+    required this.message,
+    required this.confirmLabel,
+    required this.confirmColor,
+    required this.cancelLabel,
+    required this.onConfirm,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radius16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSizes.spacing24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppSizes.spacing16),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.10),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: AppSizes.icon32, color: iconColor),
+            ),
+            const SizedBox(height: AppSizes.spacing16),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: AppTypography.fontSize18,
+                fontWeight: AppTypography.bold,
+                color: AppColors.textPrimary,
+                fontFamily: 'Lato',
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSizes.spacing8),
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: AppTypography.fontSize14,
+                color: AppColors.textSecondary,
+                height: 1.45,
+                fontFamily: 'Lato',
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSizes.spacing24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: AppColors.borderColor),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSizes.spacing12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppSizes.radius8),
+                      ),
+                    ),
+                    child: Text(
+                      cancelLabel,
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize13,
+                        fontWeight: AppTypography.semiBold,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSizes.spacing12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: onConfirm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: confirmColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSizes.spacing12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppSizes.radius8),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      confirmLabel,
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize13,
+                        fontWeight: AppTypography.semiBold,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

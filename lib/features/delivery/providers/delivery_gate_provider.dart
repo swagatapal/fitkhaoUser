@@ -48,6 +48,11 @@ class DeliveryGateState {
   final bool notificationsEnabled;
   final bool notificationChecked;
 
+  /// True when the user has explicitly toggled notifications OFF from the
+  /// drawer switch. Decoupled from the OS permission so the toggle persists
+  /// independently of what the system reports.
+  final bool notifUserDisabled;
+
   final bool isEvaluating;
 
   // User-dismissed info banners (per app session).
@@ -64,6 +69,7 @@ class DeliveryGateState {
     this.longitude,
     this.notificationsEnabled = true,
     this.notificationChecked = false,
+    this.notifUserDisabled = false,
     this.isEvaluating = false,
     this.locationInfoDismissed = false,
     this.notificationInfoDismissed = false,
@@ -73,14 +79,22 @@ class DeliveryGateState {
   /// location-denied all keep food enabled (per product requirement).
   bool get areaBlocksOrdering => area == AreaServiceability.notServiceable;
 
+  /// The value the drawer switch reflects: OS permission AND no explicit
+  /// user-disable. Loading state (notificationChecked == false) returns false.
+  bool get effectiveNotifEnabled =>
+      notificationChecked && notificationsEnabled && !notifUserDisabled;
+
   bool get showLocationInfo =>
       !locationInfoDismissed &&
       (location == LocationAccess.denied ||
           location == LocationAccess.serviceDisabled);
 
+  /// Show the nudge banner only when the OS has denied permission AND the user
+  /// hasn't explicitly disabled it themselves from the drawer toggle.
   bool get showNotificationInfo =>
       notificationChecked &&
       !notificationsEnabled &&
+      !notifUserDisabled &&
       !notificationInfoDismissed;
 
   DeliveryGateState copyWith({
@@ -93,6 +107,7 @@ class DeliveryGateState {
     double? longitude,
     bool? notificationsEnabled,
     bool? notificationChecked,
+    bool? notifUserDisabled,
     bool? isEvaluating,
     bool? locationInfoDismissed,
     bool? notificationInfoDismissed,
@@ -107,6 +122,7 @@ class DeliveryGateState {
       longitude: longitude ?? this.longitude,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       notificationChecked: notificationChecked ?? this.notificationChecked,
+      notifUserDisabled: notifUserDisabled ?? this.notifUserDisabled,
       isEvaluating: isEvaluating ?? this.isEvaluating,
       locationInfoDismissed:
           locationInfoDismissed ?? this.locationInfoDismissed,
@@ -251,8 +267,12 @@ class DeliveryGateNotifier extends StateNotifier<DeliveryGateState> {
     await evaluate();
   }
 
-  /// Triggered by the "Enable notifications" info box.
+  /// Triggered by the "Enable notifications" info box or drawer toggle.
+  /// Clears any explicit user-disable flag, then (re-)requests OS permission.
   Future<void> enableNotifications() async {
+    // Clear user-preference override first so the switch reflects OS state.
+    state = state.copyWith(notifUserDisabled: false);
+
     final granted =
         await FirebaseNotificationService.getInstance().requestPermission();
     if (!granted) {
@@ -264,6 +284,13 @@ class DeliveryGateNotifier extends StateNotifier<DeliveryGateState> {
       notificationsEnabled: notif,
       notificationChecked: true,
     );
+  }
+
+  /// Triggered from the drawer toggle when the user chooses to disable.
+  /// Sets the explicit user-preference flag; no OS settings change is needed
+  /// because we control the effective state independently of the OS permission.
+  void disableNotifications() {
+    state = state.copyWith(notifUserDisabled: true);
   }
 
   void dismissLocationInfo() =>
