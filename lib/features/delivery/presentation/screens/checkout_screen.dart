@@ -1170,7 +1170,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 SizedBox(width: AppSizes.spacing8),
                 Expanded(
                   child: Text(
-                    'Select a serviceable delivery address to place your order.',
+                    //'Select a serviceable delivery address to place your order.',
+                    'Please add a delivery address from the App Drawer or the Profile section to continue. ',
                     style: TextStyle(
                       fontSize: AppTypography.fontSize12,
                       fontWeight: AppTypography.medium,

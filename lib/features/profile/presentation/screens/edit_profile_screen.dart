@@ -507,7 +507,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                     ),
                                     const SizedBox(height: 16),
 
-                                    _field(label: "Phone number (can not editable)", child: Text(authState.phoneNumber))
+                                    _field(label: "Phone number (Cannot be edited)", child: Text(authState.phoneNumber))
 
 
                                   ],

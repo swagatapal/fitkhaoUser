@@ -18,6 +18,8 @@ import '../../providers/delivery_gate_provider.dart';
 import '../../providers/dish_search_provider.dart';
 import '../../models/menu_item.dart';
 import '../../providers/menu_provider.dart';
+import '../../../notification/presentation/notification_screen.dart';
+import '../../../notification/providers/notification_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/food_detail_popup.dart';
 import '../widgets/location_view_sheet.dart';
@@ -127,6 +129,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     unawaited(ref.read(cartProvider.notifier).loadCart());
     // Resolve the delivery-area serviceability + location/notification prompts.
     unawaited(ref.read(deliveryGateProvider.notifier).evaluate());
+    // Load notifications so the bell badge reflects the real unread count.
+    unawaited(ref.read(notificationProvider.notifier).load());
 
     final hasCachedDishes = ref.read(allDishesProvider).items.isNotEmpty;
     if (hasCachedDishes) {
@@ -268,6 +272,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
     // Entry-gate state: area serviceability + location / notification prompts.
     final gate = ref.watch(deliveryGateProvider);
+
+    final unreadCount = ref.watch(
+      notificationProvider.select((s) => s.unreadCount),
+    );
     final areaBlocked = gate.areaBlocksOrdering;
 
     // Header location label: GPS/saved-address resolution only — never the
@@ -331,7 +339,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: AppSizes.spacing4),
-                                _buildCompactHeader(authState, displayAddress),
+                                _buildCompactHeader(authState, displayAddress, unreadCount),
                                 const SizedBox(height: AppSizes.spacing8),
                                 _buildDishSearchBar(),
                                 // Area not serviceable → blocks ordering.
@@ -576,7 +584,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   // ── Header ──────────────────────────────────────────────────────────────────
 
-  Widget _buildCompactHeader(authState, String location) {
+  Widget _buildCompactHeader(authState, String location, int unreadCount) {
     final firstName = (authState.name as String).isNotEmpty
         ? (authState.name as String).split(' ').first
         : 'User';
@@ -670,6 +678,63 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        GestureDetector(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const NotificationScreen(),
+            ),
+          ),
+          child: SizedBox(
+            width: 38,
+            height: 38,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                  child: const Icon(
+                    Icons.notifications_outlined,
+                    color: AppColors.darkGreen,
+                    size: 22,
+                  ),
+                ),
+                if (unreadCount > 0)
+                  Positioned(
+                    right: -4,
+                    top: -4,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: const BoxDecoration(
+                        color: AppColors.errorColor,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        unreadCount > 99 ? '99+' : '$unreadCount',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          fontFamily: 'Lato',
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ],
