@@ -20,6 +20,8 @@ import '../../models/menu_item.dart';
 import '../../providers/menu_provider.dart';
 import '../../../notification/presentation/notification_screen.dart';
 import '../../../notification/providers/notification_provider.dart';
+import '../../../profile/presentation/screens/address_form_screen.dart';
+import '../../../profile/providers/delivery_address_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/food_detail_popup.dart';
 import '../widgets/location_view_sheet.dart';
@@ -131,6 +133,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     unawaited(ref.read(deliveryGateProvider.notifier).evaluate());
     // Load notifications so the bell badge reflects the real unread count.
     unawaited(ref.read(notificationProvider.notifier).load());
+    // Pre-fetch saved addresses so the checkout gate check is instant.
+    unawaited(ref.read(addressProvider.notifier).loadAddresses());
 
     final hasCachedDishes = ref.read(allDishesProvider).items.isNotEmpty;
     if (hasCachedDishes) {
@@ -408,11 +412,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       }
                       return _CartBar(
                         onClear: _showClearCartDialog,
-                        onCheckout: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const CheckoutScreen()),
-                        ),
+                        onCheckout: _onCheckout,
                       );
                     },
                   ),
@@ -1367,6 +1367,39 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         ],
       ),
     );
+  }
+
+  // ── Checkout gate ──────────────────────────────────────────────────────────
+
+  Future<void> _onCheckout() async {
+    final addrState = ref.read(addressProvider);
+
+    // Still loading: let checkout handle it (fail-open — never block the user
+    // on a transient fetch state).
+    if (addrState.isLoading || addrState.addresses.isNotEmpty) {
+      if (!mounted) return;
+      Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+      );
+      return;
+    }
+
+    // No saved addresses — send the user to the address form first.
+    if (!mounted) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => const AddressFormScreen()),
+    );
+
+    // If they successfully added one, proceed straight to checkout.
+    if (!mounted) return;
+    if (ref.read(addressProvider).addresses.isNotEmpty) {
+      Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+      );
+    }
   }
 
   // ── Clear-cart dialog ─────────────────────────────────────────────────────

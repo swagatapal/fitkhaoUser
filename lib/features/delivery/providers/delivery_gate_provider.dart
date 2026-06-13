@@ -120,6 +120,7 @@ class DeliveryGateState {
       resolvedAddress: resolvedAddress ?? this.resolvedAddress,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       notificationChecked: notificationChecked ?? this.notificationChecked,
       notifUserDisabled: notifUserDisabled ?? this.notifUserDisabled,
