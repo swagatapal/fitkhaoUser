@@ -43,11 +43,11 @@ class MapPickerScreen extends ConsumerStatefulWidget {
 
 class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
   static const int _minQueryLength = 2;
-  static const int _maxSuggestions = 5;
+  static const int _maxSuggestions = 8;
   static const Duration _debounceDuration = Duration(milliseconds: 350);
 
   GoogleMapController? _mapController;
-  LatLng _currentPosition = const LatLng(22.5726, 88.3639); // Default: Kolkata
+  LatLng _currentPosition = const LatLng(22.8620, 88.3670); // Default: Kolkata
   bool _isLoadingLocation = true;
   bool _isSearchingLocation = false;
   bool _isResolvingSelection = false;
@@ -60,6 +60,8 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
   bool _hasFetchedSuggestions = false;
   bool _showSuggestionList = false;
   int _suggestionRequestId = 0;
+
+  String _placesSessionToken = DateTime.now().microsecondsSinceEpoch.toString();
 
   @override
   void initState() {
@@ -239,16 +241,35 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
 
   /// Calls the Google Places Autocomplete API, restricted to India.
   Future<List<_PlaceSuggestion>> _fetchAutocompletePredictions(
-      String query) async {
+      String query,
+      ) async {
+    final LatLng searchCenter = _currentPosition;
+
     final uri = Uri.https(
       'maps.googleapis.com',
       '/maps/api/place/autocomplete/json',
       {
         'input': query,
+
+        // Restrict results to India
         'components': 'country:in',
-        'key': AppConfig.googleMapsApiKey,
+
+        // Important: bias results near user's current map/current GPS position
+        'location': '${searchCenter.latitude},${searchCenter.longitude}',
+        'radius': '25000',
+
+        // Better ranking for India
+        'region': 'in',
         'language': 'en',
-        //'types': 'geocode',
+
+        // Important for autocomplete billing/session quality
+        'sessiontoken': _placesSessionToken,
+
+        'key': AppConfig.googleMapsApiKey,
+
+        // Do not use types initially.
+        // If you use types=geocode, shops/buildings/landmarks may not appear.
+        // 'types': 'geocode',
       },
     );
 
@@ -260,20 +281,25 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
       final json = jsonDecode(body) as Map<String, dynamic>;
 
       final status = json['status'] as String? ?? '';
+
       if (status != 'OK' && status != 'ZERO_RESULTS') {
         debugPrint('[Places] Autocomplete status: $status');
+        debugPrint('[Places] Error message: ${json['error_message']}');
         return const [];
       }
 
       final predictions = json['predictions'] as List<dynamic>? ?? [];
+
       return predictions.take(_maxSuggestions).map((p) {
         final pred = p as Map<String, dynamic>;
-        final sf =
-            pred['structured_formatting'] as Map<String, dynamic>?;
+        final sf = pred['structured_formatting'] as Map<String, dynamic>?;
+
         final primary = sf?['main_text'] as String? ??
             pred['description'] as String? ??
             '';
+
         final secondary = sf?['secondary_text'] as String? ?? '';
+
         return _PlaceSuggestion(
           primaryText: primary,
           secondaryText: secondary,
@@ -292,7 +318,8 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
       '/maps/api/place/details/json',
       {
         'place_id': placeId,
-        'fields': 'geometry',
+        'fields': 'geometry,formatted_address,address_components,name',
+        'sessiontoken': _placesSessionToken,
         'key': AppConfig.googleMapsApiKey,
       },
     );
@@ -306,12 +333,14 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
 
       final status = json['status'] as String? ?? '';
       if (status != 'OK') {
+        debugPrint('[Places] Details error: ${json['error_message']}');
         throw Exception('Place Details API error: $status');
       }
 
       final result = json['result'] as Map<String, dynamic>;
       final geometry = result['geometry'] as Map<String, dynamic>;
       final loc = geometry['location'] as Map<String, dynamic>;
+
       return LatLng(
         (loc['lat'] as num).toDouble(),
         (loc['lng'] as num).toDouble(),
@@ -331,26 +360,38 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
     final label = suggestion.fullLabel;
     _hideSuggestions();
     FocusScope.of(context).unfocus();
+
     _searchController.value = TextEditingValue(
       text: label,
       selection: TextSelection.collapsed(offset: label.length),
     );
 
     setState(() => _isResolvingSelection = true);
+
     try {
       final target = await _fetchPlaceCoordinates(suggestion.placeId);
+
+      // New token for next search session
+      _placesSessionToken =
+          DateTime.now().microsecondsSinceEpoch.toString();
+
       if (!mounted) return;
+
       setState(() {
         _currentPosition = target;
         _isResolvingSelection = false;
       });
+
       await _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(target, 16),
       );
     } catch (e) {
       debugPrint('[MapPicker] selectSuggestion error: $e');
+
       if (!mounted) return;
+
       setState(() => _isResolvingSelection = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to resolve location. Please try again.'),
@@ -390,7 +431,6 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
     final query = _searchController.text.trim();
     if (query.isEmpty) return;
 
-    // If suggestions are visible, select the first one
     if (_suggestions.isNotEmpty) {
       await _selectSuggestion(_suggestions.first);
       return;
@@ -398,20 +438,20 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
 
     FocusScope.of(context).unfocus();
     _hideSuggestions();
+
     setState(() => _isSearchingLocation = true);
 
     try {
-      final locations = await locationFromAddress(query);
-      if (locations.isEmpty) throw Exception('Location not found');
+      final results = await _fetchAutocompletePredictions(query);
 
-      final target =
-          LatLng(locations.first.latitude, locations.first.longitude);
-      setState(() => _currentPosition = target);
-      await _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(target, 16),
-      );
+      if (results.isEmpty) {
+        throw Exception('Location not found');
+      }
+
+      await _selectSuggestion(results.first);
     } catch (e) {
       debugPrint('[MapPicker] searchForLocation error: $e');
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -424,7 +464,6 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
       if (mounted) setState(() => _isSearchingLocation = false);
     }
   }
-
   // ─── Confirm Selection ─────────────────────────────────────────────────────
 
   Future<void> _confirmSelection() async {

@@ -1,3 +1,4 @@
+import 'package:fitkhao_user/features/profile/presentation/screens/address_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -107,6 +108,15 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
     // ];
 
     final orders = <_NavItem>[
+      _NavItem(
+        icon: Icons.home,
+        color: const Color(0xFFC66301),
+        label: 'Add Address',
+        subtitle: 'Add delivery address',
+        onTap: () => ProfileMenuActions.open(
+            context, const AddressListScreen(),
+            insideDrawer: true),
+      ),
       _NavItem(
         icon: Icons.schedule_rounded,
         color: const Color(0xFFC66301),
