@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../delivery/providers/selected_address_provider.dart';
 import '../../models/delivery_address_model.dart';
 import '../../providers/delivery_address_provider.dart';
 import 'address_form_screen.dart';
@@ -119,7 +120,17 @@ class _AddressListScreenState extends ConsumerState<AddressListScreen> {
     final result =
         await ref.read(addressProvider.notifier).setDefault(address);
     if (!mounted) return;
-    if (!result.success) {
+    if (result.success) {
+      // Marking an address default is an explicit intent to deliver there —
+      // make it the app-wide active selection so the delivery/checkout header
+      // updates immediately (the list has already refreshed at this point).
+      final list = ref.read(addressProvider).addresses;
+      final updated = list.firstWhere(
+        (a) => a.id == address.id,
+        orElse: () => address.copyWith(isDefault: true),
+      );
+      ref.read(selectedDeliveryAddressProvider.notifier).select(updated);
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.message.isNotEmpty

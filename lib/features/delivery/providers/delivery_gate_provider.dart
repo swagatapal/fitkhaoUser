@@ -8,7 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/services/firebase_notification_service.dart';
 import '../../profile/models/delivery_address_model.dart';
-import '../../profile/providers/delivery_address_provider.dart';
+import 'selected_address_provider.dart';
 import 'serviceability_provider.dart';
 
 /// Whether the delivery area (resolved from the default/first address, or the
@@ -136,26 +136,48 @@ class DeliveryGateState {
 class DeliveryGateNotifier extends StateNotifier<DeliveryGateState> {
   final Ref _ref;
   bool _running = false;
+  bool _pending = false;
 
   DeliveryGateNotifier(this._ref) : super(const DeliveryGateState());
 
   /// Full entry evaluation:
-  ///   1. Resolve a coordinate — default address → first address → current
-  ///      device location.
+  ///   1. Resolve a coordinate — selected address → current device location.
   ///   2. Check serviceability for that coordinate (skipped if the location is
   ///      unavailable, in which case food stays enabled with an info prompt).
   ///   3. Check whether notifications are enabled (for the soft prompt).
+  ///
+  /// Coalesced: if called while a pass is already running, the in-flight pass
+  /// is allowed to finish and then re-runs once. This guarantees the final pass
+  /// reads the latest [selectedDeliveryAddressProvider] — without it, a rapid
+  /// "address list changed → selection changed" sequence could finish on the
+  /// stale address and never refresh.
   Future<void> evaluate() async {
-    if (_running) return;
+    if (_running) {
+      _pending = true;
+      return;
+    }
     _running = true;
+    try {
+      do {
+        _pending = false;
+        await _evaluateOnce();
+      } while (_pending);
+    } finally {
+      _running = false;
+    }
+  }
+
+  Future<void> _evaluateOnce() async {
     state = state.copyWith(
       isEvaluating: true,
       area: AreaServiceability.checking,
     );
 
     try {
-      // 1 ── Resolve coordinate from a saved address, if any.
-      final chosen = await _resolveAddress();
+      // 1 ── Use the shared, app-wide selected address (single source of
+      //      truth). It is resolved by the delivery screen before this runs;
+      //      null only when the user has no saved addresses.
+      final chosen = _ref.read(selectedDeliveryAddressProvider);
 
       double? lat;
       double? lng;
@@ -234,61 +256,9 @@ class DeliveryGateNotifier extends StateNotifier<DeliveryGateState> {
         isEvaluating: false,
       );
     } finally {
-      _running = false;
       if (state.isEvaluating) {
         state = state.copyWith(isEvaluating: false);
       }
-    }
-  }
-
-  /// Evaluates serviceability for a specific [address] chosen from the address
-  /// switcher. Bypasses the `_resolveAddress` step so the header reflects the
-  /// user's pick immediately without reading the API's default again.
-  Future<void> evaluateForAddress(DeliveryAddressModel address) async {
-    if (_running) return;
-    _running = true;
-    state = state.copyWith(
-      isEvaluating: true,
-      area: AreaServiceability.checking,
-    );
-
-    try {
-      final lat = address.latitude;
-      final lng = address.longitude;
-      final resolved = address.formattedAddress.isNotEmpty
-          ? address.formattedAddress
-          : await _reverseGeocode(lat, lng);
-
-      AreaServiceability area = AreaServiceability.unknown;
-      String? zone;
-      try {
-        final res = await _ref
-            .read(serviceabilityRepositoryProvider)
-            .checkServiceability(latitude: lat, longitude: lng);
-        final data = res.data;
-        if (res.success && data != null && data.isServiceable) {
-          area = AreaServiceability.serviceable;
-          zone = data.zoneName;
-        } else {
-          area = AreaServiceability.notServiceable;
-        }
-      } catch (e) {
-        debugPrint('[DeliveryGate] serviceability error: $e');
-        area = AreaServiceability.unknown;
-      }
-
-      state = state.copyWith(
-        area: area,
-        zoneName: zone,
-        sourceLabel: _addressLabel(address),
-        resolvedAddress: resolved,
-        latitude: lat,
-        longitude: lng,
-        isEvaluating: false,
-      );
-    } finally {
-      _running = false;
-      if (state.isEvaluating) state = state.copyWith(isEvaluating: false);
     }
   }
 
@@ -352,17 +322,6 @@ class DeliveryGateNotifier extends StateNotifier<DeliveryGateState> {
       state = state.copyWith(notificationInfoDismissed: true);
 
   // ── Internals ────────────────────────────────────────────────────────────────
-
-  Future<DeliveryAddressModel?> _resolveAddress() async {
-    try {
-      final list = await _ref.read(deliveryAddressRepositoryProvider).getAddresses();
-      if (list.isEmpty) return null;
-      return list.firstWhere((a) => a.isDefault, orElse: () => list.first);
-    } catch (e) {
-      debugPrint('[DeliveryGate] loadAddresses error: $e');
-      return null;
-    }
-  }
 
   Future<({LocationAccess access, Position? position})>
       _resolveCurrentLocation() async {

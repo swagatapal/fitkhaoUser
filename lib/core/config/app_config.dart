@@ -87,8 +87,8 @@ class AppConfig {
   static const String outletDishCategoryPath = '/api/adm/outlet-dish-category';
 
   /// Dishes with optional category filter
-  //static const String outletDishPath = '/api/adm/outlet-dish';
-  static const outletDishPath = '/api/user/outlet-dish';
+  static const String outletDishPath = '/api/adm/outlet-dish';
+  //static const outletDishPath = '/api/user/outlet-dish';
 
   /// Backend dish search (by query + kitchen)
   static const String outletDishSearchPath = '/api/adm/outlet-dishes/search';

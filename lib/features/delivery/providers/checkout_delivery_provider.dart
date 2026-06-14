@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../profile/models/delivery_address_model.dart';
 import '../../profile/providers/delivery_address_provider.dart';
+import 'selected_address_provider.dart';
 import 'serviceability_provider.dart';
 
 /// Serviceability status of the currently selected delivery address.
@@ -107,17 +108,27 @@ class CheckoutDeliveryNotifier extends StateNotifier<CheckoutDeliveryState> {
       state = state.copyWith(addresses: list, isLoadingAddresses: false);
 
       if (autoSelectDefault && list.isNotEmpty) {
-        // Always re-select: the previously held `state.selected` may have been
-        // deleted, had its default flag changed, or the list order may differ.
-        // If the current pick still exists, keep it (refreshed); otherwise fall
-        // back to the default / first address.
+        // Resolve the target against the app-wide shared selection (single
+        // source of truth) so an address picked on the delivery screen carries
+        // straight into checkout. Priority:
+        //   1. shared selection (if it still exists)
+        //   2. this checkout's own prior pick (if it still exists)
+        //   3. default address, else first
+        final shared = _ref.read(selectedDeliveryAddressProvider);
         final currentId = state.selected?.id;
-        final stillExists =
-            currentId != null && list.any((a) => a.id == currentId);
-        final target = stillExists
-            ? list.firstWhere((a) => a.id == currentId)
-            : list.firstWhere((a) => a.isDefault, orElse: () => list.first);
+        final DeliveryAddressModel target;
+        if (shared != null && list.any((a) => a.id == shared.id)) {
+          target = list.firstWhere((a) => a.id == shared.id);
+        } else if (currentId != null && list.any((a) => a.id == currentId)) {
+          target = list.firstWhere((a) => a.id == currentId);
+        } else {
+          target =
+              list.firstWhere((a) => a.isDefault, orElse: () => list.first);
+        }
         await selectAddress(target);
+        // Keep the shared selection in sync (covers the case where checkout
+        // resolved a default the delivery screen hadn't picked yet).
+        _ref.read(selectedDeliveryAddressProvider.notifier).select(target);
       }
     } catch (e) {
       debugPrint('[CheckoutDelivery] loadAddresses error: $e');
@@ -217,6 +228,9 @@ class CheckoutDeliveryNotifier extends StateNotifier<CheckoutDeliveryState> {
           zoneName: data.zoneName,
           statusMessage: res.message,
         );
+        // Commit to the shared source of truth so the delivery screen header
+        // reflects this change when the user navigates back.
+        _ref.read(selectedDeliveryAddressProvider.notifier).select(address);
         return true;
       }
 

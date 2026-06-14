@@ -15,6 +15,7 @@ import '../../providers/wallet_provider.dart';
 import '../../providers/kitchen_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/delivery_gate_provider.dart';
+import '../../providers/selected_address_provider.dart';
 import '../../providers/dish_search_provider.dart';
 import '../../models/menu_item.dart';
 import '../../providers/menu_provider.dart';
@@ -131,15 +132,16 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     unawaited(_loadKitchens());
     // Keep the server cart fresh on every entry (badge, steppers, totals).
     unawaited(ref.read(cartProvider.notifier).loadCart());
-    // Resolve the delivery-area serviceability + location/notification prompts.
-    unawaited(ref.read(deliveryGateProvider.notifier).evaluate());
     // Load notifications so the bell badge reflects the real unread count.
     unawaited(ref.read(notificationProvider.notifier).load());
-    // Pre-fetch saved addresses so the checkout gate check is instant.
-    unawaited(ref.read(addressProvider.notifier).loadAddresses());
     // Re-register the FCM device token on every cold start so the server
     // always has the latest token (tokens rotate after reinstalls/updates).
     unawaited(ref.read(authProvider.notifier).registerDevice());
+
+    // Addresses must load BEFORE the gate evaluates: the gate (and checkout)
+    // read the shared `selectedDeliveryAddressProvider` as the single source of
+    // truth, so we resolve the selection first, then evaluate serviceability.
+    unawaited(_resolveAddressAndEvaluate());
 
     final hasCachedDishes = ref.read(allDishesProvider).items.isNotEmpty;
     if (hasCachedDishes) {
@@ -149,12 +151,26 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     }
   }
 
+  /// Loads saved addresses, resolves the shared selected-address source of
+  /// truth (default → first, keeping any prior pick), then evaluates the
+  /// delivery gate against it. Sequencing guarantees the header/serviceability
+  /// reflect the right address instead of racing the GPS fallback.
+  Future<void> _resolveAddressAndEvaluate() async {
+    await ref.read(addressProvider.notifier).loadAddresses();
+    final list = ref.read(addressProvider).addresses;
+    ref.read(selectedDeliveryAddressProvider.notifier).resolveFrom(list);
+    // resolveFrom may have already triggered the selection listener (→ evaluate);
+    // the gate's internal guard makes this explicit call a safe no-op if so, and
+    // it covers the empty-list (GPS-fallback) and warm-re-entry refresh cases.
+    await ref.read(deliveryGateProvider.notifier).evaluate();
+  }
+
   Future<void> _onRefresh() async {
     await Future.wait([
       ref.read(allDishesProvider.notifier).silentRefresh(),
       _loadKitchens(),
       ref.read(cartProvider.notifier).loadCart(),
-      ref.read(deliveryGateProvider.notifier).evaluate(),
+      _resolveAddressAndEvaluate(),
     ]);
   }
 
@@ -295,15 +311,29 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       notificationProvider.select((s) => s.unreadCount),
     );
 
-    // Re-evaluate the delivery gate whenever the saved address list changes
-    // (add / delete / set-default) so the header location and area
-    // serviceability always reflect the user's latest address setup.
+    // When the saved address list changes (add / delete / set-default), re-run
+    // selection resolution: keep the current pick if it survived, otherwise
+    // fall back to the default / first. Any resulting change flows through the
+    // selection listener below to refresh the header + serviceability.
     ref.listen(
       addressProvider.select((s) => s.addresses),
       (prev, next) {
         if (prev != null && !identical(prev, next)) {
+          ref
+              .read(selectedDeliveryAddressProvider.notifier)
+              .resolveFrom(next);
           ref.read(deliveryGateProvider.notifier).evaluate();
         }
+      },
+    );
+
+    // The single source of truth for the active delivery address. A pick made
+    // here OR in checkout updates this provider; re-evaluate the gate so the
+    // header location + area serviceability always track the latest selection.
+    ref.listen(
+      selectedDeliveryAddressProvider,
+      (prev, next) {
+        ref.read(deliveryGateProvider.notifier).evaluate();
       },
     );
 
@@ -2236,13 +2266,11 @@ class _AddressSwitcherSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final addrState = ref.watch(addressProvider);
     final gate = ref.watch(deliveryGateProvider);
+    final selected = ref.watch(selectedDeliveryAddressProvider);
 
-    // Active address is the one whose coordinates match the last evaluated gate.
+    // Active address = the shared selection (single source of truth).
     bool isActive(DeliveryAddressModel a) =>
-        gate.latitude != null &&
-        gate.longitude != null &&
-        a.latitude == gate.latitude &&
-        a.longitude == gate.longitude;
+        selected != null && selected.id == a.id;
 
     return Container(
       decoration: const BoxDecoration(
@@ -2408,9 +2436,12 @@ class _AddressSwitcherSheet extends ConsumerWidget {
                     isEvaluating: gate.isEvaluating && active,
                     onTap: () {
                       Navigator.pop(context);
+                      // Update the single source of truth; the delivery screen's
+                      // selection listener re-evaluates the gate, and checkout
+                      // picks it up on entry.
                       ref
-                          .read(deliveryGateProvider.notifier)
-                          .evaluateForAddress(address);
+                          .read(selectedDeliveryAddressProvider.notifier)
+                          .select(address);
                     },
                   );
                 },
