@@ -283,6 +283,19 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final unreadCount = ref.watch(
       notificationProvider.select((s) => s.unreadCount),
     );
+
+    // Re-evaluate the delivery gate whenever the saved address list changes
+    // (add / delete / set-default) so the header location and area
+    // serviceability always reflect the user's latest address setup.
+    ref.listen(
+      addressProvider.select((s) => s.addresses),
+      (prev, next) {
+        if (prev != null && !identical(prev, next)) {
+          ref.read(deliveryGateProvider.notifier).evaluate();
+        }
+      },
+    );
+
     final areaBlocked = gate.areaBlocksOrdering;
 
     // Header location label: GPS/saved-address resolution only — never the

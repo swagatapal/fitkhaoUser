@@ -21,6 +21,7 @@ import '../../../policy/models/app_constants_model.dart';
 import '../../../policy/providers/app_constants_provider.dart';
 import '../../../profile/models/delivery_address_model.dart';
 import '../../../profile/presentation/screens/address_list_screen.dart';
+import '../../../profile/providers/delivery_address_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -113,6 +114,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final cartItems = ref.watch(cartProvider);
+
+    // When the user navigates from checkout → AddressListScreen → back, the
+    // checkout widget stays mounted so initState never fires again. Listen for
+    // address-list changes and reload so the displayed address is never stale.
+    ref.listen(
+      addressProvider.select((s) => s.addresses),
+      (prev, next) {
+        if (prev != null && !identical(prev, next)) {
+          ref
+              .read(checkoutDeliveryProvider.notifier)
+              .loadAddresses(autoSelectDefault: true);
+        }
+      },
+    );
 
     // ── Empty cart state ──────────────────────────────────────────────────────
     if (cartItems.isEmpty) {

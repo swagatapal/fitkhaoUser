@@ -88,10 +88,10 @@ class CheckoutDeliveryNotifier extends StateNotifier<CheckoutDeliveryState> {
 
   CheckoutDeliveryNotifier(this._ref) : super(const CheckoutDeliveryState());
 
-  /// Loads addresses once and auto-selects the default (or first) address,
-  /// then verifies its serviceability. Safe to call on every screen entry.
+  /// Loads (or reloads) addresses, auto-selects the default, and verifies
+  /// serviceability. Called on every screen entry so the list is never stale.
   Future<void> initialize() async {
-    if (state.addresses.isNotEmpty || state.isLoadingAddresses) return;
+    if (state.isLoadingAddresses) return; // block concurrent fetches only
     await loadAddresses(autoSelectDefault: true);
   }
 
@@ -106,9 +106,18 @@ class CheckoutDeliveryNotifier extends StateNotifier<CheckoutDeliveryState> {
       });
       state = state.copyWith(addresses: list, isLoadingAddresses: false);
 
-      if (autoSelectDefault && list.isNotEmpty && state.selected == null) {
-        final def = list.firstWhere((a) => a.isDefault, orElse: () => list.first);
-        await selectAddress(def);
+      if (autoSelectDefault && list.isNotEmpty) {
+        // Always re-select: the previously held `state.selected` may have been
+        // deleted, had its default flag changed, or the list order may differ.
+        // If the current pick still exists, keep it (refreshed); otherwise fall
+        // back to the default / first address.
+        final currentId = state.selected?.id;
+        final stillExists =
+            currentId != null && list.any((a) => a.id == currentId);
+        final target = stillExists
+            ? list.firstWhere((a) => a.id == currentId)
+            : list.firstWhere((a) => a.isDefault, orElse: () => list.first);
+        await selectAddress(target);
       }
     } catch (e) {
       debugPrint('[CheckoutDelivery] loadAddresses error: $e');
