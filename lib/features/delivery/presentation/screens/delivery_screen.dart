@@ -20,7 +20,9 @@ import '../../models/menu_item.dart';
 import '../../providers/menu_provider.dart';
 import '../../../notification/presentation/notification_screen.dart';
 import '../../../notification/providers/notification_provider.dart';
+import '../../../profile/models/delivery_address_model.dart';
 import '../../../profile/presentation/screens/address_form_screen.dart';
+import '../../../profile/presentation/screens/address_list_screen.dart';
 import '../../../profile/providers/delivery_address_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/food_detail_popup.dart';
@@ -233,9 +235,18 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return 'Location';
   }
 
+  void _openAddressSwitcher() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AddressSwitcherSheet(
+        onViewMap: _openLocationMap,
+      ),
+    );
+  }
+
   void _openLocationMap() {
-    // Prefer the coordinate the availability was resolved against; fall back to
-    // the profile address coordinate.
     final gate = ref.read(deliveryGateProvider);
     final authState = ref.read(authProvider);
     final lat = gate.latitude ?? authState.latitude;
@@ -669,7 +680,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               ),
               const SizedBox(height: 2),
               GestureDetector(
-                onTap: _openLocationMap,
+                onTap: _openAddressSwitcher,
                 behavior: HitTestBehavior.opaque,
                 child: Row(
                   children: [
@@ -2190,6 +2201,403 @@ class _InfoBanner extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Address switcher bottom sheet ───────────────────────────────────────────
+
+class _AddressSwitcherSheet extends ConsumerWidget {
+  const _AddressSwitcherSheet({required this.onViewMap});
+
+  final VoidCallback onViewMap;
+
+  static const _labelIcons = {
+    'work': Icons.work_rounded,
+    'other': Icons.place_rounded,
+  };
+
+  IconData _icon(String label) =>
+      _labelIcons[label.toLowerCase()] ?? Icons.home_rounded;
+
+  String _labelText(String label) {
+    switch (label.toLowerCase()) {
+      case 'work':
+        return 'Work';
+      case 'other':
+        return 'Other';
+      default:
+        return 'Home';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final addrState = ref.watch(addressProvider);
+    final gate = ref.watch(deliveryGateProvider);
+
+    // Active address is the one whose coordinates match the last evaluated gate.
+    bool isActive(DeliveryAddressModel a) =>
+        gate.latitude != null &&
+        gate.longitude != null &&
+        a.latitude == gate.latitude &&
+        a.longitude == gate.longitude;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Handle ──────────────────────────────────────────────────────────
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 4),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+
+          // ── Header row ──────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 12, 8),
+            child: Row(
+              children: [
+                const Icon(Icons.location_on,
+                    color: AppColors.primaryGreen, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Deliver to',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize18,
+                      fontWeight: AppTypography.bold,
+                      color: AppColors.textPrimary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+                // View on map
+                if (gate.latitude != null && gate.longitude != null)
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      onViewMap();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                        borderRadius:
+                            BorderRadius.circular(AppSizes.radius6),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.map_outlined,
+                              size: 14, color: AppColors.primaryGreen),
+                          SizedBox(width: 4),
+                          Text(
+                            'Map',
+                            style: TextStyle(
+                              fontSize: AppTypography.fontSize12,
+                              fontWeight: AppTypography.semiBold,
+                              color: AppColors.primaryGreen,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(Icons.close_rounded,
+                        size: 20, color: AppColors.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          // ── Address list / states ────────────────────────────────────────────
+          if (addrState.isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primaryGreen,
+                  ),
+                ),
+              ),
+            )
+          else if (addrState.addresses.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+              child: Column(
+                children: [
+                  Icon(Icons.location_off_outlined,
+                      size: AppSizes.icon48,
+                      color: AppColors.textTertiary.withValues(alpha: 0.6)),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'No saved addresses',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize15,
+                      fontWeight: AppTypography.semiBold,
+                      color: AppColors.textSecondary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Add an address to see delivery availability for your area.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize13,
+                      color: AppColors.textTertiary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.45,
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: addrState.addresses.length,
+                separatorBuilder: (_, __) => const Divider(
+                  height: 1,
+                  indent: 20,
+                  endIndent: 20,
+                ),
+                itemBuilder: (context, i) {
+                  final address = addrState.addresses[i];
+                  final active = isActive(address);
+                  return _AddressTile(
+                    address: address,
+                    icon: _icon(address.label),
+                    labelText: _labelText(address.label),
+                    isActive: active,
+                    isEvaluating: gate.isEvaluating && active,
+                    onTap: () {
+                      Navigator.pop(context);
+                      ref
+                          .read(deliveryGateProvider.notifier)
+                          .evaluateForAddress(address);
+                    },
+                  );
+                },
+              ),
+            ),
+
+          const Divider(height: 1),
+
+          // ── Add / Manage addresses ─────────────────────────────────────────
+          GestureDetector(
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const AddressListScreen()),
+              );
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    ),
+                    child: const Icon(Icons.add_location_alt_outlined,
+                        size: 18, color: AppColors.primaryGreen),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Text(
+                      'Add / Manage addresses',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.semiBold,
+                        color: AppColors.primaryGreen,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right,
+                      color: AppColors.primaryGreen, size: 20),
+                ],
+              ),
+            ),
+          ),
+
+          // Safe-area bottom padding.
+          SizedBox(height: MediaQuery.of(context).padding.bottom),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Single address tile inside the switcher ──────────────────────────────────
+
+class _AddressTile extends StatelessWidget {
+  const _AddressTile({
+    required this.address,
+    required this.icon,
+    required this.labelText,
+    required this.isActive,
+    required this.isEvaluating,
+    required this.onTap,
+  });
+
+  final DeliveryAddressModel address;
+  final IconData icon;
+  final String labelText;
+  final bool isActive;
+  final bool isEvaluating;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: isActive ? null : onTap,
+      splashColor: AppColors.primaryGreen.withValues(alpha: 0.06),
+      highlightColor: AppColors.primaryGreen.withValues(alpha: 0.04),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Label icon
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isActive
+                    ? AppColors.primaryGreen.withValues(alpha: 0.12)
+                    : Colors.grey.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+              child: Icon(
+                icon,
+                size: 18,
+                color: isActive
+                    ? AppColors.primaryGreen
+                    : AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 14),
+
+            // Address text
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        labelText,
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize14,
+                          fontWeight: AppTypography.semiBold,
+                          color: isActive
+                              ? AppColors.primaryGreen
+                              : AppColors.textPrimary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      if (address.isDefault) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryGreen
+                                .withValues(alpha: 0.10),
+                            borderRadius:
+                                BorderRadius.circular(AppSizes.radius4),
+                          ),
+                          child: const Text(
+                            'Default',
+                            style: TextStyle(
+                              fontSize: AppTypography.fontSize10,
+                              fontWeight: AppTypography.semiBold,
+                              color: AppColors.primaryGreen,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    address.formattedAddress,
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      color: AppColors.textSecondary,
+                      fontFamily: 'Lato',
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+
+            // Active indicator / loading spinner
+            if (isEvaluating)
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.primaryGreen,
+                ),
+              )
+            else if (isActive)
+              const Icon(Icons.check_circle_rounded,
+                  size: 20, color: AppColors.primaryGreen)
+            else
+              Icon(Icons.radio_button_unchecked_rounded,
+                  size: 20,
+                  color: AppColors.textTertiary.withValues(alpha: 0.5)),
+          ],
+        ),
       ),
     );
   }

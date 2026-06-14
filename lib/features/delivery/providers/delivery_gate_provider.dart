@@ -241,6 +241,57 @@ class DeliveryGateNotifier extends StateNotifier<DeliveryGateState> {
     }
   }
 
+  /// Evaluates serviceability for a specific [address] chosen from the address
+  /// switcher. Bypasses the `_resolveAddress` step so the header reflects the
+  /// user's pick immediately without reading the API's default again.
+  Future<void> evaluateForAddress(DeliveryAddressModel address) async {
+    if (_running) return;
+    _running = true;
+    state = state.copyWith(
+      isEvaluating: true,
+      area: AreaServiceability.checking,
+    );
+
+    try {
+      final lat = address.latitude;
+      final lng = address.longitude;
+      final resolved = address.formattedAddress.isNotEmpty
+          ? address.formattedAddress
+          : await _reverseGeocode(lat, lng);
+
+      AreaServiceability area = AreaServiceability.unknown;
+      String? zone;
+      try {
+        final res = await _ref
+            .read(serviceabilityRepositoryProvider)
+            .checkServiceability(latitude: lat, longitude: lng);
+        final data = res.data;
+        if (res.success && data != null && data.isServiceable) {
+          area = AreaServiceability.serviceable;
+          zone = data.zoneName;
+        } else {
+          area = AreaServiceability.notServiceable;
+        }
+      } catch (e) {
+        debugPrint('[DeliveryGate] serviceability error: $e');
+        area = AreaServiceability.unknown;
+      }
+
+      state = state.copyWith(
+        area: area,
+        zoneName: zone,
+        sourceLabel: _addressLabel(address),
+        resolvedAddress: resolved,
+        latitude: lat,
+        longitude: lng,
+        isEvaluating: false,
+      );
+    } finally {
+      _running = false;
+      if (state.isEvaluating) state = state.copyWith(isEvaluating: false);
+    }
+  }
+
   // ── Public actions ──────────────────────────────────────────────────────────
 
   /// Triggered by the "Enable location" info box. Requests permission / opens
