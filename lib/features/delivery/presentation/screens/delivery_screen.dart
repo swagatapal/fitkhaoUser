@@ -135,6 +135,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     unawaited(ref.read(notificationProvider.notifier).load());
     // Pre-fetch saved addresses so the checkout gate check is instant.
     unawaited(ref.read(addressProvider.notifier).loadAddresses());
+    // Re-register the FCM device token on every cold start so the server
+    // always has the latest token (tokens rotate after reinstalls/updates).
+    unawaited(ref.read(authProvider.notifier).registerDevice());
 
     final hasCachedDishes = ref.read(allDishesProvider).items.isNotEmpty;
     if (hasCachedDishes) {

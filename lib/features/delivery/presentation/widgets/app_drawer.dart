@@ -650,7 +650,7 @@ class _Footer extends StatelessWidget {
               size: AppSizes.icon16, color: AppColors.textTertiary),
           const SizedBox(width: AppSizes.spacing6),
           Text(
-            'FitKhao • FitRaho  •  v1.0.0',
+            'FitKhao • FitRaho  ',
             style: TextStyle(
               fontSize: AppTypography.fontSize12,
               fontWeight: AppTypography.semiBold,

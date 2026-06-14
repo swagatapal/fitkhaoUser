@@ -200,17 +200,17 @@ class ProfileMenuScreen extends ConsumerWidget {
                       const SizedBox(height: AppSizes.spacing20),
 
                       // ── Version footer ────────────────────────────────────────
-                      Center(
-                        child: Text(
-                          'FitKhao • v${AppConfigVersion.version}',
-                          style: TextStyle(
-                            fontSize: AppTypography.fontSize12,
-                            fontWeight: AppTypography.medium,
-                            color: AppColors.textTertiary,
-                            fontFamily: 'Lato',
-                          ),
-                        ),
-                      ),
+                      // Center(
+                      //   child: Text(
+                      //     'FitKhao • v${AppConfigVersion.version}',
+                      //     style: TextStyle(
+                      //       fontSize: AppTypography.fontSize12,
+                      //       fontWeight: AppTypography.medium,
+                      //       color: AppColors.textTertiary,
+                      //       fontFamily: 'Lato',
+                      //     ),
+                      //   ),
+                      // ),
                       const SizedBox(height: AppSizes.spacing24),
                     ],
                   ),
