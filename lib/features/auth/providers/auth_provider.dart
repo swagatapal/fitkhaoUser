@@ -115,7 +115,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = state.copyWith(
           isLoading: false,
           errorMessage: null,
-          receivedOtpMessage: response.message+response.otpId.toString(),
+          receivedOtpMessage: response.message,
               // for dev
              //+response.otpId.toString()
         );
@@ -191,7 +191,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = state.copyWith(
           isResendingOtp: false,
           errorMessage: null,
-          receivedOtpMessage: response.message+response.otpId.toString(),
+          receivedOtpMessage: response.message,
               //for dev
             //+response.otpId.toString()
         );

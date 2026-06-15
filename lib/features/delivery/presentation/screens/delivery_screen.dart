@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:fitkhao_user/features/profile/presentation/screens/profile_menu_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
@@ -100,11 +101,15 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   void _showOrderingClosedSnackBar() {
     if (!mounted) return;
-    final areaBlocked = ref.read(deliveryGateProvider).areaBlocksOrdering;
+    final areaBlocked = ref
+        .read(deliveryGateProvider)
+        .areaBlocksOrdering;
     final reason = areaBlocked
         ? 'We don’t deliver to your area yet. Add another address for delivery'
-        : (ref.read(kitchenProvider).kitchenClosedReason ??
-            'The outlet is currently closed');
+        : (ref
+        .read(kitchenProvider)
+        .kitchenClosedReason ??
+        'The outlet is currently closed');
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -143,7 +148,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     // truth, so we resolve the selection first, then evaluate serviceability.
     unawaited(_resolveAddressAndEvaluate());
 
-    final hasCachedDishes = ref.read(allDishesProvider).items.isNotEmpty;
+    final hasCachedDishes = ref
+        .read(allDishesProvider)
+        .items
+        .isNotEmpty;
     if (hasCachedDishes) {
       unawaited(ref.read(allDishesProvider.notifier).silentRefresh());
     } else {
@@ -157,7 +165,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   /// reflect the right address instead of racing the GPS fallback.
   Future<void> _resolveAddressAndEvaluate() async {
     await ref.read(addressProvider.notifier).loadAddresses();
-    final list = ref.read(addressProvider).addresses;
+    final list = ref
+        .read(addressProvider)
+        .addresses;
     ref.read(selectedDeliveryAddressProvider.notifier).resolveFrom(list);
     // resolveFrom may have already triggered the selection listener (→ evaluate);
     // the gate's internal guard makes this explicit call a safe no-op if so, and
@@ -213,9 +223,13 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     }
 
     // Paginate the active view — search results or the browse list.
-    if (ref.read(dishSearchProvider).isActive) {
+    if (ref
+        .read(dishSearchProvider)
+        .isActive) {
       ref.read(dishSearchProvider.notifier).loadMore();
-    } else if (ref.read(allDishesProvider).canLoadMore) {
+    } else if (ref
+        .read(allDishesProvider)
+        .canLoadMore) {
       ref.read(allDishesProvider.notifier).loadMore();
     }
   }
@@ -224,7 +238,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     _searchDebounce?.cancel();
     // Debounce keystrokes; the provider sequences requests to drop stale ones.
     _searchDebounce = Timer(const Duration(milliseconds: 350), () {
-      final kitchenId = ref.read(kitchenProvider).selectedKitchenId;
+      final kitchenId = ref
+          .read(kitchenProvider)
+          .selectedKitchenId;
       ref
           .read(dishSearchProvider.notifier)
           .search(value.trim(), kitchenId: kitchenId);
@@ -243,7 +259,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final authState = ref.read(authProvider);
     if (authState.street.isNotEmpty) {
       final parts = authState.street.split(',');
-      return "${parts.first.trim()}, ${authState.buildingNameNumber}, ${authState.pincode}";
+      return "${parts.first.trim()}, ${authState
+          .buildingNameNumber}, ${authState.pincode}";
     }
     if (authState.buildingNameNumber.isNotEmpty) {
       return authState.buildingNameNumber;
@@ -256,9 +273,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _AddressSwitcherSheet(
-        onViewMap: _openLocationMap,
-      ),
+      builder: (_) =>
+          _AddressSwitcherSheet(
+            onViewMap: _openLocationMap,
+          ),
     );
   }
 
@@ -270,19 +288,20 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     if (lat == null || lng == null) return;
 
     final address =
-        (gate.resolvedAddress != null && gate.resolvedAddress!.isNotEmpty)
-            ? gate.resolvedAddress!
-            : _getUserLocation();
+    (gate.resolvedAddress != null && gate.resolvedAddress!.isNotEmpty)
+        ? gate.resolvedAddress!
+        : _getUserLocation();
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => LocationViewSheet(
-        latitude: lat,
-        longitude: lng,
-        address: address,
-      ),
+      builder: (context) =>
+          LocationViewSheet(
+            latitude: lat,
+            longitude: lng,
+            address: address,
+          ),
     );
   }
 
@@ -317,7 +336,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     // selection listener below to refresh the header + serviceability.
     ref.listen(
       addressProvider.select((s) => s.addresses),
-      (prev, next) {
+          (prev, next) {
         if (prev != null && !identical(prev, next)) {
           ref
               .read(selectedDeliveryAddressProvider.notifier)
@@ -332,7 +351,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     // header location + area serviceability always track the latest selection.
     ref.listen(
       selectedDeliveryAddressProvider,
-      (prev, next) {
+          (prev, next) {
         ref.read(deliveryGateProvider.notifier).evaluate();
       },
     );
@@ -344,8 +363,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final displayAddress = gate.isEvaluating
         ? 'Detecting location…'
         : (gate.resolvedAddress != null && gate.resolvedAddress!.isNotEmpty)
-            ? gate.resolvedAddress!
-            : 'Set your location';
+        ? gate.resolvedAddress!
+        : 'Set your location';
 
     // ACTIVE  → kitchen open AND area serviceable → colorful, can order.
     // PASSIVE → otherwise                         → grayscale, view-only.
@@ -365,7 +384,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           currentBackPressTime = now;
           SnackBar(
               backgroundColor: AppColors.darkGreen,
-              content:  Text( 'Tap back again to Exit', style: TextStyle(color: AppColors.textWhite),));
+              content: Text('Tap back again to Exit',
+                style: TextStyle(color: AppColors.textWhite),));
           // return false;
         } else {
           SystemNavigator.pop();
@@ -400,9 +420,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: AppSizes.spacing4),
-                                _buildCompactHeader(authState, displayAddress, unreadCount),
+                                _buildCompactHeader(
+                                    authState, displayAddress, unreadCount),
                                 const SizedBox(height: AppSizes.spacing8),
                                 _buildDishSearchBar(),
+
+                                _buildWorldCup(),
                                 // Area not serviceable → blocks ordering.
                                 if (areaBlocked) _buildNotServiceableBanner(),
                                 // Kitchen closed (independent of area).
@@ -460,7 +483,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 Positioned(
                   left: 0,
                   right: 0,
-                  bottom: MediaQuery.of(context).size.height * 0.03,
+                  bottom: MediaQuery
+                      .of(context)
+                      .size
+                      .height * 0.03,
                   child: Consumer(
                     builder: (context, ref, _) {
                       final totalItems = ref.watch(cartTotalItemsProvider);
@@ -482,6 +508,89 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
+  //world cup offer
+  Widget _buildWorldCup() {
+    return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Stack(children: [
+          Image.asset("assets/images/world_cup.jpeg",
+            height: MediaQuery
+                .of(context)
+                .size
+                .height*0.1,
+
+            width: MediaQuery
+              .of(context)
+              .size
+              .width, fit: BoxFit.cover,)
+          ,
+          Positioned(
+            bottom: AppSizes.spacing16,
+            left: AppSizes.spacing16,
+            child: InkWell(
+              onTap: () => _handleDownload(context),
+              child: Container(
+                decoration: BoxDecoration(
+                    color: Color(0XFFEFF5EB),
+                    borderRadius: BorderRadius.circular(4)
+                ),
+                child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: AppSizes.spacing8,
+                        horizontal: AppSizes.spacing12
+                    ),
+                    child: Text("Download Fixture", style: TextStyle(
+                        color: Color(0XFF639654),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600
+                    ),)
+                ),
+              ),
+            ),
+          ),
+
+
+        ]));
+
+  }
+
+
+  /// Opens the first promotion file in the external browser (Chrome), which
+  /// triggers the platform's native download handling for the PDF.
+  Future<void> _handleDownload(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final uri = Uri.parse(
+          "https://fitkhaoprod.blob.core.windows.net/dish-images/coupon-content/1781353881307-a00e592c.pdf");
+      final launched =
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not open the file. Please try again.',
+              style: TextStyle(fontFamily: 'Lato'),
+            ),
+            backgroundColor: AppColors.errorColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[CouponCard] Download error: $e');
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not open the file. Please try again.',
+            style: TextStyle(fontFamily: 'Lato'),
+          ),
+          backgroundColor: AppColors.errorColor,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+
   // ── Passive banner ──────────────────────────────────────────────────────────
 
   Widget _buildPassiveBanner(String reason) {
@@ -496,7 +605,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         color: const Color(0xFFFFF8E1),
         borderRadius: BorderRadius.circular(AppSizes.radius12),
         border:
-            Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.35)),
+        Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
@@ -614,7 +723,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       accent: const Color(0xFF2E7CF6),
       title: 'Turn on location',
       message:
-          'Enable location so we can check delivery availability for your area.',
+      'Enable location so we can check delivery availability for your area.',
       actionLabel: 'Enable',
       onAction: () => ref.read(deliveryGateProvider.notifier).enableLocation(),
       onDismiss: () =>
@@ -630,7 +739,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       accent: const Color(0xFFF5A623),
       title: 'Stay in the loop',
       message:
-          'Enable notifications so you don’t miss order updates and offers.',
+      'Enable notifications so you don’t miss order updates and offers.',
       actionLabel: 'Enable',
       onAction: () =>
           ref.read(deliveryGateProvider.notifier).enableNotifications(),
@@ -643,7 +752,9 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   Widget _buildCompactHeader(authState, String location, int unreadCount) {
     final firstName = (authState.name as String).isNotEmpty
-        ? (authState.name as String).split(' ').first
+        ? (authState.name as String)
+        .split(' ')
+        .first
         : 'User';
     final imgUrl = authState.imgUrl as String?;
     final hasValidUrl =
@@ -669,29 +780,31 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         ),
         const SizedBox(width: 10),
         GestureDetector(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const ProfileMenuScreen()),
-          ),
+          onTap: () =>
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const ProfileMenuScreen()),
+              ),
           child: hasValidUrl
               ? CircleAvatar(
-                  radius: 19,
-                  backgroundImage: NetworkImage(imgUrl),
-                  backgroundColor:
-                      AppColors.primaryGreen.withValues(alpha: 0.1),
-                )
+            radius: 19,
+            backgroundImage: NetworkImage(imgUrl),
+            backgroundColor:
+            AppColors.primaryGreen.withValues(alpha: 0.1),
+          )
               : CircleAvatar(
-                  radius: 19,
-                  backgroundColor: AppColors.primaryGreen,
-                  child: Text(
-                    firstName[0].toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ),
+            radius: 19,
+            backgroundColor: AppColors.primaryGreen,
+            child: Text(
+              firstName[0].toUpperCase(),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -739,11 +852,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         ),
         const SizedBox(width: 10),
         GestureDetector(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const NotificationScreen(),
-            ),
-          ),
+          onTap: () =>
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const NotificationScreen(),
+                ),
+              ),
           child: SizedBox(
             width: 38,
             height: 38,
@@ -882,10 +996,11 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       children: [
         if (dishState.areCategoriesLoading)
           _buildCategoryTabsSkeleton()
-        else if (dishState.categories.isNotEmpty) ...[
-          _buildCategoryTabBar(dishState),
-          const SizedBox(height: AppSizes.spacing8),
-        ],
+        else
+          if (dishState.categories.isNotEmpty) ...[
+            _buildCategoryTabBar(dishState),
+            const SizedBox(height: AppSizes.spacing8),
+          ],
         _buildDishTypeStrip(dishState),
       ],
     );
@@ -907,12 +1022,14 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 ref.read(allDishesProvider.notifier).selectCategory(null),
           ),
           ...dishState.categories.map(
-            (cat) => _categoryTab(
-              label: cat.name,
-              isSelected: selectedCatId == cat.id,
-              onTap: () =>
-                  ref.read(allDishesProvider.notifier).selectCategory(cat.id),
-            ),
+                (cat) =>
+                _categoryTab(
+                  label: cat.name,
+                  isSelected: selectedCatId == cat.id,
+                  onTap: () =>
+                      ref.read(allDishesProvider.notifier).selectCategory(
+                          cat.id),
+                ),
           ),
         ],
       ),
@@ -936,10 +1053,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           decoration: BoxDecoration(
             gradient: isSelected
                 ? const LinearGradient(
-                    colors: [Color(0xFF5D9E40), Color(0xFF6BA84F)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
+              colors: [Color(0xFF5D9E40), Color(0xFF6BA84F)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            )
                 : null,
             color: isSelected ? null : Colors.white,
             borderRadius: BorderRadius.circular(AppSizes.radius8),
@@ -950,12 +1067,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             ),
             boxShadow: isSelected
                 ? [
-                    BoxShadow(
-                      color: AppColors.primaryGreen.withValues(alpha: 0.22),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
+              BoxShadow(
+                color: AppColors.primaryGreen.withValues(alpha: 0.22),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ]
                 : null,
           ),
           child: Text(
@@ -963,7 +1080,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             style: TextStyle(
               fontSize: AppTypography.fontSize13,
               fontWeight:
-                  isSelected ? AppTypography.bold : AppTypography.medium,
+              isSelected ? AppTypography.bold : AppTypography.medium,
               color: isSelected ? Colors.white : AppColors.textPrimary,
               fontFamily: 'Lato',
             ),
@@ -1002,9 +1119,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             icon: option.icon,
             color: option.color,
             isSelected: selected.contains(option.value),
-            onTap: () => ref
-                .read(allDishesProvider.notifier)
-                .toggleDishType(option.value),
+            onTap: () =>
+                ref
+                    .read(allDishesProvider.notifier)
+                    .toggleDishType(option.value),
           );
         },
       ),
@@ -1046,7 +1164,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
               style: TextStyle(
                 fontSize: AppTypography.fontSize12,
                 fontWeight:
-                    isSelected ? AppTypography.semiBold : AppTypography.regular,
+                isSelected ? AppTypography.semiBold : AppTypography.regular,
                 color: isSelected ? color : AppColors.textSecondary,
                 fontFamily: 'Lato',
               ),
@@ -1072,14 +1190,15 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           physics: const NeverScrollableScrollPhysics(),
           children: List.generate(
             5,
-            (i) => Container(
-              margin: const EdgeInsets.only(right: AppSizes.spacing8),
-              width: 72 + (i.isEven ? 16 : 0),
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(AppSizes.radius8),
-              ),
-            ),
+                (i) =>
+                Container(
+                  margin: const EdgeInsets.only(right: AppSizes.spacing8),
+                  width: 72 + (i.isEven ? 16 : 0),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                ),
           ),
         ),
       ),
@@ -1136,8 +1255,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                   top: AppSizes.spacing8, bottom: AppSizes.spacing4),
               child: Text(
                 '${search.results.length} '
-                '${search.results.length == 1 ? 'result' : 'results'} '
-                'for “${search.query}”',
+                    '${search.results.length == 1 ? 'result' : 'results'} '
+                    'for “${search.query}”',
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize12,
                   color: AppColors.textSecondary,
@@ -1276,8 +1395,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     );
   }
 
-  Widget _buildCollapsibleSectionItems(
-      GroupedDishSection section, bool isActive) {
+  Widget _buildCollapsibleSectionItems(GroupedDishSection section,
+      bool isActive) {
     final isCollapsed = _collapsedCategories.contains(section.category.id);
     return AnimatedSize(
       duration: const Duration(milliseconds: 280),
@@ -1286,19 +1405,19 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       child: isCollapsed
           ? const SizedBox(width: double.infinity)
           : Column(
-              children: [
-                for (final item in section.items)
-                  _FadeSlideIn(
-                    key: ValueKey('all_${item.id}'),
-                    child: _DishCard(
-                      item: item,
-                      isOrderingEnabled: isActive,
-                      onOrderingDisabledTap: _showOrderingClosedSnackBar,
-                    ),
-                  ),
-                const SizedBox(height: AppSizes.spacing8),
-              ],
+        children: [
+          for (final item in section.items)
+            _FadeSlideIn(
+              key: ValueKey('all_${item.id}'),
+              child: _DishCard(
+                item: item,
+                isOrderingEnabled: isActive,
+                onOrderingDisabledTap: _showOrderingClosedSnackBar,
+              ),
             ),
+          const SizedBox(height: AppSizes.spacing8),
+        ],
+      ),
     );
   }
 
@@ -1374,14 +1493,15 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     return Column(
       children: List.generate(
         6,
-        (_) => Container(
-          margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
-          height: 120,
-          decoration: BoxDecoration(
-            color: Colors.grey.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(AppSizes.radius12),
-          ),
-        ),
+            (_) =>
+            Container(
+              margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppSizes.radius12),
+              ),
+            ),
       ),
     );
   }
@@ -1451,7 +1571,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
     // If they successfully added one, proceed straight to checkout.
     if (!mounted) return;
-    if (ref.read(addressProvider).addresses.isNotEmpty) {
+    if (ref
+        .read(addressProvider)
+        .addresses
+        .isNotEmpty) {
       Navigator.push<void>(
         context,
         MaterialPageRoute(builder: (_) => const CheckoutScreen()),
@@ -1464,93 +1587,94 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   void _showClearCartDialog() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSizes.radius12),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.delete_outline_rounded,
-                color: AppColors.errorColor, size: AppSizes.icon24),
-            SizedBox(width: AppSizes.spacing8),
-            Text(
-              'Clear Cart',
+      builder: (ctx) =>
+          AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radius12),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.delete_outline_rounded,
+                    color: AppColors.errorColor, size: AppSizes.icon24),
+                SizedBox(width: AppSizes.spacing8),
+                Text(
+                  'Clear Cart',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize18,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+            content: const Text(
+              'Are you sure you want to remove all items from your cart?',
               style: TextStyle(
-                fontSize: AppTypography.fontSize18,
-                fontWeight: AppTypography.bold,
-                color: AppColors.textPrimary,
+                fontSize: AppTypography.fontSize14,
+                color: AppColors.textSecondary,
                 fontFamily: 'Lato',
               ),
             ),
-          ],
-        ),
-        content: const Text(
-          'Are you sure you want to remove all items from your cart?',
-          style: TextStyle(
-            fontSize: AppTypography.fontSize14,
-            color: AppColors.textSecondary,
-            fontFamily: 'Lato',
-          ),
-        ),
-        actionsPadding: const EdgeInsets.fromLTRB(
-            AppSizes.spacing16, 0, AppSizes.spacing16, AppSizes.spacing16),
-        actions: [
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => Navigator.of(ctx).pop(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: AppSizes.spacing12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.borderColor),
-                      borderRadius: BorderRadius.circular(AppSizes.radius8),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize14,
-                        fontWeight: AppTypography.semiBold,
-                        color: AppColors.textSecondary,
-                        fontFamily: 'Lato',
+            actionsPadding: const EdgeInsets.fromLTRB(
+                AppSizes.spacing16, 0, AppSizes.spacing16, AppSizes.spacing16),
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.of(ctx).pop(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: AppSizes.spacing12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.borderColor),
+                          borderRadius: BorderRadius.circular(AppSizes.radius8),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize14,
+                            fontWeight: AppTypography.semiBold,
+                            color: AppColors.textSecondary,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: AppSizes.spacing12),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    ref.read(cartProvider.notifier).clearCart();
-                    Navigator.of(ctx).pop();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: AppSizes.spacing12),
-                    decoration: BoxDecoration(
-                      color: AppColors.errorColor,
-                      borderRadius: BorderRadius.circular(AppSizes.radius8),
-                    ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'Clear Cart',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize14,
-                        fontWeight: AppTypography.semiBold,
-                        color: Colors.white,
-                        fontFamily: 'Lato',
+                  const SizedBox(width: AppSizes.spacing12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        ref.read(cartProvider.notifier).clearCart();
+                        Navigator.of(ctx).pop();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: AppSizes.spacing12),
+                        decoration: BoxDecoration(
+                          color: AppColors.errorColor,
+                          borderRadius: BorderRadius.circular(AppSizes.radius8),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text(
+                          'Clear Cart',
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize14,
+                            fontWeight: AppTypography.semiBold,
+                            color: Colors.white,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
     );
   }
 }
@@ -1628,29 +1752,32 @@ class _DishCard extends ConsumerWidget {
                       fit: BoxFit.cover,
                       fadeInDuration: const Duration(milliseconds: 200),
                       fadeOutDuration: const Duration(milliseconds: 100),
-                      placeholder: (_, __) => Container(
-                        width: AppSizes.icon120,
-                        height: AppSizes.icon120,
-                        color: Colors.grey.withValues(alpha: 0.12),
-                        child: const Center(
-                          child: SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              color: AppColors.primaryGreen,
+                      placeholder: (_, __) =>
+                          Container(
+                            width: AppSizes.icon120,
+                            height: AppSizes.icon120,
+                            color: Colors.grey.withValues(alpha: 0.12),
+                            child: const Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                  color: AppColors.primaryGreen,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      errorWidget: (_, __, ___) => Container(
-                        width: AppSizes.icon120,
-                        height: AppSizes.icon120,
-                        color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                        child: const Icon(Icons.restaurant,
-                            size: AppSizes.icon32,
-                            color: AppColors.primaryGreen),
-                      ),
+                      errorWidget: (_, __, ___) =>
+                          Container(
+                            width: AppSizes.icon120,
+                            height: AppSizes.icon120,
+                            color: AppColors.primaryGreen.withValues(
+                                alpha: 0.1),
+                            child: const Icon(Icons.restaurant,
+                                size: AppSizes.icon32,
+                                color: AppColors.primaryGreen),
+                          ),
                     ),
                   ),
                   const SizedBox(width: AppSizes.spacing12),
@@ -1713,7 +1840,7 @@ class _DishCard extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: Colors.grey.shade700,
                           borderRadius:
-                              BorderRadius.circular(AppSizes.radius20),
+                          BorderRadius.circular(AppSizes.radius20),
                         ),
                         child: const Text(
                           'Currently Unavailable',
@@ -1869,10 +1996,11 @@ class _DishCard extends ConsumerWidget {
   Widget _addButton(BuildContext context, bool canOrder) {
     return GestureDetector(
       onTap: canOrder
-          ? () => showDialog(
-                context: context,
-                builder: (_) => FoodDetailPopup(menuItem: item),
-              )
+          ? () =>
+          showDialog(
+            context: context,
+            builder: (_) => FoodDetailPopup(menuItem: item),
+          )
           : null,
       child: Container(
         padding: const EdgeInsets.symmetric(
@@ -1917,9 +2045,10 @@ class _QuantityStepper extends ConsumerWidget {
         children: [
           _stepBtn(
             Icons.remove,
-            () => ref
-                .read(cartProvider.notifier)
-                .updateQuantity(item.id, qty - 1),
+                () =>
+                ref
+                    .read(cartProvider.notifier)
+                    .updateQuantity(item.id, qty - 1),
           ),
           SizedBox(
             width: 28,
@@ -1936,7 +2065,7 @@ class _QuantityStepper extends ConsumerWidget {
           ),
           _stepBtn(
             Icons.add,
-            () => ref.read(cartProvider.notifier).addItem(item),
+                () => ref.read(cartProvider.notifier).addItem(item),
           ),
         ],
       ),
@@ -2024,7 +2153,8 @@ class _CartBar extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '$totalItems ${totalItems == 1 ? AppStrings.item : AppStrings.items}',
+                  '$totalItems ${totalItems == 1 ? AppStrings.item : AppStrings
+                      .items}',
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize14,
                     fontWeight: AppTypography.semiBold,
@@ -2278,7 +2408,10 @@ class _AddressSwitcherSheet extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+        bottom: MediaQuery
+            .of(context)
+            .viewInsets
+            .bottom,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -2329,7 +2462,7 @@ class _AddressSwitcherSheet extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: AppColors.primaryGreen.withValues(alpha: 0.08),
                         borderRadius:
-                            BorderRadius.circular(AppSizes.radius6),
+                        BorderRadius.circular(AppSizes.radius6),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
@@ -2380,73 +2513,79 @@ class _AddressSwitcherSheet extends ConsumerWidget {
                 ),
               ),
             )
-          else if (addrState.addresses.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-              child: Column(
-                children: [
-                  Icon(Icons.location_off_outlined,
-                      size: AppSizes.icon48,
-                      color: AppColors.textTertiary.withValues(alpha: 0.6)),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'No saved addresses',
-                    style: TextStyle(
-                      fontSize: AppTypography.fontSize15,
-                      fontWeight: AppTypography.semiBold,
-                      color: AppColors.textSecondary,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Add an address to see delivery availability for your area.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: AppTypography.fontSize13,
-                      color: AppColors.textTertiary,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ],
-              ),
-            )
           else
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.45,
-              ),
-              child: ListView.separated(
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: addrState.addresses.length,
-                separatorBuilder: (_, __) => const Divider(
-                  height: 1,
-                  indent: 20,
-                  endIndent: 20,
+            if (addrState.addresses.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    vertical: 28, horizontal: 20),
+                child: Column(
+                  children: [
+                    Icon(Icons.location_off_outlined,
+                        size: AppSizes.icon48,
+                        color: AppColors.textTertiary.withValues(alpha: 0.6)),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'No saved addresses',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize15,
+                        fontWeight: AppTypography.semiBold,
+                        color: AppColors.textSecondary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Add an address to see delivery availability for your area.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize13,
+                        color: AppColors.textTertiary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
                 ),
-                itemBuilder: (context, i) {
-                  final address = addrState.addresses[i];
-                  final active = isActive(address);
-                  return _AddressTile(
-                    address: address,
-                    icon: _icon(address.label),
-                    labelText: _labelText(address.label),
-                    isActive: active,
-                    isEvaluating: gate.isEvaluating && active,
-                    onTap: () {
-                      Navigator.pop(context);
-                      // Update the single source of truth; the delivery screen's
-                      // selection listener re-evaluates the gate, and checkout
-                      // picks it up on entry.
-                      ref
-                          .read(selectedDeliveryAddressProvider.notifier)
-                          .select(address);
-                    },
-                  );
-                },
+              )
+            else
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery
+                      .of(context)
+                      .size
+                      .height * 0.45,
+                ),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: addrState.addresses.length,
+                  separatorBuilder: (_, __) =>
+                  const Divider(
+                    height: 1,
+                    indent: 20,
+                    endIndent: 20,
+                  ),
+                  itemBuilder: (context, i) {
+                    final address = addrState.addresses[i];
+                    final active = isActive(address);
+                    return _AddressTile(
+                      address: address,
+                      icon: _icon(address.label),
+                      labelText: _labelText(address.label),
+                      isActive: active,
+                      isEvaluating: gate.isEvaluating && active,
+                      onTap: () {
+                        Navigator.pop(context);
+                        // Update the single source of truth; the delivery screen's
+                        // selection listener re-evaluates the gate, and checkout
+                        // picks it up on entry.
+                        ref
+                            .read(selectedDeliveryAddressProvider.notifier)
+                            .select(address);
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
 
           const Divider(height: 1),
 
@@ -2495,7 +2634,10 @@ class _AddressSwitcherSheet extends ConsumerWidget {
           ),
 
           // Safe-area bottom padding.
-          SizedBox(height: MediaQuery.of(context).padding.bottom),
+          SizedBox(height: MediaQuery
+              .of(context)
+              .padding
+              .bottom),
         ],
       ),
     );
@@ -2579,7 +2721,7 @@ class _AddressTile extends StatelessWidget {
                             color: AppColors.primaryGreen
                                 .withValues(alpha: 0.10),
                             borderRadius:
-                                BorderRadius.circular(AppSizes.radius4),
+                            BorderRadius.circular(AppSizes.radius4),
                           ),
                           child: const Text(
                             'Default',
@@ -2620,13 +2762,14 @@ class _AddressTile extends StatelessWidget {
                   color: AppColors.primaryGreen,
                 ),
               )
-            else if (isActive)
-              const Icon(Icons.check_circle_rounded,
-                  size: 20, color: AppColors.primaryGreen)
             else
-              Icon(Icons.radio_button_unchecked_rounded,
-                  size: 20,
-                  color: AppColors.textTertiary.withValues(alpha: 0.5)),
+              if (isActive)
+                const Icon(Icons.check_circle_rounded,
+                    size: 20, color: AppColors.primaryGreen)
+              else
+                Icon(Icons.radio_button_unchecked_rounded,
+                    size: 20,
+                    color: AppColors.textTertiary.withValues(alpha: 0.5)),
           ],
         ),
       ),
@@ -2661,8 +2804,8 @@ class _FilterHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get minExtent => _height;
 
   @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(BuildContext context, double shrinkOffset,
+      bool overlapsContent) {
     // SizedBox.expand forces the child to fill the full [_height] the delegate
     // declares. A persistent header lays its child out with a LOOSE height
     // constraint, so without this the child could settle shorter than
