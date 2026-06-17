@@ -635,18 +635,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                     fontFamily: 'Lato',
                   ),
                 ),
-                const SizedBox(height: 1),
-                Text(
-                  reason,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize12,
-                    fontWeight: AppTypography.regular,
-                    color: Color(0xFF795548),
-                    fontFamily: 'Lato',
-                  ),
-                ),
               ],
             ),
           ),
