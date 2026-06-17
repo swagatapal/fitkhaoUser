@@ -426,6 +426,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                                 _buildDishSearchBar(),
 
                                 _buildWorldCup(),
+                                const SizedBox(height: AppSizes.spacing8),
                                 // Area not serviceable → blocks ordering.
                                 if (areaBlocked) _buildNotServiceableBanner(),
                                 // Kitchen closed (independent of area).
@@ -603,7 +604,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       ),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF8E1),
-        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
         border:
         Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.35)),
       ),
