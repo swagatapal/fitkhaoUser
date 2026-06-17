@@ -5,13 +5,27 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
-import '../../../../shared/widgets/logo_widget.dart';
 import '../../models/subscription_plan_model.dart';
 import '../../providers/subscription_plan_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../widgets/recharge_topup_modal.dart';
 import 'subscription_checkout_screen.dart';
 import 'transaction_history_screen.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Subscription plan screen.
+//
+// Composed of small, independently-rebuilding [ConsumerWidget]s so a selection
+// tap or a wallet refresh never rebuilds the whole tree:
+//   • _WalletBar           → rebuilds only on wallet change
+//   • _ActivePlanBanner    → rebuilds only on subscription change
+//   • _PlansList / _PlanCard → a card rebuilds only when ITS selected-state flips
+//   • _SubscribeBar        → rebuilds on selection / subscription change
+// Selection lives in [selectedSubscriptionPlanProvider] (a plain id), not in
+// widget state, which is what keeps the rebuild surface minimal.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const Color _kAccent = Color(0xFFC66301);
 
 class SubscriptionPlanScreen extends ConsumerStatefulWidget {
   const SubscriptionPlanScreen({super.key});
@@ -23,8 +37,6 @@ class SubscriptionPlanScreen extends ConsumerStatefulWidget {
 
 class _SubscriptionPlanScreenState
     extends ConsumerState<SubscriptionPlanScreen> {
-  SubscriptionPlan? _selectedPlan;
-
   @override
   void initState() {
     super.initState();
@@ -36,14 +48,28 @@ class _SubscriptionPlanScreenState
 
   @override
   Widget build(BuildContext context) {
+    // Auto-select a sensible default once plans arrive — the recommended plan
+    // if any, else the first. `ref.listen` reacts without rebuilding this screen.
+    ref.listen<SubscriptionPlanState>(subscriptionPlanProvider, (prev, next) {
+      if (next.plans.isEmpty) return;
+      if (ref.read(selectedSubscriptionPlanProvider) != null) return;
+      final def = next.plans.firstWhere(
+        (p) => p.features.suggestedPlan,
+        orElse: () => next.plans.first,
+      );
+      ref.read(selectedSubscriptionPlanProvider.notifier).state = def.id;
+    });
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: const Color(0xFFFAFBFC),
+        bottomNavigationBar: const _SubscribeBar(),
         body: SafeArea(
+          bottom: false,
           child: CustomScrollView(
             slivers: [
-              _buildSliverAppBar(),
+              _buildHeader(),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
@@ -51,20 +77,15 @@ class _SubscriptionPlanScreenState
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: AppSizes.spacing24),
-                      _buildBrandSection(),
-                      const SizedBox(height: AppSizes.spacing32),
-                      _buildWalletSection(),
-                      const SizedBox(height: AppSizes.spacing32),
-                      if (ref.watch(walletProvider).hasActiveSubscription)
-                        _buildActiveSubscriptionSection(),
-                      if (ref.watch(walletProvider).hasActiveSubscription)
-                        const SizedBox(height: AppSizes.spacing32),
-                      _buildPlansSection(),
-                      const SizedBox(height: AppSizes.spacing24),
-                      _buildActionButtons(),
-                      const SizedBox(height: AppSizes.spacing32),
+                    children: const [
+                      SizedBox(height: AppSizes.spacing16),
+                      _WalletBar(),
+                      SizedBox(height: AppSizes.spacing16),
+                      _ActivePlanBanner(),
+                      _PlansHeader(),
+                      SizedBox(height: AppSizes.spacing12),
+                      _PlansList(),
+                      SizedBox(height: AppSizes.spacing24),
                     ],
                   ),
                 ),
@@ -76,683 +97,624 @@ class _SubscriptionPlanScreenState
     );
   }
 
-  // ─── Sliver App Bar ───
-  Widget _buildSliverAppBar() {
+  Widget _buildHeader() {
     return SliverAppBar(
       pinned: true,
-      elevation: 0,
-      scrolledUnderElevation: 0,
+      floating: false,
+      automaticallyImplyLeading: false,
       backgroundColor: Colors.white,
-      foregroundColor: AppColors.textPrimary,
-      leading: GestureDetector(
-        onTap: () => context.pop(),
-        child: Container(
-          margin: const EdgeInsets.all(AppSizes.spacing8),
-          decoration: BoxDecoration(
-            color: AppColors.primaryGreen.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(AppSizes.radius8),
-          ),
-          child: const Icon(
-            Icons.arrow_back_rounded,
-            color: AppColors.primaryGreen,
-          ),
+      elevation: 2,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
+      surfaceTintColor: Colors.white,
+      toolbarHeight: 64,
+      titleSpacing: 0,
+      title: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.p20,
+          vertical: AppSizes.spacing8,
         ),
-      ),
-      title: const Text(
-        'Choose Your Plan',
-        style: TextStyle(
-          fontSize: AppTypography.fontSize18,
-          fontWeight: AppTypography.bold,
-          color: AppColors.textPrimary,
-          fontFamily: 'Lato',
-        ),
-      ),
-      centerTitle: false,
-    );
-  }
-
-  // ─── Brand Section ───
-  Widget _buildBrandSection() {
-    return Row(
-      children: [
-        const LogoWidget(),
-        const SizedBox(width: AppSizes.spacing12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            const Text(
-              'Welcome to FitKhao',
-              style: TextStyle(
-                fontSize: AppTypography.fontSize14,
-                fontWeight: AppTypography.semiBold,
-                color: AppColors.textSecondary,
-                fontFamily: 'Lato',
+            GestureDetector(
+              onTap: () => context.pop(),
+              child: Container(
+                padding: const EdgeInsets.all(AppSizes.spacing8),
+                decoration: BoxDecoration(
+                  color: AppColors.darkGreen,
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+                child: const Icon(
+                  Icons.arrow_back,
+                  color: AppColors.textWhite,
+                  size: AppSizes.icon24,
+                ),
               ),
             ),
-            const SizedBox(height: AppSizes.spacing4),
-            Text(
-              'Find your perfect nutrition plan',
-              style: TextStyle(
-                fontSize: AppTypography.fontSize12,
-                fontWeight: AppTypography.regular,
-                color: AppColors.textSecondary.withValues(alpha: 0.7),
-                fontFamily: 'Lato',
+
+            const SizedBox(width: AppSizes.spacing12),
+
+            const Expanded(
+              child: Text(
+                'Choose Your Plan',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize20,
+                  fontWeight: AppTypography.bold,
+                  color: AppColors.textPrimary,
+                  fontFamily: 'Lato',
+                ),
               ),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
+}
 
-  // ─── Wallet Section ───
-  Widget _buildWalletSection() {
-    final walletState = ref.watch(walletProvider);
+// ─── Compact wallet bar (balance + recharge + history) ───────────────────────
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Wallet',
-          style: TextStyle(
-            fontSize: AppTypography.fontSize16,
-            fontWeight: AppTypography.bold,
-            color: AppColors.textPrimary,
-            fontFamily: 'Lato',
-          ),
-        ),
-        const SizedBox(height: AppSizes.spacing12),
-        if (walletState.wallet != null)
-          _buildWalletBalanceCard()
-        else
-          _buildWalletSkeleton(),
-        const SizedBox(height: AppSizes.spacing12),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: OutlinedButton.icon(
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => const RechargeTopupModal(),
-              );
-            },
-            icon: const Icon(Icons.add_rounded, size: AppSizes.icon20),
-            label: const Text(
-              'Recharge Wallet',
-              style: TextStyle(
-                fontSize: AppTypography.fontSize14,
-                fontWeight: AppTypography.semiBold,
-                fontFamily: 'Lato',
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primaryGreen,
-              side: const BorderSide(
-                color: AppColors.primaryGreen,
-                width: 1.5,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSizes.radius12),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+class _WalletBar extends ConsumerWidget {
+  const _WalletBar();
 
-  Widget _buildWalletBalanceCard() {
-    final wallet = ref.watch(walletProvider).wallet!;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final wallet = ref.watch(walletProvider.select((s) => s.wallet));
+    final balance = wallet?.couponBalance;
 
     return Container(
-      padding: const EdgeInsets.all(AppSizes.spacing16),
+      padding: const EdgeInsets.all(AppSizes.spacing12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF5D9E40), Color(0xFF7AB655)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(color: AppColors.borderColor.withValues(alpha: 0.4)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryGreen.withValues(alpha: 0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(AppSizes.spacing12),
+            padding: const EdgeInsets.all(AppSizes.spacing10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: AppColors.primaryGreen.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppSizes.radius8),
             ),
-            child: const Icon(
-              Icons.wallet_giftcard_rounded,
-              color: Colors.white,
-              size: AppSizes.icon28,
-            ),
+            child: const Icon(Icons.account_balance_wallet_rounded,
+                color: AppColors.primaryGreen, size: AppSizes.icon20),
           ),
-          const SizedBox(width: AppSizes.spacing16),
+          const SizedBox(width: AppSizes.spacing12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '₹${wallet.couponBalance.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize22,
-                    fontWeight: AppTypography.bold,
-                    color: Colors.white,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-                const SizedBox(height: AppSizes.spacing4),
-                Text(
-                  'Available Balance',
+                  'Wallet balance',
                   style: TextStyle(
-                    fontSize: AppTypography.fontSize12,
-                    fontWeight: AppTypography.regular,
-                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: AppTypography.fontSize10,
+                    color: AppColors.textSecondary.withValues(alpha: 0.8),
                     fontFamily: 'Lato',
                   ),
                 ),
+                const SizedBox(height: 2),
+                balance == null
+                    ? Container(
+                        width: 70,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      )
+                    : Text(
+                        '₹${balance.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: AppTypography.fontSize18,
+                          fontWeight: AppTypography.bold,
+                          color: AppColors.textPrimary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
               ],
+            ),
+          ),
+          // History
+          _CompactIconButton(
+            icon: Icons.history_rounded,
+            tooltip: 'Transaction history',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => const TransactionHistoryScreen(),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSizes.spacing8),
+          // Recharge
+          GestureDetector(
+            onTap: () => showDialog<void>(
+              context: context,
+              builder: (_) => const RechargeTopupModal(),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.spacing12,
+                vertical: AppSizes.spacing8,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen,
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_rounded, color: Colors.white, size: 16),
+                  SizedBox(width: 4),
+                  Text(
+                    'Recharge',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      fontWeight: AppTypography.semiBold,
+                      color: Colors.white,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildWalletSkeleton() {
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.spacing16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(AppSizes.radius12),
+class _CompactIconButton extends StatelessWidget {
+  const _CompactIconButton({
+    required this.icon,
+    required this.onTap,
+    required this.tooltip,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(AppSizes.spacing8),
+          decoration: BoxDecoration(
+            color: AppColors.primaryGreen.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+          ),
+          child: Icon(icon,
+              color: AppColors.primaryGreen, size: AppSizes.icon20),
+        ),
       ),
-      height: 80,
     );
   }
+}
 
-  // ─── Active Subscription Section ───
-  Widget _buildActiveSubscriptionSection() {
-    final subscription = ref.watch(walletProvider).subscription!;
+// ─── Active subscription banner (compact) ────────────────────────────────────
 
+class _ActivePlanBanner extends ConsumerWidget {
+  const _ActivePlanBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sub = ref.watch(
+      walletProvider.select((s) => s.hasActiveSubscription ? s.subscription : null),
+    );
+    if (sub == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSizes.spacing16),
+      child: Container(
+        padding: const EdgeInsets.all(AppSizes.spacing12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF5D9E40), Color(0xFF7AB655)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppSizes.spacing8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+              child: const Icon(Icons.verified_rounded,
+                  color: Colors.white, size: AppSizes.icon20),
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Active: ${sub.planName}',
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.bold,
+                      color: Colors.white,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${sub.remainingDays} days left · ends ${sub.endDate}',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize10,
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Plans header ────────────────────────────────────────────────────────────
+
+class _PlansHeader extends StatelessWidget {
+  const _PlansHeader();
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Current Plan',
+          'Choose a plan',
           style: TextStyle(
-            fontSize: AppTypography.fontSize16,
+            fontSize: AppTypography.fontSize18,
             fontWeight: AppTypography.bold,
             color: AppColors.textPrimary,
             fontFamily: 'Lato',
           ),
         ),
-        const SizedBox(height: AppSizes.spacing12),
-        Container(
-          padding: const EdgeInsets.all(AppSizes.spacing16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.primaryGreen.withValues(alpha: 0.95),
-                AppColors.primaryGreen.withValues(alpha: 0.85),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(AppSizes.radius12),
-            border: Border.all(
-              color: AppColors.primaryGreen,
-              width: 1,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        subscription.planName,
-                        style: const TextStyle(
-                          fontSize: AppTypography.fontSize16,
-                          fontWeight: AppTypography.bold,
-                          color: Colors.white,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                      const SizedBox(height: AppSizes.spacing4),
-                      Text(
-                        'Active until ${subscription.endDate}',
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize12,
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSizes.spacing12,
-                      vertical: AppSizes.spacing6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(AppSizes.radius20),
-                    ),
-                    child: const Text(
-                      'Active',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize10,
-                        fontWeight: AppTypography.semiBold,
-                        color: Colors.white,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSizes.spacing12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildSubscriptionInfoCard(
-                      subscription.formattedPrice,
-                      'Plan Amount',
-                    ),
-                  ),
-                  const SizedBox(width: AppSizes.spacing12),
-                  Expanded(
-                    child: _buildSubscriptionInfoCard(
-                      '${subscription.remainingDays}',
-                      'Days Left',
-                    ),
-                  ),
-                ],
-              ),
-            ],
+        const SizedBox(height: 2),
+        Text(
+          'Pick the plan that fits your goals',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize12,
+            color: AppColors.textSecondary.withValues(alpha: 0.8),
+            fontFamily: 'Lato',
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildSubscriptionInfoCard(String value, String label) {
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.spacing12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: AppTypography.fontSize16,
-              fontWeight: AppTypography.bold,
-              color: Colors.white,
-              fontFamily: 'Lato',
-            ),
-          ),
-          const SizedBox(height: AppSizes.spacing4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: AppTypography.fontSize10,
-              color: Colors.white.withValues(alpha: 0.75),
-              fontFamily: 'Lato',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+// ─── Plans list (loading / error / empty / list) ─────────────────────────────
 
-  // ─── Plans Section ───
-  Widget _buildPlansSection() {
+class _PlansList extends ConsumerWidget {
+  const _PlansList();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(subscriptionPlanProvider);
+
+    if (state.isLoading && state.plans.isEmpty) {
+      return const _PlansSkeleton();
+    }
+    if (state.error != null && state.plans.isEmpty) {
+      return _ErrorState(
+        message: state.error!,
+        onRetry: () => ref.read(subscriptionPlanProvider.notifier).loadPlans(),
+      );
+    }
+    if (state.plans.isEmpty) {
+      return const _EmptyState();
+    }
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Choose a Plan',
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize16,
-                    fontWeight: AppTypography.bold,
-                    color: AppColors.textPrimary,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-                const SizedBox(height: AppSizes.spacing4),
-                Text(
-                  'Select the best plan for your needs',
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize12,
-                    color: AppColors.textSecondary.withValues(alpha: 0.7),
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSizes.spacing16),
-        _buildPlansList(),
+        for (final plan in state.plans)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSizes.spacing16),
+            child: _PlanCard(plan: plan),
+          ),
       ],
     );
   }
+}
 
-  Widget _buildPlansList() {
-    final planState = ref.watch(subscriptionPlanProvider);
+// ─── Plan card ───────────────────────────────────────────────────────────────
 
-    if (planState.isLoading) {
-      return _buildPlansLoadingSkeleton();
-    }
+class _PlanCard extends ConsumerWidget {
+  const _PlanCard({required this.plan});
 
-    if (planState.error != null) {
-      return _buildErrorState(planState.error!);
-    }
+  final SubscriptionPlan plan;
 
-    if (planState.plans.isEmpty) {
-      return _buildEmptyState();
-    }
-
-    // Auto-select basic plan
-    if (_selectedPlan == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          final basicPlan = planState.plans.firstWhere(
-            (p) => p.price == 0,
-            orElse: () => planState.plans.first,
-          );
-          setState(() => _selectedPlan = basicPlan);
-        }
-      });
-    }
-
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: planState.plans.length,
-      separatorBuilder: (_, __) => const SizedBox(height: AppSizes.spacing16),
-      itemBuilder: (context, index) {
-        return _buildPlanCard(planState.plans[index]);
-      },
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Rebuilds ONLY when this card's selected-state flips.
+    final isSelected = ref.watch(
+      selectedSubscriptionPlanProvider.select((id) => id == plan.id),
     );
-  }
+    final isRecommended = plan.features.suggestedPlan;
+    final perks = _derivePerks(plan);
 
-  Widget _buildPlanCard(SubscriptionPlan plan) {
-    final isBasic = plan.price == 0;
-    final isSelected = _selectedPlan?.id == plan.id;
-    final f = plan.features;
-
-    final cardContent = GestureDetector(
-      onTap: isBasic ? () => setState(() => _selectedPlan = plan) : null,
-      child: Container(
+    return GestureDetector(
+      onTap: () =>
+          ref.read(selectedSubscriptionPlanProvider.notifier).state = plan.id,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(AppSizes.spacing16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(AppSizes.radius12),
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
           border: Border.all(
             color: isSelected
                 ? AppColors.primaryGreen
-                : AppColors.borderColor.withValues(alpha: 0.3),
+                : AppColors.borderColor.withValues(alpha: 0.35),
             width: isSelected ? 2 : 1,
           ),
           boxShadow: [
-            if (isSelected)
-              BoxShadow(
-                color: AppColors.primaryGreen.withValues(alpha: 0.15),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              )
-            else
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
+            BoxShadow(
+              color: isSelected
+                  ? AppColors.primaryGreen.withValues(alpha: 0.14)
+                  : Colors.black.withValues(alpha: 0.03),
+              blurRadius: isSelected ? 14 : 8,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // ── Header: name + code (+ recommended) + radio ──
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        plan.planName,
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize16,
-                          fontWeight: AppTypography.bold,
-                          color: isBasic
-                              ? AppColors.primaryGreen
-                              : AppColors.textPrimary,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                      const SizedBox(height: AppSizes.spacing4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSizes.spacing8,
-                          vertical: AppSizes.spacing4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isBasic
-                              ? AppColors.primaryGreen.withValues(alpha: 0.1)
-                              : AppColors.borderColor.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(AppSizes.radius4),
-                        ),
-                        child: Text(
-                          plan.planCode,
-                          style: TextStyle(
-                            fontSize: AppTypography.fontSize10,
-                            fontWeight: AppTypography.semiBold,
-                            color: isBasic
-                                ? AppColors.primaryGreen
-                                : AppColors.textSecondary,
-                            fontFamily: 'Lato',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Selection indicator
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isSelected
-                        ? AppColors.primaryGreen
-                        : Colors.transparent,
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.primaryGreen
-                          : AppColors.borderColor,
-                      width: 2,
-                    ),
-                  ),
-                  child: isSelected
-                      ? const Icon(Icons.check, size: 14, color: Colors.white)
-                      : null,
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSizes.spacing12),
-
-            // Price
-            isBasic
-                ? Text(
-                    "Free Plan",
-                    style: TextStyle(
-                      fontSize: AppTypography.fontSize20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primaryGreen,
-                      fontFamily: 'Lato',
-                    ),
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        plan.formattedPrice,
-                        style: const TextStyle(
-                          fontSize: AppTypography.fontSize24,
-                          fontWeight: AppTypography.bold,
-                          color: AppColors.primaryGreen,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                      const SizedBox(width: AppSizes.spacing4),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Row(
                         children: [
-                          Text(
-                            '/ ${plan.planValidity}',
-                            style: const TextStyle(
-                              fontSize: AppTypography.fontSize12,
-                              color: AppColors.textSecondary,
-                              fontFamily: 'Lato',
-                            ),
-                          ),
-                          if (plan.gstPercentage > 0)
-                            Text(
-                              '+${plan.gstPercentage.toStringAsFixed(0)}% GST',
+                          Flexible(
+                            child: Text(
+                              plan.planName,
                               style: const TextStyle(
-                                fontSize: AppTypography.fontSize10,
-                                color: AppColors.textSecondary,
+                                fontSize: AppTypography.fontSize16,
+                                fontWeight: AppTypography.bold,
+                                color: AppColors.textPrimary,
                                 fontFamily: 'Lato',
                               ),
                             ),
+                          ),
+                          if (isRecommended) ...[
+                            const SizedBox(width: AppSizes.spacing8),
+                            const _RecommendedBadge(),
+                          ],
                         ],
+                      ),
+                      const SizedBox(height: AppSizes.spacing4),
+                      Text(
+                        plan.planCode,
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize10,
+                          fontWeight: AppTypography.semiBold,
+                          color: AppColors.textSecondary.withValues(alpha: 0.8),
+                          fontFamily: 'Lato',
+                          letterSpacing: 0.4,
+                        ),
                       ),
                     ],
                   ),
-            const SizedBox(height: AppSizes.spacing16),
+                ),
+                _RadioDot(isSelected: isSelected),
+              ],
+            ),
 
-            // Divider
+            if (plan.description.trim().isNotEmpty) ...[
+              const SizedBox(height: AppSizes.spacing8),
+              Text(
+                plan.description.trim(),
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize12,
+                  color: AppColors.textSecondary.withValues(alpha: 0.9),
+                  height: 1.35,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ],
+
+            const SizedBox(height: AppSizes.spacing12),
+
+            // ── Price ──
+            _PriceRow(plan: plan),
+
+            const SizedBox(height: AppSizes.spacing16),
             Divider(
               height: 1,
               color: AppColors.borderColor.withValues(alpha: 0.3),
             ),
-            const SizedBox(height: AppSizes.spacing16),
+            const SizedBox(height: AppSizes.spacing12),
 
-            // Features
-            _buildFeaturesGrid(f, isBasic),
+            // ── Feature checklist ──
+            ...perks.map((p) => _PerkRow(perk: p)),
           ],
         ),
       ),
     );
+  }
+}
 
-    if (!isBasic) {
-      return Stack(
-        children: [
-          Opacity(opacity: 0.4, child: cardContent),
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppSizes.radius12),
+class _PriceRow extends StatelessWidget {
+  const _PriceRow({required this.plan});
+
+  final SubscriptionPlan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    if (plan.price == 0) {
+      return const Text(
+        'Free',
+        style: TextStyle(
+          fontSize: AppTypography.fontSize22,
+          fontWeight: AppTypography.bold,
+          color: AppColors.primaryGreen,
+          fontFamily: 'Lato',
+        ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(
+          plan.formattedPrice,
+          style: const TextStyle(
+            fontSize: AppTypography.fontSize24,
+            fontWeight: AppTypography.bold,
+            color: AppColors.primaryGreen,
+            fontFamily: 'Lato',
+          ),
+        ),
+        const SizedBox(width: AppSizes.spacing4),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '/ ${plan.planValidity}',
+              style: const TextStyle(
+                fontSize: AppTypography.fontSize12,
+                color: AppColors.textSecondary,
+                fontFamily: 'Lato',
               ),
-              child: const Center(
-                child: _ComingSoonBadge(),
+            ),
+            if (plan.gstPercentage > 0)
+              Text(
+                '+ ${plan.gstPercentage.toStringAsFixed(0)}% GST',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize10,
+                  color: AppColors.textSecondary.withValues(alpha: 0.8),
+                  fontFamily: 'Lato',
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PerkRow extends StatelessWidget {
+  const _PerkRow({required this.perk});
+
+  final _Perk perk;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = perk.highlight ? _kAccent : AppColors.primaryGreen;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 1),
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(perk.icon, size: 13, color: color),
+          ),
+          const SizedBox(width: AppSizes.spacing10),
+          Expanded(
+            child: Text(
+              perk.label,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize13,
+                fontWeight:
+                    perk.highlight ? AppTypography.semiBold : AppTypography.regular,
+                color: perk.highlight ? _kAccent : AppColors.textPrimary,
+                height: 1.3,
+                fontFamily: 'Lato',
               ),
             ),
           ),
         ],
-      );
-    }
-
-    return cardContent;
-  }
-
-  Widget _buildFeaturesGrid(PlanFeatures f, bool isBasic) {
-    final features = [
-      if (f.freeDelivery)
-        _buildFeature(Icons.local_shipping_rounded, 'Free Delivery'),
-      if (f.dietChart) _buildFeature(Icons.assignment_rounded, 'Diet Chart'),
-      if (f.consultationCount > 0)
-        _buildFeature(
-          Icons.headset_mic_rounded,
-          '${f.consultationCount} Consultation${f.consultationCount > 1 ? 's' : ''}',
-        ),
-      if (f.mealCountPerDay > 0)
-        _buildFeature(
-            Icons.restaurant_rounded, '${f.mealCountPerDay} Meals/Day'),
-      if (f.snacks) _buildFeature(Icons.fastfood_rounded, 'Snacks'),
-      if (f.discountPercent > 0)
-        _buildFeature(
-            Icons.local_offer_rounded, '${f.discountPercent}% Discount',
-            highlight: true),
-      if (f.suggestedPlan)
-        _buildFeature(Icons.auto_awesome_rounded, 'Suggested'),
-    ];
-
-    return Wrap(
-      spacing: AppSizes.spacing8,
-      runSpacing: AppSizes.spacing8,
-      children: features,
+      ),
     );
   }
+}
 
-  Widget _buildFeature(IconData icon, String label, {bool highlight = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.spacing10,
-        vertical: AppSizes.spacing6,
-      ),
+class _RadioDot extends StatelessWidget {
+  const _RadioDot({required this.isSelected});
+
+  final bool isSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: 24,
+      height: 24,
       decoration: BoxDecoration(
-        color: highlight
-            ? const Color(0xFFC66301).withValues(alpha: 0.1)
-            : AppColors.primaryGreen.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppSizes.radius6),
+        shape: BoxShape.circle,
+        color: isSelected ? AppColors.primaryGreen : Colors.transparent,
         border: Border.all(
-          color: highlight
-              ? const Color(0xFFC66301).withValues(alpha: 0.2)
-              : AppColors.primaryGreen.withValues(alpha: 0.2),
+          color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
+          width: 2,
         ),
       ),
-      child: Row(
+      child: isSelected
+          ? const Icon(Icons.check, size: 14, color: Colors.white)
+          : null,
+    );
+  }
+}
+
+class _RecommendedBadge extends StatelessWidget {
+  const _RecommendedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: _kAccent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppSizes.radius20),
+      ),
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 14,
-            color: highlight ? const Color(0xFFC66301) : AppColors.primaryGreen,
-          ),
-          const SizedBox(width: AppSizes.spacing4),
+          Icon(Icons.star_rounded, size: 12, color: _kAccent),
+          SizedBox(width: 3),
           Text(
-            label,
+            'RECOMMENDED',
             style: TextStyle(
-              fontSize: AppTypography.fontSize10,
-              fontWeight: AppTypography.semiBold,
-              color:
-                  highlight ? const Color(0xFFC66301) : AppColors.primaryGreen,
+              fontSize: 9,
+              fontWeight: AppTypography.bold,
+              color: _kAccent,
+              letterSpacing: 0.4,
               fontFamily: 'Lato',
             ),
           ),
@@ -760,118 +722,145 @@ class _SubscriptionPlanScreenState
       ),
     );
   }
+}
 
-  // ─── Action Buttons ───
-  Widget _buildActionButtons() {
-    final walletState = ref.watch(walletProvider);
-    final isFreePlan = _selectedPlan != null && _selectedPlan!.price == 0;
-    final hasActiveSubscription = walletState.hasActiveSubscription;
+// ─── Sticky subscribe bar ────────────────────────────────────────────────────
 
-    return Column(
-      children: [
-        // Primary Action Button
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: hasActiveSubscription
-              ? Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryGreen.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppSizes.radius12),
-                    border: Border.all(color: AppColors.primaryGreen),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'You have an active plan',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize14,
-                        fontWeight: AppTypography.semiBold,
-                        color: AppColors.primaryGreen,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                  ),
-                )
-              : ElevatedButton(
-                  onPressed: (_selectedPlan == null || isFreePlan)
-                      ? null
-                      : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => SubscriptionCheckoutScreen(
-                                planDays: _selectedPlan!.planDays,
-                                planPrice: _selectedPlan!.formattedPrice,
-                                planCode: _selectedPlan!.planCode,
-                              ),
-                            ),
-                          );
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryGreen,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: AppColors.borderColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radius12),
-                    ),
-                  ),
-                  child: Text(
-                    isFreePlan
-                        ? 'Free Plan — No Payment Needed'
-                        : _selectedPlan == null
-                            ? 'Select a Plan'
-                            : 'Subscribe to ${_selectedPlan!.planValidity}',
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize14,
-                      fontWeight: AppTypography.semiBold,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ),
-        ),
-        const SizedBox(height: AppSizes.spacing12),
+class _SubscribeBar extends ConsumerWidget {
+  const _SubscribeBar();
 
-        // Secondary Action Button
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: OutlinedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const TransactionHistoryScreen(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.history_rounded, size: AppSizes.icon18),
-            label: const Text(
-              'View Transaction History',
-              style: TextStyle(
-                fontSize: AppTypography.fontSize14,
-                fontWeight: AppTypography.semiBold,
-                fontFamily: 'Lato',
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasActive =
+        ref.watch(walletProvider.select((s) => s.hasActiveSubscription));
+    final selectedId = ref.watch(selectedSubscriptionPlanProvider);
+    final plans = ref.watch(subscriptionPlanProvider.select((s) => s.plans));
+
+    // Nothing to act on yet.
+    if (plans.isEmpty) return const SizedBox.shrink();
+
+    SubscriptionPlan? selected;
+    for (final p in plans) {
+      if (p.id == selectedId) {
+        selected = p;
+        break;
+      }
+    }
+
+    final isFree = selected != null && selected.price == 0;
+
+    final String label;
+    final VoidCallback? onPressed;
+    if (hasActive) {
+      label = 'You already have an active plan';
+      onPressed = null;
+    } else if (selected == null) {
+      label = 'Select a plan';
+      onPressed = null;
+    } else if (isFree) {
+      label = 'Free plan — no payment needed';
+      onPressed = null;
+    } else {
+      label = 'Subscribe · ${selected.formattedPrice} / ${selected.planValidity}';
+      final plan = selected;
+      onPressed = () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => SubscriptionCheckoutScreen(
+                planDays: plan.planDays,
+                planPrice: plan.formattedPrice,
+                planCode: plan.planCode,
               ),
             ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primaryGreen,
-              side: const BorderSide(
-                color: AppColors.primaryGreen,
-                width: 1.5,
+          );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(
+          AppSizes.screenPaddingHorizontal,
+          AppSizes.spacing12,
+          AppSizes.screenPaddingHorizontal,
+          AppSizes.spacing12,
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: ElevatedButton(
+              onPressed: onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor:
+                    AppColors.borderColor.withValues(alpha: 0.6),
+                disabledForegroundColor: AppColors.textSecondary,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSizes.radius12),
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.bold,
+                  fontFamily: 'Lato',
+                ),
               ),
             ),
           ),
         ),
-      ],
+      ),
     );
   }
+}
 
-  // ─── Error & Empty States ───
-  Widget _buildErrorState(String error) {
+// ─── States: skeleton / error / empty ────────────────────────────────────────
+
+class _PlansSkeleton extends StatelessWidget {
+  const _PlansSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List.generate(
+        2,
+        (_) => Container(
+          height: 240,
+          margin: const EdgeInsets.only(bottom: AppSizes.spacing16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(AppSizes.radius16),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(AppSizes.spacing20),
       decoration: BoxDecoration(
         color: const Color(0xFFFEE8E6),
@@ -880,61 +869,55 @@ class _SubscriptionPlanScreenState
       ),
       child: Column(
         children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            size: 40,
-            color: AppColors.errorColor,
-          ),
+          const Icon(Icons.error_outline_rounded,
+              size: 40, color: AppColors.errorColor),
           const SizedBox(height: AppSizes.spacing12),
           Text(
-            error,
+            message,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: AppTypography.fontSize14,
               color: AppColors.errorColor,
               fontFamily: 'Lato',
             ),
-            textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSizes.spacing12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () =>
-                  ref.read(subscriptionPlanProvider.notifier).loadPlans(),
+              onPressed: onRetry,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.errorColor,
               ),
-              child: const Text(
-                'Try Again',
-                style: TextStyle(fontFamily: 'Lato'),
-              ),
+              child: const Text('Try Again', style: TextStyle(fontFamily: 'Lato')),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildEmptyState() {
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(AppSizes.spacing24),
       decoration: BoxDecoration(
         color: AppColors.primaryGreen.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(AppSizes.radius12),
-        border: Border.all(
-          color: AppColors.primaryGreen.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.inbox_rounded,
-            size: 48,
-            color: AppColors.primaryGreen.withValues(alpha: 0.4),
-          ),
+          Icon(Icons.inbox_rounded,
+              size: 48, color: AppColors.primaryGreen.withValues(alpha: 0.4)),
           const SizedBox(height: AppSizes.spacing12),
           const Text(
-            'No Plans Available',
+            'No plans available',
             style: TextStyle(
               fontSize: AppTypography.fontSize16,
               fontWeight: AppTypography.semiBold,
@@ -955,61 +938,50 @@ class _SubscriptionPlanScreenState
       ),
     );
   }
-
-  Widget _buildPlansLoadingSkeleton() {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: 3,
-      separatorBuilder: (_, __) => const SizedBox(height: AppSizes.spacing16),
-      itemBuilder: (context, index) {
-        return Container(
-          height: 200,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(AppSizes.radius12),
-          ),
-        );
-      },
-    );
-  }
 }
 
-class _ComingSoonBadge extends StatelessWidget {
-  const _ComingSoonBadge();
+// ─── Feature derivation ──────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black87,
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.lock_clock_rounded, size: 16, color: Colors.white),
-          SizedBox(width: 6),
-          Text(
-            'Coming Soon',
-            style: TextStyle(
-              fontSize: AppTypography.fontSize13,
-              fontWeight: AppTypography.semiBold,
-              color: Colors.white,
-              fontFamily: 'Lato',
-              letterSpacing: 0.3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+class _Perk {
+  final IconData icon;
+  final String label;
+  final bool highlight;
+  const _Perk(this.icon, this.label, {this.highlight = false});
+}
+
+/// Builds the visible feature list for [plan]: every boolean that is `true`,
+/// every count/percent that is non-zero, the enabled rules, and any custom
+/// features — so the card surfaces everything that makes the plan attractive.
+List<_Perk> _derivePerks(SubscriptionPlan plan) {
+  final f = plan.features;
+  final r = plan.rules;
+  return [
+    if (f.mealCountPerDay > 0)
+      _Perk(Icons.restaurant_rounded, '${f.mealCountPerDay} meals every day'),
+    if (f.freeDelivery)
+      _Perk(Icons.local_shipping_rounded, 'Free delivery on every order'),
+    if (f.dietChart)
+      _Perk(Icons.menu_book_rounded, 'Personalised diet chart'),
+    if (f.consultationCount > 0)
+      _Perk(Icons.health_and_safety_rounded,
+          '${f.consultationCount} expert consultation${f.consultationCount > 1 ? 's' : ''}'),
+    if (f.discountPercent > 0)
+      _Perk(Icons.local_offer_rounded, '${f.discountPercent}% off on every order',
+          highlight: true),
+    if (f.snacks) _Perk(Icons.bakery_dining_rounded, 'Healthy snacks included'),
+    if (f.outletFoodDiscount && f.outletFoodDiscountPercent > 0)
+      _Perk(Icons.storefront_rounded,
+          '${f.outletFoodDiscountPercent}% off on outlet food'),
+    if (f.cancelCoupon && f.cancelCouponAmount > 0)
+      _Perk(Icons.confirmation_number_rounded,
+          '₹${f.cancelCouponAmount} cancellation credit'),
+    if (f.planBasedMealsAssgn)
+      _Perk(Icons.event_available_rounded, 'Plan-based meal scheduling'),
+    if (r.canSlotChoose)
+      _Perk(Icons.schedule_rounded, 'Pick your delivery slots'),
+    if (r.canCancel) _Perk(Icons.event_busy_rounded, 'Cancel anytime'),
+    if (r.canUpgrade) _Perk(Icons.upgrade_rounded, 'Upgrade whenever you want'),
+    for (final c in f.customFeatures)
+      _Perk(Icons.star_rounded, c, highlight: true),
+  ];
 }

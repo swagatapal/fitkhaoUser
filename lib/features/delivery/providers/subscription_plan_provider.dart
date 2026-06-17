@@ -42,8 +42,11 @@ class SubscriptionPlanNotifier extends StateNotifier<SubscriptionPlanState> {
     try {
       final response = await _repository.getSubscriptionPlans();
       if (response.success && response.data != null) {
+        // Sort by plan amount, cheapest first, so the list reads low → high.
+        final plans = [...response.data!.plans]
+          ..sort((a, b) => a.price.compareTo(b.price));
         state = state.copyWith(
-          plans: response.data!.plans,
+          plans: plans,
           isLoading: false,
         );
         debugPrint(
@@ -73,3 +76,10 @@ StateNotifierProvider<SubscriptionPlanNotifier, SubscriptionPlanState>(
       final repo = ref.watch(subscriptionRepositoryProvider);
       return SubscriptionPlanNotifier(repo);
     });
+
+/// The id of the plan the user has currently selected on the plan screen.
+///
+/// Kept separate from [subscriptionPlanProvider] so that changing the selection
+/// only rebuilds the two affected plan cards (the one losing and the one
+/// gaining selection) plus the bottom CTA — never the wallet or the whole list.
+final selectedSubscriptionPlanProvider = StateProvider<String?>((ref) => null);

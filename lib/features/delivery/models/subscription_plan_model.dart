@@ -8,6 +8,11 @@ class PlanFeatures {
   final bool snacks;
   final int discountPercent;
   final bool planBasedMealsAssgn;
+  final bool outletFoodDiscount;
+  final int outletFoodDiscountPercent;
+  final bool cancelCoupon;
+  final int cancelCouponAmount;
+  final List<String> customFeatures;
 
   const PlanFeatures({
     this.dietChart = false,
@@ -18,6 +23,11 @@ class PlanFeatures {
     this.snacks = false,
     this.discountPercent = 0,
     this.planBasedMealsAssgn = false,
+    this.outletFoodDiscount = false,
+    this.outletFoodDiscountPercent = 0,
+    this.cancelCoupon = false,
+    this.cancelCouponAmount = 0,
+    this.customFeatures = const [],
   });
 
   factory PlanFeatures.fromJson(Map<String, dynamic> json) {
@@ -30,6 +40,16 @@ class PlanFeatures {
       snacks: json['snacks'] as bool? ?? false,
       discountPercent: (json['discountPercent'] as num?)?.toInt() ?? 0,
       planBasedMealsAssgn: json['planBasedMealsAssgn'] as bool? ?? false,
+      outletFoodDiscount: json['outletFoodDiscount'] as bool? ?? false,
+      outletFoodDiscountPercent:
+          (json['outletFoodDiscountPercent'] as num?)?.toInt() ?? 0,
+      cancelCoupon: json['cancelCoupon'] as bool? ?? false,
+      cancelCouponAmount: (json['cancelCouponAmount'] as num?)?.toInt() ?? 0,
+      customFeatures: (json['customFeatures'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .where((e) => e.trim().isNotEmpty)
+              .toList() ??
+          const [],
     );
   }
 }
@@ -104,6 +124,7 @@ class SubscriptionPlan {
   final String id;
   final String planCode;
   final String planName;
+  final String description;
   final int durationInDays;
   final double price;
   final double consultationFee;
@@ -117,6 +138,7 @@ class SubscriptionPlan {
     required this.id,
     required this.planCode,
     required this.planName,
+    this.description = '',
     required this.durationInDays,
     required this.price,
     this.consultationFee = 0,
@@ -142,6 +164,7 @@ class SubscriptionPlan {
       planCode: json['planCode'] as String? ?? '',
       // New API: 'name', legacy fallback: 'planName'
       planName: json['name'] as String? ?? json['planName'] as String? ?? '',
+      description: json['description'] as String? ?? '',
       // New API: 'durationInDays', legacy fallback: parse from 'planValidity'
       durationInDays: json['durationInDays'] as int? ??
           _parseDurationFromValidity(json['planValidity'] as String?),
