@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/utils/time_converter.dart';
 import '../../models/subscription_plan_model.dart';
 import '../../providers/subscription_plan_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../widgets/recharge_topup_modal.dart';
+import '../widgets/subscription_benefits.dart';
 import 'subscription_checkout_screen.dart';
 import 'transaction_history_screen.dart';
 
@@ -24,8 +26,6 @@ import 'transaction_history_screen.dart';
 // Selection lives in [selectedSubscriptionPlanProvider] (a plain id), not in
 // widget state, which is what keeps the rebuild surface minimal.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const Color _kAccent = Color(0xFFC66301);
 
 class SubscriptionPlanScreen extends ConsumerStatefulWidget {
   const SubscriptionPlanScreen({super.key});
@@ -356,7 +356,7 @@ class _ActivePlanBanner extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${sub.remainingDays} days left · ends ${sub.endDate}',
+                    '${sub.remainingDays} days left · ends ${convertMongoUtcToIst(sub.endDate)}',
                     style: TextStyle(
                       fontSize: AppTypography.fontSize10,
                       color: Colors.white.withValues(alpha: 0.9),
@@ -454,7 +454,6 @@ class _PlanCard extends ConsumerWidget {
       selectedSubscriptionPlanProvider.select((id) => id == plan.id),
     );
     final isRecommended = plan.features.suggestedPlan;
-    final perks = _derivePerks(plan);
 
     return GestureDetector(
       onTap: () =>
@@ -554,8 +553,8 @@ class _PlanCard extends ConsumerWidget {
             ),
             const SizedBox(height: AppSizes.spacing12),
 
-            // ── Feature checklist ──
-            ...perks.map((p) => _PerkRow(perk: p)),
+            // ── Feature checklist (shared with checkout) ──
+            SubscriptionBenefitsList(plan: plan),
           ],
         ),
       ),
@@ -624,48 +623,6 @@ class _PriceRow extends StatelessWidget {
   }
 }
 
-class _PerkRow extends StatelessWidget {
-  const _PerkRow({required this.perk});
-
-  final _Perk perk;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = perk.highlight ? _kAccent : AppColors.primaryGreen;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            margin: const EdgeInsets.only(top: 1),
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(perk.icon, size: 13, color: color),
-          ),
-          const SizedBox(width: AppSizes.spacing10),
-          Expanded(
-            child: Text(
-              perk.label,
-              style: TextStyle(
-                fontSize: AppTypography.fontSize13,
-                fontWeight:
-                    perk.highlight ? AppTypography.semiBold : AppTypography.regular,
-                color: perk.highlight ? _kAccent : AppColors.textPrimary,
-                height: 1.3,
-                fontFamily: 'Lato',
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _RadioDot extends StatelessWidget {
   const _RadioDot({required this.isSelected});
 
@@ -700,20 +657,20 @@ class _RecommendedBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: _kAccent.withValues(alpha: 0.12),
+        color: kSubscriptionAccent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppSizes.radius20),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.star_rounded, size: 12, color: _kAccent),
+          Icon(Icons.star_rounded, size: 12, color: kSubscriptionAccent),
           SizedBox(width: 3),
           Text(
             'RECOMMENDED',
             style: TextStyle(
               fontSize: 9,
               fontWeight: AppTypography.bold,
-              color: _kAccent,
+              color: kSubscriptionAccent,
               letterSpacing: 0.4,
               fontFamily: 'Lato',
             ),
@@ -766,11 +723,7 @@ class _SubscribeBar extends ConsumerWidget {
       onPressed = () => Navigator.push(
             context,
             MaterialPageRoute<void>(
-              builder: (_) => SubscriptionCheckoutScreen(
-                planDays: plan.planDays,
-                planPrice: plan.formattedPrice,
-                planCode: plan.planCode,
-              ),
+              builder: (_) => SubscriptionCheckoutScreen(plan: plan),
             ),
           );
     }
@@ -940,48 +893,3 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// ─── Feature derivation ──────────────────────────────────────────────────────
-
-class _Perk {
-  final IconData icon;
-  final String label;
-  final bool highlight;
-  const _Perk(this.icon, this.label, {this.highlight = false});
-}
-
-/// Builds the visible feature list for [plan]: every boolean that is `true`,
-/// every count/percent that is non-zero, the enabled rules, and any custom
-/// features — so the card surfaces everything that makes the plan attractive.
-List<_Perk> _derivePerks(SubscriptionPlan plan) {
-  final f = plan.features;
-  final r = plan.rules;
-  return [
-    if (f.mealCountPerDay > 0)
-      _Perk(Icons.restaurant_rounded, '${f.mealCountPerDay} meals every day'),
-    if (f.freeDelivery)
-      _Perk(Icons.local_shipping_rounded, 'Free delivery on every order'),
-    if (f.dietChart)
-      _Perk(Icons.menu_book_rounded, 'Personalised diet chart'),
-    if (f.consultationCount > 0)
-      _Perk(Icons.health_and_safety_rounded,
-          '${f.consultationCount} expert consultation${f.consultationCount > 1 ? 's' : ''}'),
-    if (f.discountPercent > 0)
-      _Perk(Icons.local_offer_rounded, '${f.discountPercent}% off on every order',
-          highlight: true),
-    if (f.snacks) _Perk(Icons.bakery_dining_rounded, 'Healthy snacks included'),
-    if (f.outletFoodDiscount && f.outletFoodDiscountPercent > 0)
-      _Perk(Icons.storefront_rounded,
-          '${f.outletFoodDiscountPercent}% off on outlet food'),
-    if (f.cancelCoupon && f.cancelCouponAmount > 0)
-      _Perk(Icons.confirmation_number_rounded,
-          '₹${f.cancelCouponAmount} cancellation credit'),
-    if (f.planBasedMealsAssgn)
-      _Perk(Icons.event_available_rounded, 'Plan-based meal scheduling'),
-    if (r.canSlotChoose)
-      _Perk(Icons.schedule_rounded, 'Pick your delivery slots'),
-    if (r.canCancel) _Perk(Icons.event_busy_rounded, 'Cancel anytime'),
-    if (r.canUpgrade) _Perk(Icons.upgrade_rounded, 'Upgrade whenever you want'),
-    for (final c in f.customFeatures)
-      _Perk(Icons.star_rounded, c, highlight: true),
-  ];
-}

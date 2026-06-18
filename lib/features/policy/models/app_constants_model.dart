@@ -51,9 +51,14 @@ class AppConstants {
   /// Pricing configuration (platform fee, GST rate, delivery charge).
   final PricingConstants pricing;
 
+  /// Flat fee (in ₹) charged for any-time subscription cancellation.
+  /// Sourced from data.subscription.anyTimeCancellationFees.
+  final double subscriptionCancellationFee;
+
   const AppConstants({
     this.cancelOrderWindowSeconds = _kDefaultCancelWindowSeconds,
     this.pricing = PricingConstants.defaults,
+    this.subscriptionCancellationFee = 0,
   });
 
   static const AppConstants defaults = AppConstants();
@@ -83,9 +88,14 @@ class AppConstants {
     final pricingMap = data?['pricing'] as Map<String, dynamic>? ?? {};
     final pricing = PricingConstants.fromMap(pricingMap);
 
+    final subscription = data?['subscription'] as Map<String, dynamic>?;
+    final subscriptionCancellationFee =
+        (subscription?['anyTimeCancellationFees'] as num?)?.toDouble() ?? 0;
+
     return AppConstants(
       cancelOrderWindowSeconds: cancellationTime,
       pricing: pricing,
+      subscriptionCancellationFee: subscriptionCancellationFee,
     );
   }
 }
