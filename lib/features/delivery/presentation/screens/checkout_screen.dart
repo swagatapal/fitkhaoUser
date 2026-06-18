@@ -10,6 +10,7 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/services/razorpay_service.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../models/cart_item.dart';
 import '../../models/coupon_model.dart';
 import '../../models/order_placement_model.dart';
@@ -163,9 +164,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final deliveryCharge = pricing.deliveryCharge;
     final gstAmount = ((itemTotal + platformCharge) * pricing.gstRate) ;
     final couponDiscount = _appliedCoupon?.computeDiscount(itemTotal) ?? 0.0;
-    final subTotal =
-        (itemTotal + platformCharge + deliveryCharge + gstAmount - couponDiscount)
-            .clamp(0.0, double.infinity);
+
+    // Subscriber benefit: active-subscription members get a flat % off the
+    // ITEM total (not the payable total). 0 when there's no active plan, so
+    // non-subscribers follow the exact same flow as before.
+    final outletDiscountPercent = ref.watch(authProvider.select((s) =>
+        (s.activeSubscription?.isActive ?? false)
+            ? s.activeSubscription!.outletFoodDiscountPercent
+            : 0));
+    final outletDiscount = itemTotal * outletDiscountPercent / 100;
+
+    final subTotal = (itemTotal +
+            platformCharge +
+            deliveryCharge +
+            gstAmount -
+            couponDiscount -
+            outletDiscount)
+        .clamp(0.0, double.infinity);
 
     final couponBalance = walletState.wallet?.couponBalance ?? 0.0;
     final isWalletSufficient = couponBalance >= subTotal;
@@ -244,6 +259,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           platformCharge: platformCharge,
                           deliveryCharge: deliveryCharge,
                           couponDiscount: couponDiscount,
+                          outletDiscount: outletDiscount,
+                          outletDiscountPercent: outletDiscountPercent,
                           subTotal: subTotal,
                           couponBalance: couponBalance,
                         ),
@@ -934,6 +951,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     required double platformCharge,
     required double deliveryCharge,
     required double couponDiscount,
+    required double outletDiscount,
+    required int outletDiscountPercent,
     required double subTotal,
     required double couponBalance,
   }) {
@@ -1003,6 +1022,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 _buildSummaryRow(
                   'Coupon (${_appliedCoupon!.code})',
                   '− ₹${couponDiscount.toStringAsFixed(2)}',
+                  valueColor: AppColors.primaryGreen,
+                ),
+              ],
+
+              // Subscriber discount on the item total — shown only for members.
+              if (outletDiscount > 0) ...[
+                const SizedBox(height: AppSizes.spacing8),
+                _buildSummaryRow(
+                  'Subscriber Discount ($outletDiscountPercent%)',
+                  '− ₹${outletDiscount.toStringAsFixed(2)}',
                   valueColor: AppColors.primaryGreen,
                 ),
               ],

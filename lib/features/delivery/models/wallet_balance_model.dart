@@ -97,6 +97,12 @@ class SubscriptionInfo {
   final bool isActive;
   final bool autoRenew;
 
+  /// Meals included per day (profile API). 0 when unknown.
+  final int mealsPerDay;
+
+  /// Discount % subscribers get on outlet food orders (profile API). 0 = none.
+  final int outletFoodDiscountPercent;
+
   const SubscriptionInfo({
     required this.id,
     required this.planCode,
@@ -109,6 +115,8 @@ class SubscriptionInfo {
     required this.remainingDays,
     required this.isActive,
     required this.autoRenew,
+    this.mealsPerDay = 0,
+    this.outletFoodDiscountPercent = 0,
   });
 
   factory SubscriptionInfo.fromJson(Map<String, dynamic> json) {
@@ -129,6 +137,9 @@ class SubscriptionInfo {
       remainingDays: (json['remainingDays'] as num?)?.toInt() ?? 0,
       isActive: isActive,
       autoRenew: json['autoRenew'] as bool? ?? false,
+      mealsPerDay: (json['mealsPerDay'] as num?)?.toInt() ?? 0,
+      outletFoodDiscountPercent:
+          (json['outletFoodDiscountPercent'] as num?)?.toInt() ?? 0,
     );
   }
 
