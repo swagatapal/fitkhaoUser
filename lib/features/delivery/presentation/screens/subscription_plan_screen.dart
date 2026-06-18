@@ -12,6 +12,7 @@ import '../../providers/wallet_provider.dart';
 import '../widgets/cancel_subscription_sheet.dart';
 import '../widgets/recharge_topup_modal.dart';
 import '../widgets/subscription_benefits.dart';
+import 'my_subscription_screen.dart';
 import 'subscription_checkout_screen.dart';
 import 'transaction_history_screen.dart';
 
@@ -319,86 +320,100 @@ class _ActivePlanBanner extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSizes.spacing16),
-      child: Container(
-        padding: const EdgeInsets.all(AppSizes.spacing12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF5D9E40), Color(0xFF7AB655)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        // Tapping the card opens the subscription detail screen (journey,
+        // diet chart, plan manager). The inner Cancel pill has its own gesture,
+        // so it intercepts its taps and doesn't trigger this navigation.
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => MySubscriptionScreen(planName: sub.planName),
           ),
-          borderRadius: BorderRadius.circular(AppSizes.radius8),
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppSizes.spacing8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(AppSizes.radius8),
+        child: Container(
+          padding: const EdgeInsets.all(AppSizes.spacing12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF5D9E40), Color(0xFF7AB655)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSizes.spacing8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+                child: const Icon(Icons.verified_rounded,
+                    color: Colors.white, size: AppSizes.icon20),
               ),
-              child: const Icon(Icons.verified_rounded,
+              const SizedBox(width: AppSizes.spacing12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Active: ${sub.planName}',
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.bold,
+                        color: Colors.white,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${sub.remainingDays} days left · ends ${convertMongoUtcToIst(sub.endDate)}',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize10,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSizes.spacing8),
+              // Cancel the active subscription (opens the refund-preview sheet).
+              if (sub.id.isNotEmpty)
+                GestureDetector(
+                  onTap: () => showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) =>
+                        CancelSubscriptionSheet(subscriptionId: sub.id),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSizes.spacing12,
+                      vertical: AppSizes.spacing6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(AppSizes.radius20),
+                    ),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        fontWeight: AppTypography.semiBold,
+                        color: Colors.white,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(width: AppSizes.spacing4),
+              const Icon(Icons.chevron_right_rounded,
                   color: Colors.white, size: AppSizes.icon20),
-            ),
-            const SizedBox(width: AppSizes.spacing12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Active: ${sub.planName}',
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize14,
-                      fontWeight: AppTypography.bold,
-                      color: Colors.white,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${sub.remainingDays} days left · ends ${convertMongoUtcToIst(sub.endDate)}',
-                    style: TextStyle(
-                      fontSize: AppTypography.fontSize10,
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppSizes.spacing8),
-            // Cancel the active subscription (opens the refund-preview sheet).
-            if (sub.id.isNotEmpty)
-              GestureDetector(
-                onTap: () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (_) =>
-                      CancelSubscriptionSheet(subscriptionId: sub.id),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSizes.spacing12,
-                    vertical: AppSizes.spacing6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(AppSizes.radius20),
-                  ),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(
-                      fontSize: AppTypography.fontSize12,
-                      fontWeight: AppTypography.semiBold,
-                      color: Colors.white,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
