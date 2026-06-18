@@ -9,6 +9,7 @@ import '../../../../core/utils/time_converter.dart';
 import '../../models/subscription_plan_model.dart';
 import '../../providers/subscription_plan_provider.dart';
 import '../../providers/wallet_provider.dart';
+import '../widgets/cancel_subscription_sheet.dart';
 import '../widgets/recharge_topup_modal.dart';
 import '../widgets/subscription_benefits.dart';
 import 'subscription_checkout_screen.dart';
@@ -366,6 +367,37 @@ class _ActivePlanBanner extends ConsumerWidget {
                 ],
               ),
             ),
+            const SizedBox(width: AppSizes.spacing8),
+            // Cancel the active subscription (opens the refund-preview sheet).
+            if (sub.id.isNotEmpty)
+              GestureDetector(
+                onTap: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) =>
+                      CancelSubscriptionSheet(subscriptionId: sub.id),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.spacing12,
+                    vertical: AppSizes.spacing6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(AppSizes.radius20),
+                  ),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      fontWeight: AppTypography.semiBold,
+                      color: Colors.white,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
