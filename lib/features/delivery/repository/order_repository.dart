@@ -149,11 +149,13 @@ class OrderRepository {
   }
 
   /// Create a Razorpay order for a subscription purchase.
-  /// Sends `{ purpose: "subscription", planCode }` to the backend.
+  /// Sends `{ purpose: "subscription", planId, cancelAnytimeSelected }`.
   Future<RazorpayCreateOrderResponse> createRazorpaySubscriptionOrder({
-    required String planCode,
+    required String planId,
+    required bool cancelAnytimeSelected,
   }) async {
-    debugPrint('[OrderRepository] Creating Razorpay subscription order — planCode=$planCode');
+    debugPrint('[OrderRepository] Creating Razorpay subscription order — '
+        'planId=$planId cancelAnytime=$cancelAnytimeSelected');
 
     try {
       final token = _localStorage.getAuthToken();
@@ -166,7 +168,10 @@ class OrderRepository {
         'Authorization': 'Bearer $token',
       };
 
-      final request = RazorpaySubscriptionOrderRequest(planCode: planCode);
+      final request = RazorpaySubscriptionOrderRequest(
+        planId: planId,
+        cancelAnytimeSelected: cancelAnytimeSelected,
+      );
 
       debugPrint('[OrderRepository] createRazorpaySubscriptionOrder payload: ${request.toJson()}');
 

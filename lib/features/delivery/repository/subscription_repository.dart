@@ -36,46 +36,25 @@ class SubscriptionRepository {
     }
   }
 
-  /// Create a new subscription
+  /// Create a subscription paid from the wallet.
+  /// POST /api/subscription/create — body `{ planId, cancelAnytimeSelected }`.
   Future<SubscriptionResponse> createSubscription({
-    required String planCode,
-    String? paymentId,
+    required String planId,
+    required bool cancelAnytimeSelected,
   }) async {
-    debugPrint('[SubscriptionRepository] Creating subscription via API...');
-    debugPrint('[SubscriptionRepository] planCode: $planCode, paymentId: $paymentId');
-
+    debugPrint('[SubscriptionRepository] Creating subscription (wallet) — '
+        'planId=$planId cancelAnytime=$cancelAnytimeSelected');
     try {
-      // Get auth token
-      final token = _localStorage.getAuthToken();
-      if (token == null || token.isEmpty) {
-        throw AuthException(
-          message: 'Authentication required. Please login again.',
-        );
-      }
-
-      // Prepare request
       final request = SubscriptionRequest(
-        planCode: planCode,
-        paymentId: paymentId,
+        planId: planId,
+        cancelAnytimeSelected: cancelAnytimeSelected,
       );
-
-      // Prepare headers with Bearer token
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
-
-      debugPrint('[SubscriptionRepository] Request payload: ${request.toJson()}');
-
-      // Make POST request
       final json = await _apiClient.postJson(
         AppConfig.createSubscriptionPath,
-        headers: headers,
+        headers: _authHeaders(),
         body: request.toJson(),
       );
-
       debugPrint('[SubscriptionRepository] Subscription response: $json');
-
       return SubscriptionResponse.fromJson(json);
     } catch (e) {
       debugPrint('[SubscriptionRepository] Subscription error: $e');
@@ -104,24 +83,70 @@ class SubscriptionRepository {
     }
   }
 
-  /// Cancels [subscriptionId], refunding via [refundMethod] (e.g. "wallet").
-  /// Auth required.
+  /// Cancels [subscriptionId] (GET). [refundMethod] is forwarded as a query
+  /// param when provided. Auth required.
   Future<SubscriptionResponse> cancelSubscription({
     required String subscriptionId,
-    required String refundMethod,
+    String? refundMethod,
   }) async {
     debugPrint(
         '[SubscriptionRepository] Cancelling $subscriptionId via $refundMethod...');
     try {
-      final json = await _apiClient.postJson(
-        AppConfig.subscriptionCancelPath(subscriptionId),
+      final query = (refundMethod != null && refundMethod.isNotEmpty)
+          ? '?refundMethod=$refundMethod'
+          : '';
+      final json = await _apiClient.getJson(
+        '${AppConfig.subscriptionCancelPath(subscriptionId)}$query',
         headers: _authHeaders(),
-        body: {'refundMethod': refundMethod},
       );
       debugPrint('[SubscriptionRepository] Cancel response: $json');
       return SubscriptionResponse.fromJson(json);
     } catch (e) {
       debugPrint('[SubscriptionRepository] Cancel error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
+  /// Fetches the invoice payload for [subscriptionId] (auth). The response
+  /// schema is backend-defined, so the decoded `data` map is returned as-is.
+  Future<Map<String, dynamic>> getInvoice(String subscriptionId) async {
+    debugPrint('[SubscriptionRepository] Invoice for $subscriptionId...');
+    try {
+      final json = await _apiClient.getJson(
+        AppConfig.subscriptionInvoicePath(subscriptionId),
+        headers: _authHeaders(),
+      );
+      final data = json['data'];
+      return data is Map<String, dynamic> ? data : json;
+    } catch (e) {
+      debugPrint('[SubscriptionRepository] Invoice error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
+  /// Fetches the event history for [subscriptionId] (auth). Returns the list of
+  /// event maps from the response (`data.events` / `data` / top-level list).
+  Future<List<Map<String, dynamic>>> getEventHistory(
+      String subscriptionId) async {
+    debugPrint('[SubscriptionRepository] History for $subscriptionId...');
+    try {
+      final json = await _apiClient.getJson(
+        AppConfig.subscriptionHistoryPath(subscriptionId),
+        headers: _authHeaders(),
+      );
+      final data = json['data'];
+      final list = data is List
+          ? data
+          : (data is Map<String, dynamic>
+              ? (data['events'] ?? data['history'] ?? const [])
+              : const []);
+      return (list as List)
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('[SubscriptionRepository] History error: $e');
       final message = ExceptionHandler.getErrorMessage(e);
       throw NetworkException(message: message, originalError: e);
     }

@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/providers/providers.dart';
+import '../../../../core/utils/time_converter.dart';
+import '../../providers/subscription_detail_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // My Subscription — opened by tapping the active-plan banner.
@@ -25,10 +30,18 @@ const Color _kAccent = Color(0xFFC66301);
 const Color _kAccentBg = Color(0xFFFFF8E1);
 
 class MySubscriptionScreen extends StatelessWidget {
-  const MySubscriptionScreen({super.key, this.planName = 'Your Plan'});
+  const MySubscriptionScreen({
+    super.key,
+    this.planName = 'Your Plan',
+    this.subscriptionId = '',
+  });
 
   /// Shown in the header subtitle. Optional — defaults to a neutral label.
   final String planName;
+
+  /// Active subscription id — enables the Invoice action and real event
+  /// history. When empty, the Journey tab shows the placeholder timeline.
+  final String subscriptionId;
 
   @override
   Widget build(BuildContext context) {
@@ -40,14 +53,14 @@ class MySubscriptionScreen extends StatelessWidget {
           bottom: false,
           child: Column(
             children: [
-              _Header(planName: planName),
+              _Header(planName: planName, subscriptionId: subscriptionId),
               const _Tabs(),
-              const Expanded(
+              Expanded(
                 child: TabBarView(
                   children: [
-                    _JourneyTab(),
-                    _DietChartTab(),
-                    _PlanManagerTab(),
+                    _JourneyTab(subscriptionId: subscriptionId),
+                    const _DietChartTab(),
+                    const _PlanManagerTab(),
                   ],
                 ),
               ),
@@ -62,9 +75,10 @@ class MySubscriptionScreen extends StatelessWidget {
 // ─── Header ──────────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
-  const _Header({required this.planName});
+  const _Header({required this.planName, required this.subscriptionId});
 
   final String planName;
+  final String subscriptionId;
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +138,152 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
+          if (subscriptionId.isNotEmpty)
+            _InvoiceButton(subscriptionId: subscriptionId),
         ],
+      ),
+    );
+  }
+}
+
+/// Header action that fetches + opens the subscription invoice on demand.
+class _InvoiceButton extends ConsumerStatefulWidget {
+  const _InvoiceButton({required this.subscriptionId});
+
+  final String subscriptionId;
+
+  @override
+  ConsumerState<_InvoiceButton> createState() => _InvoiceButtonState();
+}
+
+class _InvoiceButtonState extends ConsumerState<_InvoiceButton> {
+  bool _loading = false;
+
+  Future<void> _openInvoice() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final data = await ref
+          .read(subscriptionRepositoryProvider)
+          .getInvoice(widget.subscriptionId);
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      // Prefer a direct invoice URL when the backend provides one.
+      final url = _firstUrl(data);
+      if (url != null) {
+        final launched =
+            await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        if (!launched && mounted) {
+          messenger.showSnackBar(const SnackBar(
+            content: Text('Could not open the invoice.'),
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+      } else if (mounted) {
+        _showInvoiceSheet(data);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Could not load the invoice. Please try again.'),
+        backgroundColor: AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
+  String? _firstUrl(Map<String, dynamic> data) {
+    for (final key in ['url', 'invoiceUrl', 'pdfUrl', 'invoicePdf', 'link']) {
+      final v = data[key];
+      if (v is String && v.startsWith('http')) return v;
+    }
+    return null;
+  }
+
+  void _showInvoiceSheet(Map<String, dynamic> data) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSizes.spacing20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Invoice',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize18,
+                  fontWeight: AppTypography.bold,
+                  color: AppColors.textPrimary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              const SizedBox(height: AppSizes.spacing12),
+              for (final entry in data.entries)
+                if (entry.value is! Map && entry.value is! List)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          entry.key,
+                          style: const TextStyle(
+                            fontSize: AppTypography.fontSize13,
+                            color: AppColors.textSecondary,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                        const SizedBox(width: AppSizes.spacing12),
+                        Flexible(
+                          child: Text(
+                            '${entry.value}',
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              fontSize: AppTypography.fontSize13,
+                              fontWeight: AppTypography.semiBold,
+                              color: AppColors.textPrimary,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _openInvoice,
+      child: Container(
+        padding: const EdgeInsets.all(AppSizes.spacing8),
+        decoration: BoxDecoration(
+          color: AppColors.primaryGreen.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+        ),
+        child: _loading
+            ? const SizedBox(
+                width: AppSizes.icon20,
+                height: AppSizes.icon20,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.primaryGreen),
+              )
+            : const Icon(Icons.receipt_long_rounded,
+                color: AppColors.primaryGreen, size: AppSizes.icon20),
       ),
     );
   }
@@ -188,6 +347,42 @@ class _JourneyEvent {
     this.status,
     this.hasMeetLink = false,
   });
+
+  /// Defensively maps an open-ended backend event map onto the timeline model.
+  factory _JourneyEvent.fromMap(Map<String, dynamic> m) {
+    String? str(List<String> keys) {
+      for (final k in keys) {
+        final v = m[k];
+        if (v is String && v.trim().isNotEmpty) return v.trim();
+        if (v is num) return v.toString();
+      }
+      return null;
+    }
+
+    final type = (str(['type', 'event', 'eventType', 'kind']) ?? '').toLowerCase();
+    _EventKind kind;
+    if (type.contains('counsel') || type.contains('call')) {
+      kind = _EventKind.counselling;
+    } else if (type.contains('renew')) {
+      kind = _EventKind.renewal;
+    } else if (type.contains('start') || type.contains('activate')) {
+      kind = _EventKind.journeyStart;
+    } else {
+      kind = _EventKind.meals;
+    }
+
+    final rawDate = str(['date', 'createdAt', 'timestamp', 'eventDate', 'at']);
+
+    return _JourneyEvent(
+      kind: kind,
+      title: str(['title', 'label', 'name', 'type', 'event']) ?? 'Update',
+      date: rawDate != null ? convertMongoUtcToIst(rawDate) : '',
+      subtitle: str(['description', 'message', 'note', 'detail']),
+      status: str(['status']),
+      hasMeetLink: (m['meetLink'] ?? m['meetingLink'] ?? m['link']) != null ||
+          kind == _EventKind.counselling && (m['meetLink'] != null),
+    );
+  }
 }
 
 // Placeholder timeline — replace with API data later.
@@ -258,11 +453,34 @@ const List<_JourneyEvent> _kJourneyEvents = [
   ),
 ];
 
-class _JourneyTab extends StatelessWidget {
-  const _JourneyTab();
+class _JourneyTab extends ConsumerWidget {
+  const _JourneyTab({required this.subscriptionId});
+
+  final String subscriptionId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // No id (e.g. opened without an active sub) → keep the placeholder timeline.
+    if (subscriptionId.isEmpty) {
+      return _timeline(_kJourneyEvents);
+    }
+
+    final historyAsync = ref.watch(subscriptionHistoryProvider(subscriptionId));
+    return historyAsync.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: AppColors.primaryGreen),
+      ),
+      error: (_, __) => _timeline(_kJourneyEvents),
+      data: (events) {
+        if (events.isEmpty) return _timeline(const []);
+        final mapped =
+            events.map(_JourneyEvent.fromMap).toList(growable: false);
+        return _timeline(mapped);
+      },
+    );
+  }
+
+  Widget _timeline(List<_JourneyEvent> events) {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(
         AppSizes.screenPaddingHorizontal,
@@ -271,14 +489,14 @@ class _JourneyTab extends StatelessWidget {
         AppSizes.spacing32,
       ),
       // +1 leading slot for the cancellation-policy banner.
-      itemCount: _kJourneyEvents.length + 1,
+      itemCount: events.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) return const _CancellationPolicyBanner();
         final i = index - 1;
         return _TimelineTile(
-          event: _kJourneyEvents[i],
+          event: events[i],
           isFirst: i == 0,
-          isLast: i == _kJourneyEvents.length - 1,
+          isLast: i == events.length - 1,
         );
       },
     );

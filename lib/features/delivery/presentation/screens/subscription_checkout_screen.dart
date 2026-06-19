@@ -8,6 +8,7 @@ import '../../../../core/providers/providers.dart';
 import '../../../../core/services/razorpay_service.dart';
 import '../../models/subscription_pricing_preview_model.dart';
 import '../../providers/subscription_pricing_provider.dart';
+import '../../providers/wallet_provider.dart';
 import '../widgets/subscription_benefits.dart';
 
 /// Subscription checkout.
@@ -35,11 +36,22 @@ class _SubscriptionCheckoutScreenState
     extends ConsumerState<SubscriptionCheckoutScreen> {
   bool _isProcessing = false;
 
+  /// User-chosen payment method ('wallet' | 'online'), or null to use the
+  /// smart default (wallet when the balance covers the total, else online).
+  String? _selectedMethod;
+
   late final RazorpayService _razorpayService;
   String? _razorpayOrderId;
 
   PricingPreviewArgs get _args =>
       (planId: widget.planId, cancelAnytimeSelected: widget.cancelAnytimeSelected);
+
+  double get _walletBalance =>
+      ref.read(walletProvider.select((s) => s.wallet?.couponBalance)) ?? 0;
+
+  /// Effective method given the wallet balance vs the payable [total].
+  String _effectiveMethod(double total) =>
+      _selectedMethod ?? (_walletBalance >= total ? 'wallet' : 'online');
 
   // ── Razorpay lifecycle ─────────────────────────────────────────────────────
 
@@ -51,6 +63,10 @@ class _SubscriptionCheckoutScreenState
       onFailure: _onRazorpayFailure,
       onExternalWallet: (_) {},
     );
+    // Ensure the wallet balance is fresh so the wallet/online default is right.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(walletProvider.notifier).loadWalletBalance();
+    });
   }
 
   @override
@@ -92,10 +108,48 @@ class _SubscriptionCheckoutScreenState
     if (_isProcessing) return;
     final preview = _preview;
     if (preview == null) return; // not loaded yet
-    _showConfirmationDialog(preview);
+    final method = _effectiveMethod(preview.pricing.totalAmount);
+    _showConfirmationDialog(preview, method);
   }
 
-  void _showConfirmationDialog(SubscriptionPricingPreview preview) {
+  /// Wallet path: POST /api/subscription/create — creates the subscription
+  /// directly from the wallet balance (no Razorpay).
+  Future<void> _payWithWallet(SubscriptionPricingPreview preview) async {
+    if (!mounted) return;
+    setState(() => _isProcessing = true);
+    try {
+      final repo = ref.read(subscriptionRepositoryProvider);
+      final res = await repo.createSubscription(
+        planId: widget.planId,
+        cancelAnytimeSelected: widget.cancelAnytimeSelected,
+      );
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      if (res.success) {
+        await _refreshAfterPurchase();
+        if (!mounted) return;
+        _showSuccessDialog();
+      } else {
+        _showError(res.message.isNotEmpty
+            ? res.message
+            : 'Could not activate the subscription. Please try again.');
+      }
+    } catch (e) {
+      debugPrint('[SubscriptionCheckout] wallet create error: $e');
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+      _showError('Could not activate the subscription. Please try again.');
+    }
+  }
+
+  /// Refresh wallet + profile so the active subscription reflects everywhere.
+  Future<void> _refreshAfterPurchase() async {
+    await ref.read(walletProvider.notifier).loadWalletBalance();
+  }
+
+  void _showConfirmationDialog(
+      SubscriptionPricingPreview preview, String method) {
+    final viaWallet = method == 'wallet';
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -129,8 +183,9 @@ class _SubscriptionCheckoutScreenState
               ),
               const SizedBox(height: AppSizes.spacing12),
               Text(
-                'Proceed with payment of ${_money(preview.pricing.totalAmount)} '
-                'for the ${preview.plan.planName} (${preview.plan.planValidity}) plan?',
+                'Pay ${_money(preview.pricing.totalAmount)} for the '
+                '${preview.plan.planName} (${preview.plan.planValidity}) plan '
+                '${viaWallet ? 'from your wallet' : 'online'}?',
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize14,
                   fontWeight: AppTypography.regular,
@@ -169,7 +224,11 @@ class _SubscriptionCheckoutScreenState
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        _initiateRazorpayFlow(preview);
+                        if (viaWallet) {
+                          _payWithWallet(preview);
+                        } else {
+                          _initiateRazorpayFlow(preview);
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryGreen,
@@ -206,7 +265,8 @@ class _SubscriptionCheckoutScreenState
     try {
       final orderRepo = ref.read(orderRepositoryProvider);
       final createResponse = await orderRepo.createRazorpaySubscriptionOrder(
-        planCode: preview.plan.planCode,
+        planId: widget.planId,
+        cancelAnytimeSelected: widget.cancelAnytimeSelected,
       );
 
       if (!createResponse.success || createResponse.data == null) {
@@ -287,7 +347,6 @@ class _SubscriptionCheckoutScreenState
         razorpayPaymentId: paymentId,
         razorpaySignature: signature ?? '',
         purpose: 'subscription',
-        planCode: _preview?.plan.planCode ?? '',
       );
 
       _razorpayOrderId = null;
@@ -295,6 +354,8 @@ class _SubscriptionCheckoutScreenState
       setState(() => _isProcessing = false);
 
       if (verifyResponse.success) {
+        await _refreshAfterPurchase();
+        if (!mounted) return;
         _showSuccessDialog();
       } else {
         _showError(verifyResponse.message.isNotEmpty
@@ -477,6 +538,8 @@ class _SubscriptionCheckoutScreenState
             _buildPlanHeaderCard(preview),
             const SizedBox(height: AppSizes.spacing20),
             _buildPaymentSummary(preview),
+            const SizedBox(height: AppSizes.spacing20),
+            _buildPaymentMethod(preview),
             const SizedBox(height: AppSizes.spacing12),
             _buildCancellationNote(preview),
             const SizedBox(height: AppSizes.spacing20),
@@ -724,6 +787,54 @@ class _SubscriptionCheckoutScreenState
     );
   }
 
+  // ─── Payment method (wallet vs online) ──────────────────────────────────────
+
+  Widget _buildPaymentMethod(SubscriptionPricingPreview preview) {
+    final total = preview.pricing.totalAmount;
+    // Watch the balance so the tiles + default react to wallet refreshes.
+    final balance =
+        ref.watch(walletProvider.select((s) => s.wallet?.couponBalance)) ?? 0;
+    final walletOk = balance >= total;
+    final method = _effectiveMethod(total);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Payment method',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize18,
+            fontWeight: AppTypography.bold,
+            color: AppColors.textPrimary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        const SizedBox(height: AppSizes.spacing12),
+        _PaymentOptionTile(
+          icon: Icons.account_balance_wallet_rounded,
+          title: 'FitKhao Wallet',
+          subtitle: walletOk
+              ? 'Balance ${_money(balance)}'
+              : 'Insufficient balance (${_money(balance)})',
+          selected: method == 'wallet',
+          enabled: walletOk,
+          onTap: walletOk
+              ? () => setState(() => _selectedMethod = 'wallet')
+              : null,
+        ),
+        const SizedBox(height: AppSizes.spacing8),
+        _PaymentOptionTile(
+          icon: Icons.credit_card_rounded,
+          title: 'Pay online',
+          subtitle: 'UPI · Card · Net banking (Razorpay)',
+          selected: method == 'online',
+          enabled: true,
+          onTap: () => setState(() => _selectedMethod = 'online'),
+        ),
+      ],
+    );
+  }
+
   // ─── Cancellation policy note ───────────────────────────────────────────────
 
   Widget _buildCancellationNote(SubscriptionPricingPreview preview) {
@@ -834,9 +945,16 @@ class _SubscriptionCheckoutScreenState
 
   Widget _buildBottomButton(SubscriptionPricingPreview? preview) {
     final canPay = preview != null && !_isProcessing;
-    final label = preview == null
-        ? 'Loading…'
-        : 'Pay ${_money(preview.pricing.totalAmount)}';
+    final String label;
+    if (preview == null) {
+      label = 'Loading…';
+    } else {
+      final viaWallet =
+          _effectiveMethod(preview.pricing.totalAmount) == 'wallet';
+      label = viaWallet
+          ? 'Pay ${_money(preview.pricing.totalAmount)} via Wallet'
+          : 'Pay ${_money(preview.pricing.totalAmount)}';
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -941,6 +1059,90 @@ class _ErrorView extends StatelessWidget {
               child: const Text('Retry', style: TextStyle(fontFamily: 'Lato')),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Payment option tile ─────────────────────────────────────────────────────
+
+class _PaymentOptionTile extends StatelessWidget {
+  const _PaymentOptionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppColors.primaryGreen;
+    return Opacity(
+      opacity: enabled ? 1 : 0.55,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(AppSizes.spacing12),
+          decoration: BoxDecoration(
+            color: selected ? accent.withValues(alpha: 0.06) : Colors.white,
+            borderRadius: BorderRadius.circular(AppSizes.radius12),
+            border: Border.all(
+              color: selected
+                  ? accent
+                  : AppColors.borderColor.withValues(alpha: 0.6),
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(icon,
+                  size: AppSizes.icon24,
+                  color: selected ? accent : AppColors.textSecondary),
+              const SizedBox(width: AppSizes.spacing12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.semiBold,
+                        color: AppColors.textPrimary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        color: AppColors.textSecondary.withValues(alpha: 0.9),
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                size: AppSizes.icon20,
+                color: selected ? accent : AppColors.textTertiary,
+              ),
+            ],
+          ),
         ),
       ),
     );

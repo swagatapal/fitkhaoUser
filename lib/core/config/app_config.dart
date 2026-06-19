@@ -73,6 +73,14 @@ class AppConfig {
   static String subscriptionCancelPath(String subscriptionId) =>
       '/api/subscriptions/$subscriptionId/cancel';
 
+  /// Subscription invoice (auth).
+  static String subscriptionInvoicePath(String subscriptionId) =>
+      '/api/subscriptions/$subscriptionId/invoice';
+
+  /// Subscription event history (auth).
+  static String subscriptionHistoryPath(String subscriptionId) =>
+      '/api/subscriptions/$subscriptionId/history';
+
   /// App content — terms & conditions, privacy policy (public)
   static const String appContentPath = '/api/app-content';
   static const String appConstant = '/api/app/constants';

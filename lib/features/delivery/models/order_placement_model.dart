@@ -114,17 +114,20 @@ class RazorpayWalletTopupRequest {
 /// Request body for POST /razorpay/create-order (subscription variant).
 /// Only sends `purpose` + `planCode`.
 class RazorpaySubscriptionOrderRequest {
-  final String planCode;
+  final String planId;
+  final bool cancelAnytimeSelected;
   final String purpose;
 
   const RazorpaySubscriptionOrderRequest({
-    required this.planCode,
+    required this.planId,
+    this.cancelAnytimeSelected = false,
     this.purpose = 'subscription',
   });
 
   Map<String, dynamic> toJson() => {
         'purpose': purpose,
-        'planCode': planCode,
+        'planId': planId,
+        'cancelAnytimeSelected': cancelAnytimeSelected,
       };
 }
 

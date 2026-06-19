@@ -327,7 +327,10 @@ class _ActivePlanBanner extends ConsumerWidget {
         // so it intercepts its taps and doesn't trigger this navigation.
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => MySubscriptionScreen(planName: sub.planName),
+            builder: (_) => MySubscriptionScreen(
+              planName: sub.planName,
+              subscriptionId: sub.id,
+            ),
           ),
         ),
         child: Container(
