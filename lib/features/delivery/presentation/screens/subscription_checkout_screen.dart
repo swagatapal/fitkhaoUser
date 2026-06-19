@@ -6,17 +6,25 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/services/razorpay_service.dart';
-import '../../../policy/providers/app_constants_provider.dart';
-import '../../models/subscription_plan_model.dart';
+import '../../models/subscription_pricing_preview_model.dart';
+import '../../providers/subscription_pricing_provider.dart';
 import '../widgets/subscription_benefits.dart';
 
+/// Subscription checkout.
+///
+/// Receives only [planId] + [cancelAnytimeSelected] — every figure shown is the
+/// server-authoritative pricing preview fetched here (no data is carried from
+/// the plan screen). State lives in [subscriptionPricingPreviewProvider]; the
+/// screen just renders its [AsyncValue].
 class SubscriptionCheckoutScreen extends ConsumerStatefulWidget {
-  /// The full plan selected on the previous screen — carries the pricing
-  /// breakdown (price, consultation fee, other charges, GST) and the feature
-  /// set, so checkout never re-fetches and the summary is always plan-specific.
-  final SubscriptionPlan plan;
+  final String planId;
+  final bool cancelAnytimeSelected;
 
-  const SubscriptionCheckoutScreen({super.key, required this.plan});
+  const SubscriptionCheckoutScreen({
+    super.key,
+    required this.planId,
+    this.cancelAnytimeSelected = false,
+  });
 
   @override
   ConsumerState<SubscriptionCheckoutScreen> createState() =>
@@ -30,38 +38,8 @@ class _SubscriptionCheckoutScreenState
   late final RazorpayService _razorpayService;
   String? _razorpayOrderId;
 
-  SubscriptionPlan get _plan => widget.plan;
-
-  /// Any-time cancellation fee (₹) from /api/app/constants. Refreshed in
-  /// [build] from the cached [appConstantsProvider]; held in a field so the
-  /// pricing getters stay usable from dialogs / the pay button too.
-  double _cancellationFee = 0;
-
-  // ─── Pricing breakdown ──────────────────────────────────────────────────────
-  // The backend stays authoritative for the charged amount; this breakdown is
-  // for transparent display and the local fallback total.
-  //
-  //   • Plan amount   → plan.price (the actual amount; consultation fee is
-  //                     already baked into it, so it's never added separately).
-  //   • GST           → computed on the actual amount only.
-  //   • Total payable → plan amount + GST.
-  // The cancellation fee is NOT charged now — it only applies if the user later
-  // cancels, so it is shown purely as a policy note, never in the total.
-
-  double get _planAmount => _plan.price;
-
-  /// Consultation fee — already included inside [_planAmount]; surfaced for
-  /// transparency and reused in the cancellation policy note.
-  double get _consultationFee => _plan.consultationFee;
-
-  double get _gstAmount => _planAmount * _plan.gstPercentage / 100;
-
-  /// Flat any-time cancellation fee from app constants. Informational only.
-  double get _cancellationCharge => _cancellationFee;
-
-  double get _totalAmount => _planAmount + _gstAmount;
-
-  String get _formattedTotal => _formatAmount(_totalAmount);
+  PricingPreviewArgs get _args =>
+      (planId: widget.planId, cancelAnytimeSelected: widget.cancelAnytimeSelected);
 
   // ── Razorpay lifecycle ─────────────────────────────────────────────────────
 
@@ -81,6 +59,10 @@ class _SubscriptionCheckoutScreenState
     super.dispose();
   }
 
+  /// The loaded preview, or null while loading / on error.
+  SubscriptionPricingPreview? get _preview =>
+      ref.read(subscriptionPricingPreviewProvider(_args)).valueOrNull;
+
   // ── Razorpay callbacks ─────────────────────────────────────────────────────
 
   void _onRazorpaySuccess(
@@ -88,8 +70,7 @@ class _SubscriptionCheckoutScreenState
     String? sdkOrderId,
     String? signature,
   ) {
-    debugPrint(
-        '[SubscriptionCheckout] Razorpay success — paymentId=$paymentId');
+    debugPrint('[SubscriptionCheckout] Razorpay success — paymentId=$paymentId');
     _verifyAndFinalise(
       paymentId: paymentId,
       sdkOrderId: sdkOrderId,
@@ -109,10 +90,12 @@ class _SubscriptionCheckoutScreenState
 
   void _onPayTapped() {
     if (_isProcessing) return;
-    _showConfirmationDialog();
+    final preview = _preview;
+    if (preview == null) return; // not loaded yet
+    _showConfirmationDialog(preview);
   }
 
-  void _showConfirmationDialog() {
+  void _showConfirmationDialog(SubscriptionPricingPreview preview) {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -130,11 +113,8 @@ class _SubscriptionCheckoutScreenState
                   color: AppColors.primaryGreen.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.help_outline,
-                  size: AppSizes.icon60,
-                  color: AppColors.primaryGreen,
-                ),
+                child: const Icon(Icons.help_outline,
+                    size: AppSizes.icon60, color: AppColors.primaryGreen),
               ),
               const SizedBox(height: AppSizes.spacing20),
               const Text(
@@ -149,8 +129,8 @@ class _SubscriptionCheckoutScreenState
               ),
               const SizedBox(height: AppSizes.spacing12),
               Text(
-                'Proceed with payment of $_formattedTotal for the '
-                '${_plan.planName} (${_plan.planValidity}) plan?',
+                'Proceed with payment of ${_money(preview.pricing.totalAmount)} '
+                'for the ${preview.plan.planName} (${preview.plan.planValidity}) plan?',
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize14,
                   fontWeight: AppTypography.regular,
@@ -168,8 +148,7 @@ class _SubscriptionCheckoutScreenState
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: AppColors.borderColor),
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppSizes.radius4),
+                          borderRadius: BorderRadius.circular(AppSizes.radius4),
                         ),
                         padding: const EdgeInsets.symmetric(
                             vertical: AppSizes.spacing8),
@@ -190,13 +169,12 @@ class _SubscriptionCheckoutScreenState
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        _initiateRazorpayFlow();
+                        _initiateRazorpayFlow(preview);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryGreen,
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppSizes.radius4),
+                          borderRadius: BorderRadius.circular(AppSizes.radius4),
                         ),
                         padding: const EdgeInsets.symmetric(
                             vertical: AppSizes.spacing8),
@@ -221,14 +199,14 @@ class _SubscriptionCheckoutScreenState
     );
   }
 
-  Future<void> _initiateRazorpayFlow() async {
+  Future<void> _initiateRazorpayFlow(SubscriptionPricingPreview preview) async {
     if (!mounted) return;
     setState(() => _isProcessing = true);
 
     try {
       final orderRepo = ref.read(orderRepositoryProvider);
       final createResponse = await orderRepo.createRazorpaySubscriptionOrder(
-        planCode: _plan.planCode,
+        planCode: preview.plan.planCode,
       );
 
       if (!createResponse.success || createResponse.data == null) {
@@ -243,11 +221,11 @@ class _SubscriptionCheckoutScreenState
       final orderData = createResponse.data!;
       _razorpayOrderId = orderData.razorpayOrderId;
 
-      // Backend is authoritative for the amount; fall back to the local total
-      // only if the backend value is zero.
+      // Backend is authoritative for the amount; fall back to the previewed
+      // total only if the backend value is zero.
       final amountInPaise = orderData.amountInPaise > 0
           ? orderData.amountInPaise
-          : (_totalAmount * 100).toInt();
+          : (preview.pricing.totalAmount * 100).toInt();
 
       debugPrint(
         '[SubscriptionCheckout] Razorpay order created — '
@@ -266,7 +244,7 @@ class _SubscriptionCheckoutScreenState
         RazorpayPaymentConfig(
           amountInPaise: amountInPaise,
           orderId: orderData.razorpayOrderId,
-          description: 'FitKhao ${_plan.planName} Subscription',
+          description: 'FitKhao ${preview.plan.planName} Subscription',
           customerName: userName,
           customerEmail: userEmail,
           customerContact: userPhone,
@@ -292,8 +270,7 @@ class _SubscriptionCheckoutScreenState
         : (sdkOrderId ?? '');
 
     if (razorpayOrderId.isEmpty) {
-      debugPrint(
-          '[SubscriptionCheckout] verifyPayment: razorpayOrderId empty');
+      debugPrint('[SubscriptionCheckout] verifyPayment: razorpayOrderId empty');
       if (!mounted) return;
       setState(() => _isProcessing = false);
       _showError('Payment verification failed. Please contact support.');
@@ -310,7 +287,7 @@ class _SubscriptionCheckoutScreenState
         razorpayPaymentId: paymentId,
         razorpaySignature: signature ?? '',
         purpose: 'subscription',
-        planCode: _plan.planCode,
+        planCode: _preview?.plan.planCode ?? '',
       );
 
       _razorpayOrderId = null;
@@ -354,11 +331,8 @@ class _SubscriptionCheckoutScreenState
                   color: AppColors.primaryGreen.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.check_circle,
-                  size: AppSizes.icon80,
-                  color: AppColors.primaryGreen,
-                ),
+                child: const Icon(Icons.check_circle,
+                    size: AppSizes.icon80, color: AppColors.primaryGreen),
               ),
               const SizedBox(height: AppSizes.spacing24),
               const Text(
@@ -460,47 +434,54 @@ class _SubscriptionCheckoutScreenState
 
   @override
   Widget build(BuildContext context) {
-    // Cancellation fee comes from the globally-cached app constants; reading it
-    // here keeps the summary + pay button reactive once the value loads.
-    _cancellationFee = ref
-            .watch(appConstantsProvider)
-            .valueOrNull
-            ?.subscriptionCancellationFee ??
-        0;
+    final previewAsync = ref.watch(subscriptionPricingPreviewProvider(_args));
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: _buildBottomButton(),
+      bottomNavigationBar: _buildBottomButton(previewAsync.valueOrNull),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
             _buildHeader(),
             Expanded(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSizes.screenPaddingHorizontal,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: AppSizes.spacing16),
-                      _buildPlanHeaderCard(),
-                      const SizedBox(height: AppSizes.spacing20),
-                      _buildPaymentSummary(),
-                      if (_plan.rules.canCancel) ...[
-                        const SizedBox(height: AppSizes.spacing12),
-                        _buildCancellationNote(),
-                      ],
-                      const SizedBox(height: AppSizes.spacing20),
-                      _buildBenefitsSection(),
-                      const SizedBox(height: AppSizes.spacing24),
-                    ],
+              child: previewAsync.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(
+                      color: AppColors.primaryGreen),
+                ),
+                error: (_, __) => _ErrorView(
+                  onRetry: () => ref.invalidate(
+                    subscriptionPricingPreviewProvider(_args),
                   ),
                 ),
+                data: (preview) => _buildContent(preview),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(SubscriptionPricingPreview preview) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.screenPaddingHorizontal,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: AppSizes.spacing16),
+            _buildPlanHeaderCard(preview),
+            const SizedBox(height: AppSizes.spacing20),
+            _buildPaymentSummary(preview),
+            const SizedBox(height: AppSizes.spacing12),
+            _buildCancellationNote(preview),
+            const SizedBox(height: AppSizes.spacing20),
+            _buildBenefitsSection(preview),
+            const SizedBox(height: AppSizes.spacing24),
           ],
         ),
       ),
@@ -533,11 +514,8 @@ class _SubscriptionCheckoutScreenState
                 color: AppColors.darkGreen,
                 borderRadius: BorderRadius.circular(AppSizes.radius8),
               ),
-              child: const Icon(
-                Icons.arrow_back,
-                color: AppColors.textWhite,
-                size: AppSizes.icon24,
-              ),
+              child: const Icon(Icons.arrow_back,
+                  color: AppColors.textWhite, size: AppSizes.icon24),
             ),
           ),
           const SizedBox(width: AppSizes.spacing12),
@@ -571,9 +549,10 @@ class _SubscriptionCheckoutScreenState
     );
   }
 
-  // ─── Plan header card (name + duration + headline price) ────────────────────
+  // ─── Plan header card ───────────────────────────────────────────────────────
 
-  Widget _buildPlanHeaderCard() {
+  Widget _buildPlanHeaderCard(SubscriptionPricingPreview preview) {
+    final plan = preview.plan;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSizes.spacing16),
@@ -599,7 +578,7 @@ class _SubscriptionCheckoutScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _plan.planName,
+                  plan.planName,
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize18,
                     fontWeight: AppTypography.bold,
@@ -609,7 +588,8 @@ class _SubscriptionCheckoutScreenState
                 ),
                 const SizedBox(height: AppSizes.spacing4),
                 Text(
-                  '${_plan.planCode} · ${_plan.planValidity}',
+                  '${plan.planCode} · ${plan.planValidity}'
+                  '${plan.features.mealCountPerDay > 0 ? ' · ${plan.features.mealCountPerDay} meals/day' : ''}',
                   style: TextStyle(
                     fontSize: AppTypography.fontSize12,
                     color: Colors.white.withValues(alpha: 0.9),
@@ -623,7 +603,7 @@ class _SubscriptionCheckoutScreenState
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                _plan.formattedPrice,
+                _money(preview.pricing.planAmount),
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize24,
                   fontWeight: AppTypography.bold,
@@ -646,9 +626,13 @@ class _SubscriptionCheckoutScreenState
     );
   }
 
-  // ─── Payment summary ────────────────────────────────────────────────────────
+  // ─── Payment summary (all figures from the preview) ─────────────────────────
 
-  Widget _buildPaymentSummary() {
+  Widget _buildPaymentSummary(SubscriptionPricingPreview preview) {
+    final p = preview.pricing;
+    final consultationFee = preview.plan.consultationFee;
+    final showCancelFee = p.cancelAnytimeSelected && p.cancelAnytimeFee > 0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -678,29 +662,49 @@ class _SubscriptionCheckoutScreenState
           ),
           child: Column(
             children: [
-              // Actual plan amount (consultation fee already included).
-              _SummaryRow(
-                label: 'Plan amount',
-                value: _formatAmount(_planAmount),
-              ),
+              _SummaryRow(label: 'Plan amount', value: _money(p.planAmount)),
 
-              // Consultation fee — already inside the plan amount, shown for
-              // transparency, so it's a muted "included" note (not added again).
-              if (_consultationFee > 0) ...[
+              // Consultation fee — already inside the plan amount (info only).
+              if (consultationFee > 0) ...[
                 const SizedBox(height: AppSizes.spacing6),
                 _SummaryRow(
                   label: 'Incl. consultation fee',
-                  value: _formatAmount(_consultationFee),
+                  value: _money(consultationFee),
                   muted: true,
                 ),
               ],
 
-              // GST on the actual amount — shown only when the plan has a rate.
-              if (_plan.gstPercentage > 0) ...[
+              // Per-meal price (info only).
+              if (p.pricePerMeal > 0) ...[
+                const SizedBox(height: AppSizes.spacing6),
+                _SummaryRow(
+                  label: 'Price per meal',
+                  value: _money(p.pricePerMeal),
+                  muted: true,
+                ),
+              ],
+
+              // Cancel-anytime add-on — only when opted in.
+              if (showCancelFee) ...[
                 const SizedBox(height: AppSizes.spacing12),
                 _SummaryRow(
-                  label: 'GST (${_plan.gstPercentage.toStringAsFixed(0)}%)',
-                  value: _formatAmount(_gstAmount),
+                  label: 'Cancel-anytime fee',
+                  value: _money(p.cancelAnytimeFee),
+                ),
+              ],
+
+              // Subtotal (shown when it differs from plan amount).
+              if (p.subtotal > 0 && p.subtotal != p.planAmount) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                _SummaryRow(label: 'Subtotal', value: _money(p.subtotal)),
+              ],
+
+              // GST.
+              if (p.gstAmount > 0) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                _SummaryRow(
+                  label: 'GST (${p.gstPercent.toStringAsFixed(0)}%)',
+                  value: _money(p.gstAmount),
                 ),
               ],
 
@@ -708,10 +712,9 @@ class _SubscriptionCheckoutScreenState
               const Divider(height: 1, color: AppColors.borderColor),
               const SizedBox(height: AppSizes.spacing12),
 
-              // Total payable (plan + GST — cancellation fee is not charged now)
               _SummaryRow(
                 label: 'Total payable',
-                value: _formatAmount(_totalAmount),
+                value: _money(p.totalAmount),
                 isBold: true,
               ),
             ],
@@ -723,15 +726,28 @@ class _SubscriptionCheckoutScreenState
 
   // ─── Cancellation policy note ───────────────────────────────────────────────
 
-  Widget _buildCancellationNote() {
-    // Build the deduction list dynamically so zero-value parts are dropped.
-    final deductions = <String>[
-      if (_cancellationCharge > 0)
-        'a ${_formatAmount(_cancellationCharge)} cancellation fee',
-      if (_consultationFee > 0)
-        'the consultation fee (${_formatAmount(_consultationFee)})',
-      'the cost of the meals you have already consumed',
-    ];
+  Widget _buildCancellationNote(SubscriptionPricingPreview preview) {
+    final p = preview.pricing;
+    final consultationFee = preview.plan.consultationFee;
+
+    // Tailor the copy to whether the user opted into cancel-anytime.
+    final String body;
+    if (p.cancelAnytimeSelected) {
+      final deductions = <String>[
+        if (p.cancelAnytimeFee > 0)
+          'the ${_money(p.cancelAnytimeFee)} cancel-anytime fee',
+        if (consultationFee > 0)
+          'the consultation fee (${_money(consultationFee)})',
+        'the cost of the meals you have already consumed',
+      ];
+      body =
+          'Cancel anytime is enabled. If you cancel, ${_joinWithAnd(deductions)} '
+          'will be deducted and the remaining amount refunded to your wallet.';
+    } else {
+      body =
+          'This plan is non-cancellable. Enable “Cancel anytime” on the plan '
+          'screen if you may want to cancel later.';
+    }
 
     return Container(
       width: double.infinity,
@@ -762,9 +778,7 @@ class _SubscriptionCheckoutScreenState
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'If you cancel this subscription, ${_joinWithAnd(deductions)} '
-                  'will be deducted, and the remaining amount will be refunded '
-                  'to your wallet.',
+                  body,
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize12,
                     color: Color(0xFF795548),
@@ -782,16 +796,16 @@ class _SubscriptionCheckoutScreenState
 
   // ─── Benefits ("what you'll get") ──────────────────────────────────────────
 
-  Widget _buildBenefitsSection() {
+  Widget _buildBenefitsSection(SubscriptionPricingPreview preview) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          children: [
-            const Icon(Icons.card_giftcard_rounded,
+          children: const [
+            Icon(Icons.card_giftcard_rounded,
                 size: AppSizes.icon20, color: AppColors.primaryGreen),
-            const SizedBox(width: AppSizes.spacing8),
-            const Text(
+            SizedBox(width: AppSizes.spacing8),
+            Text(
               "What you'll get",
               style: TextStyle(
                 fontSize: AppTypography.fontSize18,
@@ -812,13 +826,18 @@ class _SubscriptionCheckoutScreenState
             border:
                 Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.18)),
           ),
-          child: SubscriptionBenefitsList(plan: _plan),
+          child: SubscriptionBenefitsList(plan: preview.plan),
         ),
       ],
     );
   }
 
-  Widget _buildBottomButton() {
+  Widget _buildBottomButton(SubscriptionPricingPreview? preview) {
+    final canPay = preview != null && !_isProcessing;
+    final label = preview == null
+        ? 'Loading…'
+        : 'Pay ${_money(preview.pricing.totalAmount)}';
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -842,7 +861,7 @@ class _SubscriptionCheckoutScreenState
           width: double.infinity,
           height: AppSizes.buttonHeight,
           child: ElevatedButton(
-            onPressed: _isProcessing ? null : _onPayTapped,
+            onPressed: canPay ? _onPayTapped : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryGreen,
               foregroundColor: Colors.white,
@@ -858,12 +877,10 @@ class _SubscriptionCheckoutScreenState
                     height: 20,
                     width: 20,
                     child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
+                        color: Colors.white, strokeWidth: 2),
                   )
                 : Text(
-                    'Pay $_formattedTotal',
+                    label,
                     style: const TextStyle(
                       fontSize: AppTypography.fontSize18,
                       fontWeight: AppTypography.bold,
@@ -876,7 +893,7 @@ class _SubscriptionCheckoutScreenState
     );
   }
 
-  static String _formatAmount(double amount) =>
+  static String _money(double amount) =>
       '₹${amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2)}';
 
   /// Joins a list into readable prose: "a, b and c".
@@ -884,6 +901,49 @@ class _SubscriptionCheckoutScreenState
     if (items.isEmpty) return '';
     if (items.length == 1) return items.first;
     return '${items.sublist(0, items.length - 1).join(', ')} and ${items.last}';
+  }
+}
+
+// ─── Error view ──────────────────────────────────────────────────────────────
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSizes.spacing24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline_rounded,
+                size: 44, color: AppColors.errorColor),
+            const SizedBox(height: AppSizes.spacing12),
+            const Text(
+              'Could not load pricing. Please try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize14,
+                color: AppColors.textSecondary,
+                fontFamily: 'Lato',
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacing16),
+            OutlinedButton(
+              onPressed: onRetry,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primaryGreen,
+                side: const BorderSide(color: AppColors.primaryGreen),
+              ),
+              child: const Text('Retry', style: TextStyle(fontFamily: 'Lato')),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -909,9 +969,7 @@ class _SummaryRow extends StatelessWidget {
     final fontSize = muted
         ? AppTypography.fontSize12
         : (isBold ? AppTypography.fontSize16 : AppTypography.fontSize14);
-    final labelColor =
-        muted ? AppColors.textSecondary : AppColors.textPrimary;
-    final valueColor = muted
+    final color = muted
         ? AppColors.textSecondary
         : (isBold ? AppColors.primaryGreen : AppColors.textPrimary);
     final weight = isBold ? AppTypography.bold : AppTypography.regular;
@@ -924,7 +982,7 @@ class _SummaryRow extends StatelessWidget {
           style: TextStyle(
             fontSize: muted ? AppTypography.fontSize12 : AppTypography.fontSize14,
             fontWeight: weight,
-            color: labelColor,
+            color: muted ? AppColors.textSecondary : AppColors.textPrimary,
             fontFamily: 'Lato',
           ),
         ),
@@ -933,7 +991,7 @@ class _SummaryRow extends StatelessWidget {
           style: TextStyle(
             fontSize: fontSize,
             fontWeight: weight,
-            color: valueColor,
+            color: color,
             fontFamily: 'Lato',
           ),
         ),

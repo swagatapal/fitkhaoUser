@@ -83,3 +83,11 @@ StateNotifierProvider<SubscriptionPlanNotifier, SubscriptionPlanState>(
 /// only rebuilds the two affected plan cards (the one losing and the one
 /// gaining selection) plus the bottom CTA — never the wallet or the whole list.
 final selectedSubscriptionPlanProvider = StateProvider<String?>((ref) => null);
+
+/// Per-plan "cancel anytime" opt-in toggle (keyed by plan id).
+///
+/// Family-scoped so each plan card owns its own switch state and toggling one
+/// rebuilds only that switch — never the card or the list. The value flows into
+/// the checkout's pricing-preview request.
+final cancelAnytimeProvider =
+    StateProvider.family<bool, String>((ref, planId) => false);

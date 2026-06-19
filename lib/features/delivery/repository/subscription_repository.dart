@@ -5,6 +5,7 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/services/local_storage_service.dart';
 import '../models/subscription_cancel_preview_model.dart';
 import '../models/subscription_plan_model.dart';
+import '../models/subscription_pricing_preview_model.dart';
 import '../models/subscription_request_model.dart';
 import '../models/subscription_response_model.dart';
 
@@ -121,6 +122,29 @@ class SubscriptionRepository {
       return SubscriptionResponse.fromJson(json);
     } catch (e) {
       debugPrint('[SubscriptionRepository] Cancel error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
+  /// Fetches the server-computed pricing preview for [planId], optionally with
+  /// the "cancel anytime" add-on selected. Auth required.
+  Future<SubscriptionPricingPreviewResponse> getPricingPreview({
+    required String planId,
+    required bool cancelAnytimeSelected,
+  }) async {
+    debugPrint(
+        '[SubscriptionRepository] Pricing preview planId=$planId cancelAnytime=$cancelAnytimeSelected');
+    try {
+      final json = await _apiClient.getJson(
+        '${AppConfig.subscriptionPricingPreviewPath}'
+        '?planId=$planId&cancelAnytimeSelected=$cancelAnytimeSelected',
+        headers: _authHeaders(),
+      );
+      debugPrint('[SubscriptionRepository] Pricing preview response: $json');
+      return SubscriptionPricingPreviewResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[SubscriptionRepository] Pricing preview error: $e');
       final message = ExceptionHandler.getErrorMessage(e);
       throw NetworkException(message: message, originalError: e);
     }

@@ -602,8 +602,81 @@ class _PlanCard extends ConsumerWidget {
 
             // ── Feature checklist (shared with checkout) ──
             SubscriptionBenefitsList(plan: plan),
+
+            // ── Cancel-anytime opt-in (available on every plan) ──
+            const SizedBox(height: AppSizes.spacing12),
+            _CancelAnytimeToggle(planId: plan.id),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Per-card "cancel anytime" switch. Watches only its own family slice, so
+/// toggling rebuilds just this widget — not the card or the list.
+class _CancelAnytimeToggle extends ConsumerWidget {
+  const _CancelAnytimeToggle({required this.planId});
+
+  final String planId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(cancelAnytimeProvider(planId));
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spacing12,
+        vertical: AppSizes.spacing4,
+      ),
+      decoration: BoxDecoration(
+        color: enabled
+            ? AppColors.primaryGreen.withValues(alpha: 0.06)
+            : AppColors.borderColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(
+          color: enabled
+              ? AppColors.primaryGreen.withValues(alpha: 0.4)
+              : AppColors.borderColor.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.event_busy_rounded,
+              size: AppSizes.icon18,
+              color: enabled ? AppColors.primaryGreen : AppColors.textSecondary),
+          const SizedBox(width: AppSizes.spacing8),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cancel anytime',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize13,
+                    fontWeight: AppTypography.semiBold,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                SizedBox(height: 1),
+                Text(
+                  'Cancel your plan whenever you want (small fee applies)',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize10,
+                    color: AppColors.textSecondary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: enabled,
+            activeThumbColor: AppColors.primaryGreen,
+            onChanged: (v) =>
+                ref.read(cancelAnytimeProvider(planId).notifier).state = v,
+          ),
+        ],
       ),
     );
   }
@@ -770,7 +843,11 @@ class _SubscribeBar extends ConsumerWidget {
       onPressed = () => Navigator.push(
             context,
             MaterialPageRoute<void>(
-              builder: (_) => SubscriptionCheckoutScreen(plan: plan),
+              builder: (_) => SubscriptionCheckoutScreen(
+                planId: plan.id,
+                cancelAnytimeSelected:
+                    ref.read(cancelAnytimeProvider(plan.id)),
+              ),
             ),
           );
     }

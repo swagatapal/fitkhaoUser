@@ -61,6 +61,10 @@ class AppConfig {
   /// Subscription plans (public)
   static const String subscriptionPlansPath = '/api/adm/subscription-plan';
 
+  /// Pricing preview for a plan (auth). Query: planId, cancelAnytimeSelected.
+  static const String subscriptionPricingPreviewPath =
+      '/api/subscription/pricing-preview';
+
   /// Refund preview for an active subscription before cancelling (auth).
   static String subscriptionCancelPreviewPath(String subscriptionId) =>
       '/api/subscriptions/$subscriptionId/cancel-preview';
