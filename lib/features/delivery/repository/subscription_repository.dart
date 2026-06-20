@@ -83,8 +83,8 @@ class SubscriptionRepository {
     }
   }
 
-  /// Cancels [subscriptionId] (GET). [refundMethod] is forwarded as a query
-  /// param when provided. Auth required.
+  /// Cancels [subscriptionId] (POST). [refundMethod] is sent in the body when
+  /// provided. Auth required.
   Future<SubscriptionResponse> cancelSubscription({
     required String subscriptionId,
     String? refundMethod,
@@ -92,12 +92,13 @@ class SubscriptionRepository {
     debugPrint(
         '[SubscriptionRepository] Cancelling $subscriptionId via $refundMethod...');
     try {
-      final query = (refundMethod != null && refundMethod.isNotEmpty)
-          ? '?refundMethod=$refundMethod'
-          : '';
-      final json = await _apiClient.getJson(
-        '${AppConfig.subscriptionCancelPath(subscriptionId)}$query',
+      final json = await _apiClient.postJson(
+        AppConfig.subscriptionCancelPath(subscriptionId),
         headers: _authHeaders(),
+        body: {
+          if (refundMethod != null && refundMethod.isNotEmpty)
+            'refundMethod': refundMethod,
+        },
       );
       debugPrint('[SubscriptionRepository] Cancel response: $json');
       return SubscriptionResponse.fromJson(json);
