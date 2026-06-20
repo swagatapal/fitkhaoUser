@@ -102,9 +102,13 @@ class WalletRepository {
     }
   }
 
-  /// Get wallet transaction history
-  Future<TransactionResponse> getTransactionHistory() async {
-    debugPrint('[WalletRepository] Fetching transaction history via API...');
+  /// Get wallet transaction history (paginated).
+  Future<TransactionResponse> getTransactionHistory({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    debugPrint('[WalletRepository] Fetching transaction history '
+        '(limit: $limit, offset: $offset)...');
 
     try {
       // Get auth token
@@ -123,7 +127,7 @@ class WalletRepository {
 
       // Make GET request
       final json = await _apiClient.getJson(
-        AppConfig.walletTransactionsPath,
+        '${AppConfig.walletTransactionsPath}?limit=$limit&offset=$offset',
         headers: headers,
       );
 

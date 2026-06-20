@@ -22,8 +22,12 @@ class TransactionResponse {
 
 class TransactionData {
   final List<Transaction> transactions;
+  final TransactionPagination pagination;
 
-  TransactionData({required this.transactions});
+  TransactionData({
+    required this.transactions,
+    this.pagination = const TransactionPagination(),
+  });
 
   factory TransactionData.fromJson(Map<String, dynamic> json) {
     return TransactionData(
@@ -31,6 +35,32 @@ class TransactionData {
               ?.map((e) => Transaction.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      pagination: TransactionPagination.fromJson(
+        json['pagination'] as Map<String, dynamic>? ?? const {},
+      ),
+    );
+  }
+}
+
+class TransactionPagination {
+  final int limit;
+  final int offset;
+  final int totalCount;
+  final bool hasMore;
+
+  const TransactionPagination({
+    this.limit = 50,
+    this.offset = 0,
+    this.totalCount = 0,
+    this.hasMore = false,
+  });
+
+  factory TransactionPagination.fromJson(Map<String, dynamic> json) {
+    return TransactionPagination(
+      limit: (json['limit'] as num?)?.toInt() ?? 50,
+      offset: (json['offset'] as num?)?.toInt() ?? 0,
+      totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
+      hasMore: json['hasMore'] as bool? ?? false,
     );
   }
 }
@@ -118,16 +148,63 @@ class Transaction {
 class TransactionMetadata {
   final String? orderId;
   final String? subscriptionId;
+  final String? planCode;
+  final String? razorpayOrderId;
+  final String? razorpayPaymentId;
+  final TransactionPricing? pricing;
 
   TransactionMetadata({
     this.orderId,
     this.subscriptionId,
+    this.planCode,
+    this.razorpayOrderId,
+    this.razorpayPaymentId,
+    this.pricing,
   });
 
   factory TransactionMetadata.fromJson(Map<String, dynamic> json) {
     return TransactionMetadata(
       orderId: json['orderId'] as String?,
       subscriptionId: json['subscriptionId'] as String?,
+      planCode: json['planCode'] as String?,
+      razorpayOrderId: json['razorpayOrderId'] as String?,
+      razorpayPaymentId: json['razorpayPaymentId'] as String?,
+      pricing: json['pricing'] is Map<String, dynamic>
+          ? TransactionPricing.fromJson(json['pricing'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+}
+
+/// Pricing breakdown attached to subscription-purchase transactions.
+class TransactionPricing {
+  final double planAmount;
+  final bool cancelAnytimeSelected;
+  final double cancelAnytimeFee;
+  final double subtotal;
+  final double gstRate;
+  final double gstAmount;
+  final double totalAmount;
+
+  TransactionPricing({
+    this.planAmount = 0,
+    this.cancelAnytimeSelected = false,
+    this.cancelAnytimeFee = 0,
+    this.subtotal = 0,
+    this.gstRate = 0,
+    this.gstAmount = 0,
+    this.totalAmount = 0,
+  });
+
+  factory TransactionPricing.fromJson(Map<String, dynamic> json) {
+    return TransactionPricing(
+      planAmount: (json['planAmount'] as num?)?.toDouble() ?? 0,
+      cancelAnytimeSelected: json['cancelAnytimeSelected'] as bool? ?? false,
+      cancelAnytimeFee: (json['cancelAnytimeFee'] as num?)?.toDouble() ?? 0,
+      subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0,
+      gstRate: (json['gstRate'] as num?)?.toDouble() ?? 0,
+      gstAmount: (json['gstAmount'] as num?)?.toDouble() ?? 0,
+      totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0,
     );
   }
 }
