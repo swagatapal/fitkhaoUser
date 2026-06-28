@@ -10,16 +10,15 @@ import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/services/razorpay_service.dart';
-import '../../../auth/providers/auth_provider.dart';
 import '../../models/cart_item.dart';
 import '../../models/coupon_model.dart';
 import '../../models/order_placement_model.dart';
+import '../../models/order_preview_model.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/coupon_provider.dart';
 import '../../providers/checkout_delivery_provider.dart';
+import '../../providers/order_preview_provider.dart';
 import '../../providers/wallet_provider.dart';
-import '../../../policy/models/app_constants_model.dart';
-import '../../../policy/providers/app_constants_provider.dart';
 import '../../../profile/models/delivery_address_model.dart';
 import '../../../profile/presentation/screens/address_list_screen.dart';
 import '../../../profile/providers/delivery_address_provider.dart';
@@ -148,49 +147,46 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       );
     }
 
-    final totalPrice = ref.watch(cartTotalPriceProvider);
+    final itemTotal = ref.watch(cartTotalPriceProvider);
     final walletState = ref.watch(walletProvider);
 
-    // Dynamic pricing from /api/app/constants — defaults to all-zero while
-    // loading or on failure, so the checkout total is never wrong.
-    final pricing = ref
-            .watch(appConstantsProvider)
-            .valueOrNull
-            ?.pricing ??
-        PricingConstants.defaults;
+    // ── Server-authoritative pricing (POST /api/orders/preview) ──────────────
+    // The whole order summary + payable total come from the backend, recomputed
+    // whenever the cart, coupons or kitchen change.
+    final kitchenId =
+        ref.watch(checkoutDeliveryProvider.select((s) => s.kitchenId)) ?? '';
+    final couponIds =
+        _appliedCoupon != null ? [_appliedCoupon!.id] : const <String>[];
+    final orderItems = [
+      for (final c in cartItems)
+        OrderItem(dishId: c.menuItem.id, quantity: c.quantity, dishServing: 1),
+    ];
 
-    final itemTotal = totalPrice;
-    final platformCharge = pricing.platformFee;
-    final deliveryCharge = pricing.deliveryCharge;
-    final gstAmount = ((itemTotal + platformCharge) * pricing.gstRate) ;
-    final couponDiscount = _appliedCoupon?.computeDiscount(itemTotal) ?? 0.0;
+    // Drive the preview after the frame (the notifier debounces + dedups).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(orderPreviewProvider.notifier).request(
+            kitchenId: kitchenId,
+            items: orderItems,
+            couponIds: couponIds,
+          );
+    });
 
-    // Subscriber benefit: active-subscription members get a flat % off the
-    // ITEM total (not the payable total). 0 when there's no active plan, so
-    // non-subscribers follow the exact same flow as before.
-    final outletDiscountPercent = ref.watch(authProvider.select((s) =>
-        (s.activeSubscription?.isActive ?? false)
-            ? s.activeSubscription!.outletFoodDiscountPercent
-            : 0));
-    final outletDiscount = itemTotal * outletDiscountPercent / 100;
-
-    final subTotal = (itemTotal +
-            platformCharge +
-            deliveryCharge +
-            gstAmount -
-            couponDiscount -
-            outletDiscount)
-        .clamp(0.0, double.infinity);
+    final previewState = ref.watch(orderPreviewProvider);
+    final total = previewState.total; // null until the preview loads
+    final subTotal = total ?? 0.0;
 
     final couponBalance = walletState.wallet?.couponBalance ?? 0.0;
-    final isWalletSufficient = couponBalance >= subTotal;
+    final isWalletSufficient = total != null && couponBalance >= total;
 
     // Serviceability gate — only a serviceable address can place an order.
     final canDeliver =
         ref.watch(checkoutDeliveryProvider.select((s) => s.canOrder));
 
-    // Auto-switch to gateway if wallet becomes insufficient
-    if (!isWalletSufficient && _selectedPaymentMethod == 'wallet') {
+    // Auto-switch to gateway once the total is known and the wallet is short.
+    if (total != null &&
+        !isWalletSufficient &&
+        _selectedPaymentMethod == 'wallet') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _selectedPaymentMethod = 'gateway');
       });
@@ -253,16 +249,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         ),
                         const SizedBox(height: AppSizes.spacing10),
                         _buildOrderSummary(
-                          itemTotal: itemTotal,
-                          gstRate: pricing.gstRate,
-                          gstAmount: gstAmount,
-                          platformCharge: platformCharge,
-                          deliveryCharge: deliveryCharge,
-                          couponDiscount: couponDiscount,
-                          outletDiscount: outletDiscount,
-                          outletDiscountPercent: outletDiscountPercent,
-                          subTotal: subTotal,
+                          previewState: previewState,
                           couponBalance: couponBalance,
+                          onRetry: () => ref
+                              .read(orderPreviewProvider.notifier)
+                              .retry(
+                                kitchenId: kitchenId,
+                                items: orderItems,
+                                couponIds: couponIds,
+                              ),
                         ),
                         const SizedBox(height: AppSizes.spacing10),
                         _buildInstructionsSection(),
@@ -270,6 +265,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         _buildConfirmOrderButton(
                           cartItems: cartItems,
                           subTotal: subTotal,
+                          previewReady: total != null,
                           isWalletSufficient: isWalletSufficient,
                           walletState: walletState,
                           canDeliver: canDeliver,
@@ -945,19 +941,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   // ─── Order Summary ────────────────────────────────────────────────────────
 
   Widget _buildOrderSummary({
-    required double itemTotal,
-    required double gstRate,
-    required double gstAmount,
-    required double platformCharge,
-    required double deliveryCharge,
-    required double couponDiscount,
-    required double outletDiscount,
-    required int outletDiscountPercent,
-    required double subTotal,
+    required OrderPreviewState previewState,
     required double couponBalance,
+    required VoidCallback onRetry,
   }) {
-    final balanceAfterOrder = couponBalance - subTotal;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -978,89 +965,129 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             borderRadius: BorderRadius.circular(AppSizes.radius8),
             border: Border.all(color: AppColors.borderColor),
           ),
-          child: Column(
-            children: [
-              // Item total
-              _buildSummaryRow(
-                '${ref.watch(cartTotalItemsProvider)} × ${AppStrings.items}',
-                '₹${itemTotal.toInt()}',
+          child: previewState.preview != null
+              ? _buildSummaryBody(previewState.preview!, couponBalance)
+              : previewState.error != null
+                  ? _buildSummaryError(previewState.error!, onRetry)
+                  : const _SummarySkeleton(),
+        ),
+      ],
+    );
+  }
+
+  /// Renders the live pricing returned by /api/orders/preview.
+  Widget _buildSummaryBody(OrderPreview preview, double couponBalance) {
+    final p = preview.pricing;
+    final couponLabel = p.appliedCoupons.isNotEmpty
+        ? 'Coupon (${p.appliedCoupons.first.code})'
+        : 'Coupon Discount';
+    final balanceAfterOrder = couponBalance - p.total;
+
+    return Column(
+      children: [
+        _buildSummaryRow(
+          '${ref.watch(cartTotalItemsProvider)} × ${AppStrings.items}',
+          '₹${p.subtotal.toStringAsFixed(2)}',
+        ),
+
+        if (p.platformFee > 0) ...[
+          const SizedBox(height: AppSizes.spacing8),
+          _buildSummaryRow('Platform Fee', '₹${p.platformFee.toStringAsFixed(2)}'),
+        ],
+
+        if (p.gstAmount > 0) ...[
+          const SizedBox(height: AppSizes.spacing8),
+          _buildSummaryRow(
+            'Commission and Taxes (${p.gstPercent.toStringAsFixed(0)}%)',
+            '₹${p.gstAmount.toStringAsFixed(2)}',
+          ),
+        ],
+
+        const SizedBox(height: AppSizes.spacing8),
+        _buildSummaryRow(
+          'Delivery Charge',
+          p.deliveryCharge > 0
+              ? '₹${p.deliveryCharge.toStringAsFixed(2)}'
+              : 'FREE',
+          valueColor: p.deliveryCharge > 0 ? null : AppColors.primaryGreen,
+        ),
+
+        if (p.discount > 0) ...[
+          const SizedBox(height: AppSizes.spacing8),
+          _buildSummaryRow(
+            couponLabel,
+            '− ₹${p.discount.toStringAsFixed(2)}',
+            valueColor: AppColors.primaryGreen,
+          ),
+        ],
+
+        if (p.subscriptionDiscount > 0) ...[
+          const SizedBox(height: AppSizes.spacing8),
+          _buildSummaryRow(
+            'Subscriber Discount (${p.subscriptionDiscountPercent.toStringAsFixed(0)}%)',
+            '− ₹${p.subscriptionDiscount.toStringAsFixed(2)}',
+            valueColor: AppColors.primaryGreen,
+          ),
+        ],
+
+        const Divider(height: AppSizes.spacing20),
+
+        _buildSummaryRow(
+          'Total Payable',
+          '₹${p.total.toStringAsFixed(2)}',
+          isBold: true,
+        ),
+
+        if (_selectedPaymentMethod == 'wallet') ...[
+          const Divider(height: AppSizes.spacing20),
+          _buildSummaryRow(
+            'Wallet Balance',
+            '₹${couponBalance.toStringAsFixed(2)}',
+          ),
+          const SizedBox(height: AppSizes.spacing8),
+          _buildSummaryRow(
+            'Balance After Order',
+            '₹${balanceAfterOrder.toStringAsFixed(2)}',
+            isBold: true,
+            valueColor: balanceAfterOrder >= 0
+                ? AppColors.primaryGreen
+                : AppColors.errorColor,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSummaryError(String message, VoidCallback onRetry) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.error_outline_rounded,
+                size: AppSizes.icon20, color: AppColors.errorColor),
+            const SizedBox(width: AppSizes.spacing8),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize13,
+                  color: AppColors.errorColor,
+                  fontFamily: 'Lato',
+                ),
               ),
-
-              // Platform fee — shown only when non-zero
-              if (platformCharge > 0) ...[
-                const SizedBox(height: AppSizes.spacing8),
-                _buildSummaryRow(
-                  'Platform Fee',
-                  '₹${platformCharge.toStringAsFixed(2)}',
-                ),
-              ],
-
-              // GST — shown only when non-zero; label includes live rate
-              if (gstAmount > 0) ...[
-                const SizedBox(height: AppSizes.spacing8),
-                _buildSummaryRow(
-                  'Commission and Taxes (${(gstRate*100).toStringAsFixed(0)}%)',
-                  '₹${(gstAmount).toStringAsFixed(2)}',
-                ),
-              ],
-
-              // Delivery — always visible; FREE when zero
-              const SizedBox(height: AppSizes.spacing8),
-              _buildSummaryRow(
-                'Delivery Charge',
-                deliveryCharge > 0
-                    ? '₹${deliveryCharge.toStringAsFixed(2)}'
-                    : 'FREE',
-                valueColor: deliveryCharge > 0
-                    ? null
-                    : AppColors.primaryGreen,
-              ),
-
-              // Coupon discount
-              if (_appliedCoupon != null) ...[
-                const SizedBox(height: AppSizes.spacing8),
-                _buildSummaryRow(
-                  'Coupon (${_appliedCoupon!.code})',
-                  '− ₹${couponDiscount.toStringAsFixed(2)}',
-                  valueColor: AppColors.primaryGreen,
-                ),
-              ],
-
-              // Subscriber discount on the item total — shown only for members.
-              if (outletDiscount > 0) ...[
-                const SizedBox(height: AppSizes.spacing8),
-                _buildSummaryRow(
-                  'Subscriber Discount ($outletDiscountPercent%)',
-                  '− ₹${outletDiscount.toStringAsFixed(2)}',
-                  valueColor: AppColors.primaryGreen,
-                ),
-              ],
-
-              const Divider(height: AppSizes.spacing20),
-
-              _buildSummaryRow(
-                'Total Payable',
-                '₹${subTotal.toStringAsFixed(2)}',
-                isBold: true,
-              ),
-
-              if (_selectedPaymentMethod == 'wallet') ...[
-                const Divider(height: AppSizes.spacing20),
-                _buildSummaryRow(
-                  'Wallet Balance',
-                  '₹${couponBalance.toStringAsFixed(2)}',
-                ),
-                const SizedBox(height: AppSizes.spacing8),
-                _buildSummaryRow(
-                  'Balance After Order',
-                  '₹${balanceAfterOrder.toStringAsFixed(2)}',
-                  isBold: true,
-                  valueColor: balanceAfterOrder >= 0
-                      ? AppColors.primaryGreen
-                      : AppColors.errorColor,
-                ),
-              ],
-            ],
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSizes.spacing12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: onRetry,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primaryGreen,
+              side: const BorderSide(color: AppColors.primaryGreen),
+            ),
+            child: const Text('Retry', style: TextStyle(fontFamily: 'Lato')),
           ),
         ),
       ],
@@ -1183,6 +1210,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Widget _buildConfirmOrderButton({
     required List<CartItem> cartItems,
     required double subTotal,
+    required bool previewReady,
     required bool isWalletSufficient,
     required WalletState walletState,
     required bool canDeliver,
@@ -1190,6 +1218,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final canPlace = !_isProcessing &&
         cartItems.isNotEmpty &&
         canDeliver &&
+        previewReady &&
         (_selectedPaymentMethod == 'gateway' ||
             (_selectedPaymentMethod == 'wallet' && isWalletSufficient));
 
@@ -1670,6 +1699,40 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       Navigator.of(context).pop();
       Navigator.of(context).popUntil((route) => route.isFirst);
     });
+  }
+}
+
+// ─── Order summary skeleton (shown while the preview loads) ───────────────────
+
+class _SummarySkeleton extends StatelessWidget {
+  const _SummarySkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget bar(double width) => Container(
+          height: 14,
+          width: width,
+          decoration: BoxDecoration(
+            color: Colors.grey.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+    return Column(
+      children: [
+        for (var i = 0; i < 4; i++) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [bar(120), bar(56)],
+          ),
+          if (i < 3) const SizedBox(height: AppSizes.spacing12),
+        ],
+        const Divider(height: AppSizes.spacing20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [bar(90), bar(70)],
+        ),
+      ],
+    );
   }
 }
 

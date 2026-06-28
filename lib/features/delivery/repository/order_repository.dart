@@ -4,6 +4,7 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/services/local_storage_service.dart';
 import '../../../core/config/app_config.dart';
 import '../models/order_placement_model.dart';
+import '../models/order_preview_model.dart';
 import '../models/wallet_payment_model.dart';
 
 /// Repository for order related operations
@@ -63,6 +64,46 @@ class OrderRepository {
       return OrderPlacementResponse.fromJson(json);
     } catch (e) {
       debugPrint('[OrderRepository] Place order error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
+  /// Server-authoritative pricing preview for the current cart.
+  /// POST /api/orders/preview — body `{ kitchenId, items, couponIds }`.
+  Future<OrderPreviewResponse> previewOrder({
+    required String kitchenId,
+    required List<OrderItem> items,
+    List<String> couponIds = const [],
+  }) async {
+    debugPrint('[OrderRepository] Order preview — kitchenId=$kitchenId '
+        'items=${items.length} coupons=${couponIds.length}');
+    try {
+      final token = _localStorage.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+            message: 'Authentication required. Please login again.');
+      }
+
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+
+      final body = <String, dynamic>{
+        'kitchenId': kitchenId,
+        'items': items.map((e) => e.toJson()).toList(),
+        if (couponIds.isNotEmpty) 'couponIds': couponIds,
+      };
+
+      final json = await _apiClient.postJson(
+        AppConfig.orderPreviewPath,
+        body: body,
+        headers: headers,
+      );
+      return OrderPreviewResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[OrderRepository] Order preview error: $e');
       final message = ExceptionHandler.getErrorMessage(e);
       throw NetworkException(message: message, originalError: e);
     }
