@@ -7,6 +7,10 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/utils/time_converter.dart';
+import '../../../dashboard/models/meal_plan_model.dart';
+import '../../../dashboard/providers/meal_plan_provider.dart';
+import '../../models/delivery_slot_model.dart';
+import '../../providers/delivery_slot_list_provider.dart';
 import '../../providers/subscription_detail_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,7 +33,7 @@ import '../../providers/subscription_detail_provider.dart';
 const Color _kAccent = Color(0xFFC66301);
 const Color _kAccentBg = Color(0xFFFFF8E1);
 
-class MySubscriptionScreen extends StatelessWidget {
+class MySubscriptionScreen extends ConsumerStatefulWidget {
   const MySubscriptionScreen({
     super.key,
     this.planName = 'Your Plan',
@@ -44,6 +48,21 @@ class MySubscriptionScreen extends StatelessWidget {
   final String subscriptionId;
 
   @override
+  ConsumerState<MySubscriptionScreen> createState() =>
+      _MySubscriptionScreenState();
+}
+
+class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Drives both the Diet Chart and Plan Manager tabs (shared provider).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(mealPlanProvider.notifier).loadMealPlan();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 3,
@@ -53,12 +72,14 @@ class MySubscriptionScreen extends StatelessWidget {
           bottom: false,
           child: Column(
             children: [
-              _Header(planName: planName, subscriptionId: subscriptionId),
+              _Header(
+                  planName: widget.planName,
+                  subscriptionId: widget.subscriptionId),
               const _Tabs(),
               Expanded(
                 child: TabBarView(
                   children: [
-                    _JourneyTab(subscriptionId: subscriptionId),
+                    _JourneyTab(subscriptionId: widget.subscriptionId),
                     const _DietChartTab(),
                     const _PlanManagerTab(),
                   ],
@@ -758,217 +779,185 @@ class _MeetLinkButton extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// TAB 2 — Weekly diet chart
-// ═══════════════════════════════════════════════════════════════════════════
+// ─── Shared date helpers ──────────────────────────────────────────────────────
 
-class _DietMeal {
-  final String type; // Breakfast / Lunch / Dinner
-  final String dish;
-  final String kcal;
-  const _DietMeal(this.type, this.dish, this.kcal);
+const _kWeekdayShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const _kMonthLong = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+/// Category → icon/colour, used by both diet meals and (loosely) elsewhere.
+({IconData icon, Color color}) _categoryVisual(String category) {
+  switch (category.toLowerCase()) {
+    case 'lunch':
+      return (icon: Icons.lunch_dining_rounded, color: _kAccent);
+    case 'dinner':
+      return (icon: Icons.dinner_dining_rounded, color: const Color(0xFF6A1B9A));
+    case 'snacks':
+    case 'snack':
+      return (icon: Icons.bakery_dining_rounded, color: const Color(0xFF1976D2));
+    default: // breakfast / anything else
+      return (
+        icon: Icons.free_breakfast_rounded,
+        color: AppColors.primaryGreen
+      );
+  }
 }
 
-const List<String> _kDays = [
-  'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'
-];
+/// Priority used to order the meals of a day (Breakfast → Lunch → Dinner → …).
+int _categoryOrder(String category) {
+  switch (category.toLowerCase()) {
+    case 'breakfast':
+      return 0;
+    case 'lunch':
+      return 1;
+    case 'snacks':
+    case 'snack':
+      return 2;
+    case 'dinner':
+      return 3;
+    default:
+      return 4;
+  }
+}
 
-// Placeholder weekly chart — one list of meals per weekday.
-const List<List<_DietMeal>> _kWeeklyChart = [
-  [
-    _DietMeal('Breakfast', 'Veg poha + sprouts', '320 kcal'),
-    _DietMeal('Lunch', 'Grilled paneer bowl', '480 kcal'),
-    _DietMeal('Dinner', 'Moong dal + veggies', '410 kcal'),
-  ],
-  [
-    _DietMeal('Breakfast', 'Oats with fruits', '300 kcal'),
-    _DietMeal('Lunch', 'Rajma rice bowl', '520 kcal'),
-    _DietMeal('Dinner', 'Grilled chicken salad', '430 kcal'),
-  ],
-  [
-    _DietMeal('Breakfast', 'Besan chilla', '310 kcal'),
-    _DietMeal('Lunch', 'Quinoa veg pulao', '470 kcal'),
-    _DietMeal('Dinner', 'Mixed veg curry + roti', '400 kcal'),
-  ],
-  [
-    _DietMeal('Breakfast', 'Idli + sambar', '330 kcal'),
-    _DietMeal('Lunch', 'Egg bhurji bowl', '490 kcal'),
-    _DietMeal('Dinner', 'Tofu stir fry', '420 kcal'),
-  ],
-  [
-    _DietMeal('Breakfast', 'Smoothie bowl', '290 kcal'),
-    _DietMeal('Lunch', 'Chickpea salad bowl', '460 kcal'),
-    _DietMeal('Dinner', 'Veg khichdi', '390 kcal'),
-  ],
-  [
-    _DietMeal('Breakfast', 'Vegetable upma', '300 kcal'),
-    _DietMeal('Lunch', 'Fish curry + rice', '540 kcal'),
-    _DietMeal('Dinner', 'Paneer tikka + salad', '440 kcal'),
-  ],
-  [
-    _DietMeal('Breakfast', 'Stuffed paratha (low oil)', '350 kcal'),
-    _DietMeal('Lunch', 'Soya chunk curry bowl', '500 kcal'),
-    _DietMeal('Dinner', 'Clear veg soup + toast', '360 kcal'),
-  ],
-];
+// ═══════════════════════════════════════════════════════════════════════════
+// TAB 2 — Diet chart (assigned meal plan, date-wise)
+// ═══════════════════════════════════════════════════════════════════════════
 
-class _DietChartTab extends StatefulWidget {
+class _DietChartTab extends ConsumerStatefulWidget {
   const _DietChartTab();
 
   @override
-  State<_DietChartTab> createState() => _DietChartTabState();
+  ConsumerState<_DietChartTab> createState() => _DietChartTabState();
 }
 
-class _DietChartTabState extends State<_DietChartTab>
+class _DietChartTabState extends ConsumerState<_DietChartTab>
     with AutomaticKeepAliveClientMixin {
-  int _selectedDay = 0;
+  DateTime? _selectedDate;
 
   @override
   bool get wantKeepAlive => true;
 
-  ({IconData icon, Color color}) _mealVisual(String type) {
-    switch (type) {
-      case 'Lunch':
-        return (icon: Icons.lunch_dining_rounded, color: _kAccent);
-      case 'Dinner':
-        return (icon: Icons.dinner_dining_rounded, color: const Color(0xFF6A1B9A));
-      default:
-        return (icon: Icons.free_breakfast_rounded, color: AppColors.primaryGreen);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final meals = _kWeeklyChart[_selectedDay];
+    final state = ref.watch(mealPlanProvider);
+
+    if (state.isLoading && state.mealPlan == null) {
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.primaryGreen));
+    }
+    if (state.error != null && state.mealPlan == null) {
+      return _CenterMessage(
+        icon: Icons.error_outline_rounded,
+        message: state.error!,
+        onRetry: () => ref.read(mealPlanProvider.notifier).refresh(),
+      );
+    }
+
+    // Only days that actually carry meals.
+    final days = (state.mealPlan?.days ?? const <MealPlanDay>[])
+        .where((d) => d.meals.any((m) => m.dishes.isNotEmpty))
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+
+    if (days.isEmpty) {
+      return const _CenterMessage(
+        icon: Icons.restaurant_menu_rounded,
+        message: 'No meals have been assigned to your plan yet.',
+      );
+    }
+
+    // Resolve the selected day (default to the first available).
+    final selectedDate = _selectedDate != null &&
+            days.any((d) => _dateOnly(d.date) == _selectedDate)
+        ? _selectedDate!
+        : _dateOnly(days.first.date);
+    final selectedDay =
+        days.firstWhere((d) => _dateOnly(d.date) == selectedDate);
+
+    final meals = selectedDay.meals.where((m) => m.dishes.isNotEmpty).toList()
+      ..sort((a, b) =>
+          _categoryOrder(a.category.dishCategory)
+              .compareTo(_categoryOrder(b.category.dishCategory)));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Day selector
+        // ── Date selector ──
         SizedBox(
-          height: 64,
+          height: 76,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(
-                AppSizes.screenPaddingHorizontal, AppSizes.spacing16,
+                AppSizes.screenPaddingHorizontal, AppSizes.spacing8,
                 AppSizes.screenPaddingHorizontal, AppSizes.spacing8),
-            itemCount: _kDays.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSizes.spacing8),
-            itemBuilder: (context, i) {
-              final selected = i == _selectedDay;
+            itemCount: days.length,
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: AppSizes.spacing8),
+            itemBuilder: (_, i) {
+              final date = _dateOnly(days[i].date);
+              final selected = date == selectedDate;
               return GestureDetector(
-                onTap: () => setState(() => _selectedDay = i),
+                onTap: () => setState(() => _selectedDate = date),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
-                  width: 48,
-                  alignment: Alignment.center,
+                  width: 56,
+                  padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing8),
                   decoration: BoxDecoration(
                     color: selected ? AppColors.primaryGreen : Colors.white,
-                    borderRadius: BorderRadius.circular(AppSizes.radius12),
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
                     border: Border.all(
                       color: selected
                           ? AppColors.primaryGreen
                           : AppColors.borderColor.withValues(alpha: 0.5),
                     ),
                   ),
-                  child: Text(
-                    _kDays[i],
-                    style: TextStyle(
-                      fontSize: AppTypography.fontSize13,
-                      fontWeight: AppTypography.bold,
-                      color: selected ? Colors.white : AppColors.textSecondary,
-                      fontFamily: 'Lato',
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _kWeekdayShort[date.weekday - 1],
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize10,
+                          fontWeight: AppTypography.semiBold,
+                          color: selected
+                              ? Colors.white.withValues(alpha: 0.9)
+                              : AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${date.day}',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize15,
+                          fontWeight: AppTypography.bold,
+                          color: selected ? Colors.white : AppColors.textPrimary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
             },
           ),
         ),
+        // ── Meals for the selected day ──
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(
                 AppSizes.screenPaddingHorizontal, AppSizes.spacing8,
                 AppSizes.screenPaddingHorizontal, AppSizes.spacing32),
             itemCount: meals.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSizes.spacing12),
-            itemBuilder: (context, i) {
-              final meal = meals[i];
-              final v = _mealVisual(meal.type);
-              return Container(
-                padding: const EdgeInsets.all(AppSizes.spacing12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppSizes.radius12),
-                  border: Border.all(
-                      color: AppColors.borderColor.withValues(alpha: 0.4)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: v.color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(AppSizes.radius8),
-                      ),
-                      child: Icon(v.icon, color: v.color, size: AppSizes.icon24),
-                    ),
-                    const SizedBox(width: AppSizes.spacing12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            meal.type,
-                            style: TextStyle(
-                              fontSize: AppTypography.fontSize10,
-                              fontWeight: AppTypography.bold,
-                              color: v.color,
-                              fontFamily: 'Lato',
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            meal.dish,
-                            style: const TextStyle(
-                              fontSize: AppTypography.fontSize14,
-                              fontWeight: AppTypography.semiBold,
-                              color: AppColors.textPrimary,
-                              fontFamily: 'Lato',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSizes.spacing8),
-                    Row(
-                      children: [
-                        const Icon(Icons.local_fire_department_rounded,
-                            size: 14, color: AppColors.primaryGreen),
-                        const SizedBox(width: 2),
-                        Text(
-                          meal.kcal,
-                          style: const TextStyle(
-                            fontSize: AppTypography.fontSize12,
-                            color: AppColors.textSecondary,
-                            fontFamily: 'Lato',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
+            separatorBuilder: (_, __) =>
+                const SizedBox(height: AppSizes.spacing16),
+            itemBuilder: (_, i) => _MealSection(meal: meals[i]),
           ),
         ),
       ],
@@ -976,125 +965,64 @@ class _DietChartTabState extends State<_DietChartTab>
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// TAB 3 — Plan Manager (delivery time slots)
-// ═══════════════════════════════════════════════════════════════════════════
+/// A meal category (Breakfast / Lunch / …) header + its dish cards.
+class _MealSection extends StatelessWidget {
+  const _MealSection({required this.meal});
 
-class _SlotPeriod {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final List<String> slots;
-  const _SlotPeriod(this.label, this.icon, this.color, this.slots);
-}
-
-const List<_SlotPeriod> _kSlotPeriods = [
-  _SlotPeriod('Morning', Icons.wb_sunny_rounded, Color(0xFFF5A623),
-      ['7:00 – 8:00 AM', '8:00 – 9:00 AM']),
-  _SlotPeriod('Afternoon', Icons.wb_twilight_rounded, Color(0xFFC66301),
-      ['12:00 – 1:00 PM', '1:00 – 2:00 PM']),
-  _SlotPeriod('Night', Icons.nightlight_round, Color(0xFF3F51B5),
-      ['8:00 – 9:00 PM', '9:00 – 10:00 PM']),
-];
-
-class _PlanManagerTab extends StatefulWidget {
-  const _PlanManagerTab();
-
-  @override
-  State<_PlanManagerTab> createState() => _PlanManagerTabState();
-}
-
-class _PlanManagerTabState extends State<_PlanManagerTab>
-    with AutomaticKeepAliveClientMixin {
-  // One selected slot per period (keyed by period label).
-  final Map<String, String> _selected = {};
-
-  @override
-  bool get wantKeepAlive => true;
-
-  void _select(String period, String slot) {
-    setState(() {
-      // Tapping the selected slot again clears it.
-      if (_selected[period] == slot) {
-        _selected.remove(period);
-      } else {
-        _selected[period] = slot;
-      }
-    });
-  }
+  final MealPlanMeal meal;
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
+    final v = _categoryVisual(meal.category.dishCategory);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-                AppSizes.screenPaddingHorizontal, AppSizes.spacing16,
-                AppSizes.screenPaddingHorizontal, AppSizes.spacing24),
-            children: [
-              const Text(
-                'Delivery time slots',
-                style: TextStyle(
-                  fontSize: AppTypography.fontSize16,
-                  fontWeight: AppTypography.bold,
-                  color: AppColors.textPrimary,
-                  fontFamily: 'Lato',
-                ),
+        Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: v.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
               ),
-              const SizedBox(height: 2),
-              Text(
-                'Pick a preferred window for each part of the day.',
-                style: TextStyle(
-                  fontSize: AppTypography.fontSize12,
-                  color: AppColors.textSecondary.withValues(alpha: 0.8),
-                  fontFamily: 'Lato',
-                ),
+              child: Icon(v.icon, color: v.color, size: AppSizes.icon18),
+            ),
+            const SizedBox(width: AppSizes.spacing8),
+            Text(
+              meal.category.dishCategory.isEmpty
+                  ? 'Meal'
+                  : meal.category.dishCategory,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize14,
+                fontWeight: AppTypography.bold,
+                color: v.color,
+                fontFamily: 'Lato',
               ),
-              const SizedBox(height: AppSizes.spacing16),
-              for (final period in _kSlotPeriods)
-                _SlotPeriodCard(
-                  period: period,
-                  selected: _selected[period.label],
-                  onSelect: (slot) => _select(period.label, slot),
-                ),
-            ],
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSizes.spacing8),
+        for (final dish in meal.dishes)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSizes.spacing8),
+            child: _DishCard(dish: dish),
           ),
-        ),
-        _SavePreferencesBar(
-          enabled: _selected.isNotEmpty,
-          onSave: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Slot preferences saved.'),
-                backgroundColor: AppColors.primaryGreen,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          },
-        ),
       ],
     );
   }
 }
 
-class _SlotPeriodCard extends StatelessWidget {
-  const _SlotPeriodCard({
-    required this.period,
-    required this.selected,
-    required this.onSelect,
-  });
+class _DishCard extends StatelessWidget {
+  const _DishCard({required this.dish});
 
-  final _SlotPeriod period;
-  final String? selected;
-  final ValueChanged<String> onSelect;
+  final MealPlanDish dish;
 
   @override
   Widget build(BuildContext context) {
+    final n = dish.nutrition;
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSizes.spacing12),
-      padding: const EdgeInsets.all(AppSizes.spacing16),
+      padding: const EdgeInsets.all(AppSizes.spacing12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppSizes.radius12),
@@ -1111,36 +1039,348 @@ class _SlotPeriodCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(period.icon, size: AppSizes.icon20, color: period.color),
+              _VegIndicator(isVeg: dish.isVeg),
               const SizedBox(width: AppSizes.spacing8),
-              Text(
-                period.label,
-                style: const TextStyle(
-                  fontSize: AppTypography.fontSize14,
-                  fontWeight: AppTypography.bold,
-                  color: AppColors.textPrimary,
-                  fontFamily: 'Lato',
+              Expanded(
+                child: Text(
+                  dish.dishName,
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.semiBold,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
                 ),
               ),
+              if (n.kcal > 0)
+                Row(
+                  children: [
+                    const Icon(Icons.local_fire_department_rounded,
+                        size: 14, color: AppColors.primaryGreen),
+                    const SizedBox(width: 2),
+                    Text(
+                      '${n.kcal.toStringAsFixed(0)} kcal',
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        color: AppColors.textSecondary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                ),
             ],
+          ),
+          if (n.protein > 0 || n.carbs > 0 || n.fat > 0) ...[
+            const SizedBox(height: AppSizes.spacing8),
+            Wrap(
+              spacing: AppSizes.spacing6,
+              runSpacing: AppSizes.spacing4,
+              children: [
+                if (n.protein > 0)
+                  _MacroChip('P', n.protein, const Color(0xFF4A7C3E)),
+                if (n.carbs > 0)
+                  _MacroChip('C', n.carbs, const Color(0xFFC66301)),
+                if (n.fat > 0) _MacroChip('F', n.fat, const Color(0xFF6BA84F)),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _VegIndicator extends StatelessWidget {
+  const _VegIndicator({required this.isVeg});
+
+  final bool isVeg;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isVeg ? const Color(0xFF388E3C) : const Color(0xFFD32F2F);
+    return Container(
+      width: 14,
+      height: 14,
+      margin: const EdgeInsets.only(top: 2),
+      decoration: BoxDecoration(border: Border.all(color: color, width: 1.4)),
+      child: Center(
+        child: Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        ),
+      ),
+    );
+  }
+}
+
+class _MacroChip extends StatelessWidget {
+  const _MacroChip(this.label, this.value, this.color);
+
+  final String label;
+  final double value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
+      ),
+      child: Text(
+        '$label ${value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 1)}g',
+        style: TextStyle(
+          fontSize: AppTypography.fontSize10,
+          fontWeight: AppTypography.semiBold,
+          color: color,
+          fontFamily: 'Lato',
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TAB 3 — Plan Manager (calendar of plan dates + slot picker)
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _PlanManagerTab extends ConsumerStatefulWidget {
+  const _PlanManagerTab();
+
+  @override
+  ConsumerState<_PlanManagerTab> createState() => _PlanManagerTabState();
+}
+
+class _PlanManagerTabState extends ConsumerState<_PlanManagerTab>
+    with AutomaticKeepAliveClientMixin {
+  // Chosen delivery slot per plan date, keyed by meal category (dishCategory).
+  // e.g. _slotsByDate[Jun 12] = { 'Breakfast': morningSlot, 'Dinner': nightSlot }
+  final Map<DateTime, Map<String, DeliverySlotApiModel>> _slotsByDate = {};
+
+  @override
+  bool get wantKeepAlive => true;
+
+  /// Distinct meal categories assigned to [date] in the plan, ordered
+  /// Breakfast → Lunch → Snacks → Dinner.
+  List<String> _categoriesForDate(DateTime date) {
+    final day = ref.read(mealPlanProvider).mealPlan?.dayForDate(date);
+    return <String>{
+      for (final m in day?.meals ?? const <MealPlanMeal>[])
+        if (m.dishes.isNotEmpty) m.category.dishCategory,
+    }.toList()
+      ..sort((a, b) => _categoryOrder(a).compareTo(_categoryOrder(b)));
+  }
+
+  Future<void> _openSlotPicker(DateTime date) async {
+    final key = _dateOnly(date);
+    final categories = _categoriesForDate(key);
+    if (categories.isEmpty) return;
+
+    final picked =
+        await showModalBottomSheet<Map<String, DeliverySlotApiModel>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SlotPickerSheet(
+        date: key,
+        categories: categories,
+        current: _slotsByDate[key] ?? const {},
+      ),
+    );
+    if (picked != null && mounted) {
+      setState(() => _slotsByDate[key] = picked);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Delivery slots updated for ${key.day} ${_kMonthLong[key.month - 1]}.'),
+          backgroundColor: AppColors.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final state = ref.watch(mealPlanProvider);
+
+    if (state.isLoading && state.mealPlan == null) {
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.primaryGreen));
+    }
+    if (state.error != null && state.mealPlan == null) {
+      return _CenterMessage(
+        icon: Icons.error_outline_rounded,
+        message: state.error!,
+        onRetry: () => ref.read(mealPlanProvider.notifier).refresh(),
+      );
+    }
+
+    // Active (meal-assigned) dates → how many meal categories each carries.
+    final categoryCountByDate = <DateTime, int>{};
+    for (final d in state.mealPlan?.days ?? const <MealPlanDay>[]) {
+      final categories = <String>{
+        for (final m in d.meals)
+          if (m.dishes.isNotEmpty) m.category.dishCategory,
+      };
+      if (categories.isNotEmpty) {
+        categoryCountByDate[_dateOnly(d.date)] = categories.length;
+      }
+    }
+
+    if (categoryCountByDate.isEmpty) {
+      return const _CenterMessage(
+        icon: Icons.event_busy_rounded,
+        message: 'No scheduled meal dates yet.',
+      );
+    }
+
+    // Per-date completion: how many of its categories already have a slot.
+    final status = <DateTime, ({int chosen, int total})>{
+      for (final e in categoryCountByDate.entries)
+        e.key: (chosen: _slotsByDate[e.key]?.length ?? 0, total: e.value),
+    };
+
+    // Distinct months spanning the plan, in order.
+    final months = (categoryCountByDate.keys
+            .map((d) => DateTime(d.year, d.month))
+            .toSet()
+            .toList())
+      ..sort();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+          AppSizes.screenPaddingHorizontal, AppSizes.spacing16,
+          AppSizes.screenPaddingHorizontal, AppSizes.spacing32),
+      children: [
+        const Text(
+          'Delivery schedule',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize16,
+            fontWeight: AppTypography.bold,
+            color: AppColors.textPrimary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Tap a highlighted date to choose its delivery slot.',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize12,
+            color: AppColors.textSecondary.withValues(alpha: 0.8),
+            fontFamily: 'Lato',
+          ),
+        ),
+        const SizedBox(height: AppSizes.spacing16),
+        for (final m in months)
+          _MonthCalendar(
+            month: m,
+            status: status,
+            onTapDate: _openSlotPicker,
+          ),
+        const SizedBox(height: AppSizes.spacing8),
+        const _CalendarLegend(),
+      ],
+    );
+  }
+}
+
+/// A single-month grid. Active (meal-assigned) dates are colourful + tappable;
+/// dates with a chosen slot show a check.
+class _MonthCalendar extends StatelessWidget {
+  const _MonthCalendar({
+    required this.month,
+    required this.status,
+    required this.onTapDate,
+  });
+
+  final DateTime month; // year + month (day ignored)
+
+  /// Active dates → (chosen slots, total meal categories) for that date.
+  final Map<DateTime, ({int chosen, int total})> status;
+  final ValueChanged<DateTime> onTapDate;
+
+  Widget _cell(DateTime date) {
+    final st = status[date];
+    return _DayCell(
+      date: date,
+      active: st != null,
+      complete: st != null && st.chosen >= st.total,
+      partial: st != null && st.chosen > 0 && st.chosen < st.total,
+      onTap: onTapDate,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final first = DateTime(month.year, month.month, 1);
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    final leading = first.weekday - 1; // Mon=1 → 0 blanks
+
+    final cells = <Widget>[
+      for (var i = 0; i < leading; i++) const SizedBox.shrink(),
+      for (var day = 1; day <= daysInMonth; day++)
+        _cell(DateTime(month.year, month.month, day)),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSizes.spacing16),
+      padding: const EdgeInsets.all(AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius16),
+        border: Border.all(color: AppColors.borderColor.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            '${_kMonthLong[month.month - 1]} ${month.year}',
+            style: const TextStyle(
+              fontSize: AppTypography.fontSize16,
+              fontWeight: AppTypography.bold,
+              color: AppColors.textPrimary,
+              fontFamily: 'Lato',
+            ),
           ),
           const SizedBox(height: AppSizes.spacing12),
           Row(
             children: [
-              for (final slot in period.slots) ...[
+              for (final w in _kWeekdayShort)
                 Expanded(
-                  child: _SlotChip(
-                    label: slot,
-                    selected: slot == selected,
-                    accent: period.color,
-                    onTap: () => onSelect(slot),
+                  child: Center(
+                    child: Text(
+                      w.substring(0, 1),
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        fontWeight: AppTypography.semiBold,
+                        color: AppColors.textSecondary.withValues(alpha: 0.7),
+                        fontFamily: 'Lato',
+                      ),
+                    ),
                   ),
                 ),
-                if (slot != period.slots.last)
-                  const SizedBox(width: AppSizes.spacing8),
-              ],
             ],
+          ),
+          const SizedBox(height: AppSizes.spacing8),
+          GridView.count(
+            crossAxisCount: 7,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: AppSizes.spacing6,
+            crossAxisSpacing: AppSizes.spacing6,
+            children: cells,
           ),
         ],
       ),
@@ -1148,51 +1388,316 @@ class _SlotPeriodCard extends StatelessWidget {
   }
 }
 
-class _SlotChip extends StatelessWidget {
-  const _SlotChip({
-    required this.label,
-    required this.selected,
-    required this.accent,
+class _DayCell extends StatelessWidget {
+  const _DayCell({
+    required this.date,
+    required this.active,
+    required this.complete,
+    required this.partial,
     required this.onTap,
   });
 
-  final String label;
-  final bool selected;
-  final Color accent;
-  final VoidCallback onTap;
+  final DateTime date;
+  final bool active;
+  final bool complete; // every category for this date has a slot
+  final bool partial; // some (not all) categories have a slot
+  final ValueChanged<DateTime> onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing12),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? accent.withValues(alpha: 0.12) : Colors.white,
-          borderRadius: BorderRadius.circular(AppSizes.radius8),
-          border: Border.all(
-            color: selected ? accent : AppColors.borderColor.withValues(alpha: 0.6),
-            width: selected ? 1.5 : 1,
+    if (!active) {
+      return Center(
+        child: Text(
+          '${date.day}',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize13,
+            color: AppColors.textTertiary.withValues(alpha: 0.6),
+            fontFamily: 'Lato',
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+      );
+    }
+
+    return GestureDetector(
+      onTap: () => onTap(date),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: complete
+              ? const LinearGradient(
+                  colors: [Color(0xFF5D9E40), Color(0xFF7AB655)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color:
+              complete ? null : AppColors.primaryGreen.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+          border: Border.all(
+            color: partial
+                ? _kAccent
+                : AppColors.primaryGreen.withValues(alpha: complete ? 0 : 0.5),
+            width: partial ? 1.5 : 1,
+          ),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            if (selected) ...[
-              Icon(Icons.check_circle_rounded, size: 14, color: accent),
-              const SizedBox(width: AppSizes.spacing6),
-            ],
+            Text(
+              '${date.day}',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize13,
+                fontWeight: AppTypography.bold,
+                color: complete ? Colors.white : AppColors.primaryGreen,
+                fontFamily: 'Lato',
+              ),
+            ),
+            if (complete)
+              const Positioned(
+                bottom: 3,
+                child: Icon(Icons.check_circle_rounded,
+                    size: 9, color: Colors.white),
+              )
+            else if (partial)
+              const Positioned(
+                bottom: 3,
+                child: Icon(Icons.more_horiz_rounded, size: 9, color: _kAccent),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CalendarLegend extends StatelessWidget {
+  const _CalendarLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget swatch({Color? color, bool gradient = false, Color? border}) =>
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: gradient ? null : color,
+            gradient: gradient
+                ? const LinearGradient(
+                    colors: [Color(0xFF5D9E40), Color(0xFF7AB655)])
+                : null,
+            border: border != null ? Border.all(color: border, width: 1.5) : null,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+    Widget item(Widget s, String label) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            s,
+            const SizedBox(width: 6),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    color: AppColors.textSecondary,
+                    fontFamily: 'Lato')),
+          ],
+        );
+    return Wrap(
+      spacing: AppSizes.spacing16,
+      runSpacing: AppSizes.spacing8,
+      children: [
+        item(swatch(color: AppColors.primaryGreen.withValues(alpha: 0.18)),
+            'Meal day'),
+        item(
+            swatch(
+                color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                border: _kAccent),
+            'Partly set'),
+        item(swatch(gradient: true), 'All set'),
+      ],
+    );
+  }
+}
+
+/// Bottom sheet to pick a delivery slot for *each* meal category on a date.
+///
+/// The categories (e.g. Breakfast, Lunch, Dinner) come from the meal plan;
+/// the selectable slots come from `/api/delivery-slot/list`. Each category is
+/// an independent single-select, and the sheet returns a category→slot map.
+class _SlotPickerSheet extends ConsumerStatefulWidget {
+  const _SlotPickerSheet({
+    required this.date,
+    required this.categories,
+    required this.current,
+  });
+
+  final DateTime date;
+  final List<String> categories;
+  final Map<String, DeliverySlotApiModel> current;
+
+  @override
+  ConsumerState<_SlotPickerSheet> createState() => _SlotPickerSheetState();
+}
+
+class _SlotPickerSheetState extends ConsumerState<_SlotPickerSheet> {
+  // category → chosen slot id
+  late final Map<String, String> _selectedByCategory = {
+    for (final e in widget.current.entries) e.key: e.value.id,
+  };
+
+  bool get _allChosen =>
+      widget.categories.every((c) => _selectedByCategory[c] != null);
+
+  void _confirm(List<DeliverySlotApiModel> slots) {
+    final byId = {for (final s in slots) s.id: s};
+    final result = <String, DeliverySlotApiModel>{
+      for (final c in widget.categories)
+        if (byId[_selectedByCategory[c]] != null)
+          c: byId[_selectedByCategory[c]]!,
+    };
+    Navigator.of(context).pop(result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final slotsAsync = ref.watch(deliverySlotListProvider);
+    final dateLabel =
+        '${_kWeekdayShort[widget.date.weekday - 1]}, ${widget.date.day} ${_kMonthLong[widget.date.month - 1]}';
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 4),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.local_shipping_rounded,
+                      color: AppColors.primaryGreen, size: AppSizes.icon20),
+                  const SizedBox(width: AppSizes.spacing8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Choose delivery slots',
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize18,
+                            fontWeight: AppTypography.bold,
+                            color: AppColors.textPrimary,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                        Text(
+                          dateLabel,
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize12,
+                            color: AppColors.textSecondary.withValues(alpha: 0.9),
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(Icons.close_rounded,
+                        size: AppSizes.icon20, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
             Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: AppTypography.fontSize12,
-                  fontWeight:
-                      selected ? AppTypography.bold : AppTypography.regular,
-                  color: selected ? accent : AppColors.textPrimary,
-                  fontFamily: 'Lato',
+              child: slotsAsync.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                      child: CircularProgressIndicator(
+                          color: AppColors.primaryGreen)),
+                ),
+                error: (_, __) => Padding(
+                  padding: const EdgeInsets.all(AppSizes.spacing24),
+                  child: _CenterMessage(
+                    icon: Icons.error_outline_rounded,
+                    message: 'Could not load delivery slots.',
+                    onRetry: () => ref.invalidate(deliverySlotListProvider),
+                  ),
+                ),
+                data: (slots) {
+                  if (slots.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(AppSizes.spacing24),
+                      child: Text('No delivery slots available.',
+                          style: TextStyle(fontFamily: 'Lato')),
+                    );
+                  }
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                    itemCount: widget.categories.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: AppSizes.spacing20),
+                    itemBuilder: (_, i) {
+                      final category = widget.categories[i];
+                      return _CategorySlotSection(
+                        category: category,
+                        slots: slots,
+                        selectedId: _selectedByCategory[category],
+                        onSelect: (id) => setState(
+                            () => _selectedByCategory[category] = id),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: SizedBox(
+                width: double.infinity,
+                height: AppSizes.buttonHeight,
+                child: ElevatedButton(
+                  onPressed: !_allChosen
+                      ? null
+                      : () => _confirm(
+                          ref.read(deliverySlotListProvider).valueOrNull ??
+                              const []),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                        AppColors.borderColor.withValues(alpha: 0.6),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    ),
+                  ),
+                  child: Text(
+                    _allChosen ? 'Confirm slots' : 'Select a slot for each meal',
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.bold,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1203,58 +1708,201 @@ class _SlotChip extends StatelessWidget {
   }
 }
 
-class _SavePreferencesBar extends StatelessWidget {
-  const _SavePreferencesBar({required this.enabled, required this.onSave});
+/// One meal-category block inside the slot picker: a header (icon + name) and
+/// the list of delivery slots, single-select within the block.
+class _CategorySlotSection extends StatelessWidget {
+  const _CategorySlotSection({
+    required this.category,
+    required this.slots,
+    required this.selectedId,
+    required this.onSelect,
+  });
 
-  final bool enabled;
-  final VoidCallback onSave;
+  final String category;
+  final List<DeliverySlotApiModel> slots;
+  final String? selectedId;
+  final ValueChanged<String> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(
-          AppSizes.screenPaddingHorizontal,
-          AppSizes.spacing12,
-          AppSizes.screenPaddingHorizontal,
-          AppSizes.spacing12,
-        ),
-        child: SizedBox(
-          width: double.infinity,
-          height: AppSizes.buttonHeight,
-          child: ElevatedButton(
-            onPressed: enabled ? onSave : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryGreen,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor:
-                  AppColors.borderColor.withValues(alpha: 0.6),
-              disabledForegroundColor: AppColors.textSecondary,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
+    final visual = _categoryVisual(category);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: visual.color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppSizes.radius8),
               ),
+              child:
+                  Icon(visual.icon, size: AppSizes.icon16, color: visual.color),
             ),
-            child: const Text(
-              'Save Preferences',
-              style: TextStyle(
+            const SizedBox(width: AppSizes.spacing8),
+            Text(
+              category,
+              style: const TextStyle(
                 fontSize: AppTypography.fontSize14,
                 fontWeight: AppTypography.bold,
+                color: AppColors.textPrimary,
                 fontFamily: 'Lato',
               ),
             ),
+            const Spacer(),
+            if (selectedId == null)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _kAccentBg,
+                  borderRadius: BorderRadius.circular(AppSizes.radius4),
+                ),
+                child: const Text(
+                  'Required',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize10,
+                    fontWeight: AppTypography.semiBold,
+                    color: _kAccent,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSizes.spacing8),
+        for (final slot in slots)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSizes.spacing8),
+            child: _SlotOptionTile(
+              slot: slot,
+              selected: slot.id == selectedId,
+              accent: visual.color,
+              onTap: () => onSelect(slot.id),
+            ),
           ),
+      ],
+    );
+  }
+}
+
+/// A single selectable delivery-slot row.
+class _SlotOptionTile extends StatelessWidget {
+  const _SlotOptionTile({
+    required this.slot,
+    required this.selected,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final DeliverySlotApiModel slot;
+  final bool selected;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(AppSizes.spacing12),
+        decoration: BoxDecoration(
+          color: selected ? accent.withValues(alpha: 0.06) : Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+          border: Border.all(
+            color:
+                selected ? accent : AppColors.borderColor.withValues(alpha: 0.6),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              size: AppSizes.icon20,
+              color: selected ? accent : AppColors.textTertiary,
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    slot.slotName,
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.semiBold,
+                      color: AppColors.textPrimary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    slot.timeRange,
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      color: AppColors.textSecondary.withValues(alpha: 0.9),
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Shared centred message (loading-failure / empty) ─────────────────────────
+
+class _CenterMessage extends StatelessWidget {
+  const _CenterMessage({
+    required this.icon,
+    required this.message,
+    this.onRetry,
+  });
+
+  final IconData icon;
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSizes.spacing24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 44, color: AppColors.textTertiary.withValues(alpha: 0.7)),
+            const SizedBox(height: AppSizes.spacing12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: AppTypography.fontSize14,
+                color: AppColors.textSecondary,
+                fontFamily: 'Lato',
+              ),
+            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: AppSizes.spacing16),
+              OutlinedButton(
+                onPressed: onRetry,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primaryGreen,
+                  side: const BorderSide(color: AppColors.primaryGreen),
+                ),
+                child: const Text('Retry', style: TextStyle(fontFamily: 'Lato')),
+              ),
+            ],
+          ],
         ),
       ),
     );

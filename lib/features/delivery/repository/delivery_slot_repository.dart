@@ -15,6 +15,30 @@ class DeliverySlotRepository {
   })  : _apiClient = apiClient,
         _localStorage = localStorage;
 
+  /// GET /api/delivery-slot/list — the catalogue of selectable delivery slots.
+  Future<DeliverySlotListResponse> getDeliverySlotList() async {
+    debugPrint('[DeliverySlotRepository] Fetching delivery slot list...');
+    try {
+      final token = _localStorage.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+            message: 'Authentication required. Please login again.');
+      }
+      final json = await _apiClient.getJson(
+        AppConfig.deliverySlotListPath,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      return DeliverySlotListResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[DeliverySlotRepository] Slot list error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
   /// GET /api/delivery-slots?date=YYYY-MM-DD
   /// Returns slots, availableMeals, previousSelection, window info, history
   Future<DeliverySlotsResponse> getDeliverySlotsWithSelections({
