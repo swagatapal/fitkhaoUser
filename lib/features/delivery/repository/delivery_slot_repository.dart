@@ -39,6 +39,33 @@ class DeliverySlotRepository {
     }
   }
 
+  /// POST /api/delivery-slots/confirm — confirm slots for many dates at once.
+  Future<ConfirmDeliverySlotResponse> confirmDeliverySchedule(
+      ConfirmDeliveryScheduleRequest request) async {
+    debugPrint('[DeliverySlotRepository] Confirming delivery schedule '
+        '(${request.deliveries.length} dates)...');
+    try {
+      final token = _localStorage.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+            message: 'Authentication required. Please login again.');
+      }
+      final json = await _apiClient.postJson(
+        AppConfig.deliverySlotConfirmPath,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: request.toJson(),
+      );
+      return ConfirmDeliverySlotResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[DeliverySlotRepository] Confirm schedule error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
   /// GET /api/delivery-slots?date=YYYY-MM-DD
   /// Returns slots, availableMeals, previousSelection, window info, history
   Future<DeliverySlotsResponse> getDeliverySlotsWithSelections({

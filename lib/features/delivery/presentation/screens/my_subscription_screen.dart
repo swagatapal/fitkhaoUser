@@ -10,7 +10,9 @@ import '../../../../core/utils/time_converter.dart';
 import '../../../dashboard/models/meal_plan_model.dart';
 import '../../../dashboard/providers/meal_plan_provider.dart';
 import '../../models/delivery_slot_model.dart';
+import '../../providers/delivery_slot_confirm_provider.dart';
 import '../../providers/delivery_slot_list_provider.dart';
+import '../../providers/selected_address_provider.dart';
 import '../../providers/subscription_detail_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -789,6 +791,10 @@ const _kMonthLong = [
 
 DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
+/// `YYYY-MM-DD` in local time — the format the confirm API expects.
+String _apiDate(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
 /// Category → icon/colour, used by both diet meals and (loosely) elsewhere.
 ({IconData icon, Color color}) _categoryVisual(String category) {
   switch (category.toLowerCase()) {
@@ -1157,22 +1163,26 @@ class _PlanManagerTab extends ConsumerStatefulWidget {
 
 class _PlanManagerTabState extends ConsumerState<_PlanManagerTab>
     with AutomaticKeepAliveClientMixin {
-  // Chosen delivery slot per plan date, keyed by meal category (dishCategory).
-  // e.g. _slotsByDate[Jun 12] = { 'Breakfast': morningSlot, 'Dinner': nightSlot }
+  // Chosen delivery slot per plan date, keyed by meal-category id.
+  // e.g. _slotsByDate[Jun 12] = { '<breakfastId>': morningSlot, '<dinnerId>': nightSlot }
   final Map<DateTime, Map<String, DeliverySlotApiModel>> _slotsByDate = {};
 
   @override
   bool get wantKeepAlive => true;
 
-  /// Distinct meal categories assigned to [date] in the plan, ordered
-  /// Breakfast → Lunch → Snacks → Dinner.
-  List<String> _categoriesForDate(DateTime date) {
+  /// Distinct meal categories assigned to [date] in the plan, deduped by id and
+  /// ordered Breakfast → Lunch → Snacks → Dinner.
+  List<MealCategory> _categoriesForDate(DateTime date) {
     final day = ref.read(mealPlanProvider).mealPlan?.dayForDate(date);
-    return <String>{
-      for (final m in day?.meals ?? const <MealPlanMeal>[])
-        if (m.dishes.isNotEmpty) m.category.dishCategory,
-    }.toList()
-      ..sort((a, b) => _categoryOrder(a).compareTo(_categoryOrder(b)));
+    final seen = <String>{};
+    final result = <MealCategory>[];
+    for (final m in day?.meals ?? const <MealPlanMeal>[]) {
+      if (m.dishes.isEmpty) continue;
+      if (seen.add(m.category.id)) result.add(m.category);
+    }
+    result.sort((a, b) =>
+        _categoryOrder(a.dishCategory).compareTo(_categoryOrder(b.dishCategory)));
+    return result;
   }
 
   Future<void> _openSlotPicker(DateTime date) async {
@@ -1204,6 +1214,65 @@ class _PlanManagerTabState extends ConsumerState<_PlanManagerTab>
     }
   }
 
+  /// Builds the batch payload from the local selections and submits it.
+  Future<void> _confirmSchedule() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final address = ref.read(selectedDeliveryAddressProvider);
+    if (address == null || address.id.isEmpty) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Please select a delivery address first.'),
+        backgroundColor: AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+
+    // One entry per date that has at least one slot chosen; within a date,
+    // group the chosen categories under their slot.
+    final dates = _slotsByDate.entries
+        .where((e) => e.value.isNotEmpty)
+        .map((e) => e.key)
+        .toList()
+      ..sort();
+
+    final deliveries = <ConfirmDeliveryDate>[];
+    for (final date in dates) {
+      final bySlot = <String, List<String>>{};
+      _slotsByDate[date]!.forEach((categoryId, slot) {
+        bySlot.putIfAbsent(slot.id, () => <String>[]).add(categoryId);
+      });
+      deliveries.add(ConfirmDeliveryDate(
+        deliveryDate: _apiDate(date),
+        slots: bySlot.entries
+            .map((e) => ConfirmSlotItem(slotId: e.key, categoryIds: e.value))
+            .toList(),
+      ));
+    }
+
+    if (deliveries.isEmpty) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Choose at least one delivery slot to confirm.'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+
+    final ok = await ref.read(deliverySlotConfirmProvider.notifier).submit(
+          ConfirmDeliveryScheduleRequest(
+            deliveryAddressId: address.id,
+            deliveries: deliveries,
+          ),
+        );
+    if (!mounted) return;
+    final message = ref.read(deliverySlotConfirmProvider).message;
+    messenger.showSnackBar(SnackBar(
+      content: Text(message ??
+          (ok ? 'Delivery schedule confirmed.' : 'Could not confirm.')),
+      backgroundColor: ok ? AppColors.primaryGreen : AppColors.errorColor,
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -1224,12 +1293,12 @@ class _PlanManagerTabState extends ConsumerState<_PlanManagerTab>
     // Active (meal-assigned) dates → how many meal categories each carries.
     final categoryCountByDate = <DateTime, int>{};
     for (final d in state.mealPlan?.days ?? const <MealPlanDay>[]) {
-      final categories = <String>{
+      final categoryIds = <String>{
         for (final m in d.meals)
-          if (m.dishes.isNotEmpty) m.category.dishCategory,
+          if (m.dishes.isNotEmpty) m.category.id,
       };
-      if (categories.isNotEmpty) {
-        categoryCountByDate[_dateOnly(d.date)] = categories.length;
+      if (categoryIds.isNotEmpty) {
+        categoryCountByDate[_dateOnly(d.date)] = categoryIds.length;
       }
     }
 
@@ -1285,7 +1354,53 @@ class _PlanManagerTabState extends ConsumerState<_PlanManagerTab>
           ),
         const SizedBox(height: AppSizes.spacing8),
         const _CalendarLegend(),
+        const SizedBox(height: AppSizes.spacing24),
+        _buildConfirmButton(),
       ],
+    );
+  }
+
+  /// Sticky-looking CTA that submits every date with a chosen slot.
+  Widget _buildConfirmButton() {
+    final scheduledDays =
+        _slotsByDate.values.where((m) => m.isNotEmpty).length;
+    final submitting =
+        ref.watch(deliverySlotConfirmProvider.select((s) => s.isSubmitting));
+    final enabled = scheduledDays > 0 && !submitting;
+
+    return SizedBox(
+      width: double.infinity,
+      height: AppSizes.buttonHeight,
+      child: ElevatedButton(
+        onPressed: enabled ? _confirmSchedule : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryGreen,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor:
+              AppColors.borderColor.withValues(alpha: 0.6),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+          ),
+        ),
+        child: submitting
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+            : Text(
+                scheduledDays == 0
+                    ? 'Choose slots to confirm'
+                    : 'Confirm schedule · $scheduledDays ${scheduledDays == 1 ? 'day' : 'days'}',
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.bold,
+                  fontFamily: 'Lato',
+                ),
+              ),
+      ),
     );
   }
 }
@@ -1530,28 +1645,28 @@ class _SlotPickerSheet extends ConsumerStatefulWidget {
   });
 
   final DateTime date;
-  final List<String> categories;
-  final Map<String, DeliverySlotApiModel> current;
+  final List<MealCategory> categories;
+  final Map<String, DeliverySlotApiModel> current; // categoryId → slot
 
   @override
   ConsumerState<_SlotPickerSheet> createState() => _SlotPickerSheetState();
 }
 
 class _SlotPickerSheetState extends ConsumerState<_SlotPickerSheet> {
-  // category → chosen slot id
+  // categoryId → chosen slot id
   late final Map<String, String> _selectedByCategory = {
     for (final e in widget.current.entries) e.key: e.value.id,
   };
 
   bool get _allChosen =>
-      widget.categories.every((c) => _selectedByCategory[c] != null);
+      widget.categories.every((c) => _selectedByCategory[c.id] != null);
 
   void _confirm(List<DeliverySlotApiModel> slots) {
     final byId = {for (final s in slots) s.id: s};
     final result = <String, DeliverySlotApiModel>{
       for (final c in widget.categories)
-        if (byId[_selectedByCategory[c]] != null)
-          c: byId[_selectedByCategory[c]]!,
+        if (byId[_selectedByCategory[c.id]] != null)
+          c.id: byId[_selectedByCategory[c.id]]!,
     };
     Navigator.of(context).pop(result);
   }
@@ -1660,9 +1775,9 @@ class _SlotPickerSheetState extends ConsumerState<_SlotPickerSheet> {
                       return _CategorySlotSection(
                         category: category,
                         slots: slots,
-                        selectedId: _selectedByCategory[category],
+                        selectedId: _selectedByCategory[category.id],
                         onSelect: (id) => setState(
-                            () => _selectedByCategory[category] = id),
+                            () => _selectedByCategory[category.id] = id),
                       );
                     },
                   );
@@ -1718,14 +1833,14 @@ class _CategorySlotSection extends StatelessWidget {
     required this.onSelect,
   });
 
-  final String category;
+  final MealCategory category;
   final List<DeliverySlotApiModel> slots;
   final String? selectedId;
   final ValueChanged<String> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    final visual = _categoryVisual(category);
+    final visual = _categoryVisual(category.dishCategory);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1742,7 +1857,7 @@ class _CategorySlotSection extends StatelessWidget {
             ),
             const SizedBox(width: AppSizes.spacing8),
             Text(
-              category,
+              category.dishCategory,
               style: const TextStyle(
                 fontSize: AppTypography.fontSize14,
                 fontWeight: AppTypography.bold,

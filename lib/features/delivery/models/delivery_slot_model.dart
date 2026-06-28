@@ -379,3 +379,45 @@ class ConfirmDeliverySlotResponse {
     );
   }
 }
+
+// ── Batch schedule confirm (POST /api/delivery-slots/confirm) ──
+
+/// Confirms delivery slots for many dates in one request.
+///
+/// [deliveryAddressId] is the default address applied to every date; a date
+/// may override it via [ConfirmDeliveryDate.deliveryAddressId].
+class ConfirmDeliveryScheduleRequest {
+  final String deliveryAddressId;
+  final List<ConfirmDeliveryDate> deliveries;
+
+  const ConfirmDeliveryScheduleRequest({
+    required this.deliveryAddressId,
+    required this.deliveries,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'deliveryAddressId': deliveryAddressId,
+        'deliveries': deliveries.map((d) => d.toJson()).toList(),
+      };
+}
+
+/// One date's slot assignments. [deliveryAddressId] is optional and, when set,
+/// overrides the request-level default just for this date.
+class ConfirmDeliveryDate {
+  final String deliveryDate; // YYYY-MM-DD
+  final List<ConfirmSlotItem> slots;
+  final String? deliveryAddressId;
+
+  const ConfirmDeliveryDate({
+    required this.deliveryDate,
+    required this.slots,
+    this.deliveryAddressId,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'deliveryDate': deliveryDate,
+        'slots': slots.map((s) => s.toJson()).toList(),
+        if (deliveryAddressId != null && deliveryAddressId!.isNotEmpty)
+          'deliveryAddressId': deliveryAddressId,
+      };
+}
