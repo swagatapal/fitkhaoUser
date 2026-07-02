@@ -8,6 +8,7 @@ import '../models/subscription_plan_model.dart';
 import '../models/subscription_pricing_preview_model.dart';
 import '../models/subscription_request_model.dart';
 import '../models/subscription_response_model.dart';
+import '../models/subscription_timeline_model.dart';
 
 /// Repository for subscription related operations
 class SubscriptionRepository {
@@ -148,6 +149,24 @@ class SubscriptionRepository {
           .toList(growable: false);
     } catch (e) {
       debugPrint('[SubscriptionRepository] History error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
+  /// GET /api/subscriptions/timeline — the current user's journey timeline
+  /// (steps + daily meals), scoped by the auth token.
+  Future<SubscriptionTimelineResponse> getSubscriptionTimeline() async {
+    debugPrint('[SubscriptionRepository] Fetching subscription timeline...');
+    try {
+      final json = await _apiClient.getJson(
+        AppConfig.subscriptionTimelinePath,
+        headers: _authHeaders(),
+      );
+      debugPrint('[SubscriptionRepository] Timeline response: $json');
+      return SubscriptionTimelineResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[SubscriptionRepository] Timeline error: $e');
       final message = ExceptionHandler.getErrorMessage(e);
       throw NetworkException(message: message, originalError: e);
     }

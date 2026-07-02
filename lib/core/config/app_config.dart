@@ -82,6 +82,9 @@ class AppConfig {
   static String subscriptionHistoryPath(String subscriptionId) =>
       '/api/subscriptions/$subscriptionId/history';
 
+  /// Subscription journey timeline for the current user (auth, token-scoped).
+  static const String subscriptionTimelinePath = '/api/subscription/timeline';
+
   /// App content — terms & conditions, privacy policy (public)
   static const String appContentPath = '/api/app-content';
   static const String appConstant = '/api/app/constants';

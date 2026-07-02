@@ -10,6 +10,7 @@ import '../../../../core/utils/time_converter.dart';
 import '../../../dashboard/models/meal_plan_model.dart';
 import '../../../dashboard/providers/meal_plan_provider.dart';
 import '../../models/delivery_slot_model.dart';
+import '../../models/subscription_timeline_model.dart';
 import '../../providers/confirmed_slots_provider.dart';
 import '../../providers/delivery_slot_confirm_provider.dart';
 import '../../providers/delivery_slot_list_provider.dart';
@@ -82,7 +83,7 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen> {
               Expanded(
                 child: TabBarView(
                   children: [
-                    _JourneyTab(subscriptionId: widget.subscriptionId),
+                    const _JourneyTab(),
                     const _DietChartTab(),
                     const _PlanManagerTab(),
                   ],
@@ -346,216 +347,185 @@ class _Tabs extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 1 — Journey
+// TAB 1 — Journey (subscription timeline: steps + daily meals)
 // ═══════════════════════════════════════════════════════════════════════════
 
-enum _EventKind { counselling, journeyStart, meals, renewal }
+class _JourneyTab extends ConsumerWidget {
+  const _JourneyTab();
 
-class _JourneyEvent {
-  final _EventKind kind;
-  final String title;
-  final String date;
-  final String? subtitle;
-
-  /// e.g. "Pending", "Scheduled", "No response" — rendered as a status chip.
-  final String? status;
-
-  /// When true a "Join meet" action is shown (counselling calls).
-  final bool hasMeetLink;
-
-  const _JourneyEvent({
-    required this.kind,
-    required this.title,
-    required this.date,
-    this.subtitle,
-    this.status,
-    this.hasMeetLink = false,
-  });
-
-  /// Defensively maps an open-ended backend event map onto the timeline model.
-  factory _JourneyEvent.fromMap(Map<String, dynamic> m) {
-    String? str(List<String> keys) {
-      for (final k in keys) {
-        final v = m[k];
-        if (v is String && v.trim().isNotEmpty) return v.trim();
-        if (v is num) return v.toString();
-      }
-      return null;
-    }
-
-    final type =
-        (str(['type', 'event', 'eventType', 'kind']) ?? '').toLowerCase();
-    _EventKind kind;
-    if (type.contains('counsel') || type.contains('call')) {
-      kind = _EventKind.counselling;
-    } else if (type.contains('renew')) {
-      kind = _EventKind.renewal;
-    } else if (type.contains('start') || type.contains('activate')) {
-      kind = _EventKind.journeyStart;
-    } else {
-      kind = _EventKind.meals;
-    }
-
-    final rawDate = str(['date', 'createdAt', 'timestamp', 'eventDate', 'at']);
-
-    return _JourneyEvent(
-      kind: kind,
-      title: str(['title', 'label', 'name', 'type', 'event']) ?? 'Update',
-      date: rawDate != null ? convertMongoUtcToIst(rawDate) : '',
-      subtitle: str(['description', 'message', 'note', 'detail']),
-      status: str(['status']),
-      hasMeetLink: (m['meetLink'] ?? m['meetingLink'] ?? m['link']) != null ||
-          kind == _EventKind.counselling && (m['meetLink'] != null),
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(subscriptionTimelineProvider);
+    return async.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: AppColors.primaryGreen),
+      ),
+      error: (e, st) {
+        debugPrint('[Journey] timeline error: $e\n$st');
+        return _CenterMessage(
+          icon: Icons.error_outline_rounded,
+          message: 'Could not load your journey.\n$e',
+          onRetry: () => ref.invalidate(subscriptionTimelineProvider),
+        );
+      },
+      data: (timeline) => _TimelineContent(timeline: timeline),
     );
   }
 }
 
-// Placeholder timeline — replace with API data later.
-const List<_JourneyEvent> _kJourneyEvents = [
-  _JourneyEvent(
-    kind: _EventKind.counselling,
-    title: 'Counselling call being scheduled',
-    date: 'Within 1–2 business days',
-    subtitle:
-        'Expect a call from customer support to schedule your counselling.',
-    status: 'Pending',
-  ),
-  _JourneyEvent(
-    kind: _EventKind.counselling,
-    title: 'Counselling call scheduled',
-    date: '16 Jun, 8:00 PM',
-    subtitle: 'Your nutritionist will call you on the meeting link.',
-    status: 'Scheduled',
-    hasMeetLink: true,
-  ),
-  _JourneyEvent(
-    kind: _EventKind.journeyStart,
-    title: 'Your healthy journey begins',
-    date: '20 Jun',
-    subtitle: 'Transformative lifestyle starts today. Let’s go! 🎉',
-  ),
-  _JourneyEvent(
-    kind: _EventKind.meals,
-    title: '3 meals delivered',
-    date: '20 Jun',
-  ),
-  _JourneyEvent(
-    kind: _EventKind.meals,
-    title: '3 meals delivered',
-    date: '21 Jun',
-  ),
-  _JourneyEvent(
-    kind: _EventKind.meals,
-    title: '2 meals delivered',
-    date: '22 Jun',
-    subtitle: 'Lunch cancelled',
-  ),
-  _JourneyEvent(
-    kind: _EventKind.counselling,
-    title: 'Next counselling schedule call',
-    date: '2 Jul',
-    subtitle: 'For members on the 30-day plan.',
-    status: 'No response',
-  ),
-  _JourneyEvent(
-    kind: _EventKind.meals,
-    title: '3 meals delivered',
-    date: '3 Jul',
-  ),
-  _JourneyEvent(
-    kind: _EventKind.counselling,
-    title: 'Counselling call scheduled',
-    date: '4 Jul, 8:00 PM',
-    subtitle: 'Review your progress with your nutritionist.',
-    status: 'Scheduled',
-    hasMeetLink: true,
-  ),
-  _JourneyEvent(
-    kind: _EventKind.renewal,
-    title: 'Plan renewal',
-    date: '19 Jul',
-    subtitle: 'Renew to keep your meals and counselling going.',
-  ),
-];
+class _TimelineContent extends StatelessWidget {
+  const _TimelineContent({required this.timeline});
 
-class _JourneyTab extends ConsumerWidget {
-  const _JourneyTab({required this.subscriptionId});
-
-  final String subscriptionId;
+  final SubscriptionTimeline timeline;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // No id (e.g. opened without an active sub) → keep the placeholder timeline.
-    if (subscriptionId.isEmpty) {
-      return _timeline(_kJourneyEvents);
-    }
+  Widget build(BuildContext context) {
+    final steps = timeline.steps;
+    final days = timeline.dailyMeals;
 
-    final historyAsync = ref.watch(subscriptionHistoryProvider(subscriptionId));
-    return historyAsync.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: AppColors.primaryGreen),
-      ),
-      error: (_, __) => _timeline(_kJourneyEvents),
-      data: (events) {
-        if (events.isEmpty) return _timeline(const []);
-        final mapped =
-            events.map(_JourneyEvent.fromMap).toList(growable: false);
-        return _timeline(mapped);
-      },
-    );
-  }
-
-  Widget _timeline(List<_JourneyEvent> events) {
-    return ListView.builder(
+    return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSizes.screenPaddingHorizontal,
         AppSizes.spacing16,
         AppSizes.screenPaddingHorizontal,
         AppSizes.spacing32,
       ),
-      // +1 leading slot for the cancellation-policy banner.
-      itemCount: events.length + 1,
-      itemBuilder: (context, index) {
-        if (index == 0) return const _CancellationPolicyBanner();
-        final i = index - 1;
-        return _TimelineTile(
-          event: events[i],
-          isFirst: i == 0,
-          isLast: i == events.length - 1,
-        );
-      },
+      children: [
+       // const _CancellationPolicyBanner(),
+        if (timeline.subscription != null)
+          _TimelineSummaryCard(subscription: timeline.subscription!),
+        if (steps.isNotEmpty) ...[
+          const SizedBox(height: AppSizes.spacing20),
+          const _SectionHeader('Your journey'),
+          const SizedBox(height: AppSizes.spacing12),
+          for (var i = 0; i < steps.length; i++)
+            _TimelineStepTile(
+              step: steps[i],
+              isFirst: i == 0,
+              isLast: i == steps.length - 1,
+            ),
+        ],
+        if (days.isNotEmpty) ...[
+          const SizedBox(height: AppSizes.spacing20),
+          const _SectionHeader('Daily meals'),
+          const SizedBox(height: AppSizes.spacing12),
+          for (final day in days) _DailyMealsCard(day: day),
+        ],
+        if (steps.isEmpty && days.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: AppSizes.spacing32),
+            child: _CenterMessage(
+              icon: Icons.timeline_rounded,
+              message: 'Your journey timeline will appear here.',
+            ),
+          ),
+      ],
     );
   }
 }
 
-class _CancellationPolicyBanner extends StatelessWidget {
-  const _CancellationPolicyBanner();
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader(this.title);
+
+  final String title;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSizes.spacing16),
-      padding: const EdgeInsets.all(AppSizes.spacing12),
-      decoration: BoxDecoration(
-        color: _kAccentBg,
-        borderRadius: BorderRadius.circular(AppSizes.radius12),
-        border:
-            Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.4)),
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: AppTypography.fontSize16,
+        fontWeight: AppTypography.bold,
+        color: AppColors.textPrimary,
+        fontFamily: 'Lato',
       ),
-      child: const Row(
+    );
+  }
+}
+
+
+/// Gradient hero summarising the active subscription.
+class _TimelineSummaryCard extends StatelessWidget {
+  const _TimelineSummaryCard({required this.subscription});
+
+  final TimelineSubscription subscription;
+
+  @override
+  Widget build(BuildContext context) {
+    final range = _dateRangeLabel(subscription.startDate, subscription.endDate);
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spacing16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.darkGreen, AppColors.primaryGreen],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(AppSizes.radius16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded,
-              size: AppSizes.icon18, color: _kAccent),
-          SizedBox(width: AppSizes.spacing10),
-          Expanded(
-            child: Text(
-              'You can only cancel orders before 8:00 PM for the next day.',
-              style: TextStyle(
-                fontSize: AppTypography.fontSize12,
-                color: Color(0xFF795548),
-                height: 1.4,
-                fontFamily: 'Lato',
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  subscription.planName.isEmpty
+                      ? 'Your Plan'
+                      : subscription.planName,
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize18,
+                    fontWeight: AppTypography.bold,
+                    color: Colors.white,
+                    fontFamily: 'Lato',
+                  ),
+                ),
               ),
+              _StatusPill(subscription.status),
+            ],
+          ),
+          if (range != null) ...[
+            const SizedBox(height: AppSizes.spacing8),
+            Row(
+              children: [
+                const Icon(Icons.date_range_rounded,
+                    size: AppSizes.icon16, color: Colors.white70),
+                const SizedBox(width: 6),
+                Text(
+                  range,
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    color: Colors.white70,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: AppSizes.spacing12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.hourglass_bottom_rounded,
+                    size: AppSizes.icon16, color: Colors.white),
+                const SizedBox(width: 6),
+                Text(
+                  '${subscription.remainingDays} '
+                  '${subscription.remainingDays == 1 ? 'day' : 'days'} remaining',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize13,
+                    fontWeight: AppTypography.bold,
+                    color: Colors.white,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -564,38 +534,25 @@ class _CancellationPolicyBanner extends StatelessWidget {
   }
 }
 
-/// One timeline row: a node + connecting rails on the left, a content card on
-/// the right. Visuals (icon/colour) are derived from the event kind.
-class _TimelineTile extends StatelessWidget {
-  const _TimelineTile({
-    required this.event,
+/// One journey step: a status-coloured node + rails on the left, a card right.
+class _TimelineStepTile extends StatelessWidget {
+  const _TimelineStepTile({
+    required this.step,
     required this.isFirst,
     required this.isLast,
   });
 
-  final _JourneyEvent event;
+  final TimelineStep step;
   final bool isFirst;
   final bool isLast;
 
-  ({IconData icon, Color color}) get _visual {
-    switch (event.kind) {
-      case _EventKind.counselling:
-        return (
-          icon: Icons.headset_mic_rounded,
-          color: const Color(0xFF2E7CF6)
-        );
-      case _EventKind.journeyStart:
-        return (icon: Icons.flag_rounded, color: AppColors.primaryGreen);
-      case _EventKind.meals:
-        return (icon: Icons.restaurant_rounded, color: AppColors.primaryGreen);
-      case _EventKind.renewal:
-        return (icon: Icons.autorenew_rounded, color: _kAccent);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final v = _visual;
+    final v = _timelineStatusVisual(step.status);
+    final solid = step.status == TimelineStatus.completed ||
+        step.status == TimelineStatus.active;
+    final dateStr = step.date != null ? convertMongoUtcToIst(step.date!) : '';
+
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -616,11 +573,13 @@ class _TimelineTile extends StatelessWidget {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: v.color.withValues(alpha: 0.12),
+                    color: solid ? v.color : v.color.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
-                    border: Border.all(color: v.color.withValues(alpha: 0.5)),
+                    border: Border.all(
+                        color: v.color.withValues(alpha: solid ? 1 : 0.5)),
                   ),
-                  child: Icon(v.icon, size: 16, color: v.color),
+                  child: Icon(v.icon,
+                      size: 16, color: solid ? Colors.white : v.color),
                 ),
                 Expanded(
                   child: Container(
@@ -660,7 +619,7 @@ class _TimelineTile extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            event.title,
+                            step.name,
                             style: const TextStyle(
                               fontSize: AppTypography.fontSize14,
                               fontWeight: AppTypography.bold,
@@ -669,35 +628,20 @@ class _TimelineTile extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (event.status != null)
-                          _StatusChip(label: event.status!),
+                        _TimelineStatusChip(step.status),
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      event.date,
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize10,
-                        fontWeight: AppTypography.semiBold,
-                        color: v.color,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                    if (event.subtitle != null) ...[
-                      const SizedBox(height: AppSizes.spacing6),
+                    if (dateStr.isNotEmpty) ...[
+                      const SizedBox(height: 2),
                       Text(
-                        event.subtitle!,
+                        dateStr,
                         style: TextStyle(
-                          fontSize: AppTypography.fontSize12,
-                          color: AppColors.textSecondary.withValues(alpha: 0.9),
-                          height: 1.35,
+                          fontSize: AppTypography.fontSize10,
+                          fontWeight: AppTypography.semiBold,
+                          color: v.color,
                           fontFamily: 'Lato',
                         ),
                       ),
-                    ],
-                    if (event.hasMeetLink) ...[
-                      const SizedBox(height: AppSizes.spacing10),
-                      _MeetLinkButton(),
                     ],
                   ],
                 ),
@@ -710,27 +654,118 @@ class _TimelineTile extends StatelessWidget {
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.label});
+/// A day's confirmed/planned meals grouped under its date.
+class _DailyMealsCard extends StatelessWidget {
+  const _DailyMealsCard({required this.day});
 
-  final String label;
-
-  Color get _color {
-    switch (label.toLowerCase()) {
-      case 'scheduled':
-        return AppColors.primaryGreen;
-      case 'pending':
-        return _kAccent;
-      case 'no response':
-        return AppColors.errorColor;
-      default:
-        return AppColors.textSecondary;
-    }
-  }
+  final TimelineDay day;
 
   @override
   Widget build(BuildContext context) {
-    final c = _color;
+    final label = _dayLabel(day.parsedDate) ?? day.date;
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSizes.spacing12),
+      padding: const EdgeInsets.all(AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border: Border.all(color: AppColors.borderColor.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.calendar_today_rounded,
+                  size: 14, color: AppColors.primaryGreen),
+              const SizedBox(width: AppSizes.spacing8),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize13,
+                  fontWeight: AppTypography.bold,
+                  color: AppColors.textPrimary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSizes.spacing8),
+          for (var i = 0; i < day.meals.length; i++) ...[
+            if (i > 0)
+              Divider(
+                  height: AppSizes.spacing16,
+                  color: AppColors.borderColor.withValues(alpha: 0.4)),
+            _MealRow(meal: day.meals[i]),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MealRow extends StatelessWidget {
+  const _MealRow({required this.meal});
+
+  final TimelineMeal meal;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppColors.primaryGreen.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+          ),
+          child: Icon(_slotIcon(meal.slot),
+              size: AppSizes.icon16, color: AppColors.primaryGreen),
+        ),
+        const SizedBox(width: AppSizes.spacing12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                meal.slot,
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.semiBold,
+                  color: AppColors.textPrimary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              if (meal.slotTime.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  meal.slotTime,
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    color: AppColors.textSecondary.withValues(alpha: 0.9),
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        _TimelineStatusChip(meal.status),
+      ],
+    );
+  }
+}
+
+/// Status chip driven by [TimelineStatus] (hidden for unknown).
+class _TimelineStatusChip extends StatelessWidget {
+  const _TimelineStatusChip(this.status);
+
+  final TimelineStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    if (status.label.isEmpty) return const SizedBox.shrink();
+    final c = _timelineStatusVisual(status).color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -738,7 +773,7 @@ class _StatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSizes.radius20),
       ),
       child: Text(
-        label,
+        status.label,
         style: TextStyle(
           fontSize: 10,
           fontWeight: AppTypography.bold,
@@ -750,43 +785,83 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-class _MeetLinkButton extends StatelessWidget {
+/// Translucent status pill for the (dark) summary card.
+class _StatusPill extends StatelessWidget {
+  const _StatusPill(this.status);
+
+  final String status;
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      // Wired to the actual meet URL during API integration.
-      onTap: () {},
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSizes.spacing12,
-          vertical: AppSizes.spacing6,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.primaryGreen.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(AppSizes.radius8),
-          border:
-              Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.videocam_rounded,
-                size: 16, color: AppColors.primaryGreen),
-            SizedBox(width: AppSizes.spacing6),
-            Text(
-              'Join meeting',
-              style: TextStyle(
-                fontSize: AppTypography.fontSize12,
-                fontWeight: AppTypography.semiBold,
-                color: AppColors.primaryGreen,
-                fontFamily: 'Lato',
-              ),
-            ),
-          ],
+    if (status.isEmpty) return const SizedBox.shrink();
+    final label = '${status[0].toUpperCase()}${status.substring(1)}';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(AppSizes.radius20),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: AppTypography.bold,
+          color: Colors.white,
+          fontFamily: 'Lato',
         ),
       ),
     );
   }
+}
+
+/// Status → node icon + colour for the journey stepper.
+({IconData icon, Color color}) _timelineStatusVisual(TimelineStatus s) {
+  switch (s) {
+    case TimelineStatus.completed:
+      return (icon: Icons.check_rounded, color: AppColors.primaryGreen);
+    case TimelineStatus.active:
+      return (icon: Icons.play_arrow_rounded, color: const Color(0xFF2E7CF6));
+    case TimelineStatus.pending:
+      return (icon: Icons.hourglass_top_rounded, color: _kAccent);
+    case TimelineStatus.upcoming:
+      return (icon: Icons.schedule_rounded, color: AppColors.textSecondary);
+    case TimelineStatus.rescheduled:
+      return (icon: Icons.event_repeat_rounded, color: const Color(0xFF8E24AA));
+    case TimelineStatus.cancelled:
+      return (icon: Icons.close_rounded, color: AppColors.errorColor);
+    case TimelineStatus.unknown:
+      return (icon: Icons.circle_outlined, color: AppColors.textSecondary);
+  }
+}
+
+IconData _slotIcon(String slot) {
+  final s = slot.toLowerCase();
+  if (s.contains('morning')) return Icons.wb_sunny_rounded;
+  if (s.contains('afternoon')) return Icons.wb_twilight_rounded;
+  if (s.contains('night') || s.contains('evening')) {
+    return Icons.nightlight_round;
+  }
+  return Icons.local_shipping_rounded;
+}
+
+/// "Fri, 3 Jul" for a date-only value (null-safe).
+String? _dayLabel(DateTime? d) {
+  if (d == null) return null;
+  return '${_kWeekdayShort[d.weekday - 1]}, ${d.day} ${_kMonthLong[d.month - 1].substring(0, 3)}';
+}
+
+/// "2 Jul – 13 Jul" from UTC start/end, shown in IST.
+String? _dateRangeLabel(DateTime? start, DateTime? end) {
+  DateTime ist(DateTime d) =>
+      d.toUtc().add(const Duration(hours: 5, minutes: 30));
+  String fmt(DateTime d) {
+    final i = ist(d);
+    return '${i.day} ${_kMonthLong[i.month - 1].substring(0, 3)}';
+  }
+
+  if (start == null && end == null) return null;
+  if (start != null && end != null) return '${fmt(start)} – ${fmt(end)}';
+  return fmt((start ?? end)!);
 }
 
 // ─── Shared date helpers ──────────────────────────────────────────────────────
