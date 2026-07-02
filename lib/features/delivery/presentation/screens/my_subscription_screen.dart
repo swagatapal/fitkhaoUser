@@ -10,6 +10,7 @@ import '../../../../core/utils/time_converter.dart';
 import '../../../dashboard/models/meal_plan_model.dart';
 import '../../../dashboard/providers/meal_plan_provider.dart';
 import '../../models/delivery_slot_model.dart';
+import '../../providers/confirmed_slots_provider.dart';
 import '../../providers/delivery_slot_confirm_provider.dart';
 import '../../providers/delivery_slot_list_provider.dart';
 import '../../providers/selected_address_provider.dart';
@@ -196,8 +197,8 @@ class _InvoiceButtonState extends ConsumerState<_InvoiceButton> {
       // Prefer a direct invoice URL when the backend provides one.
       final url = _firstUrl(data);
       if (url != null) {
-        final launched =
-            await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        final launched = await launchUrl(Uri.parse(url),
+            mode: LaunchMode.externalApplication);
         if (!launched && mounted) {
           messenger.showSnackBar(const SnackBar(
             content: Text('Could not open the invoice.'),
@@ -382,7 +383,8 @@ class _JourneyEvent {
       return null;
     }
 
-    final type = (str(['type', 'event', 'eventType', 'kind']) ?? '').toLowerCase();
+    final type =
+        (str(['type', 'event', 'eventType', 'kind']) ?? '').toLowerCase();
     _EventKind kind;
     if (type.contains('counsel') || type.contains('call')) {
       kind = _EventKind.counselling;
@@ -537,11 +539,13 @@ class _CancellationPolicyBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kAccentBg,
         borderRadius: BorderRadius.circular(AppSizes.radius12),
-        border: Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.4)),
+        border:
+            Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.4)),
       ),
       child: const Row(
         children: [
-          Icon(Icons.info_outline_rounded, size: AppSizes.icon18, color: _kAccent),
+          Icon(Icons.info_outline_rounded,
+              size: AppSizes.icon18, color: _kAccent),
           SizedBox(width: AppSizes.spacing10),
           Expanded(
             child: Text(
@@ -576,7 +580,10 @@ class _TimelineTile extends StatelessWidget {
   ({IconData icon, Color color}) get _visual {
     switch (event.kind) {
       case _EventKind.counselling:
-        return (icon: Icons.headset_mic_rounded, color: const Color(0xFF2E7CF6));
+        return (
+          icon: Icons.headset_mic_rounded,
+          color: const Color(0xFF2E7CF6)
+        );
       case _EventKind.journeyStart:
         return (icon: Icons.flag_rounded, color: AppColors.primaryGreen);
       case _EventKind.meals:
@@ -662,7 +669,8 @@ class _TimelineTile extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (event.status != null) _StatusChip(label: event.status!),
+                        if (event.status != null)
+                          _StatusChip(label: event.status!),
                       ],
                     ),
                     const SizedBox(height: 2),
@@ -785,8 +793,18 @@ class _MeetLinkButton extends StatelessWidget {
 
 const _kWeekdayShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const _kMonthLong = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
@@ -801,10 +819,16 @@ String _apiDate(DateTime d) =>
     case 'lunch':
       return (icon: Icons.lunch_dining_rounded, color: _kAccent);
     case 'dinner':
-      return (icon: Icons.dinner_dining_rounded, color: const Color(0xFF6A1B9A));
+      return (
+        icon: Icons.dinner_dining_rounded,
+        color: const Color(0xFF6A1B9A)
+      );
     case 'snacks':
     case 'snack':
-      return (icon: Icons.bakery_dining_rounded, color: const Color(0xFF1976D2));
+      return (
+        icon: Icons.bakery_dining_rounded,
+        color: const Color(0xFF1976D2)
+      );
     default: // breakfast / anything else
       return (
         icon: Icons.free_breakfast_rounded,
@@ -887,9 +911,8 @@ class _DietChartTabState extends ConsumerState<_DietChartTab>
         days.firstWhere((d) => _dateOnly(d.date) == selectedDate);
 
     final meals = selectedDay.meals.where((m) => m.dishes.isNotEmpty).toList()
-      ..sort((a, b) =>
-          _categoryOrder(a.category.dishCategory)
-              .compareTo(_categoryOrder(b.category.dishCategory)));
+      ..sort((a, b) => _categoryOrder(a.category.dishCategory)
+          .compareTo(_categoryOrder(b.category.dishCategory)));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -900,8 +923,10 @@ class _DietChartTabState extends ConsumerState<_DietChartTab>
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.fromLTRB(
-                AppSizes.screenPaddingHorizontal, AppSizes.spacing8,
-                AppSizes.screenPaddingHorizontal, AppSizes.spacing8),
+                AppSizes.screenPaddingHorizontal,
+                AppSizes.spacing8,
+                AppSizes.screenPaddingHorizontal,
+                AppSizes.spacing8),
             itemCount: days.length,
             separatorBuilder: (_, __) =>
                 const SizedBox(width: AppSizes.spacing8),
@@ -913,7 +938,8 @@ class _DietChartTabState extends ConsumerState<_DietChartTab>
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
                   width: 56,
-                  padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing8),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: AppSizes.spacing8),
                   decoration: BoxDecoration(
                     color: selected ? AppColors.primaryGreen : Colors.white,
                     borderRadius: BorderRadius.circular(AppSizes.radius8),
@@ -943,7 +969,8 @@ class _DietChartTabState extends ConsumerState<_DietChartTab>
                         style: TextStyle(
                           fontSize: AppTypography.fontSize15,
                           fontWeight: AppTypography.bold,
-                          color: selected ? Colors.white : AppColors.textPrimary,
+                          color:
+                              selected ? Colors.white : AppColors.textPrimary,
                           fontFamily: 'Lato',
                         ),
                       ),
@@ -958,8 +985,10 @@ class _DietChartTabState extends ConsumerState<_DietChartTab>
         Expanded(
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(
-                AppSizes.screenPaddingHorizontal, AppSizes.spacing8,
-                AppSizes.screenPaddingHorizontal, AppSizes.spacing32),
+                AppSizes.screenPaddingHorizontal,
+                AppSizes.spacing8,
+                AppSizes.screenPaddingHorizontal,
+                AppSizes.spacing32),
             itemCount: meals.length,
             separatorBuilder: (_, __) =>
                 const SizedBox(height: AppSizes.spacing16),
@@ -1180,9 +1209,26 @@ class _PlanManagerTabState extends ConsumerState<_PlanManagerTab>
       if (m.dishes.isEmpty) continue;
       if (seen.add(m.category.id)) result.add(m.category);
     }
-    result.sort((a, b) =>
-        _categoryOrder(a.dishCategory).compareTo(_categoryOrder(b.dishCategory)));
+    result.sort((a, b) => _categoryOrder(a.dishCategory)
+        .compareTo(_categoryOrder(b.dishCategory)));
     return result;
+  }
+
+  /// Routes a date tap: already-confirmed dates open the read-only/cancel
+  /// sheet; everything else opens the slot picker.
+  Future<void> _openDate(DateTime date) async {
+    final key = _dateOnly(date);
+    final confirmed = ref.read(confirmedSlotsProvider).valueOrNull?[key];
+    if (confirmed != null) {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _ConfirmedSlotsSheet(date: key),
+      );
+    } else {
+      await _openSlotPicker(key);
+    }
   }
 
   Future<void> _openSlotPicker(DateTime date) async {
@@ -1264,6 +1310,16 @@ class _PlanManagerTabState extends ConsumerState<_PlanManagerTab>
           ),
         );
     if (!mounted) return;
+    if (ok) {
+      // Submitted dates now live server-side; drop the local drafts and
+      // re-sync the confirmed calendar.
+      setState(() {
+        for (final date in dates) {
+          _slotsByDate.remove(date);
+        }
+      });
+      ref.invalidate(confirmedSlotsProvider);
+    }
     final message = ref.read(deliverySlotConfirmProvider).message;
     messenger.showSnackBar(SnackBar(
       content: Text(message ??
@@ -1309,6 +1365,14 @@ class _PlanManagerTabState extends ConsumerState<_PlanManagerTab>
       );
     }
 
+    // Slots already confirmed server-side (best-effort; absent while loading
+    // or on error — the date simply isn't marked locked-in).
+    final confirmedDates = (ref.watch(confirmedSlotsProvider).valueOrNull ??
+            const <DateTime, ConfirmedSlotDay>{})
+        .keys
+        .where(categoryCountByDate.containsKey)
+        .toSet();
+
     // Per-date completion: how many of its categories already have a slot.
     final status = <DateTime, ({int chosen, int total})>{
       for (final e in categoryCountByDate.entries)
@@ -1317,15 +1381,17 @@ class _PlanManagerTabState extends ConsumerState<_PlanManagerTab>
 
     // Distinct months spanning the plan, in order.
     final months = (categoryCountByDate.keys
-            .map((d) => DateTime(d.year, d.month))
-            .toSet()
-            .toList())
+        .map((d) => DateTime(d.year, d.month))
+        .toSet()
+        .toList())
       ..sort();
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
-          AppSizes.screenPaddingHorizontal, AppSizes.spacing16,
-          AppSizes.screenPaddingHorizontal, AppSizes.spacing32),
+          AppSizes.screenPaddingHorizontal,
+          AppSizes.spacing16,
+          AppSizes.screenPaddingHorizontal,
+          AppSizes.spacing32),
       children: [
         const Text(
           'Delivery schedule',
@@ -1338,19 +1404,23 @@ class _PlanManagerTabState extends ConsumerState<_PlanManagerTab>
         ),
         const SizedBox(height: 2),
         Text(
-          'Tap a highlighted date to choose its delivery slot.',
+          'Tap a date to pick its slots. Confirmed dates show a lock — tap to '
+          'review or cancel.',
           style: TextStyle(
             fontSize: AppTypography.fontSize12,
             color: AppColors.textSecondary.withValues(alpha: 0.8),
             fontFamily: 'Lato',
           ),
         ),
+        const SizedBox(height: AppSizes.spacing12),
+        const _CouponHintBanner(),
         const SizedBox(height: AppSizes.spacing16),
         for (final m in months)
           _MonthCalendar(
             month: m,
             status: status,
-            onTapDate: _openSlotPicker,
+            confirmedDates: confirmedDates,
+            onTapDate: _openDate,
           ),
         const SizedBox(height: AppSizes.spacing8),
         const _CalendarLegend(),
@@ -1360,10 +1430,13 @@ class _PlanManagerTabState extends ConsumerState<_PlanManagerTab>
     );
   }
 
-  /// Sticky-looking CTA that submits every date with a chosen slot.
+  /// Sticky-looking CTA that submits every not-yet-confirmed date with a slot.
   Widget _buildConfirmButton() {
-    final scheduledDays =
-        _slotsByDate.values.where((m) => m.isNotEmpty).length;
+    final confirmed = ref.watch(confirmedSlotsProvider).valueOrNull ??
+        const <DateTime, ConfirmedSlotDay>{};
+    final scheduledDays = _slotsByDate.entries
+        .where((e) => e.value.isNotEmpty && !confirmed.containsKey(e.key))
+        .length;
     final submitting =
         ref.watch(deliverySlotConfirmProvider.select((s) => s.isSubmitting));
     final enabled = scheduledDays > 0 && !submitting;
@@ -1376,8 +1449,7 @@ class _PlanManagerTabState extends ConsumerState<_PlanManagerTab>
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primaryGreen,
           foregroundColor: Colors.white,
-          disabledBackgroundColor:
-              AppColors.borderColor.withValues(alpha: 0.6),
+          disabledBackgroundColor: AppColors.borderColor.withValues(alpha: 0.6),
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSizes.radius8),
@@ -1411,6 +1483,7 @@ class _MonthCalendar extends StatelessWidget {
   const _MonthCalendar({
     required this.month,
     required this.status,
+    required this.confirmedDates,
     required this.onTapDate,
   });
 
@@ -1418,6 +1491,9 @@ class _MonthCalendar extends StatelessWidget {
 
   /// Active dates → (chosen slots, total meal categories) for that date.
   final Map<DateTime, ({int chosen, int total})> status;
+
+  /// Dates whose slots are already confirmed server-side.
+  final Set<DateTime> confirmedDates;
   final ValueChanged<DateTime> onTapDate;
 
   Widget _cell(DateTime date) {
@@ -1425,6 +1501,7 @@ class _MonthCalendar extends StatelessWidget {
     return _DayCell(
       date: date,
       active: st != null,
+      confirmed: confirmedDates.contains(date),
       complete: st != null && st.chosen >= st.total,
       partial: st != null && st.chosen > 0 && st.chosen < st.total,
       onTap: onTapDate,
@@ -1507,6 +1584,7 @@ class _DayCell extends StatelessWidget {
   const _DayCell({
     required this.date,
     required this.active,
+    required this.confirmed,
     required this.complete,
     required this.partial,
     required this.onTap,
@@ -1514,6 +1592,7 @@ class _DayCell extends StatelessWidget {
 
   final DateTime date;
   final bool active;
+  final bool confirmed; // locked-in server-side (top priority)
   final bool complete; // every category for this date has a slot
   final bool partial; // some (not all) categories have a slot
   final ValueChanged<DateTime> onTap;
@@ -1533,25 +1612,34 @@ class _DayCell extends StatelessWidget {
       );
     }
 
+    // Confirmed beats every local draft state.
+    final filled = confirmed || complete;
+    final whiteFg = confirmed || complete;
+
     return GestureDetector(
       onTap: () => onTap(date),
       child: Container(
         decoration: BoxDecoration(
-          gradient: complete
-              ? const LinearGradient(
-                  colors: [Color(0xFF5D9E40), Color(0xFF7AB655)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color:
-              complete ? null : AppColors.primaryGreen.withValues(alpha: 0.12),
+          gradient: confirmed
+              ? null
+              : complete
+                  ? const LinearGradient(
+                      colors: [Color(0xFF5D9E40), Color(0xFF7AB655)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+          color: confirmed
+              ? AppColors.darkGreen
+              : complete
+                  ? null
+                  : AppColors.primaryGreen.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(AppSizes.radius8),
           border: Border.all(
-            color: partial
+            color: partial && !confirmed
                 ? _kAccent
-                : AppColors.primaryGreen.withValues(alpha: complete ? 0 : 0.5),
-            width: partial ? 1.5 : 1,
+                : AppColors.primaryGreen.withValues(alpha: filled ? 0 : 0.5),
+            width: partial && !confirmed ? 1.5 : 1,
           ),
         ),
         child: Stack(
@@ -1562,11 +1650,16 @@ class _DayCell extends StatelessWidget {
               style: TextStyle(
                 fontSize: AppTypography.fontSize13,
                 fontWeight: AppTypography.bold,
-                color: complete ? Colors.white : AppColors.primaryGreen,
+                color: whiteFg ? Colors.white : AppColors.primaryGreen,
                 fontFamily: 'Lato',
               ),
             ),
-            if (complete)
+            if (confirmed)
+              const Positioned(
+                bottom: 3,
+                child: Icon(Icons.lock_rounded, size: 9, color: Colors.white),
+              )
+            else if (complete)
               const Positioned(
                 bottom: 3,
                 child: Icon(Icons.check_circle_rounded,
@@ -1599,7 +1692,8 @@ class _CalendarLegend extends StatelessWidget {
                 ? const LinearGradient(
                     colors: [Color(0xFF5D9E40), Color(0xFF7AB655)])
                 : null,
-            border: border != null ? Border.all(color: border, width: 1.5) : null,
+            border:
+                border != null ? Border.all(color: border, width: 1.5) : null,
             borderRadius: BorderRadius.circular(4),
           ),
         );
@@ -1627,7 +1721,65 @@ class _CalendarLegend extends StatelessWidget {
                 border: _kAccent),
             'Partly set'),
         item(swatch(gradient: true), 'All set'),
+        item(swatch(color: AppColors.darkGreen), 'Confirmed'),
       ],
+    );
+  }
+}
+
+/// Friendly nudge that confirming slots unlocks a coupon.
+class _CouponHintBanner extends StatelessWidget {
+  const _CouponHintBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.spacing12, vertical: AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: _kAccentBg,
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border: Border.all(color: _kAccent.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _kAccent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+            ),
+            child: const Icon(Icons.local_offer_rounded,
+                color: _kAccent, size: AppSizes.icon20),
+          ),
+          const SizedBox(width: AppSizes.spacing12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Earn a coupon!',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize13,
+                    fontWeight: AppTypography.bold,
+                    color: _kAccent,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  'If you cancel your order you will get a coupon on your next outlet order.',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize10,
+                    color: AppColors.textSecondary.withValues(alpha: 0.9),
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1685,7 +1837,8 @@ class _SlotPickerSheetState extends ConsumerState<_SlotPickerSheet> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.85,
       ),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
         top: false,
         child: Column(
@@ -1724,7 +1877,8 @@ class _SlotPickerSheetState extends ConsumerState<_SlotPickerSheet> {
                           dateLabel,
                           style: TextStyle(
                             fontSize: AppTypography.fontSize12,
-                            color: AppColors.textSecondary.withValues(alpha: 0.9),
+                            color:
+                                AppColors.textSecondary.withValues(alpha: 0.9),
                             fontFamily: 'Lato',
                           ),
                         ),
@@ -1806,7 +1960,9 @@ class _SlotPickerSheetState extends ConsumerState<_SlotPickerSheet> {
                     ),
                   ),
                   child: Text(
-                    _allChosen ? 'Confirm slots' : 'Select a slot for each meal',
+                    _allChosen
+                        ? 'Confirm slots'
+                        : 'Select a slot for each meal',
                     style: const TextStyle(
                       fontSize: AppTypography.fontSize14,
                       fontWeight: AppTypography.bold,
@@ -1868,8 +2024,7 @@ class _CategorySlotSection extends StatelessWidget {
             const Spacer(),
             if (selectedId == null)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: _kAccentBg,
                   borderRadius: BorderRadius.circular(AppSizes.radius4),
@@ -1926,8 +2081,9 @@ class _SlotOptionTile extends StatelessWidget {
           color: selected ? accent.withValues(alpha: 0.06) : Colors.white,
           borderRadius: BorderRadius.circular(AppSizes.radius8),
           border: Border.all(
-            color:
-                selected ? accent : AppColors.borderColor.withValues(alpha: 0.6),
+            color: selected
+                ? accent
+                : AppColors.borderColor.withValues(alpha: 0.6),
             width: selected ? 1.5 : 1,
           ),
         ),
@@ -1966,6 +2122,368 @@ class _SlotOptionTile extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Read-only view of a date's already-confirmed slots, with per-slot
+/// cancellation (POST /api/orders/cancel/:orderId). Watches the confirmed-slots
+/// provider so a successful cancel updates the list live.
+class _ConfirmedSlotsSheet extends ConsumerStatefulWidget {
+  const _ConfirmedSlotsSheet({required this.date});
+
+  final DateTime date;
+
+  @override
+  ConsumerState<_ConfirmedSlotsSheet> createState() =>
+      _ConfirmedSlotsSheetState();
+}
+
+class _ConfirmedSlotsSheetState extends ConsumerState<_ConfirmedSlotsSheet> {
+  String? _cancellingOrderId;
+
+  Future<void> _cancel(ConfirmedSlotEntry entry) async {
+    if (entry.orderId.isEmpty) return;
+    final reason = await _askReason(entry);
+    if (reason == null || !mounted) return;
+
+    setState(() => _cancellingOrderId = entry.orderId);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final res = await ref
+          .read(orderRepositoryProvider)
+          .cancelOrder(orderId: entry.orderId, reason: reason);
+      if (!mounted) return;
+      setState(() => _cancellingOrderId = null);
+      final ok = res['success'] == true;
+      if (ok) ref.invalidate(confirmedSlotsProvider);
+      messenger.showSnackBar(SnackBar(
+        content: Text(ok
+            ? '${entry.slotName} slot cancelled.'
+            : (res['message'] as String?) ?? 'Could not cancel this slot.'),
+        backgroundColor: ok ? AppColors.primaryGreen : AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _cancellingOrderId = null);
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Could not cancel this slot. Please try again.'),
+        backgroundColor: AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
+  Future<String?> _askReason(ConfirmedSlotEntry entry) {
+    final controller = TextEditingController(text: "Don't want this slot");
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel slot?',
+            style:
+                TextStyle(fontFamily: 'Lato', fontWeight: AppTypography.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Cancel the ${entry.slotName} slot (${entry.timeRange})?',
+              style: const TextStyle(fontFamily: 'Lato'),
+            ),
+            const SizedBox(height: AppSizes.spacing12),
+            TextField(
+              controller: controller,
+              minLines: 1,
+              maxLines: 2,
+              style: const TextStyle(
+                  fontFamily: 'Lato', fontSize: AppTypography.fontSize14),
+              decoration: InputDecoration(
+                labelText: 'Reason',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child:
+                const Text('Keep slot', style: TextStyle(fontFamily: 'Lato')),
+          ),
+          TextButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              Navigator.of(ctx).pop(text.isEmpty ? 'Cancelled by user' : text);
+            },
+            child: const Text('Cancel slot',
+                style:
+                    TextStyle(fontFamily: 'Lato', color: AppColors.errorColor)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final day = ref.watch(confirmedSlotsProvider).valueOrNull?[widget.date];
+    final slots = day?.slots ?? const <ConfirmedSlotEntry>[];
+    final dateLabel =
+        '${_kWeekdayShort[widget.date.weekday - 1]}, ${widget.date.day} ${_kMonthLong[widget.date.month - 1]}';
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 4),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.verified_rounded,
+                      color: AppColors.darkGreen, size: AppSizes.icon20),
+                  const SizedBox(width: AppSizes.spacing8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Confirmed slots',
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize18,
+                            fontWeight: AppTypography.bold,
+                            color: AppColors.textPrimary,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                        Text(
+                          dateLabel,
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize12,
+                            color:
+                                AppColors.textSecondary.withValues(alpha: 0.9),
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(Icons.close_rounded,
+                        size: AppSizes.icon20, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            if (slots.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(AppSizes.spacing24),
+                child: Text('No confirmed slots for this date.',
+                    style: TextStyle(fontFamily: 'Lato')),
+              )
+            else
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                  itemCount: slots.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: AppSizes.spacing12),
+                  itemBuilder: (_, i) => _ConfirmedSlotCard(
+                    entry: slots[i],
+                    cancelling: _cancellingOrderId == slots[i].orderId,
+                    busy: _cancellingOrderId != null,
+                    onCancel: () => _cancel(slots[i]),
+                  ),
+                ),
+              ),
+            const SizedBox(height: AppSizes.spacing8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A single confirmed slot row with its categories and a cancel action.
+class _ConfirmedSlotCard extends StatelessWidget {
+  const _ConfirmedSlotCard({
+    required this.entry,
+    required this.cancelling,
+    required this.busy,
+    required this.onCancel,
+  });
+
+  final ConfirmedSlotEntry entry;
+  final bool cancelling;
+  final bool busy;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final cancelled = entry.isCancelled;
+    final visual = entry.categories.isNotEmpty
+        ? _categoryVisual(entry.categories.first.dishCategory)
+        : (icon: Icons.local_shipping_rounded, color: AppColors.primaryGreen);
+    final iconColor = cancelled ? AppColors.textTertiary : visual.color;
+
+    return Opacity(
+      opacity: cancelled ? 0.65 : 1,
+      child: Container(
+        padding: const EdgeInsets.all(AppSizes.spacing12),
+        decoration: BoxDecoration(
+          color: cancelled
+              ? AppColors.borderColor.withValues(alpha: 0.12)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+          border:
+              Border.all(color: AppColors.borderColor.withValues(alpha: 0.6)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                  child: Icon(visual.icon,
+                      size: AppSizes.icon16, color: iconColor),
+                ),
+                const SizedBox(width: AppSizes.spacing8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.slotName,
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize14,
+                          fontWeight: AppTypography.semiBold,
+                          color: AppColors.textPrimary,
+                          fontFamily: 'Lato',
+                          decoration:
+                              cancelled ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        entry.timeRange,
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          color: AppColors.textSecondary.withValues(alpha: 0.9),
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (cancelled)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.errorColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppSizes.radius4),
+                    ),
+                    child: const Text(
+                      'Order Cancelled by you ',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize10,
+                        fontWeight: AppTypography.bold,
+                        color: AppColors.errorColor,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  )
+                else if (cancelling)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.errorColor),
+                    ),
+                  )
+                else
+                  TextButton.icon(
+                    onPressed: busy ? null : onCancel,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.errorColor,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon:
+                        const Icon(Icons.close_rounded, size: AppSizes.icon16),
+                    label: const Text('Cancel order ',
+                        style: TextStyle(
+                            fontFamily: 'Lato',
+                            fontSize: AppTypography.fontSize12,
+                            fontWeight: AppTypography.semiBold)),
+                  ),
+              ],
+            ),
+            if (entry.categories.isNotEmpty) ...[
+              const SizedBox(height: AppSizes.spacing8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final c in entry.categories)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _categoryVisual(c.dishCategory)
+                            .color
+                            .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(AppSizes.radius4),
+                      ),
+                      child: Text(
+                        c.dishCategory,
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize10,
+                          fontWeight: AppTypography.semiBold,
+                          color: _categoryVisual(c.dishCategory).color,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -2014,7 +2532,8 @@ class _CenterMessage extends StatelessWidget {
                   foregroundColor: AppColors.primaryGreen,
                   side: const BorderSide(color: AppColors.primaryGreen),
                 ),
-                child: const Text('Retry', style: TextStyle(fontFamily: 'Lato')),
+                child:
+                    const Text('Retry', style: TextStyle(fontFamily: 'Lato')),
               ),
             ],
           ],

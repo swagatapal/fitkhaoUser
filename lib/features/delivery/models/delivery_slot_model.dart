@@ -421,3 +421,138 @@ class ConfirmDeliveryDate {
           'deliveryAddressId': deliveryAddressId,
       };
 }
+
+// ── Already-confirmed slots (GET /api/delivery-slots/confirm) ──
+
+class ConfirmedSlotsResponse {
+  final bool success;
+  final String message;
+  final ConfirmedSlotsData? data;
+
+  const ConfirmedSlotsResponse({
+    required this.success,
+    required this.message,
+    this.data,
+  });
+
+  factory ConfirmedSlotsResponse.fromJson(Map<String, dynamic> json) {
+    return ConfirmedSlotsResponse(
+      success: json['success'] as bool? ?? false,
+      message: json['message'] as String? ?? '',
+      data: json['data'] != null
+          ? ConfirmedSlotsData.fromJson(json['data'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+}
+
+class ConfirmedSlotsData {
+  final int totalConfirmed;
+  final List<ConfirmedSlotDay> confirmedSlots;
+
+  const ConfirmedSlotsData({
+    required this.totalConfirmed,
+    required this.confirmedSlots,
+  });
+
+  factory ConfirmedSlotsData.fromJson(Map<String, dynamic> json) {
+    return ConfirmedSlotsData(
+      totalConfirmed: json['totalConfirmed'] as int? ?? 0,
+      confirmedSlots: (json['confirmedSlots'] as List<dynamic>?)
+              ?.map((e) => ConfirmedSlotDay.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+    );
+  }
+}
+
+/// All confirmed delivery slots for a single date.
+class ConfirmedSlotDay {
+  final String deliveryDate; // YYYY-MM-DD
+  final DateTime? confirmedAt;
+  final List<ConfirmedSlotEntry> slots;
+
+  const ConfirmedSlotDay({
+    required this.deliveryDate,
+    this.confirmedAt,
+    required this.slots,
+  });
+
+  /// Date-only [DateTime] parsed from [deliveryDate] (null if unparseable).
+  DateTime? get date {
+    final p = DateTime.tryParse(deliveryDate);
+    return p == null ? null : DateTime(p.year, p.month, p.day);
+  }
+
+  /// Slots still live (a cancelled slot comes back with a null orderId).
+  bool get hasActiveSlots => slots.any((s) => !s.isCancelled);
+
+  factory ConfirmedSlotDay.fromJson(Map<String, dynamic> json) {
+    return ConfirmedSlotDay(
+      deliveryDate: json['deliveryDate'] as String? ?? '',
+      confirmedAt: json['confirmedAt'] != null
+          ? DateTime.tryParse(json['confirmedAt'] as String)
+          : null,
+      slots: (json['slots'] as List<dynamic>?)
+              ?.map((e) => ConfirmedSlotEntry.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+    );
+  }
+}
+
+/// A single confirmed slot — carries the [orderId] needed to cancel it.
+class ConfirmedSlotEntry {
+  final String slotId;
+  final String slotName;
+  final String slotStartTime;
+  final String slotEndTime;
+  final String orderId;
+  final List<ConfirmedSlotCategory> categories;
+
+  const ConfirmedSlotEntry({
+    required this.slotId,
+    required this.slotName,
+    required this.slotStartTime,
+    required this.slotEndTime,
+    required this.orderId,
+    required this.categories,
+  });
+
+  String get timeRange => '$slotStartTime - $slotEndTime';
+
+  /// A cancelled slot is returned without an orderId.
+  bool get isCancelled => orderId.isEmpty;
+
+  factory ConfirmedSlotEntry.fromJson(Map<String, dynamic> json) {
+    return ConfirmedSlotEntry(
+      slotId: json['slotId'] as String? ?? '',
+      slotName: json['slotName'] as String? ?? '',
+      slotStartTime: json['slotStartTime'] as String? ?? '',
+      slotEndTime: json['slotEndTime'] as String? ?? '',
+      orderId: json['orderId'] as String? ?? '',
+      categories: (json['categories'] as List<dynamic>?)
+              ?.map((e) =>
+                  ConfirmedSlotCategory.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+    );
+  }
+}
+
+class ConfirmedSlotCategory {
+  final String categoryId;
+  final String dishCategory;
+
+  const ConfirmedSlotCategory({
+    required this.categoryId,
+    required this.dishCategory,
+  });
+
+  factory ConfirmedSlotCategory.fromJson(Map<String, dynamic> json) {
+    return ConfirmedSlotCategory(
+      categoryId: json['categoryId'] as String? ?? '',
+      dishCategory: json['dishCategory'] as String? ?? '',
+    );
+  }
+}

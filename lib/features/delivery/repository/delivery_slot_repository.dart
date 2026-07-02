@@ -39,6 +39,31 @@ class DeliverySlotRepository {
     }
   }
 
+  /// GET /api/delivery-slots/confirm — slots already confirmed for the user's
+  /// active subscription (used to mark dates as locked-in in the calendar).
+  Future<ConfirmedSlotsResponse> getConfirmedSlots() async {
+    debugPrint('[DeliverySlotRepository] Fetching confirmed slots...');
+    try {
+      final token = _localStorage.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+            message: 'Authentication required. Please login again.');
+      }
+      final json = await _apiClient.getJson(
+        AppConfig.deliverySlotConfirmPath,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      return ConfirmedSlotsResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[DeliverySlotRepository] Confirmed slots error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
   /// POST /api/delivery-slots/confirm — confirm slots for many dates at once.
   Future<ConfirmDeliverySlotResponse> confirmDeliverySchedule(
       ConfirmDeliveryScheduleRequest request) async {
