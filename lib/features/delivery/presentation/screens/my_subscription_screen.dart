@@ -6,6 +6,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/utils/time_converter.dart';
 import '../../../dashboard/models/meal_plan_model.dart';
 import '../../../dashboard/providers/meal_plan_provider.dart';
@@ -392,6 +393,8 @@ class _TimelineContent extends StatelessWidget {
       ),
       children: [
        // const _CancellationPolicyBanner(),
+        const _HealthProfileButton(),
+        const SizedBox(height: AppSizes.spacing16),
         if (timeline.subscription != null)
           _TimelineSummaryCard(subscription: timeline.subscription!),
         if (steps.isNotEmpty) ...[
@@ -443,6 +446,80 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+
+/// Entry point to the user's detailed health profile, shown above the
+/// subscription summary in the Journey tab.
+class _HealthProfileButton extends StatelessWidget {
+  const _HealthProfileButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        onTap: () => context.push(RouteNames.detailedHealthInfo),
+        child: Container(
+          padding: const EdgeInsets.all(AppSizes.spacing12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppSizes.radius12),
+            border:
+                Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSizes.spacing8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+                child: const Icon(Icons.monitor_heart_rounded,
+                    color: AppColors.primaryGreen, size: AppSizes.icon20),
+              ),
+              const SizedBox(width: AppSizes.spacing12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Health profile',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.bold,
+                        color: AppColors.textPrimary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'View and update your health details',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        color: AppColors.textSecondary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  color: AppColors.primaryGreen, size: AppSizes.icon24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Gradient hero summarising the active subscription.
 class _TimelineSummaryCard extends StatelessWidget {

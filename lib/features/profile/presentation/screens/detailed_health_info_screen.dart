@@ -47,7 +47,8 @@ class _DetailedHealthInfoScreenState
       'constipated'; // constipated, diarrhoeal, both, none
 
   // Goal selection
-  String _selectedGoal = 'fat-loss'; // fat-loss, lean-mass-gain, regular-bmi-maintenance
+  String _selectedGoal =
+      'fat-loss'; // fat-loss, lean-mass-gain, regular-bmi-maintenance
 
   // Controllers
   final TextEditingController _ageController = TextEditingController();
@@ -167,7 +168,8 @@ class _DetailedHealthInfoScreenState
       for (final ex in authState.exercises) {
         final groupId = ex['exerciseGroupId'] as String? ?? '';
         if (groupId.isEmpty) continue;
-        final exMatchList = exerciseGroups.where((g) => g.id == groupId).toList();
+        final exMatchList =
+            exerciseGroups.where((g) => g.id == groupId).toList();
         if (exMatchList.isNotEmpty) {
           final exMatch = exMatchList.first;
           _selectedExerciseTypes.add(exMatch.value);
@@ -220,19 +222,25 @@ class _DetailedHealthInfoScreenState
 
     // Parse optional numeric fields
     final parsedAge = _age.isNotEmpty ? double.tryParse(_age) : null;
-    final parsedHeight = _heightCm.isNotEmpty ? double.tryParse(_heightCm) : null;
-    final parsedWeight = _weightKg.isNotEmpty ? double.tryParse(_weightKg) : null;
+    final parsedHeight =
+        _heightCm.isNotEmpty ? double.tryParse(_heightCm) : null;
+    final parsedWeight =
+        _weightKg.isNotEmpty ? double.tryParse(_weightKg) : null;
     // Build exercises array for new API format [{exerciseGroupId, daysPerWeek, hoursPerDay}]
     final exerciseGroups = ref.read(exerciseProvider).exercises;
     final exercisesList = <Map<String, dynamic>>[];
     if (_doesExercise) {
       for (final exerciseValue in _selectedExerciseTypes) {
-        final matchList = exerciseGroups.where((g) => g.value == exerciseValue).toList();
+        final matchList =
+            exerciseGroups.where((g) => g.value == exerciseValue).toList();
         if (matchList.isNotEmpty) {
           exercisesList.add({
             'exerciseGroupId': matchList.first.id,
-            'daysPerWeek': int.tryParse(_daysPerExercise[exerciseValue] ?? '') ?? 0,
-            'hoursPerDay': double.tryParse(_durationPerExercise[exerciseValue] ?? '') ?? 0.0,
+            'daysPerWeek':
+                int.tryParse(_daysPerExercise[exerciseValue] ?? '') ?? 0,
+            'hoursPerDay':
+                double.tryParse(_durationPerExercise[exerciseValue] ?? '') ??
+                    0.0,
           });
         }
       }
@@ -247,7 +255,10 @@ class _DetailedHealthInfoScreenState
     }
 
     // Save personal info only if we have values
-    if (parsedAge != null || parsedHeight != null || parsedWeight != null || dateOfBirth != null) {
+    if (parsedAge != null ||
+        parsedHeight != null ||
+        parsedWeight != null ||
+        dateOfBirth != null) {
       authNotifier.savePersonalInfo(
         gender: authState.gender.isNotEmpty ? authState.gender : 'male',
         dateOfBirth: dateOfBirth ?? authState.dateOfBirth ?? DateTime.now(),
@@ -260,8 +271,11 @@ class _DetailedHealthInfoScreenState
 
     // Get professionGroupId from the selected activity level
     final professions = ref.read(professionProvider).professions;
-    final selectedProfessionList = professions.where((p) => p.value == _activityLevel).toList();
-    final professionGroupId = selectedProfessionList.isNotEmpty ? selectedProfessionList.first.id : '';
+    final selectedProfessionList =
+        professions.where((p) => p.value == _activityLevel).toList();
+    final professionGroupId = selectedProfessionList.isNotEmpty
+        ? selectedProfessionList.first.id
+        : '';
 
     // Resolve the "General" code — used as the default when nothing is selected
     String generalCode = '';
@@ -359,7 +373,6 @@ class _DetailedHealthInfoScreenState
         body: CustomScrollView(
           slivers: [
             _buildSkeletonSliverAppBar(),
-            _buildSkeletonComingSoonHeader(),
             _buildSkeletonFormContent(),
           ],
         ),
@@ -414,8 +427,6 @@ class _DetailedHealthInfoScreenState
                 ),
               ),
               const SizedBox(width: 8),
-
-              
             ],
             flexibleSpace: FlexibleSpaceBar(
               collapseMode: CollapseMode.parallax,
@@ -423,20 +434,11 @@ class _DetailedHealthInfoScreenState
             ),
           ),
 
-          // ── Pinned Coming Soon banner ──
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _ComingSoonHeaderDelegate(),
-          ),
-
-          // ── Scrollable form content (view-only preview) ──
-          SliverOpacity(
-            opacity: 0.15,
-            sliver: SliverIgnorePointer(
-              sliver: SliverPadding(
-                padding: EdgeInsets.fromLTRB(spacing20, spacing20, spacing20, 0),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
+          // ── Scrollable form content ──
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(spacing20, spacing20, spacing20, 0),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
                 Text(
                   "Select type of Physical Activity",
                   style: TextStyle(
@@ -590,7 +592,8 @@ class _DetailedHealthInfoScreenState
                 // Regular Status Section
                 _buildSectionTitle(AppStrings.areYouRegularly),
                 SizedBox(height: spacing16),
-                _buildRegularStatusOption(AppStrings.constipated, 'constipated'),
+                _buildRegularStatusOption(
+                    AppStrings.constipated, 'constipated'),
                 SizedBox(height: spacing12),
                 _buildRegularStatusOption(AppStrings.diarrhoeal, 'diarrhoeal'),
                 SizedBox(height: spacing12),
@@ -611,7 +614,8 @@ class _DetailedHealthInfoScreenState
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
+                        Icon(Icons.info_outline,
+                            color: Colors.orange.shade700, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -638,8 +642,6 @@ class _DetailedHealthInfoScreenState
                 ),
                 SizedBox(height: context.responsiveSpacing(100.0)),
               ]),
-            ),
-          ),
             ),
           ),
         ],
@@ -691,13 +693,6 @@ class _DetailedHealthInfoScreenState
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildSkeletonComingSoonHeader() {
-    return SliverPersistentHeader(
-      pinned: true,
-      delegate: _SkeletonComingSoonDelegate(),
     );
   }
 
@@ -913,7 +908,7 @@ class _DetailedHealthInfoScreenState
               fontFamily: AppTypography.fontFamily,
             ),
           ),
-          content:  Text(
+          content: Text(
             'Are you sure you want to logout?',
             style: TextStyle(
               fontSize: AppTypography.fontSize14,
@@ -1066,7 +1061,8 @@ class _DetailedHealthInfoScreenState
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppSizes.radius12),
-                child: _uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty
+                child: _uploadedImageUrl != null &&
+                        _uploadedImageUrl!.isNotEmpty
                     ? Image.network(
                         _uploadedImageUrl!,
                         fit: BoxFit.cover,
@@ -1083,10 +1079,13 @@ class _DetailedHealthInfoScreenState
                           );
                         },
                         errorBuilder: (context, error, stackTrace) {
-                          return Image.network("https://i.sstatic.net/l60Hf.png", fit: BoxFit.cover);
+                          return Image.network(
+                              "https://i.sstatic.net/l60Hf.png",
+                              fit: BoxFit.cover);
                         },
                       )
-                    : Image.network("https://i.sstatic.net/l60Hf.png", fit: BoxFit.cover),
+                    : Image.network("https://i.sstatic.net/l60Hf.png",
+                        fit: BoxFit.cover),
               ),
             ),
           ),
@@ -1350,9 +1349,8 @@ class _DetailedHealthInfoScreenState
               isSelected
                   ? Icons.radio_button_checked
                   : Icons.radio_button_unchecked,
-              color: isSelected
-                  ? AppColors.primaryGreen
-                  : AppColors.textSecondary,
+              color:
+                  isSelected ? AppColors.primaryGreen : AppColors.textSecondary,
               size: AppSizes.icon20,
             ),
             SizedBox(width: context.responsiveSpacing(AppSizes.spacing12)),
@@ -1558,8 +1556,7 @@ class _DetailedHealthInfoScreenState
                         )
                       : null,
                 ),
-                SizedBox(
-                    width: context.responsiveSpacing(AppSizes.spacing12)),
+                SizedBox(width: context.responsiveSpacing(AppSizes.spacing12)),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1583,13 +1580,13 @@ class _DetailedHealthInfoScreenState
                           height: 1.4,
                         ),
                       ),
-                    ],          // inner Column children
-                  ),            // inner Column
-                ),              // Expanded
-              ],                // Row children
-            ),                  // Row
-          ),                    // Container
-        ),                      // GestureDetector
+                    ], // inner Column children
+                  ), // inner Column
+                ), // Expanded
+              ], // Row children
+            ), // Row
+          ), // Container
+        ), // GestureDetector
         // Inline days/duration fields — shown when this exercise type is selected
         if (isSelected && daysCtrl != null) ...[
           SizedBox(height: context.responsiveSpacing(12.0)),
@@ -1607,8 +1604,8 @@ class _DetailedHealthInfoScreenState
             maxValue: 24,
           ),
         ],
-      ],                        // outer Column children
-    );                          // Column / return
+      ], // outer Column children
+    ); // Column / return
   }
 
   Widget _buildRegularStatusOption(String label, String value) {
@@ -1631,9 +1628,8 @@ class _DetailedHealthInfoScreenState
               isSelected
                   ? Icons.radio_button_checked
                   : Icons.radio_button_unchecked,
-              color: isSelected
-                  ? AppColors.primaryGreen
-                  : AppColors.textSecondary,
+              color:
+                  isSelected ? AppColors.primaryGreen : AppColors.textSecondary,
               size: AppSizes.icon20,
             ),
             SizedBox(width: context.responsiveSpacing(AppSizes.spacing12)),
@@ -1682,144 +1678,6 @@ class _DetailedHealthInfoScreenState
               fontFamily: 'Lato',
             ),
             textAlign: TextAlign.center,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ComingSoonHeaderDelegate extends SliverPersistentHeaderDelegate {
-  const _ComingSoonHeaderDelegate();
-
-  static const double _height = 78.0;
-
-  @override
-  double get maxExtent => _height;
-
-  @override
-  double get minExtent => _height;
-
-  @override
-  bool shouldRebuild(_ComingSoonHeaderDelegate oldDelegate) => false;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Material(
-      color: Colors.white,
-      elevation: overlapsContent ? 2.0 : 0.0,
-      shadowColor: Colors.black26,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF4A7D33), Color(0xFF6BA84F)],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: Color(0xFF4A7D33).withValues(alpha: 0.28),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.lock_clock_outlined,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Coming Soon',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        fontFamily: 'Lato',
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'This section is currently being updated',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SkeletonComingSoonDelegate extends SliverPersistentHeaderDelegate {
-  static const double _height = 78.0;
-
-  @override
-  double get maxExtent => _height;
-
-  @override
-  double get minExtent => _height;
-
-  @override
-  bool shouldRebuild(_SkeletonComingSoonDelegate oldDelegate) => false;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Material(
-      color: Colors.white,
-      elevation: overlapsContent ? 2.0 : 0.0,
-      shadowColor: Colors.black26,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade200,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: ShimmerEffect(
-            child: Container(
-              color: Colors.grey.shade100,
-            ),
           ),
         ),
       ),
