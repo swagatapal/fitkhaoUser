@@ -27,6 +27,7 @@ import '../../../profile/presentation/screens/address_form_screen.dart';
 import '../../../profile/presentation/screens/address_list_screen.dart';
 import '../../../profile/providers/delivery_address_provider.dart';
 import '../widgets/app_drawer.dart';
+import '../../models/wallet_balance_model.dart';
 import '../widgets/food_detail_popup.dart';
 import '../widgets/location_view_sheet.dart';
 import 'checkout_screen.dart';
@@ -461,6 +462,35 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         ),
                       ],
                     ),
+                  ),
+                ),
+
+                // ── Floating "My Subscription" button (active plan only) ────
+                // Sits above the cart bar when the cart is showing so the two
+                // never overlap.
+                Positioned.fill(
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      final sub = ref.watch(
+                          authProvider.select((s) => s.activeSubscription));
+                      if (sub == null || !sub.isActive) {
+                        return const SizedBox.shrink();
+                      }
+                      final cartBarVisible =
+                          ref.watch(cartTotalItemsProvider) > 0 &&
+                              isOrderingActive;
+                      return Align(
+                        alignment: Alignment.bottomRight,
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            right: AppSizes.screenPaddingHorizontal,
+                            bottom: MediaQuery.of(context).size.height * 0.03 +
+                                (cartBarVisible ? 84 : 0),
+                          ),
+                          child: _MySubscriptionFab(sub: sub),
+                        ),
+                      );
+                    },
                   ),
                 ),
 
@@ -2840,6 +2870,70 @@ class _SubscriptionPromoCard extends ConsumerWidget {
 
     if (hasActive) return _ActiveSubscriptionCard(sub: sub);
     return const _NoSubscriptionCard();
+  }
+}
+
+/// Floating pill that opens the full subscription screen. Rendered as an
+/// overlay in [DeliveryScreen] only while the user has an active plan.
+class _MySubscriptionFab extends StatelessWidget {
+  const _MySubscriptionFab({required this.sub});
+
+  final SubscriptionInfo sub;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(30),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => MySubscriptionScreen(
+              planName: sub.planName,
+              subscriptionId: sub.id,
+            ),
+          ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.spacing16,
+            vertical: AppSizes.spacing12,
+          ),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.darkGreen, AppColors.primaryGreen],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryGreen.withValues(alpha: 0.35),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.workspace_premium_rounded,
+                  color: Colors.white, size: AppSizes.icon20),
+              SizedBox(width: AppSizes.spacing8),
+              Text(
+                'My Subscription',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.bold,
+                  color: Colors.white,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
