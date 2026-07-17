@@ -59,6 +59,17 @@ class AppConfig {
   /// • list   → GET (own records)
   static const String medicalRecordsPath = '/api/user/medical-records';
 
+  /// Consultation booking (auth).
+  static const String nutritionistsPath = '/api/user/nutritionists';
+  static String nutritionistSlotsPath(String nutritionistId) =>
+      '/api/adm/nutritionist/$nutritionistId/slots';
+  static const String consultationBookSlotPath =
+      '/api/user/consultations/book-slot';
+  static const String consultationActiveSubscriptionPath =
+      '/api/user/consultations/active-subscription';
+  static const String consultationCancelSlotPath =
+      '/api/user/consultations/cancel-slot';
+
   /// Delivery Slots
   static const String deliverySlotListPath = '/api/delivery-slot/list';
   static const String deliverySlotConfirmPath = '/api/delivery-slots/confirm';
