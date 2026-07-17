@@ -15,6 +15,7 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../provider/physiological_category_provider.dart';
 import '../../provider/exercise_provider.dart';
 import '../../provider/profession_provider.dart';
+import '../widgets/prescription_upload_section.dart';
 
 class DetailedHealthInfoScreen extends ConsumerStatefulWidget {
   const DetailedHealthInfoScreen({super.key});
@@ -600,6 +601,11 @@ class _DetailedHealthInfoScreenState
                 _buildRegularStatusOption(AppStrings.both, 'both'),
                 SizedBox(height: spacing12),
                 _buildRegularStatusOption(AppStrings.none, 'none'),
+
+                SizedBox(height: spacing24),
+
+                // Prescriptions / medical records — upload + history
+                const PrescriptionUploadSection(),
 
                 SizedBox(height: spacing24),
 

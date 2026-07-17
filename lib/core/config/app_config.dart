@@ -54,6 +54,11 @@ class AppConfig {
   static const String walletTransactionsPath = '/api/wallet/transactions';
   static const String uploadImagePath = '/api/upload/image';
 
+  /// Medical records / prescriptions (auth).
+  /// • upload → POST multipart (documents[], recordType, notes, consultationId)
+  /// • list   → GET (own records)
+  static const String medicalRecordsPath = '/api/user/medical-records';
+
   /// Delivery Slots
   static const String deliverySlotListPath = '/api/delivery-slot/list';
   static const String deliverySlotConfirmPath = '/api/delivery-slots/confirm';
