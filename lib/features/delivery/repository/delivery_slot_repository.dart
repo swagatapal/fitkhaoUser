@@ -4,6 +4,8 @@ import '../../../core/config/app_config.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/services/local_storage_service.dart';
 import '../models/delivery_slot_model.dart';
+import '../models/dish_category_model.dart';
+import '../models/weekly_delivery_slot_model.dart';
 
 class DeliverySlotRepository {
   final ApiClient _apiClient;
@@ -34,58 +36,6 @@ class DeliverySlotRepository {
       return DeliverySlotListResponse.fromJson(json);
     } catch (e) {
       debugPrint('[DeliverySlotRepository] Slot list error: $e');
-      final message = ExceptionHandler.getErrorMessage(e);
-      throw NetworkException(message: message, originalError: e);
-    }
-  }
-
-  /// GET /api/delivery-slots/confirm — slots already confirmed for the user's
-  /// active subscription (used to mark dates as locked-in in the calendar).
-  Future<ConfirmedSlotsResponse> getConfirmedSlots() async {
-    debugPrint('[DeliverySlotRepository] Fetching confirmed slots...');
-    try {
-      final token = _localStorage.getAuthToken();
-      if (token == null || token.isEmpty) {
-        throw AuthException(
-            message: 'Authentication required. Please login again.');
-      }
-      final json = await _apiClient.getJson(
-        AppConfig.deliverySlotConfirmPath,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-      );
-      return ConfirmedSlotsResponse.fromJson(json);
-    } catch (e) {
-      debugPrint('[DeliverySlotRepository] Confirmed slots error: $e');
-      final message = ExceptionHandler.getErrorMessage(e);
-      throw NetworkException(message: message, originalError: e);
-    }
-  }
-
-  /// POST /api/delivery-slots/confirm — confirm slots for many dates at once.
-  Future<ConfirmDeliverySlotResponse> confirmDeliverySchedule(
-      ConfirmDeliveryScheduleRequest request) async {
-    debugPrint('[DeliverySlotRepository] Confirming delivery schedule '
-        '(${request.deliveries.length} dates)...');
-    try {
-      final token = _localStorage.getAuthToken();
-      if (token == null || token.isEmpty) {
-        throw AuthException(
-            message: 'Authentication required. Please login again.');
-      }
-      final json = await _apiClient.postJson(
-        AppConfig.deliverySlotConfirmPath,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: request.toJson(),
-      );
-      return ConfirmDeliverySlotResponse.fromJson(json);
-    } catch (e) {
-      debugPrint('[DeliverySlotRepository] Confirm schedule error: $e');
       final message = ExceptionHandler.getErrorMessage(e);
       throw NetworkException(message: message, originalError: e);
     }
@@ -122,5 +72,76 @@ class DeliverySlotRepository {
       final message = ExceptionHandler.getErrorMessage(e);
       throw NetworkException(message: message, originalError: e);
     }
+  }
+
+  // ── Weekly delivery-slot preferences ──
+
+  /// GET /api/user/weekly-delivery-slots
+  Future<WeeklyDeliverySlotsResponse> getWeeklyDeliverySlots() async {
+    debugPrint('[DeliverySlotRepository] Fetching weekly delivery slots...');
+    try {
+      final json = await _apiClient.getJson(
+        AppConfig.weeklyDeliverySlotsPath,
+        headers: _authHeaders(),
+      );
+      return WeeklyDeliverySlotsResponse.fromJson(json);
+    } catch (e) {
+      throw _wrap(e, 'weekly-get');
+    }
+  }
+
+  /// POST (first-time) or PUT (replace) /api/user/weekly-delivery-slots.
+  /// [days] is the `weeklyDeliverySlots` array already shaped for the API.
+  Future<WeeklyDeliverySlotsResponse> saveWeeklyDeliverySlots({
+    required List<Map<String, dynamic>> days,
+    required bool isUpdate,
+  }) async {
+    debugPrint('[DeliverySlotRepository] '
+        '${isUpdate ? 'Updating' : 'Saving'} weekly delivery slots...');
+    try {
+      final body = {'weeklyDeliverySlots': days};
+      final headers = _authHeaders();
+      final json = isUpdate
+          ? await _apiClient.putJson(AppConfig.weeklyDeliverySlotsPath,
+              headers: headers, body: body)
+          : await _apiClient.postJson(AppConfig.weeklyDeliverySlotsPath,
+              headers: headers, body: body);
+      return WeeklyDeliverySlotsResponse.fromJson(json);
+    } catch (e) {
+      throw _wrap(e, 'weekly-save');
+    }
+  }
+
+  /// GET /api/adm/dish-category — the meal categories (Breakfast/Lunch/…)
+  /// a delivery slot can serve.
+  Future<DishCategoryResponse> getDishCategories() async {
+    debugPrint('[DeliverySlotRepository] Fetching dish categories...');
+    try {
+      final json = await _apiClient.getJson(
+        AppConfig.dishCategoryPath,
+        headers: _authHeaders(),
+      );
+      return DishCategoryResponse.fromJson(json);
+    } catch (e) {
+      throw _wrap(e, 'dish-categories');
+    }
+  }
+
+  Map<String, String> _authHeaders() {
+    final token = _localStorage.getAuthToken();
+    if (token == null || token.isEmpty) {
+      throw AuthException(
+          message: 'Authentication required. Please login again.');
+    }
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+  }
+
+  NetworkException _wrap(Object e, String label) {
+    debugPrint('[DeliverySlotRepository] $label error: $e');
+    return NetworkException(
+        message: ExceptionHandler.getErrorMessage(e), originalError: e);
   }
 }

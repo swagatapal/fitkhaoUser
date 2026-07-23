@@ -25,12 +25,11 @@ class AppConfig {
   //static const String baseApiUrl = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net';
 
   // development url
-  static const String baseApiUrl = 'https://fitkhaodev-dtambvcxh2c2c7f3.centralindia-01.azurewebsites.net';
+  static const String baseApiUrl =
+      'https://fitkhaodev-dtambvcxh2c2c7f3.centralindia-01.azurewebsites.net';
 
   // production url
-   //static const String baseApiUrl  = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net';
-
-
+  //static const String baseApiUrl  = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net';
 
   static const String sendOtpPath = '/api/auth/send-otp';
   static const String verifyOtpPath = '/api/auth/verify-otp';
@@ -51,6 +50,11 @@ class AppConfig {
   static const String orderPreviewPath = '/api/orders/preview';
   static const String orderInvoicePath = '/api/orders';
   static const String cancelOrderPath = '/api/orders/cancel';
+
+  /// Change a subscription order's delivery slot/address (auth, PUT).
+  /// Allowed only before 6:00 AM IST on the delivery date.
+  static String orderSubscriptionSlotPath(String orderId) =>
+      '/api/orders/$orderId/subscription-slot';
   static const String walletTransactionsPath = '/api/wallet/transactions';
   static const String uploadImagePath = '/api/upload/image';
 
@@ -69,6 +73,13 @@ class AppConfig {
       '/api/user/consultations/active-subscription';
   static const String consultationCancelSlotPath =
       '/api/user/consultations/cancel-slot';
+
+  /// Weekly delivery-slot preferences (auth).
+  /// • get  → GET
+  /// • set  → POST (first-time)
+  /// • edit → PUT  (replace)
+  static const String weeklyDeliverySlotsPath =
+      '/api/user/weekly-delivery-slots';
 
   /// Delivery Slots
   static const String deliverySlotListPath = '/api/delivery-slot/list';
@@ -108,7 +119,8 @@ class AppConfig {
   static const String appVersionPath = '/api/app-version';
   static const String eligibleCouponsPath = '/api/user/coupons';
   static const String razorpayCreateOrderPath = '/api/razorpay/create-order';
-  static const String razorpayVerifyPaymentPath = '/api/razorpay/verify-payment';
+  static const String razorpayVerifyPaymentPath =
+      '/api/razorpay/verify-payment';
   static const String notificationsPath = '/api/notifications';
   static const String userHistoryPath = '/api/user/history';
   static const String dishReviewPath = '/api/user/dish/review';
@@ -117,11 +129,14 @@ class AppConfig {
   static const String cartPath = '/api/cart';
 
   /// Google Maps / Places API key (must have Maps SDK + Places API enabled)
-  static const String googleMapsApiKey = 'AIzaSyDp2r7Do-Z-cwgxiYpE1yzZecBHFz0ocaw';
-
+  static const String googleMapsApiKey =
+      'AIzaSyDp2r7Do-Z-cwgxiYpE1yzZecBHFz0ocaw';
 
   /// Kitchen open/close status — append /{kitchenId}/open-status
   static const String kitchenOpenStatusPath = '/api/adm/kitchen';
+
+  /// Meal (dish) categories — Breakfast/Lunch/… (auth).
+  static const String dishCategoryPath = '/api/adm/dish-category';
 
   /// Dish categories (outlet-level)
   static const String outletDishCategoryPath = '/api/adm/outlet-dish-category';
@@ -134,9 +149,10 @@ class AppConfig {
   static const String outletDishSearchPath = '/api/adm/outlet-dishes/search';
 
   static const String exercisePath = '/api/adm/exercise';
-  static const String physiologicalCategoriesPath = '/api/adm/physiological-category';
+  static const String physiologicalCategoriesPath =
+      '/api/adm/physiological-category';
   static const String professionPath = '/api/adm/profession';
 
-/// Analytics base (trending)
+  /// Analytics base (trending)
   //static const String trendingPath = '/api/analytics/trending/';
 }

@@ -19,6 +19,7 @@ import '../../../policy/providers/app_constants_provider.dart';
 import '../../models/order_history_model.dart';
 import '../../providers/order_history_provider.dart';
 import '../widgets/eta_countdown.dart';
+import '../widgets/subscription_slot_change_sheet.dart';
 import 'order_tracking_screen.dart';
 import '../../../delivery/models/cart_item.dart';
 import '../../../delivery/models/menu_item.dart';
@@ -64,11 +65,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
     // Pull the cancel window from the backend; fall back to defaults while
     // loading or if the request fails — the card never shows NaN / 0.
-    final cancelWindowSeconds = ref
-        .watch(appConstantsProvider)
-        .valueOrNull
-        ?.cancelOrderWindowSeconds
-        ?? AppConstants.defaults.cancelOrderWindowSeconds;
+    final cancelWindowSeconds =
+        ref.watch(appConstantsProvider).valueOrNull?.cancelOrderWindowSeconds ??
+            AppConstants.defaults.cancelOrderWindowSeconds;
 
     // Filter orders based on selection
     final orders = _selected == HistoryTab.upcoming
@@ -114,10 +113,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                             historyNotifier.refresh(),
                                         child: ListView.separated(
                                           padding: const EdgeInsets.only(
-                                            left:
-                                                AppSizes.screenPaddingHorizontal,
-                                            right:
-                                                AppSizes.screenPaddingHorizontal,
+                                            left: AppSizes
+                                                .screenPaddingHorizontal,
+                                            right: AppSizes
+                                                .screenPaddingHorizontal,
                                             bottom: AppSizes.spacing24,
                                           ),
                                           itemCount: orders.length,
@@ -148,6 +147,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                                     .refresh();
                                               },
                                               onReorder: () => _reorder(order),
+                                              onChangeSlot: () =>
+                                                  _changeSubscriptionSlot(
+                                                      order),
                                             );
                                           },
                                         ),
@@ -165,38 +167,37 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   Widget _buildLoadingState() {
-    return  Center(
-      child: ListView.builder(
-        itemCount: 6,
-        itemBuilder: (BuildContext context, int index) {
-          return Padding(
-            padding:  EdgeInsets.only(left : 16.0, right: 16, top: 16),
-            child: _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
-          );
-        },
-      )
+    return Center(
+        child: ListView.builder(
+      itemCount: 6,
+      itemBuilder: (BuildContext context, int index) {
+        return Padding(
+          padding: EdgeInsets.only(left: 16.0, right: 16, top: 16),
+          child: _shimmerCard(height: MediaQuery.of(context).size.height * 0.1),
+        );
+      },
+    )
 
-
-      // Padding(
-      //   padding: const EdgeInsets.all(16.0),
-      //   child: Column(
-      //     children: [
-      //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
-      //       const SizedBox(height: AppSizes.spacing16),
-      //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
-      //       const SizedBox(height: AppSizes.spacing16),
-      //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
-      //       const SizedBox(height: AppSizes.spacing16),
-      //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
-      //       const SizedBox(height: AppSizes.spacing16),
-      //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
-      //       const SizedBox(height: AppSizes.spacing16),
-      //
-      //
-      //     ],
-      //   ),
-      // ),
-    );
+        // Padding(
+        //   padding: const EdgeInsets.all(16.0),
+        //   child: Column(
+        //     children: [
+        //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
+        //       const SizedBox(height: AppSizes.spacing16),
+        //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
+        //       const SizedBox(height: AppSizes.spacing16),
+        //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
+        //       const SizedBox(height: AppSizes.spacing16),
+        //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
+        //       const SizedBox(height: AppSizes.spacing16),
+        //       _shimmerCard(height: MediaQuery.of(context).size.height*0.1),
+        //       const SizedBox(height: AppSizes.spacing16),
+        //
+        //
+        //     ],
+        //   ),
+        // ),
+        );
   }
 
   Widget _shimmerCard({required double height}) {
@@ -219,7 +220,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ),
     );
   }
-
 
   Widget _buildErrorState(String error, OrderHistoryNotifier notifier) {
     return Center(
@@ -318,6 +318,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       throw Exception(
         response['message'] as String? ?? 'Failed to cancel order',
       );
+    }
+  }
+
+  /// Change a subscription order's delivery slot/address via the bottom sheet.
+  Future<void> _changeSubscriptionSlot(OrderHistory order) async {
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SubscriptionSlotChangeSheet(order: order),
+    );
+    if (changed == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Delivery updated successfully.'),
+        backgroundColor: AppColors.primaryGreen,
+        behavior: SnackBarBehavior.floating,
+      ));
+      await ref.read(orderHistoryProvider.notifier).refresh();
     }
   }
 
@@ -656,6 +674,9 @@ class _OrderCard extends StatefulWidget {
   final VoidCallback? onCancelSuccess;
   final VoidCallback? onReorder;
 
+  /// Opens the change-slot/address sheet (subscription orders only).
+  final VoidCallback? onChangeSlot;
+
   const _OrderCard({
     required this.order,
     required this.isUpcoming,
@@ -664,6 +685,7 @@ class _OrderCard extends StatefulWidget {
     this.onCancelOrder,
     this.onCancelSuccess,
     this.onReorder,
+    this.onChangeSlot,
   });
 
   @override
@@ -685,6 +707,24 @@ class _OrderCardState extends State<_OrderCard> {
   }
 
   bool get _canReorder => !widget.isUpcoming && widget.onReorder != null;
+
+  /// Slot/address change is only for subscription-slot orders that haven't
+  /// reached a terminal / in-transit state (the 6 AM IST deadline is enforced
+  /// server-side).
+  static const _slotChangeBlockedStatuses = {
+    'delivered',
+    'cancelled',
+    'failed',
+    'rejected',
+    'out_for_delivery',
+  };
+
+  bool get _canChangeSlot =>
+      widget.isUpcoming &&
+      widget.onChangeSlot != null &&
+      widget.order.orderSource == 'subscription_slot' &&
+      !_slotChangeBlockedStatuses
+          .contains(widget.order.orderStatus.toLowerCase());
 
   @override
   void initState() {
@@ -899,11 +939,51 @@ class _OrderCardState extends State<_OrderCard> {
                 ],
               ),
             ),
+            if (_canChangeSlot) _buildChangeSlotSection(),
             if (_canCancel) _buildCancelSection(context),
             if (_canReorder) _buildReorderSection(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildChangeSlotSection() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Divider(height: 1, color: AppColors.borderColor),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.p12,
+            vertical: AppSizes.spacing8,
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: widget.onChangeSlot,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primaryGreen,
+                side: BorderSide(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.6)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+              ),
+              icon: const Icon(Icons.edit_calendar_rounded,
+                  size: AppSizes.icon16),
+              label: const Text(
+                'Change slot / address',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.semiBold,
+                  fontFamily: AppTypography.fontFamily,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1045,7 +1125,7 @@ class _OrderCardState extends State<_OrderCard> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final cancelButtonWidth =
-              (constraints.maxWidth * 0.42).clamp(118.0, 148.0).toDouble();
+                  (constraints.maxWidth * 0.42).clamp(118.0, 148.0).toDouble();
 
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -1069,6 +1149,7 @@ class _OrderCardState extends State<_OrderCard> {
       ],
     );
   }
+
   static Widget _buildDishImage(String? imageUrl) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppSizes.radius4),
@@ -1150,6 +1231,7 @@ class _OrderCardState extends State<_OrderCard> {
         return status;
     }
   }
+
   static Color _getStatusColor(String status) {
     switch (status.trim().toLowerCase().replaceAll('-', '_')) {
       case 'pending':

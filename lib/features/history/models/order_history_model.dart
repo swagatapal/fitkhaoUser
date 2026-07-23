@@ -136,6 +136,9 @@ class OrderHistory {
   final String paymentStatus;
   final String orderStatus;
   final String orderType;
+
+  /// e.g. "subscription_slot" — such orders allow slot/address changes.
+  final String orderSource;
   final List<String> categoryIds;
   final DeliveryBoy? deliveryBoy;
   final String? preparedAt;
@@ -180,6 +183,7 @@ class OrderHistory {
     required this.paymentStatus,
     required this.orderStatus,
     required this.orderType,
+    this.orderSource = '',
     this.categoryIds = const [],
     this.deliveryBoy,
     this.preparedAt,
@@ -237,7 +241,8 @@ class OrderHistory {
     } else if (slotRaw is String) {
       slot = DeliverySlot.fromString(slotRaw);
     } else {
-      slot = const DeliverySlot(id: '', slotName: '', slotStartTime: '', slotEndTime: '');
+      slot = const DeliverySlot(
+          id: '', slotName: '', slotStartTime: '', slotEndTime: '');
     }
 
     return OrderHistory(
@@ -262,6 +267,7 @@ class OrderHistory {
       paymentStatus: json['paymentStatus'] as String? ?? '',
       orderStatus: json['orderStatus'] as String? ?? '',
       orderType: json['orderType'] as String? ?? '',
+      orderSource: json['orderSource'] as String? ?? '',
       // New API uses 'categoryIds'; legacy used 'mealTypes'
       categoryIds: (json['categoryIds'] as List<dynamic>?)
               ?.map((e) => e as String)
@@ -279,8 +285,7 @@ class OrderHistory {
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
       acceptedAt: json['acceptedAt'] as String?,
-      preparationTimeMinutes:
-          (json['preparationTimeMinutes'] as num?)?.toInt(),
+      preparationTimeMinutes: (json['preparationTimeMinutes'] as num?)?.toInt(),
       deliveryTimeMinutes: (json['deliveryTimeMinutes'] as num?)?.toInt(),
       totalEstimatedDeliveryTimeMinutes:
           (json['totalEstimatedDeliveryTimeMinutes'] as num?)?.toInt(),

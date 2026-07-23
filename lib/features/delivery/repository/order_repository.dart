@@ -162,7 +162,8 @@ class OrderRepository {
     try {
       final token = _localStorage.getAuthToken();
       if (token == null || token.isEmpty) {
-        throw AuthException(message: 'Authentication required. Please login again.');
+        throw AuthException(
+            message: 'Authentication required. Please login again.');
       }
 
       final headers = {
@@ -172,7 +173,8 @@ class OrderRepository {
 
       final request = RazorpayWalletTopupRequest(amount: amountInRupees);
 
-      debugPrint('[OrderRepository] createRazorpayWalletTopup payload: ${request.toJson()}');
+      debugPrint(
+          '[OrderRepository] createRazorpayWalletTopup payload: ${request.toJson()}');
 
       final json = await _apiClient.postJson(
         AppConfig.razorpayCreateOrderPath,
@@ -201,7 +203,8 @@ class OrderRepository {
     try {
       final token = _localStorage.getAuthToken();
       if (token == null || token.isEmpty) {
-        throw AuthException(message: 'Authentication required. Please login again.');
+        throw AuthException(
+            message: 'Authentication required. Please login again.');
       }
 
       final headers = {
@@ -214,7 +217,8 @@ class OrderRepository {
         cancelAnytimeSelected: cancelAnytimeSelected,
       );
 
-      debugPrint('[OrderRepository] createRazorpaySubscriptionOrder payload: ${request.toJson()}');
+      debugPrint(
+          '[OrderRepository] createRazorpaySubscriptionOrder payload: ${request.toJson()}');
 
       final json = await _apiClient.postJson(
         AppConfig.razorpayCreateOrderPath,
@@ -222,7 +226,8 @@ class OrderRepository {
         headers: headers,
       );
 
-      debugPrint('[OrderRepository] createRazorpaySubscriptionOrder response: $json');
+      debugPrint(
+          '[OrderRepository] createRazorpaySubscriptionOrder response: $json');
       return RazorpayCreateOrderResponse.fromJson(json);
     } catch (e) {
       debugPrint('[OrderRepository] createRazorpaySubscriptionOrder error: $e');
@@ -243,7 +248,8 @@ class OrderRepository {
     try {
       final token = _localStorage.getAuthToken();
       if (token == null || token.isEmpty) {
-        throw AuthException(message: 'Authentication required. Please login again.');
+        throw AuthException(
+            message: 'Authentication required. Please login again.');
       }
 
       final headers = {
@@ -256,7 +262,8 @@ class OrderRepository {
         pendingOrderData: pendingOrderData,
       );
 
-      debugPrint('[OrderRepository] createRazorpayOrder payload: ${request.toJson()}');
+      debugPrint(
+          '[OrderRepository] createRazorpayOrder payload: ${request.toJson()}');
 
       final json = await _apiClient.postJson(
         AppConfig.razorpayCreateOrderPath,
@@ -283,12 +290,14 @@ class OrderRepository {
     int? amount,
     String? planCode,
   }) async {
-    debugPrint('[OrderRepository] Verifying Razorpay payment — orderId=$razorpayOrderId purpose=$purpose');
+    debugPrint(
+        '[OrderRepository] Verifying Razorpay payment — orderId=$razorpayOrderId purpose=$purpose');
 
     try {
       final token = _localStorage.getAuthToken();
       if (token == null || token.isEmpty) {
-        throw AuthException(message: 'Authentication required. Please login again.');
+        throw AuthException(
+            message: 'Authentication required. Please login again.');
       }
 
       final headers = {
@@ -305,7 +314,8 @@ class OrderRepository {
         planCode: planCode,
       );
 
-      debugPrint('[OrderRepository] verifyRazorpayPayment payload: ${request.toJson()}');
+      debugPrint(
+          '[OrderRepository] verifyRazorpayPayment payload: ${request.toJson()}');
 
       final json = await _apiClient.postJson(
         AppConfig.razorpayVerifyPaymentPath,
@@ -317,6 +327,43 @@ class OrderRepository {
       return RazorpayVerifyPaymentResponse.fromJson(json);
     } catch (e) {
       debugPrint('[OrderRepository] verifyRazorpayPayment error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
+  /// PUT /api/orders/{orderId}/subscription-slot — change a subscription
+  /// order's delivery slot and/or address (before 6 AM IST on delivery date).
+  /// At least one of [slotId] / [deliveryAddressId] must be provided.
+  Future<Map<String, dynamic>> updateSubscriptionOrderSlot({
+    required String orderId,
+    String? slotId,
+    String? deliveryAddressId,
+  }) async {
+    debugPrint('[OrderRepository] Updating subscription slot for $orderId...');
+    try {
+      final token = _localStorage.getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+          message: 'Authentication required. Please login again.',
+        );
+      }
+      final json = await _apiClient.putJson(
+        AppConfig.orderSubscriptionSlotPath(orderId),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: {
+          if (slotId != null && slotId.isNotEmpty) 'slotId': slotId,
+          if (deliveryAddressId != null && deliveryAddressId.isNotEmpty)
+            'deliveryAddressId': deliveryAddressId,
+        },
+      );
+      debugPrint('[OrderRepository] Subscription slot update response: $json');
+      return json;
+    } catch (e) {
+      debugPrint('[OrderRepository] Subscription slot update error: $e');
       final message = ExceptionHandler.getErrorMessage(e);
       throw NetworkException(message: message, originalError: e);
     }
