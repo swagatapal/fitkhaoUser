@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -115,32 +116,35 @@ class _BookConsultationScreenState
   Widget build(BuildContext context) {
     final activeAsync = ref.watch(activeBookingProvider);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAFBFC),
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            const _Header(),
-            Expanded(
-              child: activeAsync.when(
-                loading: () => const Center(
-                  child:
-                      CircularProgressIndicator(color: AppColors.primaryGreen),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAFBFC),
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              const _Header(),
+              Expanded(
+                child: activeAsync.when(
+                  loading: () => const Center(
+                    child:
+                        CircularProgressIndicator(color: AppColors.primaryGreen),
+                  ),
+                  error: (_, __) => _CenterMessage(
+                    icon: Icons.error_outline_rounded,
+                    message: 'Could not check your consultation status.',
+                    onRetry: () => ref.invalidate(activeBookingProvider),
+                  ),
+                  // Already booked → show the booking + cancel; otherwise the
+                  // full picker flow.
+                  data: (booking) => booking != null
+                      ? _BookedConsultationView(info: booking)
+                      : _buildBookingFlow(context),
                 ),
-                error: (_, __) => _CenterMessage(
-                  icon: Icons.error_outline_rounded,
-                  message: 'Could not check your consultation status.',
-                  onRetry: () => ref.invalidate(activeBookingProvider),
-                ),
-                // Already booked → show the booking + cancel; otherwise the
-                // full picker flow.
-                data: (booking) => booking != null
-                    ? _BookedConsultationView(info: booking)
-                    : _buildBookingFlow(context),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

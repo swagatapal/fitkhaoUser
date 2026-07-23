@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -70,28 +71,31 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFFAFBFC),
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              _Header(
-                  planName: widget.planName,
-                  subscriptionId: widget.subscriptionId),
-              const _Tabs(),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    const _JourneyTab(),
-                    const _DietChartTab(),
-                    const _PlanManagerTab(),
-                  ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child:  DefaultTabController(
+        length: 3,
+        child: Scaffold(
+          backgroundColor: const Color(0xFFFAFBFC),
+          body: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                _Header(
+                    planName: widget.planName,
+                    subscriptionId: widget.subscriptionId),
+                const _Tabs(),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      const _JourneyTab(),
+                      const _DietChartTab(),
+                      const _PlanManagerTab(),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
