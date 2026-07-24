@@ -168,6 +168,39 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
     });
   }
 
+  /// Copy [source]'s full slot plan onto other days chosen in a sheet
+  /// (replacing whatever those days had).
+  Future<void> _copyDay(Weekday source) async {
+    final targets = await showModalBottomSheet<Set<String>>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _CopyDaySheet(
+        sourceLabel: source.label,
+        targets: [
+          for (final w in Weekday.all)
+            if (w.wire != source.wire)
+              (day: w, hasPlan: _plans[w.wire]!.isNotEmpty),
+        ],
+      ),
+    );
+    if (targets == null || targets.isEmpty || !mounted) return;
+    setState(() {
+      for (final t in targets) {
+        _plans[t] = [for (final e in _plans[source.wire]!) e.copy()];
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('${source.label} plan copied to '
+          '${targets.length} ${targets.length == 1 ? 'day' : 'days'}.'),
+      backgroundColor: AppColors.primaryGreen,
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
+  /// Days that have at least one complete slot entry.
+  int get _plannedDayCount =>
+      Weekday.all.where((w) => _plans[w.wire]!.any((e) => e.isComplete)).length;
+
   Future<void> _save() async {
     final messenger = ScaffoldMessenger.of(context);
     final days = <Map<String, dynamic>>[
@@ -309,15 +342,27 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
                     addresses: addresses,
                   ),
                   onRemove: (i) => setState(() => _plans[w.wire]!.removeAt(i)),
+                  onCopy: _plans[w.wire]!.any((e) => e.isComplete)
+                      ? () => _copyDay(w)
+                      : null,
                 ),
             ],
           ),
         ),
-        _SaveBar(
-          label: _hadPreference ? 'Update delivery plan' : 'Save delivery plan',
-          submitting: submitting,
-          onSave: _save,
-        ),
+        Builder(builder: (context) {
+          final planned = _plannedDayCount;
+          final allPlanned = planned == Weekday.all.length;
+          return _SaveBar(
+            label: allPlanned
+                ? (_hadPreference
+                    ? 'Update delivery plan'
+                    : 'Save delivery plan')
+                : 'Set all 7 days to save ($planned/7)',
+            enabled: allPlanned,
+            submitting: submitting,
+            onSave: _save,
+          );
+        }),
       ],
     );
   }
@@ -363,6 +408,7 @@ class _DayCard extends StatelessWidget {
     required this.onAdd,
     required this.onEdit,
     required this.onRemove,
+    this.onCopy,
   });
 
   final String dayLabel;
@@ -373,6 +419,9 @@ class _DayCard extends StatelessWidget {
   final VoidCallback onAdd;
   final ValueChanged<int> onEdit;
   final ValueChanged<int> onRemove;
+
+  /// Copies this day's plan onto other days (shown only when the day is set).
+  final VoidCallback? onCopy;
 
   String _slotLabel(String id) {
     final s = slots.where((e) => e.id == id);
@@ -439,6 +488,18 @@ class _DayCard extends StatelessWidget {
                     fontSize: AppTypography.fontSize10,
                     color: AppColors.textSecondary.withValues(alpha: 0.8),
                     fontFamily: 'Lato',
+                  ),
+                ),
+              if (onCopy != null)
+                Tooltip(
+                  message: 'Copy this day to other days',
+                  child: GestureDetector(
+                    onTap: onCopy,
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(Icons.copy_rounded,
+                          size: AppSizes.icon16, color: AppColors.primaryGreen),
+                    ),
                   ),
                 ),
             ],
@@ -913,16 +974,282 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
+/// Sheet to choose which days to copy a day's plan onto.
+class _CopyDaySheet extends StatefulWidget {
+  const _CopyDaySheet({required this.sourceLabel, required this.targets});
+
+  final String sourceLabel;
+  final List<({Weekday day, bool hasPlan})> targets;
+
+  @override
+  State<_CopyDaySheet> createState() => _CopyDaySheetState();
+}
+
+class _CopyDaySheetState extends State<_CopyDaySheet> {
+  final Set<String> _selected = {};
+
+  bool get _allSelected => _selected.length == widget.targets.length;
+
+  void _toggleAll() {
+    setState(() {
+      if (_allSelected) {
+        _selected.clear();
+      } else {
+        _selected
+          ..clear()
+          ..addAll(widget.targets.map((t) => t.day.wire));
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.8,
+      ),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 4),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // ── Header (fixed) ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Copy ${widget.sourceLabel}',
+                          style: const TextStyle(
+                            fontSize: AppTypography.fontSize18,
+                            fontWeight: AppTypography.bold,
+                            color: AppColors.textPrimary,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                        Text(
+                          'Overwrites the selected days with this plan.',
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize12,
+                            color:
+                                AppColors.textSecondary.withValues(alpha: 0.9),
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(Icons.close_rounded,
+                        size: AppSizes.icon20, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            // ── Select all (fixed) ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+              child: Row(
+                children: [
+                  Text(
+                    'Days',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      fontWeight: AppTypography.semiBold,
+                      color: AppColors.textSecondary.withValues(alpha: 0.9),
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: _toggleAll,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primaryGreen,
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      _allSelected ? 'Clear all' : 'Select all',
+                      style: const TextStyle(
+                        fontFamily: 'Lato',
+                        fontSize: AppTypography.fontSize12,
+                        fontWeight: AppTypography.semiBold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            // ── Scrollable target list ──
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                children: [
+                  for (final t in widget.targets)
+                    _CopyTargetTile(
+                      label: t.day.label,
+                      note: t.hasPlan ? 'Has a plan — will be replaced' : '',
+                      selected: _selected.contains(t.day.wire),
+                      onTap: () => setState(() {
+                        if (!_selected.remove(t.day.wire)) {
+                          _selected.add(t.day.wire);
+                        }
+                      }),
+                    ),
+                ],
+              ),
+            ),
+            // ── Confirm (fixed) ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: SizedBox(
+                width: double.infinity,
+                height: AppSizes.buttonHeight,
+                child: ElevatedButton(
+                  onPressed: _selected.isEmpty
+                      ? null
+                      : () => Navigator.of(context).pop(_selected),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                        AppColors.borderColor.withValues(alpha: 0.6),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    ),
+                  ),
+                  child: Text(
+                    _selected.isEmpty
+                        ? 'Select days to copy to'
+                        : 'Copy to ${_selected.length} '
+                            '${_selected.length == 1 ? 'day' : 'days'}',
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.bold,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CopyTargetTile extends StatelessWidget {
+  const _CopyTargetTile({
+    required this.label,
+    required this.note,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String note;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
+        padding: const EdgeInsets.all(AppSizes.spacing12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryGreen.withValues(alpha: 0.06)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+          border: Border.all(
+            color: selected
+                ? AppColors.primaryGreen
+                : AppColors.borderColor.withValues(alpha: 0.6),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected
+                  ? Icons.check_box_rounded
+                  : Icons.check_box_outline_blank_rounded,
+              size: AppSizes.icon20,
+              color: selected ? AppColors.primaryGreen : AppColors.textTertiary,
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.semiBold,
+                      color: AppColors.textPrimary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  if (note.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      note,
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize10,
+                        color: _kAccent.withValues(alpha: 0.9),
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SaveBar extends StatelessWidget {
   const _SaveBar({
     required this.label,
     required this.submitting,
     required this.onSave,
+    this.enabled = true,
   });
 
   final String label;
   final bool submitting;
   final VoidCallback onSave;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -947,7 +1274,7 @@ class _SaveBar extends StatelessWidget {
         width: double.infinity,
         height: AppSizes.buttonHeight,
         child: ElevatedButton(
-          onPressed: submitting ? null : onSave,
+          onPressed: submitting || !enabled ? null : onSave,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primaryGreen,
             foregroundColor: Colors.white,
