@@ -14,7 +14,7 @@ import '../../providers/weekly_delivery_slot_provider.dart';
 
 const Color _kAccent = Color(0xFFC66301);
 
-/// Icon per meal-category name (fallback: generic meal icon).
+/// Icon per meal-category name.
 IconData _categoryIcon(String name) {
   switch (name.toLowerCase()) {
     case 'breakfast':
@@ -35,8 +35,73 @@ IconData _categoryIcon(String name) {
   }
 }
 
-/// One delivery of a day — mirrors an entry of the API's `slots` array:
-/// a delivery slot, the meal categories it carries and its own address.
+/// Icon + priority for a slot group (morning / afternoon / night).
+({IconData icon, int order}) _groupVisual(String key) {
+  switch (key.toLowerCase()) {
+    case 'morning':
+      return (icon: Icons.wb_sunny_rounded, order: 0);
+    case 'afternoon':
+      return (icon: Icons.wb_twilight_rounded, order: 1);
+    case 'night':
+    case 'evening':
+      return (icon: Icons.nightlight_round, order: 2);
+    default:
+      return (icon: Icons.schedule_rounded, order: 3);
+  }
+}
+
+String _capitalize(String s) =>
+    s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+/// A slot group presented as one wizard step (e.g. "Morning" → [Morning A/B]).
+class _SlotGroup {
+  final String key; // 'morning'
+  final String label; // 'Morning'
+  final IconData icon;
+  final List<DeliverySlotApiModel> slots;
+
+  const _SlotGroup({
+    required this.key,
+    required this.label,
+    required this.icon,
+    required this.slots,
+  });
+}
+
+/// Groups the flat slot catalogue into ordered morning/afternoon/night steps.
+List<_SlotGroup> _buildSlotGroups(List<DeliverySlotApiModel> slots) {
+  final byKey = <String, List<DeliverySlotApiModel>>{};
+  for (final s in slots) {
+    byKey.putIfAbsent(s.groupKey, () => []).add(s);
+  }
+  final groups = byKey.entries.map((e) {
+    final v = _groupVisual(e.key);
+    final list = [...e.value]..sort((a, b) => a.sort.compareTo(b.sort));
+    return (
+      group: _SlotGroup(
+          key: e.key, label: _capitalize(e.key), icon: v.icon, slots: list),
+      order: v.order,
+    );
+  }).toList()
+    ..sort((a, b) => a.order.compareTo(b.order));
+  return groups.map((g) => g.group).toList();
+}
+
+/// The wire value of today's weekday (Weekday.all is sunday-first).
+String _todayWire() {
+  const wires = [
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+    'sunday'
+  ];
+  return wires[DateTime.now().weekday - 1];
+}
+
+/// One delivery of a day — mirrors an entry of the API's `slots` array.
 class _SlotEntry {
   String slotId;
   final Set<String> categoryIds;
@@ -64,9 +129,9 @@ class _SlotEntry {
       };
 }
 
-/// Weekly delivery plan structured exactly like the API payload: per weekday a
-/// list of slot entries, each carrying its meal categories and its own
-/// delivery address. Backed by GET/POST/PUT /api/user/weekly-delivery-slots.
+/// Weekly delivery plan: a weekday tab bar (defaulting to today) + a guided
+/// wizard to set morning/afternoon/night deliveries, each with its meals and
+/// address. Backed by GET/POST/PUT /api/user/weekly-delivery-slots.
 class DeliveryPlanManagerTab extends ConsumerStatefulWidget {
   const DeliveryPlanManagerTab({super.key});
 
@@ -80,6 +145,7 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
   final Map<String, List<_SlotEntry>> _plans = {
     for (final w in Weekday.all) w.wire: <_SlotEntry>[],
   };
+  late String _selectedDay = _todayWire();
   bool _initialized = false;
   bool _hadPreference = false;
 
@@ -90,7 +156,6 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Addresses are needed for every slot entry; load if missing.
       if (ref.read(addressProvider).addresses.isEmpty) {
         ref.read(addressProvider.notifier).loadAddresses(silent: true);
       }
@@ -116,11 +181,15 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
     _initialized = true;
   }
 
-  Future<void> _editEntry({
-    required Weekday day,
-    int? index,
+  Weekday get _day => Weekday.all.firstWhere((w) => w.wire == _selectedDay);
+
+  /// Days that have at least one complete slot entry.
+  int get _plannedDayCount =>
+      Weekday.all.where((w) => _plans[w.wire]!.any((e) => e.isComplete)).length;
+
+  Future<void> _runWizard({
+    required List<_SlotGroup> groups,
     required List<DishCategory> categories,
-    required List<DeliverySlotApiModel> slots,
     required List<DeliveryAddressModel> addresses,
   }) async {
     if (addresses.isEmpty) {
@@ -131,48 +200,33 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
       ));
       return;
     }
-    final entries = _plans[day.wire]!;
+    if (groups.isEmpty) return;
 
-    // Slots / categories already taken by the day's OTHER entries can't be
-    // reused — one slot entry per slot, one delivery per meal.
-    final usedSlotIds = <String>{
-      for (var i = 0; i < entries.length; i++)
-        if (i != index) entries[i].slotId,
-    };
-    final usedCategoryIds = <String>{
-      for (var i = 0; i < entries.length; i++)
-        if (i != index) ...entries[i].categoryIds,
-    };
-
-    final result = await showModalBottomSheet<_SlotEntry>(
+    final result = await showModalBottomSheet<List<_SlotEntry>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _SlotEntrySheet(
-        dayLabel: day.label,
-        initial: index == null ? _SlotEntry() : entries[index].copy(),
+      builder: (_) => _DeliveryWizardSheet(
+        dayLabel: _day.label,
+        groups: groups,
         categories: categories,
-        slots: slots,
         addresses: addresses,
-        usedSlotIds: usedSlotIds,
-        usedCategoryIds: usedCategoryIds,
+        existing: _plans[_selectedDay]!,
       ),
     );
     if (result == null || !mounted) return;
-    setState(() {
-      if (index == null) {
-        entries.add(result);
-      } else {
-        entries[index] = result;
-      }
-    });
+    setState(() => _plans[_selectedDay] = result);
+
+    // "Copy to other days?" — only meaningful once the day has deliveries.
+    if (result.any((e) => e.isComplete)) {
+      await _promptCopy(_day);
+    }
   }
 
-  /// Copy [source]'s full slot plan onto other days chosen in a sheet
-  /// (replacing whatever those days had).
-  Future<void> _copyDay(Weekday source) async {
+  Future<void> _promptCopy(Weekday source) async {
     final targets = await showModalBottomSheet<Set<String>>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _CopyDaySheet(
         sourceLabel: source.label,
@@ -196,10 +250,6 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
       behavior: SnackBarBehavior.floating,
     ));
   }
-
-  /// Days that have at least one complete slot entry.
-  int get _plannedDayCount =>
-      Weekday.all.where((w) => _plans[w.wire]!.any((e) => e.isComplete)).length;
 
   Future<void> _save() async {
     final messenger = ScaffoldMessenger.of(context);
@@ -239,14 +289,11 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
   Widget build(BuildContext context) {
     super.build(context);
 
-    // Initialise the editable state once the saved preference arrives.
     ref.listen<AsyncValue<WeeklyDeliverySlotsResponse>>(
       weeklyDeliverySlotsProvider,
       (_, next) {
         final data = next.valueOrNull;
-        if (data != null && !_initialized) {
-          setState(() => _initFrom(data));
-        }
+        if (data != null && !_initialized) setState(() => _initFrom(data));
       },
     );
 
@@ -287,145 +334,252 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
 
     final slots = slotsAsync.valueOrNull ?? const <DeliverySlotApiModel>[];
     final categories = categoriesAsync.valueOrNull ?? const <DishCategory>[];
+    final groups = _buildSlotGroups(slots);
+    final entries = _plans[_selectedDay]!;
 
     return Column(
       children: [
+        // ── Weekday tabs ──
+        _WeekdayTabs(
+          selected: _selectedDay,
+          plannedWires: {
+            for (final w in Weekday.all)
+              if (_plans[w.wire]!.any((e) => e.isComplete)) w.wire,
+          },
+          onSelect: (wire) => setState(() => _selectedDay = wire),
+        ),
+        // ── Selected day ──
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-                AppSizes.screenPaddingHorizontal,
-                AppSizes.spacing16,
-                AppSizes.screenPaddingHorizontal,
-                AppSizes.spacing24),
-            children: [
-              const Text(
-                'Weekly delivery plan',
-                style: TextStyle(
-                  fontSize: AppTypography.fontSize16,
-                  fontWeight: AppTypography.bold,
-                  color: AppColors.textPrimary,
-                  fontFamily: 'Lato',
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Add delivery slots per day — each with its meals and address.',
-                style: TextStyle(
-                  fontSize: AppTypography.fontSize12,
-                  color: AppColors.textSecondary.withValues(alpha: 0.8),
-                  fontFamily: 'Lato',
-                ),
-              ),
-              if (addresses.isEmpty) ...[
-                const SizedBox(height: AppSizes.spacing12),
-                _addressPrompt(),
-              ],
-              const SizedBox(height: AppSizes.spacing16),
-              for (final w in Weekday.all)
-                _DayCard(
-                  dayLabel: w.label,
-                  entries: _plans[w.wire]!,
+          child: entries.any((e) => e.isComplete)
+              ? _DayPlanView(
+                  entries: entries,
                   categories: categories,
                   slots: slots,
                   addresses: addresses,
-                  onAdd: () => _editEntry(
-                    day: w,
+                  onEdit: () => _runWizard(
+                    groups: groups,
                     categories: categories,
-                    slots: slots,
                     addresses: addresses,
                   ),
-                  onEdit: (i) => _editEntry(
-                    day: w,
-                    index: i,
+                  onCopy: () => _promptCopy(_day),
+                  onClear: () =>
+                      setState(() => _plans[_selectedDay] = <_SlotEntry>[]),
+                )
+              : _EmptyDayView(
+                  dayLabel: _day.label,
+                  onSetup: () => _runWizard(
+                    groups: groups,
                     categories: categories,
-                    slots: slots,
                     addresses: addresses,
                   ),
-                  onRemove: (i) => setState(() => _plans[w.wire]!.removeAt(i)),
-                  onCopy: _plans[w.wire]!.any((e) => e.isComplete)
-                      ? () => _copyDay(w)
-                      : null,
+                  addressMissing: addresses.isEmpty,
                 ),
-            ],
-          ),
         ),
-        Builder(builder: (context) {
-          final planned = _plannedDayCount;
-          final allPlanned = planned == Weekday.all.length;
-          return _SaveBar(
-            label: allPlanned
-                ? (_hadPreference
-                    ? 'Update delivery plan'
-                    : 'Save delivery plan')
-                : 'Set all 7 days to save ($planned/7)',
-            enabled: allPlanned,
-            submitting: submitting,
-            onSave: _save,
-          );
-        }),
+        _SaveBar(
+          label: _plannedDayCount == Weekday.all.length
+              ? (_hadPreference ? 'Update delivery plan' : 'Save delivery plan')
+              : 'Set all 7 days to save ($_plannedDayCount/7)',
+          enabled: _plannedDayCount == Weekday.all.length,
+          submitting: submitting,
+          onSave: _save,
+        ),
       ],
     );
   }
+}
 
-  Widget _addressPrompt() {
+/// Horizontal weekday selector with a "planned" dot per day.
+class _WeekdayTabs extends StatelessWidget {
+  const _WeekdayTabs({
+    required this.selected,
+    required this.plannedWires,
+    required this.onSelect,
+  });
+
+  final String selected;
+  final Set<String> plannedWires;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSizes.spacing12),
-      decoration: BoxDecoration(
-        color: _kAccent.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-        border: Border.all(color: _kAccent.withValues(alpha: 0.3)),
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing8),
+      child: SizedBox(
+        height: 40,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.screenPaddingHorizontal),
+          itemCount: Weekday.all.length,
+          separatorBuilder: (_, __) => const SizedBox(width: AppSizes.spacing6),
+          itemBuilder: (_, i) {
+            final w = Weekday.all[i];
+            final isSelected = w.wire == selected;
+            final planned = plannedWires.contains(w.wire);
+            return GestureDetector(
+              onTap: () => onSelect(w.wire),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppSizes.spacing12),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primaryGreen : Colors.white,
+                  borderRadius: BorderRadius.circular(50),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.primaryGreen
+                        : AppColors.borderColor.withValues(alpha: 0.6),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      w.label.substring(0, 3),
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize13,
+                        fontWeight: AppTypography.bold,
+                        color:
+                            isSelected ? Colors.white : AppColors.textSecondary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    if (planned) ...[
+                      const SizedBox(width: 5),
+                      Icon(Icons.check_circle_rounded,
+                          size: 13,
+                          color: isSelected
+                              ? Colors.white
+                              : AppColors.primaryGreen),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
-      child: const Row(
+    );
+  }
+}
+
+/// Empty state for a day with no deliveries set.
+class _EmptyDayView extends StatelessWidget {
+  const _EmptyDayView({
+    required this.dayLabel,
+    required this.onSetup,
+    required this.addressMissing,
+  });
+
+  final String dayLabel;
+  final VoidCallback onSetup;
+  final bool addressMissing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(AppSizes.spacing24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.info_outline_rounded,
-              color: _kAccent, size: AppSizes.icon18),
-          SizedBox(width: AppSizes.spacing8),
-          Expanded(
-            child: Text(
-              'Add a delivery address in your profile to set up deliveries.',
+          Container(
+            padding: const EdgeInsets.all(AppSizes.spacing16),
+            decoration: BoxDecoration(
+              color: AppColors.primaryGreen.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.local_shipping_rounded,
+                size: 40, color: AppColors.primaryGreen),
+          ),
+          const SizedBox(height: AppSizes.spacing16),
+          Text(
+            'No deliveries set for $dayLabel',
+            style: const TextStyle(
+              fontSize: AppTypography.fontSize16,
+              fontWeight: AppTypography.bold,
+              color: AppColors.textPrimary,
+              fontFamily: 'Lato',
+            ),
+          ),
+          const SizedBox(height: AppSizes.spacing6),
+          Text(
+            'Set up morning, afternoon and night deliveries — each with its '
+            'meals and address.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize12,
+              color: AppColors.textSecondary.withValues(alpha: 0.9),
+              fontFamily: 'Lato',
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: AppSizes.spacing20),
+          SizedBox(
+            width: double.infinity,
+            height: AppSizes.buttonHeight,
+            child: ElevatedButton.icon(
+              onPressed: onSetup,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+              ),
+              icon: const Icon(Icons.add_rounded, size: AppSizes.icon20),
+              label: const Text('Add delivery slot',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.bold,
+                    fontFamily: 'Lato',
+                  )),
+            ),
+          ),
+          if (addressMissing) ...[
+            const SizedBox(height: AppSizes.spacing12),
+            Text(
+              'Add a delivery address in your profile first.',
               style: TextStyle(
-                fontSize: AppTypography.fontSize12,
-                color: Color(0xFF795548),
+                fontSize: AppTypography.fontSize10,
+                color: _kAccent.withValues(alpha: 0.9),
                 fontFamily: 'Lato',
               ),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// A weekday card listing its slot entries (slot → meals → address), with
-/// add / edit / remove.
-class _DayCard extends StatelessWidget {
-  const _DayCard({
-    required this.dayLabel,
+/// Read-only view of a configured day's deliveries + actions.
+class _DayPlanView extends StatelessWidget {
+  const _DayPlanView({
     required this.entries,
     required this.categories,
     required this.slots,
     required this.addresses,
-    required this.onAdd,
     required this.onEdit,
-    required this.onRemove,
-    this.onCopy,
+    required this.onCopy,
+    required this.onClear,
   });
 
-  final String dayLabel;
   final List<_SlotEntry> entries;
   final List<DishCategory> categories;
   final List<DeliverySlotApiModel> slots;
   final List<DeliveryAddressModel> addresses;
-  final VoidCallback onAdd;
-  final ValueChanged<int> onEdit;
-  final ValueChanged<int> onRemove;
+  final VoidCallback onEdit;
+  final VoidCallback onCopy;
+  final VoidCallback onClear;
 
-  /// Copies this day's plan onto other days (shown only when the day is set).
-  final VoidCallback? onCopy;
-
-  String _slotLabel(String id) {
-    final s = slots.where((e) => e.id == id);
-    return s.isEmpty ? 'Slot' : '${s.first.slotName} · ${s.first.timeRange}';
+  DeliverySlotApiModel? _slot(String id) {
+    for (final s in slots) {
+      if (s.id == id) return s;
+    }
+    return null;
   }
 
   String _mealsLabel(Set<String> ids) {
@@ -440,167 +594,145 @@ class _DayCard extends StatelessWidget {
     final a = addresses.where((e) => e.id == id);
     if (a.isEmpty) return 'Address';
     final label = a.first.label;
-    final cap = label.isEmpty
-        ? 'Address'
-        : '${label[0].toUpperCase()}${label.substring(1)}';
-    return '$cap · ${a.first.formattedAddress}';
+    return '${label.isEmpty ? 'Address' : _capitalize(label)} · '
+        '${a.first.formattedAddress}';
   }
 
   @override
   Widget build(BuildContext context) {
+    final valid = entries.where((e) => e.isComplete).toList();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+          AppSizes.screenPaddingHorizontal,
+          AppSizes.spacing16,
+          AppSizes.screenPaddingHorizontal,
+          AppSizes.spacing24),
+      children: [
+        for (final e in valid)
+          _DeliveryCard(
+            slot: _slot(e.slotId),
+            meals: _mealsLabel(e.categoryIds),
+            address: _addressLabel(e.addressId),
+          ),
+        const SizedBox(height: AppSizes.spacing8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onEdit,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primaryGreen,
+                  side: BorderSide(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.6)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                ),
+                icon: const Icon(Icons.edit_rounded, size: AppSizes.icon16),
+                label: const Text('Edit',
+                    style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontWeight: AppTypography.semiBold)),
+              ),
+            ),
+            const SizedBox(width: AppSizes.spacing8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onCopy,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primaryGreen,
+                  side: BorderSide(
+                      color: AppColors.primaryGreen.withValues(alpha: 0.6)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                ),
+                icon: const Icon(Icons.copy_rounded, size: AppSizes.icon16),
+                label: const Text('Copy',
+                    style: TextStyle(
+                        fontFamily: 'Lato',
+                        fontWeight: AppTypography.semiBold)),
+              ),
+            ),
+            const SizedBox(width: AppSizes.spacing8),
+            IconButton(
+              onPressed: onClear,
+              icon: const Icon(Icons.delete_outline_rounded,
+                  color: AppColors.errorColor),
+              tooltip: 'Clear this day',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _DeliveryCard extends StatelessWidget {
+  const _DeliveryCard({
+    required this.slot,
+    required this.meals,
+    required this.address,
+  });
+
+  final DeliverySlotApiModel? slot;
+  final String meals;
+  final String address;
+
+  @override
+  Widget build(BuildContext context) {
+    final groupIcon = slot == null
+        ? Icons.local_shipping_rounded
+        : _groupVisual(slot!.groupKey).icon;
     return Container(
       margin: const EdgeInsets.only(bottom: AppSizes.spacing12),
       padding: const EdgeInsets.all(AppSizes.spacing12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppSizes.radius12),
-        border: Border.all(
-          color: entries.isNotEmpty
-              ? AppColors.primaryGreen.withValues(alpha: 0.4)
-              : AppColors.borderColor.withValues(alpha: 0.5),
-        ),
+        border:
+            Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.35)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.calendar_view_week_rounded,
-                  size: AppSizes.icon18,
-                  color: entries.isNotEmpty
-                      ? AppColors.primaryGreen
-                      : AppColors.textTertiary),
-              const SizedBox(width: AppSizes.spacing8),
-              Text(
-                dayLabel,
-                style: const TextStyle(
-                  fontSize: AppTypography.fontSize14,
-                  fontWeight: AppTypography.bold,
-                  color: AppColors.textPrimary,
-                  fontFamily: 'Lato',
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
                 ),
+                child: Icon(groupIcon,
+                    size: AppSizes.icon18, color: AppColors.primaryGreen),
               ),
-              const Spacer(),
-              if (entries.isEmpty)
-                Text(
-                  'No delivery',
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize10,
-                    color: AppColors.textSecondary.withValues(alpha: 0.8),
+              const SizedBox(width: AppSizes.spacing8),
+              Expanded(
+                child: Text(
+                  slot == null
+                      ? 'Delivery'
+                      : '${slot!.slotName} · ${slot!.timeRange}',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.textPrimary,
                     fontFamily: 'Lato',
                   ),
                 ),
-              if (onCopy != null)
-                Tooltip(
-                  message: 'Copy this day to other days',
-                  child: GestureDetector(
-                    onTap: onCopy,
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(Icons.copy_rounded,
-                          size: AppSizes.icon16, color: AppColors.primaryGreen),
-                    ),
-                  ),
-                ),
+              ),
             ],
           ),
-          for (var i = 0; i < entries.length; i++) ...[
-            const SizedBox(height: AppSizes.spacing8),
-            _EntryRow(
-              slot: _slotLabel(entries[i].slotId),
-              meals: _mealsLabel(entries[i].categoryIds),
-              address: _addressLabel(entries[i].addressId),
-              onEdit: () => onEdit(i),
-              onRemove: () => onRemove(i),
-            ),
-          ],
           const SizedBox(height: AppSizes.spacing8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: onAdd,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.primaryGreen,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                minimumSize: const Size(0, 32),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              icon: const Icon(Icons.add_rounded, size: AppSizes.icon18),
-              label: const Text('Add delivery slot',
-                  style: TextStyle(
-                      fontFamily: 'Lato',
-                      fontSize: AppTypography.fontSize12,
-                      fontWeight: AppTypography.semiBold)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EntryRow extends StatelessWidget {
-  const _EntryRow({
-    required this.slot,
-    required this.meals,
-    required this.address,
-    required this.onEdit,
-    required this.onRemove,
-  });
-
-  final String slot;
-  final String meals;
-  final String address;
-  final VoidCallback onEdit;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSizes.spacing8),
-      decoration: BoxDecoration(
-        color: AppColors.primaryGreen.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-        border:
-            Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _kv(Icons.local_shipping_rounded, slot, bold: true),
-                const SizedBox(height: 3),
-                _kv(Icons.restaurant_menu_rounded, meals),
-                const SizedBox(height: 3),
-                _kv(Icons.location_on_rounded, address),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: onEdit,
-            child: const Padding(
-              padding: EdgeInsets.all(4),
-              child: Icon(Icons.edit_rounded,
-                  size: AppSizes.icon16, color: AppColors.primaryGreen),
-            ),
-          ),
-          GestureDetector(
-            onTap: onRemove,
-            child: const Padding(
-              padding: EdgeInsets.all(4),
-              child: Icon(Icons.close_rounded,
-                  size: AppSizes.icon16, color: AppColors.errorColor),
-            ),
-          ),
+          _kv(Icons.restaurant_menu_rounded, meals),
+          const SizedBox(height: 3),
+          _kv(Icons.location_on_rounded, address),
         ],
       ),
     );
   }
 
-  Widget _kv(IconData icon, String text, {bool bold = false}) {
+  Widget _kv(IconData icon, String text) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -613,8 +745,7 @@ class _EntryRow extends StatelessWidget {
             text,
             style: TextStyle(
               fontSize: AppTypography.fontSize12,
-              fontWeight: bold ? AppTypography.semiBold : AppTypography.regular,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimary.withValues(alpha: 0.9),
               fontFamily: 'Lato',
               height: 1.3,
             ),
@@ -625,40 +756,101 @@ class _EntryRow extends StatelessWidget {
   }
 }
 
-/// Editor for one slot entry, structured like the payload: pick the delivery
-/// slot, the meal categories under it, then the address for this delivery.
-class _SlotEntrySheet extends StatefulWidget {
-  const _SlotEntrySheet({
+// ═══════════════════════════════════════════════════════════════════════════
+// Guided wizard — one step per slot group (Morning → Afternoon → Night).
+// Each step progressively reveals: slot → meals → address.
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _DeliveryWizardSheet extends StatefulWidget {
+  const _DeliveryWizardSheet({
     required this.dayLabel,
-    required this.initial,
+    required this.groups,
     required this.categories,
-    required this.slots,
     required this.addresses,
-    required this.usedSlotIds,
-    required this.usedCategoryIds,
+    required this.existing,
   });
 
   final String dayLabel;
-  final _SlotEntry initial;
+  final List<_SlotGroup> groups;
   final List<DishCategory> categories;
-  final List<DeliverySlotApiModel> slots;
   final List<DeliveryAddressModel> addresses;
-
-  /// Slots / categories already taken by the day's other entries.
-  final Set<String> usedSlotIds;
-  final Set<String> usedCategoryIds;
+  final List<_SlotEntry> existing;
 
   @override
-  State<_SlotEntrySheet> createState() => _SlotEntrySheetState();
+  State<_DeliveryWizardSheet> createState() => _DeliveryWizardSheetState();
 }
 
-class _SlotEntrySheetState extends State<_SlotEntrySheet> {
-  late final _SlotEntry _draft = widget.initial.copy();
+class _DeliveryWizardSheetState extends State<_DeliveryWizardSheet> {
+  int _step = 0;
+  late final List<_SlotEntry> _working;
+  late final List<bool> _skipped;
 
-  bool get _valid => _draft.isComplete;
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill each group from any existing entry whose slot belongs to it.
+    _working = [
+      for (final g in widget.groups) _existingFor(g)?.copy() ?? _SlotEntry(),
+    ];
+    _skipped = List<bool>.filled(widget.groups.length, false);
+  }
+
+  _SlotEntry? _existingFor(_SlotGroup g) {
+    final ids = g.slots.map((s) => s.id).toSet();
+    for (final e in widget.existing) {
+      if (ids.contains(e.slotId)) return e;
+    }
+    return null;
+  }
+
+  _SlotGroup get _group => widget.groups[_step];
+  _SlotEntry get _entry => _working[_step];
+  bool get _isLast => _step == widget.groups.length - 1;
+  bool get _canContinue => _skipped[_step] || _entry.isComplete;
+
+  void _finish() {
+    final entries = <_SlotEntry>[
+      for (var i = 0; i < widget.groups.length; i++)
+        if (!_skipped[i] && _working[i].isComplete) _working[i],
+    ];
+    Navigator.of(context).pop(entries);
+  }
+
+  void _next() {
+    if (_isLast) {
+      _finish();
+    } else {
+      setState(() => _step++);
+    }
+  }
+
+  void _skip() {
+    setState(() {
+      _skipped[_step] = true;
+      _working[_step] = _SlotEntry();
+    });
+    _next();
+  }
+
+  void _back() => setState(() => _step--);
 
   @override
   Widget build(BuildContext context) {
+    final skipped = _skipped[_step];
+    final slotChosen = _entry.slotId.isNotEmpty;
+    final mealsChosen = _entry.categoryIds.isNotEmpty;
+
+    // Meals already assigned to another slot this day are hidden here — each
+    // meal is delivered once per day.
+    final usedByOtherSteps = <String>{
+      for (var i = 0; i < _working.length; i++)
+        if (i != _step && !_skipped[i]) ..._working[i].categoryIds,
+    };
+    final availableCategories = [
+      for (final c in widget.categories)
+        if (!usedByOtherSteps.contains(c.id)) c,
+    ];
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -683,16 +875,27 @@ class _SlotEntrySheetState extends State<_SlotEntrySheet> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
+            // ── Header ──
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Row(
                 children: [
+                  if (_step > 0)
+                    GestureDetector(
+                      onTap: _back,
+                      child: const Padding(
+                        padding: EdgeInsets.only(right: AppSizes.spacing8),
+                        child: Icon(Icons.arrow_back_rounded,
+                            size: AppSizes.icon20,
+                            color: AppColors.textSecondary),
+                      ),
+                    ),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${widget.dayLabel} delivery',
+                          '${widget.dayLabel} · ${_group.label}',
                           style: const TextStyle(
                             fontSize: AppTypography.fontSize18,
                             fontWeight: AppTypography.bold,
@@ -701,7 +904,7 @@ class _SlotEntrySheetState extends State<_SlotEntrySheet> {
                           ),
                         ),
                         Text(
-                          'Slot, its meals and where to deliver them.',
+                          'Step ${_step + 1} of ${widget.groups.length}',
                           style: TextStyle(
                             fontSize: AppTypography.fontSize12,
                             color:
@@ -720,97 +923,125 @@ class _SlotEntrySheetState extends State<_SlotEntrySheet> {
                 ],
               ),
             ),
+            // ── Progress stepper ──
+            _StepDots(
+              groups: widget.groups,
+              current: _step,
+              skipped: _skipped,
+              completed: [for (final e in _working) e.isComplete],
+            ),
             const Divider(height: 1),
+            // ── Body: progressive reveal ──
             Flexible(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
                 children: [
-                  const _SheetLabel('Delivery slot'),
+                  _StepLabel(
+                      1, 'Choose your ${_group.label.toLowerCase()} slot'),
                   const SizedBox(height: AppSizes.spacing8),
-                  for (final s in widget.slots)
+                  for (final s in _group.slots)
                     _RadioTile(
                       title: s.slotName,
-                      subtitle: widget.usedSlotIds.contains(s.id)
-                          ? '${s.timeRange} — already added for this day'
-                          : s.timeRange,
-                      selected: _draft.slotId == s.id,
-                      disabled: widget.usedSlotIds.contains(s.id),
-                      onTap: () => setState(() => _draft.slotId = s.id),
+                      subtitle: s.timeRange,
+                      selected: _entry.slotId == s.id,
+                      onTap: () => setState(() {
+                        _skipped[_step] = false;
+                        _entry.slotId = s.id;
+                      }),
                     ),
-                  const SizedBox(height: AppSizes.spacing16),
-                  const _SheetLabel('Meals in this delivery'),
-                  const SizedBox(height: AppSizes.spacing8),
-                  Wrap(
-                    spacing: AppSizes.spacing8,
-                    runSpacing: AppSizes.spacing8,
-                    children: [
-                      for (final c in widget.categories)
-                        _CategoryChip(
-                          label: c.name,
-                          icon: _categoryIcon(c.name),
-                          selected: _draft.categoryIds.contains(c.id),
-                          disabled: widget.usedCategoryIds.contains(c.id),
-                          onTap: () => setState(() {
-                            if (!_draft.categoryIds.remove(c.id)) {
-                              _draft.categoryIds.add(c.id);
-                            }
-                          }),
+                  if (slotChosen && !skipped) ...[
+                    const SizedBox(height: AppSizes.spacing16),
+                    _StepLabel(2, 'Which meals in this delivery?'),
+                    const SizedBox(height: AppSizes.spacing8),
+                    if (availableCategories.isEmpty)
+                      Text(
+                        'All meals are already assigned to other slots today.',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          color: AppColors.textSecondary.withValues(alpha: 0.9),
+                          fontFamily: 'Lato',
                         ),
-                    ],
-                  ),
-                  if (widget.usedCategoryIds.isNotEmpty) ...[
-                    const SizedBox(height: AppSizes.spacing6),
-                    Text(
-                      'Greyed meals are already covered by another slot today.',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize10,
-                        color: AppColors.textSecondary.withValues(alpha: 0.8),
-                        fontFamily: 'Lato',
+                      )
+                    else
+                      Wrap(
+                        spacing: AppSizes.spacing8,
+                        runSpacing: AppSizes.spacing8,
+                        children: [
+                          for (final c in availableCategories)
+                            _CategoryChip(
+                              label: c.name,
+                              icon: _categoryIcon(c.name),
+                              selected: _entry.categoryIds.contains(c.id),
+                              onTap: () => setState(() {
+                                if (!_entry.categoryIds.remove(c.id)) {
+                                  _entry.categoryIds.add(c.id);
+                                }
+                              }),
+                            ),
+                        ],
                       ),
-                    ),
                   ],
-                  const SizedBox(height: AppSizes.spacing16),
-                  const _SheetLabel('Delivery address for this slot'),
-                  const SizedBox(height: AppSizes.spacing8),
-                  for (final a in widget.addresses)
-                    _RadioTile(
-                      title: a.label.isEmpty
-                          ? 'Address'
-                          : '${a.label[0].toUpperCase()}${a.label.substring(1)}',
-                      subtitle: a.formattedAddress,
-                      selected: _draft.addressId == a.id,
-                      onTap: () => setState(() => _draft.addressId = a.id),
-                    ),
+                  if (slotChosen && mealsChosen && !skipped) ...[
+                    const SizedBox(height: AppSizes.spacing16),
+                    _StepLabel(3, 'Delivery address'),
+                    const SizedBox(height: AppSizes.spacing8),
+                    for (final a in widget.addresses)
+                      _RadioTile(
+                        title:
+                            a.label.isEmpty ? 'Address' : _capitalize(a.label),
+                        subtitle: a.formattedAddress,
+                        selected: _entry.addressId == a.id,
+                        onTap: () => setState(() => _entry.addressId = a.id),
+                      ),
+                  ],
                 ],
               ),
             ),
+            // ── Footer ──
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: SizedBox(
-                width: double.infinity,
-                height: AppSizes.buttonHeight,
-                child: ElevatedButton(
-                  onPressed:
-                      _valid ? () => Navigator.of(context).pop(_draft) : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryGreen,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor:
-                        AppColors.borderColor.withValues(alpha: 0.6),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.radius8),
+              child: Row(
+                children: [
+                  TextButton(
+                    onPressed: _skip,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      minimumSize: const Size(0, AppSizes.buttonHeight),
+                    ),
+                    child: const Text('Skip',
+                        style: TextStyle(
+                            fontFamily: 'Lato',
+                            fontWeight: AppTypography.semiBold)),
+                  ),
+                  const SizedBox(width: AppSizes.spacing8),
+                  Expanded(
+                    child: SizedBox(
+                      height: AppSizes.buttonHeight,
+                      child: ElevatedButton(
+                        onPressed: _canContinue ? _next : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryGreen,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              AppColors.borderColor.withValues(alpha: 0.6),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppSizes.radius8),
+                          ),
+                        ),
+                        child: Text(
+                          _isLast ? 'Finish' : 'Continue',
+                          style: const TextStyle(
+                            fontSize: AppTypography.fontSize14,
+                            fontWeight: AppTypography.bold,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                  child: Text(
-                    _valid ? 'Done' : 'Pick slot, meals & address',
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize14,
-                      fontWeight: AppTypography.bold,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
-                ),
+                ],
               ),
             ),
           ],
@@ -820,20 +1051,128 @@ class _SlotEntrySheetState extends State<_SlotEntrySheet> {
   }
 }
 
-class _SheetLabel extends StatelessWidget {
-  const _SheetLabel(this.text);
+/// Segmented progress dots for the wizard (Morning → Afternoon → Night).
+class _StepDots extends StatelessWidget {
+  const _StepDots({
+    required this.groups,
+    required this.current,
+    required this.skipped,
+    required this.completed,
+  });
+
+  final List<_SlotGroup> groups;
+  final int current;
+  final List<bool> skipped;
+  final List<bool> completed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: Row(
+        children: [
+          for (var i = 0; i < groups.length; i++) ...[
+            if (i > 0) const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      _dot(i),
+                      Expanded(
+                        child: Container(
+                          height: 3,
+                          color: i < current
+                              ? AppColors.primaryGreen
+                              : AppColors.borderColor.withValues(alpha: 0.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    groups[i].label,
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize10,
+                      fontWeight: i == current
+                          ? AppTypography.bold
+                          : AppTypography.regular,
+                      color: i == current
+                          ? AppColors.primaryGreen
+                          : AppColors.textSecondary.withValues(alpha: 0.8),
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _dot(int i) {
+    final done = i < current && (completed[i] || skipped[i]);
+    final active = i == current;
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: active || done
+            ? AppColors.primaryGreen
+            : AppColors.borderColor.withValues(alpha: 0.3),
+      ),
+      child: Icon(
+        done ? Icons.check_rounded : groups[i].icon,
+        size: 13,
+        color: active || done ? Colors.white : AppColors.textSecondary,
+      ),
+    );
+  }
+}
+
+class _StepLabel extends StatelessWidget {
+  const _StepLabel(this.number, this.text);
+  final int number;
   final String text;
 
   @override
-  Widget build(BuildContext context) => Text(
-        text,
-        style: const TextStyle(
-          fontSize: AppTypography.fontSize14,
-          fontWeight: AppTypography.bold,
-          color: AppColors.textPrimary,
-          fontFamily: 'Lato',
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 20,
+          height: 20,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.primaryGreen.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            '$number',
+            style: const TextStyle(
+              fontSize: AppTypography.fontSize10,
+              fontWeight: AppTypography.bold,
+              color: AppColors.primaryGreen,
+              fontFamily: 'Lato',
+            ),
+          ),
         ),
-      );
+        const SizedBox(width: AppSizes.spacing8),
+        Text(
+          text,
+          style: const TextStyle(
+            fontSize: AppTypography.fontSize14,
+            fontWeight: AppTypography.bold,
+            color: AppColors.textPrimary,
+            fontFamily: 'Lato',
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _RadioTile extends StatelessWidget {
@@ -842,76 +1181,70 @@ class _RadioTile extends StatelessWidget {
     required this.subtitle,
     required this.selected,
     required this.onTap,
-    this.disabled = false,
   });
 
   final String title;
   final String subtitle;
   final bool selected;
-  final bool disabled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: disabled ? null : onTap,
-      child: Opacity(
-        opacity: disabled ? 0.45 : 1,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
-          padding: const EdgeInsets.all(AppSizes.spacing12),
-          decoration: BoxDecoration(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
+        padding: const EdgeInsets.all(AppSizes.spacing12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryGreen.withValues(alpha: 0.06)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+          border: Border.all(
             color: selected
-                ? AppColors.primaryGreen.withValues(alpha: 0.06)
-                : Colors.white,
-            borderRadius: BorderRadius.circular(AppSizes.radius8),
-            border: Border.all(
-              color: selected
-                  ? AppColors.primaryGreen
-                  : AppColors.borderColor.withValues(alpha: 0.6),
-              width: selected ? 1.5 : 1,
-            ),
+                ? AppColors.primaryGreen
+                : AppColors.borderColor.withValues(alpha: 0.6),
+            width: selected ? 1.5 : 1,
           ),
-          child: Row(
-            children: [
-              Icon(
-                selected
-                    ? Icons.radio_button_checked_rounded
-                    : Icons.radio_button_unchecked_rounded,
-                size: AppSizes.icon20,
-                color:
-                    selected ? AppColors.primaryGreen : AppColors.textTertiary,
-              ),
-              const SizedBox(width: AppSizes.spacing12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              size: AppSizes.icon20,
+              color: selected ? AppColors.primaryGreen : AppColors.textTertiary,
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.semiBold,
+                      color: AppColors.textPrimary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 2),
                     Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: AppTypography.fontSize14,
-                        fontWeight: AppTypography.semiBold,
-                        color: AppColors.textPrimary,
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        color: AppColors.textSecondary.withValues(alpha: 0.9),
                         fontFamily: 'Lato',
                       ),
                     ),
-                    if (subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize12,
-                          color: AppColors.textSecondary.withValues(alpha: 0.9),
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                    ],
                   ],
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -924,57 +1257,55 @@ class _CategoryChip extends StatelessWidget {
     required this.icon,
     required this.selected,
     required this.onTap,
-    this.disabled = false,
   });
 
   final String label;
   final IconData icon;
   final bool selected;
-  final bool disabled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: disabled ? null : onTap,
-      child: Opacity(
-        opacity: disabled ? 0.4 : 1,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: AppSizes.spacing12, vertical: AppSizes.spacing8),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primaryGreen : Colors.white,
-            borderRadius: BorderRadius.circular(50),
-            border: Border.all(
-              color: selected ? AppColors.primaryGreen : AppColors.borderColor,
-              width: 1.5,
-            ),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.spacing12, vertical: AppSizes.spacing8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primaryGreen : Colors.white,
+          borderRadius: BorderRadius.circular(50),
+          border: Border.all(
+            color: selected ? AppColors.primaryGreen : AppColors.borderColor,
+            width: 1.5,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon,
-                  size: AppSizes.icon14,
-                  color: selected ? Colors.white : AppColors.primaryGreen),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: AppTypography.fontSize12,
-                  fontWeight: AppTypography.semiBold,
-                  color: selected ? Colors.white : AppColors.textPrimary,
-                  fontFamily: 'Lato',
-                ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: AppSizes.icon14,
+                color: selected ? Colors.white : AppColors.primaryGreen),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize12,
+                fontWeight: AppTypography.semiBold,
+                color: selected ? Colors.white : AppColors.textPrimary,
+                fontFamily: 'Lato',
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// Sheet to choose which days to copy a day's plan onto.
+// ═══════════════════════════════════════════════════════════════════════════
+// Copy-to-other-days sheet
+// ═══════════════════════════════════════════════════════════════════════════
+
 class _CopyDaySheet extends StatefulWidget {
   const _CopyDaySheet({required this.sourceLabel, required this.targets});
 
@@ -1028,7 +1359,6 @@ class _CopyDaySheetState extends State<_CopyDaySheet> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            // ── Header (fixed) ──
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               child: Row(
@@ -1038,7 +1368,7 @@ class _CopyDaySheetState extends State<_CopyDaySheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Copy ${widget.sourceLabel}',
+                          'Copy ${widget.sourceLabel} to…',
                           style: const TextStyle(
                             fontSize: AppTypography.fontSize18,
                             fontWeight: AppTypography.bold,
@@ -1047,7 +1377,7 @@ class _CopyDaySheetState extends State<_CopyDaySheet> {
                           ),
                         ),
                         Text(
-                          'Overwrites the selected days with this plan.',
+                          'Reuse this day\'s deliveries on other days.',
                           style: TextStyle(
                             fontSize: AppTypography.fontSize12,
                             color:
@@ -1066,7 +1396,6 @@ class _CopyDaySheetState extends State<_CopyDaySheet> {
                 ],
               ),
             ),
-            // ── Select all (fixed) ──
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
               child: Row(
@@ -1101,7 +1430,6 @@ class _CopyDaySheetState extends State<_CopyDaySheet> {
               ),
             ),
             const Divider(height: 1),
-            // ── Scrollable target list ──
             Flexible(
               child: ListView(
                 shrinkWrap: true,
@@ -1121,7 +1449,6 @@ class _CopyDaySheetState extends State<_CopyDaySheet> {
                 ],
               ),
             ),
-            // ── Confirm (fixed) ──
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: SizedBox(

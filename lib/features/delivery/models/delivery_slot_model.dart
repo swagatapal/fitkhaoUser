@@ -52,6 +52,13 @@ class DeliverySlotApiModel {
   final String createdAt;
   final String updatedAt;
 
+  /// Slot group from the API: "morning" | "afternoon" | "night" (may be empty
+  /// on older responses — falls back to [slotType]).
+  final String category;
+
+  /// Display order within the catalogue.
+  final int sort;
+
   const DeliverySlotApiModel({
     required this.id,
     required this.slotName,
@@ -60,10 +67,16 @@ class DeliverySlotApiModel {
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
+    this.category = '',
+    this.sort = 0,
   });
 
   /// Formatted time range e.g. "8:00 AM - 9:00 AM"
   String get timeRange => '$slotStartTime - $slotEndTime';
+
+  /// The group this slot belongs to — the API `category`, else derived.
+  String get groupKey =>
+      category.isNotEmpty ? category.toLowerCase() : slotType;
 
   /// Slot type derived from name, then falls back to hour-based detection
   String get slotType {
@@ -92,6 +105,11 @@ class DeliverySlotApiModel {
   }
 
   factory DeliverySlotApiModel.fromJson(Map<String, dynamic> json) {
+    // `sort` may arrive as an int or a string ("3").
+    final rawSort = json['sort'];
+    final sort = rawSort is num
+        ? rawSort.toInt()
+        : int.tryParse(rawSort?.toString() ?? '') ?? 0;
     return DeliverySlotApiModel(
       id: json['_id'] as String? ?? '',
       slotName: json['slotName'] as String? ?? '',
@@ -100,6 +118,8 @@ class DeliverySlotApiModel {
       isActive: json['isActive'] as bool? ?? false,
       createdAt: json['createdAt'] as String? ?? '',
       updatedAt: json['updatedAt'] as String? ?? '',
+      category: json['category'] as String? ?? '',
+      sort: sort,
     );
   }
 }
