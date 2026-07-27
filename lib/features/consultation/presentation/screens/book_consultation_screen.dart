@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
@@ -410,6 +411,19 @@ class _BookedConsultationViewState
     return '${_kWeekdayShort[d.weekday - 1]}, ${d.day} ${_kMonthShort[d.month - 1]} ${d.year}';
   }
 
+  Future<void> _joinMeeting() async {
+    final uri = Uri.tryParse(widget.info.meetingLink.trim());
+    if (uri == null) return;
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Could not open the meeting link.'),
+        backgroundColor: AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
   Future<void> _cancel() async {
     final reason = await _askReason();
     if (reason == null || !mounted) return;
@@ -549,6 +563,10 @@ class _BookedConsultationViewState
             ],
           ),
         ),
+        if (info.hasMeetingLink) ...[
+          const SizedBox(height: AppSizes.spacing12),
+          _MeetingLinkCard(link: info.meetingLink, onJoin: _joinMeeting),
+        ],
         if (info.isRescheduleRequested) ...[
           const SizedBox(height: AppSizes.spacing12),
           _RescheduleNotice(
@@ -561,8 +579,7 @@ class _BookedConsultationViewState
           info.isRescheduleRequested
               ? 'Your nutritionist requested a reschedule. Tap Reschedule to '
                   'choose a new date and time.'
-              : 'You already have a consultation booked. Cancel it to choose a '
-                  'different slot.',
+              : 'You already have a consultation booked',
           style: TextStyle(
             fontSize: AppTypography.fontSize12,
             color: AppColors.textSecondary.withValues(alpha: 0.9),
@@ -598,50 +615,50 @@ class _BookedConsultationViewState
             ),
           ),
           const SizedBox(height: AppSizes.spacing8),
-          Center(
-            child: TextButton(
-              onPressed: cancelling ? null : _cancel,
-              child: Text(
-                cancelling ? 'Cancelling…' : 'Cancel consultation instead',
-                style: const TextStyle(
-                  fontFamily: 'Lato',
-                  fontWeight: AppTypography.semiBold,
-                  color: AppColors.errorColor,
-                ),
-              ),
-            ),
-          ),
+          // Center(
+          //   child: TextButton(
+          //     onPressed: cancelling ? null : _cancel,
+          //     child: Text(
+          //       cancelling ? 'Cancelling…' : 'Cancel consultation instead',
+          //       style: const TextStyle(
+          //         fontFamily: 'Lato',
+          //         fontWeight: AppTypography.semiBold,
+          //         color: AppColors.errorColor,
+          //       ),
+          //     ),
+          //   ),
+          // ),
         ] else
           SizedBox(
             width: double.infinity,
             height: AppSizes.buttonHeight,
-            child: OutlinedButton.icon(
-              onPressed: cancelling ? null : _cancel,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.errorColor,
-                side: BorderSide(
-                    color: AppColors.errorColor.withValues(alpha: 0.6)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSizes.radius8),
-                ),
-              ),
-              icon: cancelling
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: AppColors.errorColor),
-                    )
-                  : const Icon(Icons.close_rounded, size: AppSizes.icon20),
-              label: Text(
-                cancelling ? 'Cancelling…' : 'Cancel consultation',
-                style: const TextStyle(
-                  fontSize: AppTypography.fontSize14,
-                  fontWeight: AppTypography.bold,
-                  fontFamily: 'Lato',
-                ),
-              ),
-            ),
+            // child: OutlinedButton.icon(
+            //   onPressed: cancelling ? null : _cancel,
+            //   style: OutlinedButton.styleFrom(
+            //     foregroundColor: AppColors.errorColor,
+            //     side: BorderSide(
+            //         color: AppColors.errorColor.withValues(alpha: 0.6)),
+            //     shape: RoundedRectangleBorder(
+            //       borderRadius: BorderRadius.circular(AppSizes.radius8),
+            //     ),
+            //   ),
+            //   icon: cancelling
+            //       ? const SizedBox(
+            //           width: 18,
+            //           height: 18,
+            //           child: CircularProgressIndicator(
+            //               strokeWidth: 2, color: AppColors.errorColor),
+            //         )
+            //       : const Icon(Icons.close_rounded, size: AppSizes.icon20),
+            //   label: Text(
+            //     cancelling ? 'Cancelling…' : 'Cancel consultation',
+            //     style: const TextStyle(
+            //       fontSize: AppTypography.fontSize14,
+            //       fontWeight: AppTypography.bold,
+            //       fontFamily: 'Lato',
+            //     ),
+            //   ),
+            // ),
           ),
       ],
     );
@@ -802,6 +819,78 @@ class _RescheduleNotice extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A tappable card that opens the consultation's video-meeting link.
+class _MeetingLinkCard extends StatelessWidget {
+  const _MeetingLinkCard({required this.link, required this.onJoin});
+
+  final String link;
+  final VoidCallback onJoin;
+
+  static const Color _meetBlue = Color(0xFF1A73E8);
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        onTap: onJoin,
+        child: Container(
+          padding: const EdgeInsets.all(AppSizes.spacing12),
+          decoration: BoxDecoration(
+            color: _meetBlue.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(AppSizes.radius12),
+            border: Border.all(color: _meetBlue.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSizes.spacing8),
+                decoration: BoxDecoration(
+                  color: _meetBlue.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+                child: const Icon(Icons.videocam_rounded,
+                    color: _meetBlue, size: AppSizes.icon24),
+              ),
+              const SizedBox(width: AppSizes.spacing12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Join Google Meet',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.bold,
+                        color: _meetBlue,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      link,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        color: AppColors.textSecondary.withValues(alpha: 0.9),
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.open_in_new_rounded,
+                  color: _meetBlue, size: AppSizes.icon20),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -276,6 +276,7 @@ class BookedSlotInfo {
   final String toTime;
   final String rescheduleReason;
   final String rescheduleRequestedBy;
+  final String meetingLink;
 
   const BookedSlotInfo({
     required this.consultationId,
@@ -287,7 +288,10 @@ class BookedSlotInfo {
     required this.toTime,
     this.rescheduleReason = '',
     this.rescheduleRequestedBy = '',
+    this.meetingLink = '',
   });
+
+  bool get hasMeetingLink => meetingLink.trim().isNotEmpty;
 
   /// A slot is actually booked once its consultation is `scheduled` (the API
   /// leaves it `pending` until a time is chosen; cancelled/completed free it).
@@ -338,6 +342,7 @@ class BookedSlotInfo {
       toTime: _str(slot ?? const {}, ['toTime', 'endTime', 'to']),
       rescheduleReason: c['rescheduleRequestReason'] as String? ?? '',
       rescheduleRequestedBy: c['rescheduleRequestedBy'] as String? ?? '',
+      meetingLink: _str(c, ['meetingLink', 'meetLink', 'meetingUrl', 'link']),
     );
   }
 }
