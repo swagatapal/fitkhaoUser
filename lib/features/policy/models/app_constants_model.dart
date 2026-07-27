@@ -44,9 +44,18 @@ class AppConstants {
   /// data.order.cancellationTime is missing.
   static const int _kDefaultCancelWindowSeconds = 30;
 
+  /// Default cutoff hour (IST) for changing/cancelling a subscription-slot
+  /// order on its delivery day.
+  static const int _kDefaultSlotChangeCutoffHour = 6;
+
   /// How long (in seconds) after placing an order the user can cancel it.
   /// Sourced from data.order.cancellationTime in the constants API response.
   final int cancelOrderWindowSeconds;
+
+  /// Latest hour (0–23, IST) on the delivery day a subscription-slot order can
+  /// be changed or cancelled. Sourced from
+  /// data.order.subscriptionSlotChangeCutoffHour.
+  final int subscriptionSlotChangeCutoffHour;
 
   /// Pricing configuration (platform fee, GST rate, delivery charge).
   final PricingConstants pricing;
@@ -57,6 +66,7 @@ class AppConstants {
 
   const AppConstants({
     this.cancelOrderWindowSeconds = _kDefaultCancelWindowSeconds,
+    this.subscriptionSlotChangeCutoffHour = _kDefaultSlotChangeCutoffHour,
     this.pricing = PricingConstants.defaults,
     this.subscriptionCancellationFee = 0,
   });
@@ -85,6 +95,10 @@ class AppConstants {
         ? (cancellationMs / 1000).round()
         : _kDefaultCancelWindowSeconds;
 
+    final slotCutoffHour =
+        (order?['subscriptionSlotChangeCutoffHour'] as num?)?.toInt() ??
+            _kDefaultSlotChangeCutoffHour;
+
     final pricingMap = data?['pricing'] as Map<String, dynamic>? ?? {};
     final pricing = PricingConstants.fromMap(pricingMap);
 
@@ -94,6 +108,7 @@ class AppConstants {
 
     return AppConstants(
       cancelOrderWindowSeconds: cancellationTime,
+      subscriptionSlotChangeCutoffHour: slotCutoffHour,
       pricing: pricing,
       subscriptionCancellationFee: subscriptionCancellationFee,
     );

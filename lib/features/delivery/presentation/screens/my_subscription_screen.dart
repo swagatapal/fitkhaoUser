@@ -13,6 +13,8 @@ import '../../../consultation/presentation/screens/book_consultation_screen.dart
 import '../widgets/delivery_plan_manager_tab.dart';
 import '../../../dashboard/models/meal_plan_model.dart';
 import '../../../dashboard/providers/meal_plan_provider.dart';
+import '../../../policy/models/app_constants_model.dart';
+import '../../../policy/providers/app_constants_provider.dart';
 import '../../../profile/providers/delivery_address_provider.dart';
 import '../../models/subscription_timeline_model.dart';
 import '../../providers/delivery_slot_list_provider.dart';
@@ -865,7 +867,7 @@ class _DailyMealsCard extends StatelessWidget {
               Divider(
                   height: AppSizes.spacing16,
                   color: AppColors.borderColor.withValues(alpha: 0.4)),
-            _MealRow(meal: day.meals[i]),
+            _MealRow(meal: day.meals[i], deliveryDate: day.parsedDate),
           ],
         ],
       ),
@@ -874,9 +876,12 @@ class _DailyMealsCard extends StatelessWidget {
 }
 
 class _MealRow extends ConsumerStatefulWidget {
-  const _MealRow({required this.meal});
+  const _MealRow({required this.meal, this.deliveryDate});
 
   final TimelineMeal meal;
+
+  /// The day this meal is delivered — used for the change/cancel cutoff check.
+  final DateTime? deliveryDate;
 
   @override
   ConsumerState<_MealRow> createState() => _MealRowState();
@@ -987,6 +992,17 @@ class _MealRowState extends ConsumerState<_MealRow> {
 
   @override
   Widget build(BuildContext context) {
+    final cutoffHour = ref
+            .watch(appConstantsProvider)
+            .valueOrNull
+            ?.subscriptionSlotChangeCutoffHour ??
+        AppConstants.defaults.subscriptionSlotChangeCutoffHour;
+    final withinCutoff = _withinChangeCutoff(widget.deliveryDate, cutoffHour);
+    final canModify = meal.isActionable && withinCutoff;
+    // Order is still open but the change/cancel window on the delivery day has
+    // closed → show a lock hint instead of the actions menu.
+    final locked = meal.isActionable && !withinCutoff;
+
     return Row(
       children: [
         Container(
@@ -1027,7 +1043,18 @@ class _MealRowState extends ConsumerState<_MealRow> {
           ),
         ),
         _MealStatusChip(label: meal.statusLabel, status: meal.status),
-        if (meal.isActionable) ...[
+        if (locked) ...[
+          const SizedBox(width: 4),
+          Tooltip(
+            message:
+                'Changes closed after ${_formatHour(cutoffHour)} IST on the delivery day',
+            triggerMode: TooltipTriggerMode.tap,
+            child: Icon(Icons.lock_clock_rounded,
+                size: AppSizes.icon18,
+                color: AppColors.textSecondary.withValues(alpha: 0.7)),
+          ),
+        ],
+        if (canModify) ...[
           const SizedBox(width: 2),
           if (_busy)
             const Padding(
@@ -1363,6 +1390,11 @@ class _MealOrderChangeSheetState extends ConsumerState<_MealOrderChangeSheet> {
   }
 
   Widget _deadlineNote() {
+    final cutoffHour = ref
+            .watch(appConstantsProvider)
+            .valueOrNull
+            ?.subscriptionSlotChangeCutoffHour ??
+        AppConstants.defaults.subscriptionSlotChangeCutoffHour;
     return Container(
       padding: const EdgeInsets.all(AppSizes.spacing12),
       decoration: BoxDecoration(
@@ -1370,14 +1402,15 @@ class _MealOrderChangeSheetState extends ConsumerState<_MealOrderChangeSheet> {
         borderRadius: BorderRadius.circular(AppSizes.radius8),
         border: Border.all(color: _kAccent.withValues(alpha: 0.3)),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.schedule_rounded, size: AppSizes.icon18, color: _kAccent),
-          SizedBox(width: AppSizes.spacing8),
+          const Icon(Icons.schedule_rounded,
+              size: AppSizes.icon18, color: _kAccent),
+          const SizedBox(width: AppSizes.spacing8),
           Expanded(
             child: Text(
-              'Changes are allowed only before 6:00 AM IST on the delivery day.',
-              style: TextStyle(
+              'Changes are allowed only before ${_formatHour(cutoffHour)} IST on the delivery day.',
+              style: const TextStyle(
                 fontSize: AppTypography.fontSize12,
                 color: Color(0xFF795548),
                 fontFamily: 'Lato',
@@ -1610,6 +1643,26 @@ bool _canBookConsultation(List<TimelineStep> steps) {
     if (s.key == mealKey) return s.status == TimelineStatus.completed;
   }
   return true; // no gating meal-plan step for this consultation
+}
+
+/// A subscription-slot order can be changed/cancelled only before
+/// [cutoffHour]:00 IST on its delivery day.
+bool _withinChangeCutoff(DateTime? deliveryDate, int cutoffHour) {
+  if (deliveryDate == null) return true; // no date → don't block client-side
+  final cutoffUtc = DateTime.utc(
+    deliveryDate.year,
+    deliveryDate.month,
+    deliveryDate.day,
+    cutoffHour,
+  ).subtract(const Duration(hours: 5, minutes: 30)); // IST → UTC
+  return DateTime.now().toUtc().isBefore(cutoffUtc);
+}
+
+/// "6:00 AM" from a 24h hour value.
+String _formatHour(int h) {
+  final period = h >= 12 ? 'PM' : 'AM';
+  final h12 = h % 12 == 0 ? 12 : h % 12;
+  return '$h12:00 $period';
 }
 
 IconData _slotIcon(String slot) {
