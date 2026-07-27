@@ -50,7 +50,41 @@ class _BookConsultationScreenState
   String? _availabilityId;
   String? _timeId;
 
+  // Reschedule mode: re-book with the SAME nutritionist (no nutritionist step)
+  // after a reschedule request. Booking a new slot replaces the old one.
+  bool _rescheduleMode = false;
+  String? _rescheduleNutId;
+  String? _rescheduleNutName;
+
   static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  void _startReschedule(BookedSlotInfo info) {
+    if (info.nutritionistId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content:
+            Text('Could not identify the nutritionist to reschedule with.'),
+        backgroundColor: AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    setState(() {
+      _rescheduleMode = true;
+      _rescheduleNutId = info.nutritionistId;
+      _rescheduleNutName = info.nutritionistName;
+      _date = _dateOnly(DateTime.now());
+      _availabilityId = null;
+      _timeId = null;
+    });
+  }
+
+  void _cancelReschedule() {
+    setState(() {
+      _rescheduleMode = false;
+      _availabilityId = null;
+      _timeId = null;
+    });
+  }
 
   void _selectNutritionist(Nutritionist n) {
     setState(() {
@@ -78,7 +112,9 @@ class _BookConsultationScreenState
   Future<void> _confirm() async {
     final availabilityId = _availabilityId;
     final timeId = _timeId;
-    if (availabilityId == null || timeId == null) return;
+    final nutId = _rescheduleMode ? _rescheduleNutId : _nutritionist?.id;
+    if (availabilityId == null || timeId == null || nutId == null) return;
+    final wasReschedule = _rescheduleMode;
 
     final ok = await ref.read(bookSlotProvider.notifier).book(
           availabilityId: availabilityId,
@@ -91,15 +127,18 @@ class _BookConsultationScreenState
       // active-booking gate (invalidated by the notifier) flips the screen to
       // the booked view.
       ref.invalidate(nutritionistSlotsProvider((
-        nutritionistId: _nutritionist!.id,
+        nutritionistId: nutId,
         date: _apiDate(_date),
       )));
       setState(() {
         _availabilityId = null;
         _timeId = null;
+        if (wasReschedule) _rescheduleMode = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Consultation slot booked successfully.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(wasReschedule
+            ? 'Consultation rescheduled successfully.'
+            : 'Consultation slot booked successfully.'),
         backgroundColor: AppColors.primaryGreen,
         behavior: SnackBarBehavior.floating,
       ));
@@ -128,19 +167,25 @@ class _BookConsultationScreenState
               Expanded(
                 child: activeAsync.when(
                   loading: () => const Center(
-                    child:
-                        CircularProgressIndicator(color: AppColors.primaryGreen),
+                    child: CircularProgressIndicator(
+                        color: AppColors.primaryGreen),
                   ),
                   error: (_, __) => _CenterMessage(
                     icon: Icons.error_outline_rounded,
                     message: 'Could not check your consultation status.',
                     onRetry: () => ref.invalidate(activeBookingProvider),
                   ),
-                  // Already booked → show the booking + cancel; otherwise the
-                  // full picker flow.
-                  data: (booking) => booking != null
-                      ? _BookedConsultationView(info: booking)
-                      : _buildBookingFlow(context),
+                  // Reschedule in progress → slot picker for that nutritionist.
+                  // Else already booked → booked view; else the full flow.
+                  data: (booking) {
+                    if (_rescheduleMode) return _buildRescheduleFlow(context);
+                    return booking != null
+                        ? _BookedConsultationView(
+                            info: booking,
+                            onReschedule: () => _startReschedule(booking),
+                          )
+                        : _buildBookingFlow(context);
+                  },
                 ),
               ),
             ],
@@ -224,6 +269,56 @@ class _BookConsultationScreenState
       ],
     );
   }
+
+  /// Reschedule flow — the nutritionist is fixed (the one who requested it);
+  /// the user just picks a new date + slot.
+  Widget _buildRescheduleFlow(BuildContext context) {
+    final submitting =
+        ref.watch(bookSlotProvider.select((s) => s.isSubmitting));
+
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+                AppSizes.screenPaddingHorizontal,
+                AppSizes.spacing16,
+                AppSizes.screenPaddingHorizontal,
+                AppSizes.spacing32),
+            children: [
+              _RescheduleBanner(
+                nutritionistName: _rescheduleNutName ?? '',
+                onCancel: _cancelReschedule,
+              ),
+              const SizedBox(height: AppSizes.spacing16),
+              const _SectionLabel('Pick a new date'),
+              const SizedBox(height: AppSizes.spacing12),
+              _DateStrip(
+                selected: _date,
+                days: _dateWindowDays,
+                onSelect: _selectDate,
+              ),
+              const SizedBox(height: AppSizes.spacing16),
+              const _SectionLabel('Available time slots'),
+              const SizedBox(height: AppSizes.spacing12),
+              _SlotsView(
+                nutritionistId: _rescheduleNutId!,
+                date: _date,
+                selectedTimeId: _timeId,
+                onSelect: _selectTime,
+              ),
+            ],
+          ),
+        ),
+        _ConfirmBar(
+          enabled: _timeId != null && !submitting,
+          submitting: submitting,
+          onConfirm: _confirm,
+          label: 'Confirm new slot',
+        ),
+      ],
+    );
+  }
 }
 
 class _Header extends StatelessWidget {
@@ -294,9 +389,13 @@ class _Header extends StatelessWidget {
 /// Shown when the user already has an active booking: the details + a cancel
 /// action. Cancelling frees them to book again.
 class _BookedConsultationView extends ConsumerStatefulWidget {
-  const _BookedConsultationView({required this.info});
+  const _BookedConsultationView(
+      {required this.info, required this.onReschedule});
 
   final BookedSlotInfo info;
+
+  /// Opens the reschedule flow (shown when the status is reschedule_requested).
+  final VoidCallback onReschedule;
 
   @override
   ConsumerState<_BookedConsultationView> createState() =>
@@ -460,8 +559,8 @@ class _BookedConsultationViewState
         const SizedBox(height: AppSizes.spacing16),
         Text(
           info.isRescheduleRequested
-              ? 'A reschedule has been requested for this consultation. Cancel '
-                  'it to pick a new slot yourself.'
+              ? 'Your nutritionist requested a reschedule. Tap Reschedule to '
+                  'choose a new date and time.'
               : 'You already have a consultation booked. Cancel it to choose a '
                   'different slot.',
           style: TextStyle(
@@ -471,38 +570,146 @@ class _BookedConsultationViewState
           ),
         ),
         const SizedBox(height: AppSizes.spacing16),
-        SizedBox(
-          width: double.infinity,
-          height: AppSizes.buttonHeight,
-          child: OutlinedButton.icon(
-            onPressed: cancelling ? null : _cancel,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.errorColor,
-              side: BorderSide(
-                  color: AppColors.errorColor.withValues(alpha: 0.6)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSizes.radius8),
+        if (info.isRescheduleRequested) ...[
+          // Reschedule is the primary action; cancelling is secondary.
+          SizedBox(
+            width: double.infinity,
+            height: AppSizes.buttonHeight,
+            child: ElevatedButton.icon(
+              onPressed: cancelling ? null : widget.onReschedule,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
               ),
-            ),
-            icon: cancelling
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: AppColors.errorColor),
-                  )
-                : const Icon(Icons.close_rounded, size: AppSizes.icon20),
-            label: Text(
-              cancelling ? 'Cancelling…' : 'Cancel consultation',
-              style: const TextStyle(
-                fontSize: AppTypography.fontSize14,
-                fontWeight: AppTypography.bold,
-                fontFamily: 'Lato',
+              icon:
+                  const Icon(Icons.event_repeat_rounded, size: AppSizes.icon20),
+              label: const Text(
+                'Reschedule',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.bold,
+                  fontFamily: 'Lato',
+                ),
               ),
             ),
           ),
-        ),
+          const SizedBox(height: AppSizes.spacing8),
+          Center(
+            child: TextButton(
+              onPressed: cancelling ? null : _cancel,
+              child: Text(
+                cancelling ? 'Cancelling…' : 'Cancel consultation instead',
+                style: const TextStyle(
+                  fontFamily: 'Lato',
+                  fontWeight: AppTypography.semiBold,
+                  color: AppColors.errorColor,
+                ),
+              ),
+            ),
+          ),
+        ] else
+          SizedBox(
+            width: double.infinity,
+            height: AppSizes.buttonHeight,
+            child: OutlinedButton.icon(
+              onPressed: cancelling ? null : _cancel,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.errorColor,
+                side: BorderSide(
+                    color: AppColors.errorColor.withValues(alpha: 0.6)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+              ),
+              icon: cancelling
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.errorColor),
+                    )
+                  : const Icon(Icons.close_rounded, size: AppSizes.icon20),
+              label: Text(
+                cancelling ? 'Cancelling…' : 'Cancel consultation',
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.bold,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ),
+          ),
       ],
+    );
+  }
+}
+
+/// Amber banner atop the reschedule flow with a way to back out.
+class _RescheduleBanner extends StatelessWidget {
+  const _RescheduleBanner(
+      {required this.nutritionistName, required this.onCancel});
+
+  final String nutritionistName;
+  final VoidCallback onCancel;
+
+  static const Color _amber = Color(0xFFC66301);
+  static const Color _amberBg = Color(0xFFFFF8E1);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: _amberBg,
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border: Border.all(color: _amber.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.event_repeat_rounded,
+              color: _amber, size: AppSizes.icon20),
+          const SizedBox(width: AppSizes.spacing8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Rescheduling consultation',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize13,
+                    fontWeight: AppTypography.bold,
+                    color: _amber,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                if (nutritionistName.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'with $nutritionistName — pick a new date & time.',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      color: AppColors.textSecondary.withValues(alpha: 0.9),
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: onCancel,
+            child: const Padding(
+              padding: EdgeInsets.only(left: AppSizes.spacing8),
+              child: Icon(Icons.close_rounded,
+                  size: AppSizes.icon20, color: AppColors.textSecondary),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1008,11 +1215,13 @@ class _ConfirmBar extends StatelessWidget {
     required this.enabled,
     required this.submitting,
     required this.onConfirm,
+    this.label = 'Confirm booking',
   });
 
   final bool enabled;
   final bool submitting;
   final VoidCallback onConfirm;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -1055,9 +1264,9 @@ class _ConfirmBar extends StatelessWidget {
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: Colors.white),
                 )
-              : const Text(
-                  'Confirm booking',
-                  style: TextStyle(
+              : Text(
+                  label,
+                  style: const TextStyle(
                     fontSize: AppTypography.fontSize14,
                     fontWeight: AppTypography.bold,
                     fontFamily: 'Lato',

@@ -268,6 +268,7 @@ class BookSlotResponse {
 /// of GET /api/user/consultations/active-subscription.
 class BookedSlotInfo {
   final String consultationId;
+  final String nutritionistId;
   final String status;
   final String nutritionistName;
   final String date; // "YYYY-MM-DD"
@@ -278,6 +279,7 @@ class BookedSlotInfo {
 
   const BookedSlotInfo({
     required this.consultationId,
+    required this.nutritionistId,
     required this.status,
     required this.nutritionistName,
     required this.date,
@@ -326,6 +328,9 @@ class BookedSlotInfo {
     final nutritionist = c['nutritionist'] as Map<String, dynamic>?;
     return BookedSlotInfo(
       consultationId: c['_id'] as String? ?? c['id'] as String? ?? '',
+      nutritionistId: c['nutritionistId'] as String? ??
+          nutritionist?['_id'] as String? ??
+          '',
       status: c['status'] as String? ?? '',
       nutritionistName: _str(nutritionist ?? const {}, ['name', 'fullName']),
       date: _str(c, ['scheduledDateStr', 'scheduledDate', 'date']),
