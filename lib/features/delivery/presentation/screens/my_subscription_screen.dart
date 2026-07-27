@@ -395,7 +395,7 @@ class _TimelineContent extends StatelessWidget {
         // const _CancellationPolicyBanner(),
         const _HealthProfileButton(),
         const SizedBox(height: AppSizes.spacing12),
-        const _ConsultationSlotButton(),
+        _ConsultationSlotButton(enabled: _canBookConsultation(steps)),
         const SizedBox(height: AppSizes.spacing16),
         if (timeline.subscription != null)
           _TimelineSummaryCard(subscription: timeline.subscription!),
@@ -523,74 +523,87 @@ class _HealthProfileButton extends StatelessWidget {
 }
 
 /// Opens the consultation booking flow (pick nutritionist → slot → confirm).
+/// Disabled once a consultation is completed, until the meal plan is provided.
 class _ConsultationSlotButton extends StatelessWidget {
-  const _ConsultationSlotButton();
+  const _ConsultationSlotButton({this.enabled = true});
+
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppSizes.radius12),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => const BookConsultationScreen(),
-          ),
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(AppSizes.spacing12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppSizes.radius12),
-            border: Border.all(color: _kAccent.withValues(alpha: 0.3)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppSizes.spacing8),
-                decoration: BoxDecoration(
-                  color: _kAccent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppSizes.radius8),
-                ),
-                child: const Icon(Icons.event_available_rounded,
-                    color: _kAccent, size: AppSizes.icon20),
-              ),
-              const SizedBox(width: AppSizes.spacing12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Choose consultation time slot',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize14,
-                        fontWeight: AppTypography.bold,
-                        color: AppColors.textPrimary,
-                        fontFamily: 'Lato',
-                      ),
+    final accent = enabled ? _kAccent : AppColors.textTertiary;
+    return Opacity(
+      opacity: enabled ? 1 : 0.75,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+          onTap: enabled
+              ? () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const BookConsultationScreen(),
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Book a session with a nutritionist',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize12,
-                        color: AppColors.textSecondary,
-                        fontFamily: 'Lato',
+                  )
+              : null,
+          child: Container(
+            padding: const EdgeInsets.all(AppSizes.spacing12),
+            decoration: BoxDecoration(
+              color: enabled ? Colors.white : const Color(0xFFF4F5F6),
+              borderRadius: BorderRadius.circular(AppSizes.radius12),
+              border: Border.all(color: accent.withValues(alpha: 0.3)),
+              boxShadow: enabled
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
-                    ),
-                  ],
+                    ]
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppSizes.spacing8),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                  child: Icon(Icons.event_available_rounded,
+                      color: accent, size: AppSizes.icon20),
                 ),
-              ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: _kAccent, size: AppSizes.icon24),
-            ],
+                const SizedBox(width: AppSizes.spacing12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Choose consultation time slot',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize14,
+                          fontWeight: AppTypography.bold,
+                          color: AppColors.textPrimary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        enabled
+                            ? 'Book a session with a nutritionist'
+                            : 'Available after your meal plan is provided',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(enabled ? Icons.chevron_right_rounded : Icons.lock_rounded,
+                    color: accent, size: AppSizes.icon24),
+              ],
+            ),
           ),
         ),
       ),
@@ -986,6 +999,32 @@ class _StatusPill extends StatelessWidget {
     case TimelineStatus.unknown:
       return (icon: Icons.circle_outlined, color: AppColors.textSecondary);
   }
+}
+
+/// Whether the "Choose consultation time slot" button is enabled.
+///
+/// Once a consultation is `completed`, booking the next one is locked until the
+/// matching meal plan is provided (e.g. `consultation_1` completed →
+/// disabled until `meal_plan_1` is `completed`).
+bool _canBookConsultation(List<TimelineStep> steps) {
+  int? lastCompletedConsult;
+  for (final s in steps) {
+    if (s.status == TimelineStatus.completed &&
+        s.key.startsWith('consultation_')) {
+      final n = int.tryParse(s.key.substring('consultation_'.length));
+      if (n != null &&
+          (lastCompletedConsult == null || n > lastCompletedConsult)) {
+        lastCompletedConsult = n;
+      }
+    }
+  }
+  if (lastCompletedConsult == null) return true;
+
+  final mealKey = 'meal_plan_$lastCompletedConsult';
+  for (final s in steps) {
+    if (s.key == mealKey) return s.status == TimelineStatus.completed;
+  }
+  return true; // no gating meal-plan step for this consultation
 }
 
 IconData _slotIcon(String slot) {
