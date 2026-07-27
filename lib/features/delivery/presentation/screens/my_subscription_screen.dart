@@ -13,7 +13,9 @@ import '../../../consultation/presentation/screens/book_consultation_screen.dart
 import '../widgets/delivery_plan_manager_tab.dart';
 import '../../../dashboard/models/meal_plan_model.dart';
 import '../../../dashboard/providers/meal_plan_provider.dart';
+import '../../../profile/providers/delivery_address_provider.dart';
 import '../../models/subscription_timeline_model.dart';
+import '../../providers/delivery_slot_list_provider.dart';
 import '../../providers/subscription_detail_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -871,10 +873,117 @@ class _DailyMealsCard extends StatelessWidget {
   }
 }
 
-class _MealRow extends StatelessWidget {
+class _MealRow extends ConsumerStatefulWidget {
   const _MealRow({required this.meal});
 
   final TimelineMeal meal;
+
+  @override
+  ConsumerState<_MealRow> createState() => _MealRowState();
+}
+
+class _MealRowState extends ConsumerState<_MealRow> {
+  bool _busy = false;
+
+  TimelineMeal get meal => widget.meal;
+
+  Future<void> _cancelOrder() async {
+    final reason = await _askReason();
+    if (reason == null || !mounted) return;
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final res = await ref
+          .read(orderRepositoryProvider)
+          .cancelOrder(orderId: meal.orderId, reason: reason);
+      if (!mounted) return;
+      setState(() => _busy = false);
+      final ok = res['success'] == true;
+      if (ok) ref.invalidate(subscriptionTimelineProvider);
+      messenger.showSnackBar(SnackBar(
+        content: Text(ok
+            ? 'Order cancelled.'
+            : (res['message'] as String?) ?? 'Could not cancel this order.'),
+        backgroundColor: ok ? AppColors.primaryGreen : AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Could not cancel this order. Please try again.'),
+        backgroundColor: AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
+  Future<String?> _askReason() {
+    final controller = TextEditingController(text: "Don't need this delivery");
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel this order?',
+            style:
+                TextStyle(fontFamily: 'Lato', fontWeight: AppTypography.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${meal.slot}${meal.slotTime.isEmpty ? '' : ' (${meal.slotTime})'}'
+              '${meal.orderNumber.isEmpty ? '' : ' · ${meal.orderNumber}'}',
+              style: const TextStyle(fontFamily: 'Lato'),
+            ),
+            const SizedBox(height: AppSizes.spacing12),
+            TextField(
+              controller: controller,
+              minLines: 1,
+              maxLines: 2,
+              style: const TextStyle(
+                  fontFamily: 'Lato', fontSize: AppTypography.fontSize14),
+              decoration: InputDecoration(
+                labelText: 'Reason (optional)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child:
+                const Text('Keep order', style: TextStyle(fontFamily: 'Lato')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Cancel order',
+                style:
+                    TextStyle(fontFamily: 'Lato', color: AppColors.errorColor)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _changeSlot() async {
+    final changed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _MealOrderChangeSheet(meal: meal),
+    );
+    if (changed == true && mounted) {
+      ref.invalidate(subscriptionTimelineProvider);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Delivery updated.'),
+        backgroundColor: AppColors.primaryGreen,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -917,8 +1026,484 @@ class _MealRow extends StatelessWidget {
             ],
           ),
         ),
-        _TimelineStatusChip(meal.status),
+        _MealStatusChip(label: meal.statusLabel, status: meal.status),
+        if (meal.isActionable) ...[
+          const SizedBox(width: 2),
+          if (_busy)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.primaryGreen),
+              ),
+            )
+          else
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded,
+                  size: AppSizes.icon20, color: AppColors.textSecondary),
+              padding: EdgeInsets.zero,
+              onSelected: (v) {
+                if (v == 'change') _changeSlot();
+                if (v == 'cancel') _cancelOrder();
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'change',
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_calendar_rounded,
+                          size: AppSizes.icon18, color: AppColors.primaryGreen),
+                      SizedBox(width: AppSizes.spacing8),
+                      Text('Change slot / address',
+                          style: TextStyle(fontFamily: 'Lato')),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'cancel',
+                  child: Row(
+                    children: [
+                      Icon(Icons.close_rounded,
+                          size: AppSizes.icon18, color: AppColors.errorColor),
+                      SizedBox(width: AppSizes.spacing8),
+                      Text('Cancel order',
+                          style: TextStyle(
+                              fontFamily: 'Lato', color: AppColors.errorColor)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+        ],
       ],
+    );
+  }
+}
+
+/// Status chip that falls back to the raw label (e.g. "Confirmed").
+class _MealStatusChip extends StatelessWidget {
+  const _MealStatusChip({required this.label, required this.status});
+
+  final String label;
+  final TimelineStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    if (label.isEmpty) return const SizedBox.shrink();
+    final c = status == TimelineStatus.unknown
+        ? AppColors.primaryGreen
+        : _timelineStatusVisual(status).color;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppSizes.radius20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: AppTypography.bold,
+          color: c,
+          fontFamily: 'Lato',
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet to change a daily order's delivery slot and/or address
+/// (PUT /api/orders/{orderId}/subscription-slot). The server enforces the
+/// 6 AM IST deadline; its message is surfaced. Pops `true` on success.
+class _MealOrderChangeSheet extends ConsumerStatefulWidget {
+  const _MealOrderChangeSheet({required this.meal});
+
+  final TimelineMeal meal;
+
+  @override
+  ConsumerState<_MealOrderChangeSheet> createState() =>
+      _MealOrderChangeSheetState();
+}
+
+class _MealOrderChangeSheetState extends ConsumerState<_MealOrderChangeSheet> {
+  String? _slotId; // null = keep current
+  String? _addressId; // null = keep current
+  bool _submitting = false;
+
+  bool get _hasChange => _slotId != null || _addressId != null;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (ref.read(addressProvider).addresses.isEmpty) {
+        ref.read(addressProvider.notifier).loadAddresses(silent: true);
+      }
+    });
+  }
+
+  Future<void> _submit() async {
+    if (_submitting || !_hasChange) return;
+    setState(() => _submitting = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final res =
+          await ref.read(orderRepositoryProvider).updateSubscriptionOrderSlot(
+                orderId: widget.meal.orderId,
+                slotId: _slotId,
+                deliveryAddressId: _addressId,
+              );
+      if (!mounted) return;
+      if (res['success'] == true) {
+        Navigator.of(context).pop(true);
+        return;
+      }
+      setState(() => _submitting = false);
+      messenger.showSnackBar(SnackBar(
+        content: Text((res['message'] as String?)?.isNotEmpty == true
+            ? res['message'] as String
+            : 'Could not update this delivery.'),
+        backgroundColor: AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      messenger.showSnackBar(SnackBar(
+        content: Text(e.toString()),
+        backgroundColor: AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final slotsAsync = ref.watch(deliverySlotListProvider);
+    final addresses = ref.watch(addressProvider.select((s) => s.addresses));
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 4),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Change delivery',
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize18,
+                            fontWeight: AppTypography.bold,
+                            color: AppColors.textPrimary,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                        Text(
+                          '${widget.meal.slot}'
+                          '${widget.meal.orderNumber.isEmpty ? '' : ' · ${widget.meal.orderNumber}'}',
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize12,
+                            color:
+                                AppColors.textSecondary.withValues(alpha: 0.9),
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(Icons.close_rounded,
+                        size: AppSizes.icon20, color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                children: [
+                  _deadlineNote(),
+                  const SizedBox(height: AppSizes.spacing16),
+                  const _ChangeLabel('Delivery slot'),
+                  const SizedBox(height: AppSizes.spacing8),
+                  slotsAsync.when(
+                    loading: () => const Padding(
+                      padding:
+                          EdgeInsets.symmetric(vertical: AppSizes.spacing16),
+                      child: Center(
+                          child: CircularProgressIndicator(
+                              color: AppColors.primaryGreen)),
+                    ),
+                    error: (_, __) => _ChangeRetry(
+                      message: 'Could not load slots.',
+                      onRetry: () => ref.invalidate(deliverySlotListProvider),
+                    ),
+                    data: (slots) => Column(
+                      children: [
+                        for (final s in slots)
+                          _ChangeOption(
+                            title: s.slotName,
+                            subtitle: s.timeRange,
+                            selected: _slotId == s.id,
+                            onTap: _submitting
+                                ? null
+                                : () => setState(() =>
+                                    _slotId = _slotId == s.id ? null : s.id),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.spacing16),
+                  const _ChangeLabel('Delivery address'),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Leave unselected to keep the current one.',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize10,
+                      color: AppColors.textSecondary.withValues(alpha: 0.8),
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.spacing8),
+                  if (addresses.isEmpty)
+                    Text(
+                      'No saved addresses found.',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        color: AppColors.textSecondary.withValues(alpha: 0.9),
+                        fontFamily: 'Lato',
+                      ),
+                    )
+                  else
+                    for (final a in addresses)
+                      _ChangeOption(
+                        title: a.label.isEmpty
+                            ? 'Address'
+                            : '${a.label[0].toUpperCase()}${a.label.substring(1)}',
+                        subtitle: a.formattedAddress,
+                        selected: _addressId == a.id,
+                        onTap: _submitting
+                            ? null
+                            : () => setState(() =>
+                                _addressId = _addressId == a.id ? null : a.id),
+                      ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: SizedBox(
+                width: double.infinity,
+                height: AppSizes.buttonHeight,
+                child: ElevatedButton(
+                  onPressed: _hasChange && !_submitting ? _submit : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                        AppColors.borderColor.withValues(alpha: 0.6),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    ),
+                  ),
+                  child: _submitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          _hasChange
+                              ? 'Update delivery'
+                              : 'Pick a new slot or address',
+                          style: const TextStyle(
+                            fontSize: AppTypography.fontSize14,
+                            fontWeight: AppTypography.bold,
+                            fontFamily: 'Lato',
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _deadlineNote() {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(color: _kAccent.withValues(alpha: 0.3)),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.schedule_rounded, size: AppSizes.icon18, color: _kAccent),
+          SizedBox(width: AppSizes.spacing8),
+          Expanded(
+            child: Text(
+              'Changes are allowed only before 6:00 AM IST on the delivery day.',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize12,
+                color: Color(0xFF795548),
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChangeLabel extends StatelessWidget {
+  const _ChangeLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        style: const TextStyle(
+          fontSize: AppTypography.fontSize14,
+          fontWeight: AppTypography.bold,
+          color: AppColors.textPrimary,
+          fontFamily: 'Lato',
+        ),
+      );
+}
+
+class _ChangeRetry extends StatelessWidget {
+  const _ChangeRetry({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Icon(Icons.error_outline_rounded,
+            size: AppSizes.icon18, color: AppColors.errorColor),
+        const SizedBox(width: AppSizes.spacing8),
+        Expanded(
+          child: Text(message,
+              style: const TextStyle(
+                  fontSize: AppTypography.fontSize12,
+                  color: AppColors.textSecondary,
+                  fontFamily: 'Lato')),
+        ),
+        TextButton(
+          onPressed: onRetry,
+          child: const Text('Retry',
+              style:
+                  TextStyle(fontFamily: 'Lato', color: AppColors.primaryGreen)),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChangeOption extends StatelessWidget {
+  const _ChangeOption({
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
+        padding: const EdgeInsets.all(AppSizes.spacing12),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryGreen.withValues(alpha: 0.06)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+          border: Border.all(
+            color: selected
+                ? AppColors.primaryGreen
+                : AppColors.borderColor.withValues(alpha: 0.6),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              size: AppSizes.icon20,
+              color: selected ? AppColors.primaryGreen : AppColors.textTertiary,
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.semiBold,
+                        color: AppColors.textPrimary,
+                        fontFamily: 'Lato',
+                      )),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          color: AppColors.textSecondary.withValues(alpha: 0.9),
+                          fontFamily: 'Lato',
+                        )),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

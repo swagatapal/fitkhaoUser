@@ -178,20 +178,53 @@ class TimelineDay {
 }
 
 class TimelineMeal {
+  final String orderId;
+  final String orderNumber;
   final String slot;
   final String slotTime;
+  final String statusRaw; // e.g. "confirmed"
   final TimelineStatus status;
 
   const TimelineMeal({
+    this.orderId = '',
+    this.orderNumber = '',
     required this.slot,
     required this.slotTime,
+    this.statusRaw = '',
     required this.status,
   });
 
+  /// Display label — falls back to the raw status when it isn't a known
+  /// timeline status (e.g. "Confirmed").
+  String get statusLabel {
+    if (status.label.isNotEmpty) return status.label;
+    if (statusRaw.isEmpty) return '';
+    final w = statusRaw.replaceAll('_', ' ');
+    return '${w[0].toUpperCase()}${w.substring(1)}';
+  }
+
+  /// A slot/address change or cancellation is possible only while the order is
+  /// still ahead of delivery.
+  bool get isActionable {
+    if (orderId.isEmpty) return false;
+    const blocked = {
+      'delivered',
+      'cancelled',
+      'canceled',
+      'failed',
+      'rejected',
+      'out_for_delivery',
+    };
+    return !blocked.contains(statusRaw.toLowerCase());
+  }
+
   factory TimelineMeal.fromJson(Map<String, dynamic> json) {
     return TimelineMeal(
+      orderId: json['orderId'] as String? ?? '',
+      orderNumber: json['orderNumber'] as String? ?? '',
       slot: json['slot'] as String? ?? '',
       slotTime: json['slotTime'] as String? ?? '',
+      statusRaw: json['status'] as String? ?? '',
       status: TimelineStatus.parse(json['status'] as String?),
     );
   }
