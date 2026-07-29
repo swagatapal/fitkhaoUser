@@ -410,7 +410,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                                 const SizedBox(height: AppSizes.spacing8),
                                 _buildDishSearchBar(),
 
-                                const _PromoSlider(),
+                                //const _PromoSlider(),
                                 const SizedBox(height: AppSizes.spacing8),
                                 // Area not serviceable → blocks ordering.
                                 if (areaBlocked) _buildNotServiceableBanner(),
