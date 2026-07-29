@@ -722,7 +722,11 @@ class _TimelineStepTile extends StatelessWidget {
     final v = _timelineStatusVisual(step.status);
     final solid = step.status == TimelineStatus.completed ||
         step.status == TimelineStatus.active;
-    final dateStr = step.date != null ? convertMongoUtcToIst(step.date!) : '';
+    // Only completed steps surface their date — pending/upcoming steps carry no
+    // meaningful completion date, so it stays hidden until they finish.
+    final dateStr = step.status == TimelineStatus.completed && step.date != null
+        ? convertMongoUtcToIst(step.date!)
+        : '';
 
     return IntrinsicHeight(
       child: Row(
