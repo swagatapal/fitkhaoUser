@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
@@ -11,6 +10,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../models/medical_record_model.dart';
 import '../../provider/medical_record_provider.dart';
 import '../../repository/medical_record_repository.dart';
+import '../screens/document_viewer_screen.dart';
 
 /// Prescription / medical-record upload + history.
 ///
@@ -492,11 +492,17 @@ class _DocThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () async {
-        final uri = Uri.tryParse(doc.url);
-        if (uri != null) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
+      onTap: () {
+        if (doc.url.trim().isEmpty) return;
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => DocumentViewerScreen(
+              url: doc.url,
+              title: doc.fileName.isEmpty ? 'Document' : doc.fileName,
+              isPdf: doc.isPdf,
+            ),
+          ),
+        );
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppSizes.radius4),
