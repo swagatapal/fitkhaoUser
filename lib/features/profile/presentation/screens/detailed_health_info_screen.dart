@@ -59,6 +59,16 @@ class _DetailedHealthInfoScreenState
   bool _isInitialized = false;
   String? _uploadedImageUrl;
 
+  // ── Validation state (frontend). All fields are required except the
+  // prescription attachment. Errors are surfaced inline under each field. ──
+  bool _showErrors = false;
+  String? _ageError;
+  String? _heightError;
+  String? _weightError;
+  String? _exerciseTypeError; // "select at least one" when exercising
+  final Map<String, String?> _daysError = {};
+  final Map<String, String?> _durationError = {};
+
   final ScrollController _scrollController = ScrollController();
   bool _isCollapsed = false;
 
@@ -212,12 +222,115 @@ class _DetailedHealthInfoScreenState
     _durationCtrlMap.putIfAbsent(value, () => TextEditingController());
   }
 
-  bool get _isFormValid {
-    // Allow saving with any combination of fields
-    return true;
+  /// Validates every mandatory field (all except the prescription attachment).
+  /// Populates the inline error state and returns whether the form can be saved.
+  /// When [reveal] is true the errors become visible and the view scrolls to the
+  /// first problem.
+  bool _validateForm({bool reveal = true}) {
+    // ── Body metrics ──
+    final ageText = _age.trim();
+    final ageVal = double.tryParse(ageText);
+    String? ageErr;
+    if (ageText.isEmpty) {
+      ageErr = 'Age is required';
+    } else if (ageVal == null || ageVal <= 0 || ageVal > 120) {
+      ageErr = 'Enter a valid age (1–120)';
+    }
+
+    final heightText = _heightCm.trim();
+    final heightVal = double.tryParse(heightText);
+    String? heightErr;
+    if (heightText.isEmpty) {
+      heightErr = 'Height is required';
+    } else if (heightVal == null || heightVal <= 0 || heightVal > 300) {
+      heightErr = 'Enter a valid height in cm';
+    }
+
+    final weightText = _weightKg.trim();
+    final weightVal = double.tryParse(weightText);
+    String? weightErr;
+    if (weightText.isEmpty) {
+      weightErr = 'Weight is required';
+    } else if (weightVal == null || weightVal <= 0 || weightVal > 500) {
+      weightErr = 'Enter a valid weight in kg';
+    }
+
+    // ── Exercise (only when the user says they exercise) ──
+    String? exerciseTypeErr;
+    final Map<String, String?> daysErr = {};
+    final Map<String, String?> durationErr = {};
+    if (_doesExercise) {
+      if (_selectedExerciseTypes.isEmpty) {
+        exerciseTypeErr = 'Select at least one exercise type';
+      } else {
+        for (final type in _selectedExerciseTypes) {
+          final daysText = (_daysPerExercise[type] ?? '').trim();
+          final days = int.tryParse(daysText);
+          if (daysText.isEmpty) {
+            daysErr[type] = 'Required';
+          } else if (days == null || days < 1 || days > 7) {
+            daysErr[type] = 'Enter 1–7 days';
+          }
+
+          final durText = (_durationPerExercise[type] ?? '').trim();
+          final dur = double.tryParse(durText);
+          if (durText.isEmpty) {
+            durationErr[type] = 'Required';
+          } else if (dur == null || dur <= 0 || dur > 24) {
+            durationErr[type] = 'Enter 1–24 hrs';
+          }
+        }
+      }
+    }
+
+    final isValid = ageErr == null &&
+        heightErr == null &&
+        weightErr == null &&
+        exerciseTypeErr == null &&
+        daysErr.isEmpty &&
+        durationErr.isEmpty;
+
+    if (reveal) {
+      setState(() {
+        _showErrors = true;
+        _ageError = ageErr;
+        _heightError = heightErr;
+        _weightError = weightErr;
+        _exerciseTypeError = exerciseTypeErr;
+        _daysError
+          ..clear()
+          ..addAll(daysErr);
+        _durationError
+          ..clear()
+          ..addAll(durationErr);
+      });
+
+      // Scroll up to the body-detail fields when they're the first offenders.
+      if (ageErr != null || heightErr != null || weightErr != null) {
+        _scrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    }
+
+    return isValid;
   }
 
   Future<void> _handleSave() async {
+    if (!_validateForm()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill all required fields before saving.'),
+          backgroundColor: AppColors.errorColor,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     final authNotifier = ref.read(authProvider.notifier);
     final authState = ref.read(authProvider);
 
@@ -457,19 +570,34 @@ class _DetailedHealthInfoScreenState
                 _buildNumberField(
                   label: AppStrings.ageDetails,
                   controller: _ageController,
-                  onChanged: (value) => setState(() => _age = value),
+                  isRequired: true,
+                  errorText: _ageError,
+                  onChanged: (value) => setState(() {
+                    _age = value;
+                    if (_showErrors) _ageError = null;
+                  }),
                 ),
                 SizedBox(height: spacing12),
                 _buildNumberField(
                   label: AppStrings.heightInCms,
                   controller: _heightController,
-                  onChanged: (value) => setState(() => _heightCm = value),
+                  isRequired: true,
+                  errorText: _heightError,
+                  onChanged: (value) => setState(() {
+                    _heightCm = value;
+                    if (_showErrors) _heightError = null;
+                  }),
                 ),
                 SizedBox(height: spacing12),
                 _buildNumberField(
                   label: AppStrings.weightInKg,
                   controller: _weightController,
-                  onChanged: (value) => setState(() => _weightKg = value),
+                  isRequired: true,
+                  errorText: _weightError,
+                  onChanged: (value) => setState(() {
+                    _weightKg = value;
+                    if (_showErrors) _weightError = null;
+                  }),
                 ),
                 SizedBox(height: spacing16),
 
@@ -547,7 +675,13 @@ class _DetailedHealthInfoScreenState
                         label: AppStrings.iDontExerciseShort,
                         icon: Icons.event_busy,
                         isSelected: !_doesExercise,
-                        onTap: () => setState(() => _doesExercise = false),
+                        onTap: () => setState(() {
+                          _doesExercise = false;
+                          // No exercise → clear any exercise-related errors.
+                          _exerciseTypeError = null;
+                          _daysError.clear();
+                          _durationError.clear();
+                        }),
                       ),
                     ),
                   ],
@@ -1117,17 +1251,31 @@ class _DetailedHealthInfoScreenState
     required TextEditingController controller,
     required Function(String) onChanged,
     int? maxValue,
+    bool isRequired = false,
+    String? errorText,
   }) {
+    final hasError = errorText != null;
+    final radius = BorderRadius.circular(context.responsiveSpacing(4.0));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: context.responsiveFontSize(14.0),
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w400,
-            fontFamily: 'Lato',
+        RichText(
+          text: TextSpan(
+            text: label,
+            style: TextStyle(
+              fontSize: context.responsiveFontSize(14.0),
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w400,
+              fontFamily: 'Lato',
+            ),
+            children: isRequired
+                ? const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(color: AppColors.errorColor),
+                    ),
+                  ]
+                : null,
           ),
         ),
         SizedBox(height: context.responsiveSpacing(8.0)),
@@ -1156,25 +1304,32 @@ class _DetailedHealthInfoScreenState
               vertical: context.responsiveSpacing(12.0),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(
-                context.responsiveSpacing(4.0),
-              ),
-              borderSide: const BorderSide(
-                color: AppColors.borderColor,
+              borderRadius: radius,
+              borderSide: BorderSide(
+                color: hasError ? AppColors.errorColor : AppColors.borderColor,
                 width: AppSizes.borderNormal,
               ),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(
-                context.responsiveSpacing(4.0),
-              ),
-              borderSide: const BorderSide(
-                color: AppColors.primaryGreen,
+              borderRadius: radius,
+              borderSide: BorderSide(
+                color: hasError ? AppColors.errorColor : AppColors.primaryGreen,
                 width: AppSizes.borderMedium,
               ),
             ),
           ),
         ),
+        if (hasError) ...[
+          SizedBox(height: context.responsiveSpacing(4.0)),
+          Text(
+            errorText,
+            style: TextStyle(
+              fontSize: context.responsiveFontSize(12.0),
+              color: AppColors.errorColor,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1499,6 +1654,19 @@ class _DetailedHealthInfoScreenState
         ),
       );
     }
+    if (_exerciseTypeError != null) {
+      children.add(SizedBox(height: context.responsiveSpacing(8.0)));
+      children.add(
+        Text(
+          _exerciseTypeError!,
+          style: TextStyle(
+            fontSize: context.responsiveFontSize(12.0),
+            color: AppColors.errorColor,
+            fontFamily: 'Lato',
+          ),
+        ),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: children,
@@ -1520,10 +1688,14 @@ class _DetailedHealthInfoScreenState
           onTap: () => setState(() {
             if (isSelected) {
               _selectedExerciseTypes.remove(value);
+              _daysError.remove(value);
+              _durationError.remove(value);
             } else {
               _selectedExerciseTypes.add(value);
               _ensureExerciseControllers(value);
             }
+            // Any change to the selection clears the "select at least one" error.
+            if (_showErrors) _exerciseTypeError = null;
           }),
           child: Container(
             padding: EdgeInsets.all(context.responsiveSpacing(12.0)),
@@ -1599,14 +1771,24 @@ class _DetailedHealthInfoScreenState
           _buildNumberField(
             label: AppStrings.howManyDaysWeek,
             controller: daysCtrl,
-            onChanged: (v) => setState(() => _daysPerExercise[value] = v),
+            isRequired: true,
+            errorText: _daysError[value],
+            onChanged: (v) => setState(() {
+              _daysPerExercise[value] = v;
+              if (_showErrors) _daysError.remove(value);
+            }),
             maxValue: 7,
           ),
           SizedBox(height: context.responsiveSpacing(8.0)),
           _buildNumberField(
             label: AppStrings.durationInHrs,
             controller: durationCtrl!,
-            onChanged: (v) => setState(() => _durationPerExercise[value] = v),
+            isRequired: true,
+            errorText: _durationError[value],
+            onChanged: (v) => setState(() {
+              _durationPerExercise[value] = v;
+              if (_showErrors) _durationError.remove(value);
+            }),
             maxValue: 24,
           ),
         ],
