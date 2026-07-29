@@ -10,6 +10,7 @@ import '../../../../core/providers/providers.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/utils/time_converter.dart';
 import '../../../consultation/presentation/screens/book_consultation_screen.dart';
+import '../../../consultation/providers/consultation_providers.dart';
 import '../widgets/delivery_plan_manager_tab.dart';
 import '../../../dashboard/models/meal_plan_model.dart';
 import '../../../dashboard/providers/meal_plan_provider.dart';
@@ -378,15 +379,21 @@ class _JourneyTab extends ConsumerWidget {
   }
 }
 
-class _TimelineContent extends StatelessWidget {
+class _TimelineContent extends ConsumerWidget {
   const _TimelineContent({required this.timeline});
 
   final SubscriptionTimeline timeline;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final steps = timeline.steps;
     final days = timeline.dailyMeals;
+
+    // Meeting link for the first consultation — same source the booking screen
+    // uses (token-scoped active consultation). Shown right after that step.
+    final booking = ref.watch(activeBookingProvider).valueOrNull;
+    final firstConsultationIdx =
+        steps.indexWhere((s) => s.key.toLowerCase().startsWith('consultation'));
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -407,12 +414,19 @@ class _TimelineContent extends StatelessWidget {
           const SizedBox(height: AppSizes.spacing20),
           const _SectionHeader('Your journey'),
           const SizedBox(height: AppSizes.spacing12),
-          for (var i = 0; i < steps.length; i++)
+          for (var i = 0; i < steps.length; i++) ...[
             _TimelineStepTile(
               step: steps[i],
               isFirst: i == 0,
               isLast: i == steps.length - 1,
             ),
+            // After the first consultation step, surface the meeting link when
+            // the nutritionist has provided one.
+            if (i == firstConsultationIdx &&
+                booking != null &&
+                booking.hasMeetingLink)
+              _JourneyMeetingLinkCard(link: booking.meetingLink),
+          ],
         ],
         if (days.isNotEmpty) ...[
           const SizedBox(height: AppSizes.spacing20),
@@ -824,6 +838,98 @@ class _TimelineStepTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Tappable Google-Meet card shown under the first consultation step when the
+/// nutritionist has attached a meeting link. Indented to align with the step
+/// card (past the 36px rail + 12px gap).
+class _JourneyMeetingLinkCard extends StatelessWidget {
+  const _JourneyMeetingLinkCard({required this.link});
+
+  final String link;
+
+  static const Color _meetBlue = Color(0xFF1A73E8);
+
+  Future<void> _join(BuildContext context) async {
+    final uri = Uri.tryParse(link.trim());
+    if (uri == null) return;
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Could not open the meeting link.'),
+        backgroundColor: AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: 36 + AppSizes.spacing12,
+        bottom: AppSizes.spacing12,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+          onTap: () => _join(context),
+          child: Container(
+            padding: const EdgeInsets.all(AppSizes.spacing12),
+            decoration: BoxDecoration(
+              color: _meetBlue.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(AppSizes.radius12),
+              border: Border.all(color: _meetBlue.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppSizes.spacing8),
+                  decoration: BoxDecoration(
+                    color: _meetBlue.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                  child: const Icon(Icons.videocam_rounded,
+                      color: _meetBlue, size: AppSizes.icon24),
+                ),
+                const SizedBox(width: AppSizes.spacing12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Join Google Meet',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize14,
+                          fontWeight: AppTypography.bold,
+                          color: _meetBlue,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        link,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          color: AppColors.textSecondary.withValues(alpha: 0.9),
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.open_in_new_rounded,
+                    color: _meetBlue, size: AppSizes.icon20),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
