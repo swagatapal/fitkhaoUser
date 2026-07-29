@@ -91,8 +91,8 @@ class ServiceabilityNotifier extends StateNotifier<ServiceabilityState> {
 
         // Only check kitchen status when location is serviceable and we have a kitchen ID
         if (data.isServiceable && kitchenId != null && kitchenId.isNotEmpty) {
-          final kitchenStatus = await _serviceabilityRepository
-              .checkKitchenOpenStatus(kitchenId);
+          final kitchenStatus =
+              await _serviceabilityRepository.checkKitchenOpenStatus(kitchenId);
 
           // null response → fail-open (treat kitchen as open)
           state = ServiceabilityState(
@@ -153,4 +153,46 @@ final serviceabilityProvider =
     StateNotifierProvider<ServiceabilityNotifier, ServiceabilityState>((ref) {
   final serviceabilityRepo = ref.watch(serviceabilityRepositoryProvider);
   return ServiceabilityNotifier(serviceabilityRepo);
+});
+
+// ─── Per-coordinate serviceability (address selection) ───────────────────────
+
+/// Immutable lat/lng key for a serviceability lookup. Value equality lets the
+/// [addressServiceabilityProvider] family cache one result per coordinate, so
+/// showing several addresses at once each resolves independently and re-renders
+/// never refetch.
+class ServiceabilityQuery {
+  final double latitude;
+  final double longitude;
+
+  const ServiceabilityQuery(this.latitude, this.longitude);
+
+  /// A coordinate is checkable only once a real point has been pinned.
+  bool get hasCoordinates => latitude != 0.0 || longitude != 0.0;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ServiceabilityQuery &&
+          other.latitude == latitude &&
+          other.longitude == longitude;
+
+  @override
+  int get hashCode => Object.hash(latitude, longitude);
+}
+
+/// Whether a single coordinate falls inside a serviceable delivery zone.
+///
+/// Reuses [ServiceabilityRepository.checkServiceability]; unlike the order-flow
+/// [serviceabilityProvider] notifier, this `family` resolves each address on its
+/// own so the delivery wizard can gate address selection per row.
+final addressServiceabilityProvider = FutureProvider.autoDispose
+    .family<bool, ServiceabilityQuery>((ref, query) async {
+  if (!query.hasCoordinates) return false;
+  final repo = ref.watch(serviceabilityRepositoryProvider);
+  final res = await repo.checkServiceability(
+    latitude: query.latitude,
+    longitude: query.longitude,
+  );
+  return res.success && (res.data?.isServiceable ?? false);
 });

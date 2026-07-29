@@ -11,6 +11,7 @@ import '../../models/delivery_slot_model.dart';
 import '../../models/dish_category_model.dart';
 import '../../models/weekly_delivery_slot_model.dart';
 import '../../providers/delivery_slot_list_provider.dart';
+import '../../providers/serviceability_provider.dart';
 import '../../providers/weekly_delivery_slot_provider.dart';
 
 const Color _kAccent = Color(0xFFC66301);
@@ -840,8 +841,24 @@ class _DeliveryWizardSheetState extends ConsumerState<_DeliveryWizardSheet> {
         .addresses
         .where((a) => !before.contains(a.id))
         .toList();
-    if (added.isNotEmpty) {
-      setState(() => _entry.addressId = added.first.id);
+    if (added.isEmpty) return;
+
+    // Auto-select the new address only if it lands in a serviceable zone.
+    final a = added.first;
+    final serviceable = await ref.read(
+      addressServiceabilityProvider(
+        ServiceabilityQuery(a.latitude, a.longitude),
+      ).future,
+    );
+    if (!mounted) return;
+    if (serviceable) {
+      setState(() => _entry.addressId = a.id);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("This address isn't in a serviceable area yet."),
+        backgroundColor: AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ));
     }
   }
 
@@ -1007,13 +1024,16 @@ class _DeliveryWizardSheetState extends ConsumerState<_DeliveryWizardSheet> {
                       _AddAddressPrompt(onTap: _addAddress)
                     else
                       for (final a in addresses)
-                        _RadioTile(
-                          title: a.label.isEmpty
-                              ? 'Address'
-                              : _capitalize(a.label),
-                          subtitle: a.formattedAddress,
+                        _AddressTile(
+                          address: a,
                           selected: _entry.addressId == a.id,
-                          onTap: () => setState(() => _entry.addressId = a.id),
+                          onSelect: () =>
+                              setState(() => _entry.addressId = a.id),
+                          onDeselect: () {
+                            if (_entry.addressId == a.id) {
+                              setState(() => _entry.addressId = '');
+                            }
+                          },
                         ),
                   ],
                 ],
@@ -1268,6 +1288,248 @@ class _AddAddressPrompt extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Address option gated by a live serviceability check.
+///
+/// While the coordinate is verified the tile shows a spinner and is inert;
+/// serviceable addresses become selectable with a green note; non-serviceable
+/// (or unpinned) addresses are greyed out and cannot be selected. A failed
+/// check offers a tap-to-retry. If a currently-selected address resolves to
+/// non-serviceable, [onDeselect] clears it so the step can't be completed.
+class _AddressTile extends ConsumerWidget {
+  const _AddressTile({
+    required this.address,
+    required this.selected,
+    required this.onSelect,
+    required this.onDeselect,
+  });
+
+  final DeliveryAddressModel address;
+  final bool selected;
+  final VoidCallback onSelect;
+  final VoidCallback onDeselect;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final title =
+        address.label.isEmpty ? 'Address' : _capitalize(address.label);
+    final query = ServiceabilityQuery(address.latitude, address.longitude);
+
+    if (!query.hasCoordinates) {
+      return _AddressTileShell(
+        title: title,
+        subtitle: address.formattedAddress,
+        selected: false,
+        enabled: false,
+        leading: const Icon(Icons.location_off_rounded,
+            size: AppSizes.icon20, color: AppColors.textTertiary),
+        note: const _ServiceNote(
+          icon: Icons.warning_amber_rounded,
+          text: 'Location not pinned — edit this address to add it',
+          color: _kAccent,
+        ),
+        onTap: null,
+      );
+    }
+
+    final async = ref.watch(addressServiceabilityProvider(query));
+
+    return async.when(
+      loading: () => _AddressTileShell(
+        title: title,
+        subtitle: address.formattedAddress,
+        selected: selected,
+        enabled: false,
+        leading: const SizedBox(
+          width: AppSizes.icon20,
+          height: AppSizes.icon20,
+          child: Padding(
+            padding: EdgeInsets.all(2),
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: AppColors.primaryGreen),
+          ),
+        ),
+        note: const _ServiceNote(
+          icon: Icons.pending_outlined,
+          text: 'Checking availability…',
+          color: AppColors.textSecondary,
+        ),
+        onTap: null,
+      ),
+      error: (_, __) => _AddressTileShell(
+        title: title,
+        subtitle: address.formattedAddress,
+        selected: false,
+        enabled: true,
+        leading: const Icon(Icons.refresh_rounded,
+            size: AppSizes.icon20, color: _kAccent),
+        note: const _ServiceNote(
+          icon: Icons.error_outline_rounded,
+          text: "Couldn't verify availability — tap to retry",
+          color: _kAccent,
+        ),
+        onTap: () => ref.invalidate(addressServiceabilityProvider(query)),
+      ),
+      data: (serviceable) {
+        // A selected address that turns out non-serviceable is cleared so the
+        // user can't proceed with it.
+        if (!serviceable && selected) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => onDeselect());
+        }
+        return _AddressTileShell(
+          title: title,
+          subtitle: address.formattedAddress,
+          selected: selected && serviceable,
+          enabled: serviceable,
+          leading: Icon(
+            serviceable
+                ? (selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_unchecked_rounded)
+                : Icons.block_rounded,
+            size: AppSizes.icon20,
+            color: serviceable
+                ? (selected ? AppColors.primaryGreen : AppColors.textTertiary)
+                : AppColors.errorColor,
+          ),
+          note: serviceable
+              ? const _ServiceNote(
+                  icon: Icons.check_circle_rounded,
+                  text: 'Deliverable to this address',
+                  color: AppColors.primaryGreen,
+                )
+              : const _ServiceNote(
+                  icon: Icons.do_not_disturb_on_outlined,
+                  text: 'Not available in this area',
+                  color: AppColors.errorColor,
+                ),
+          onTap: serviceable ? onSelect : null,
+        );
+      },
+    );
+  }
+}
+
+/// Shared visual shell for [_AddressTile] states.
+class _AddressTileShell extends StatelessWidget {
+  const _AddressTileShell({
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.enabled,
+    required this.leading,
+    required this.note,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final bool enabled;
+  final Widget leading;
+  final Widget note;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: enabled || selected ? 1 : 0.6,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
+          padding: const EdgeInsets.all(AppSizes.spacing12),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.primaryGreen.withValues(alpha: 0.06)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+            border: Border.all(
+              color: selected
+                  ? AppColors.primaryGreen
+                  : AppColors.borderColor.withValues(alpha: 0.6),
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                  width: AppSizes.icon20,
+                  height: AppSizes.icon20,
+                  child: Center(child: leading)),
+              const SizedBox(width: AppSizes.spacing12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.semiBold,
+                        color: AppColors.textPrimary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize12,
+                          color: AppColors.textSecondary.withValues(alpha: 0.9),
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    note,
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A small icon + text status line used inside [_AddressTileShell].
+class _ServiceNote extends StatelessWidget {
+  const _ServiceNote({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: AppSizes.icon14, color: color),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize10,
+              fontWeight: AppTypography.semiBold,
+              color: color,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
