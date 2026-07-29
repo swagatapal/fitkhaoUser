@@ -9,6 +9,8 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/utils/time_converter.dart';
+import '../../../auth/models/auth_state.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../../consultation/presentation/screens/book_consultation_screen.dart';
 import '../../../consultation/providers/consultation_providers.dart';
 import '../widgets/delivery_plan_manager_tab.dart';
@@ -395,6 +397,10 @@ class _TimelineContent extends ConsumerWidget {
     final firstConsultationIdx =
         steps.indexWhere((s) => s.key.toLowerCase().startsWith('consultation'));
 
+    // Booking a consultation is gated on the user having filled their health
+    // profile (the mandatory body metrics in the detailed health screen).
+    final hasHealthProfile = _hasHealthProfile(ref.watch(authProvider));
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSizes.screenPaddingHorizontal,
@@ -414,7 +420,12 @@ class _TimelineContent extends ConsumerWidget {
 
         const _HealthProfileButton(),
         const SizedBox(height: AppSizes.spacing12),
-        _ConsultationSlotButton(enabled: _canBookConsultation(steps)),
+        _ConsultationSlotButton(
+          enabled: hasHealthProfile && _canBookConsultation(steps),
+          disabledSubtitle: !hasHealthProfile
+              ? 'Complete your health profile first'
+              : 'Available after your meal plan is provided',
+        ),
 
         if (steps.isNotEmpty) ...[
           const SizedBox(height: AppSizes.spacing20),
@@ -549,9 +560,15 @@ class _HealthProfileButton extends StatelessWidget {
 /// Opens the consultation booking flow (pick nutritionist → slot → confirm).
 /// Disabled once a consultation is completed, until the meal plan is provided.
 class _ConsultationSlotButton extends StatelessWidget {
-  const _ConsultationSlotButton({this.enabled = true});
+  const _ConsultationSlotButton({
+    this.enabled = true,
+    this.disabledSubtitle = 'Available after your meal plan is provided',
+  });
 
   final bool enabled;
+
+  /// Subtitle shown while the button is disabled (reason depends on the gate).
+  final String disabledSubtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -614,7 +631,7 @@ class _ConsultationSlotButton extends StatelessWidget {
                       Text(
                         enabled
                             ? 'Book a session with a nutritionist'
-                            : 'Available after your meal plan is provided',
+                            : disabledSubtitle,
                         style: TextStyle(
                           fontSize: AppTypography.fontSize12,
                           color: AppColors.textSecondary,
@@ -666,14 +683,11 @@ class _TimelineSummaryCard extends StatelessWidget {
         '${d.day} ${_kMonthLong[d.month - 1].substring(0, 3)}';
 
     String? range;
-    int? durationDays;
     if (mealPlanProvidedDate != null && lastMealDate != null) {
       final start = istDate(mealPlanProvidedDate!);
       final end =
           DateTime(lastMealDate!.year, lastMealDate!.month, lastMealDate!.day);
       range = '${fmt(start)} – ${fmt(end)}';
-      final gap = end.difference(start).inDays + 1; // inclusive
-      if (gap > 0) durationDays = gap;
     }
     return Container(
       padding: const EdgeInsets.all(AppSizes.spacing16),
@@ -1794,6 +1808,14 @@ DateTime? _lastMealPlanDate(List<TimelineDay> days) {
     if (latest == null || parsed.isAfter(latest)) latest = parsed;
   }
   return latest;
+}
+
+/// Whether the user has filled their detailed health profile.
+///
+/// The three body metrics (age, height, weight) are mandatory on the health
+/// screen, so their presence is a reliable signal the profile was saved.
+bool _hasHealthProfile(AuthState s) {
+  return (s.age ?? 0) > 0 && (s.height ?? 0) > 0 && (s.weight ?? 0) > 0;
 }
 
 /// Whether the "Choose consultation time slot" button is enabled.
