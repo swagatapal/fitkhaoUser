@@ -77,6 +77,29 @@ class MedicalRecordRepository {
     }
   }
 
+  /// DELETE /api/user/medical-records/{recordId} — removes one of the user's
+  /// records. Returns `true` when the server confirms the deletion.
+  Future<bool> deleteMedicalRecord(String recordId) async {
+    if (recordId.isEmpty) {
+      throw ValidationException(message: 'Missing record to delete.');
+    }
+    debugPrint('[MedicalRecordRepository] Deleting record $recordId...');
+    try {
+      final json = await _apiClient.deleteJson(
+        '${AppConfig.medicalRecordsPath}/$recordId',
+        headers: _authHeaders(),
+      );
+      // Treat an explicit success flag as authoritative; otherwise a 2xx with
+      // no envelope (empty body) also counts as deleted.
+      return json['success'] as bool? ?? true;
+    } catch (e) {
+      debugPrint('[MedicalRecordRepository] Delete error: $e');
+      if (e is ValidationException) rethrow;
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
   Map<String, String> _authHeaders() {
     final token = _localStorage.getAuthToken();
     if (token == null || token.isEmpty) {

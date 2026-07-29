@@ -404,12 +404,14 @@ class _TimelineContent extends ConsumerWidget {
       ),
       children: [
         // const _CancellationPolicyBanner(),
+        if (timeline.subscription != null)
+          _TimelineSummaryCard(subscription: timeline.subscription!),
+        const SizedBox(height: AppSizes.spacing16),
+
         const _HealthProfileButton(),
         const SizedBox(height: AppSizes.spacing12),
         _ConsultationSlotButton(enabled: _canBookConsultation(steps)),
-        const SizedBox(height: AppSizes.spacing16),
-        if (timeline.subscription != null)
-          _TimelineSummaryCard(subscription: timeline.subscription!),
+
         if (steps.isNotEmpty) ...[
           const SizedBox(height: AppSizes.spacing20),
           const _SectionHeader('Your journey'),
@@ -646,7 +648,7 @@ class _TimelineSummaryCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(AppSizes.radius16),
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

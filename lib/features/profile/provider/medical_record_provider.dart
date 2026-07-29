@@ -96,3 +96,35 @@ class MedicalRecordUploadNotifier
 final medicalRecordUploadProvider = StateNotifierProvider.autoDispose<
     MedicalRecordUploadNotifier,
     MedicalRecordUploadState>((ref) => MedicalRecordUploadNotifier(ref));
+
+/// Tracks which record ids are currently being deleted, so the UI can show a
+/// per-card spinner and block duplicate taps.
+class MedicalRecordDeleteNotifier extends StateNotifier<Set<String>> {
+  MedicalRecordDeleteNotifier(this._ref) : super(const {});
+
+  final Ref _ref;
+
+  bool isDeleting(String recordId) => state.contains(recordId);
+
+  /// Deletes [recordId] and refreshes the list on success.
+  /// Returns `true` when the server confirmed the deletion.
+  Future<bool> delete(String recordId) async {
+    if (recordId.isEmpty || state.contains(recordId)) return false;
+    state = {...state, recordId};
+    try {
+      final ok = await _ref
+          .read(medicalRecordRepositoryProvider)
+          .deleteMedicalRecord(recordId);
+      if (ok) _ref.invalidate(medicalRecordsProvider);
+      return ok;
+    } catch (_) {
+      return false;
+    } finally {
+      state = {...state}..remove(recordId);
+    }
+  }
+}
+
+final medicalRecordDeleteProvider =
+    StateNotifierProvider.autoDispose<MedicalRecordDeleteNotifier, Set<String>>(
+        (ref) => MedicalRecordDeleteNotifier(ref));

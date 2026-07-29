@@ -377,7 +377,7 @@ class _UploadedRecordsList extends ConsumerWidget {
   }
 }
 
-class _RecordCard extends StatelessWidget {
+class _RecordCard extends ConsumerWidget {
   const _RecordCard({required this.record});
 
   final MedicalRecord record;
@@ -404,9 +404,49 @@ class _RecordCard extends StatelessWidget {
     return '${local.day} ${_months[local.month - 1]} ${local.year}';
   }
 
+  Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this record?',
+            style:
+                TextStyle(fontFamily: 'Lato', fontWeight: AppTypography.bold)),
+        content: Text(
+          'This will permanently remove "${record.recordType.label}" and its '
+          '${record.documents.length} '
+          '${record.documents.length == 1 ? 'document' : 'documents'}.',
+          style: const TextStyle(fontFamily: 'Lato'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Keep', style: TextStyle(fontFamily: 'Lato')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete',
+                style:
+                    TextStyle(fontFamily: 'Lato', color: AppColors.errorColor)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final ok =
+        await ref.read(medicalRecordDeleteProvider.notifier).delete(record.id);
+    messenger.showSnackBar(SnackBar(
+      content: Text(ok ? 'Record deleted.' : 'Could not delete this record.'),
+      backgroundColor: ok ? AppColors.primaryGreen : AppColors.errorColor,
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final docs = record.documents;
+    final deleting = ref.watch(medicalRecordDeleteProvider).contains(record.id);
 
     return Container(
       padding: const EdgeInsets.all(AppSizes.spacing12),
@@ -450,6 +490,27 @@ class _RecordCard extends StatelessWidget {
                     fontFamily: 'Lato',
                   ),
                 ),
+              const SizedBox(width: AppSizes.spacing4),
+              // Delete this record.
+              deleting
+                  ? const Padding(
+                      padding: EdgeInsets.all(6),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.errorColor),
+                      ),
+                    )
+                  : GestureDetector(
+                      onTap: () => _confirmAndDelete(context, ref),
+                      behavior: HitTestBehavior.opaque,
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Icon(Icons.delete_outline_rounded,
+                            size: AppSizes.icon18, color: AppColors.errorColor),
+                      ),
+                    ),
             ],
           ),
           if (record.notes.isNotEmpty) ...[
