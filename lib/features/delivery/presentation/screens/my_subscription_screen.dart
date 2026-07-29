@@ -405,7 +405,11 @@ class _TimelineContent extends ConsumerWidget {
       children: [
         // const _CancellationPolicyBanner(),
         if (timeline.subscription != null)
-          _TimelineSummaryCard(subscription: timeline.subscription!),
+          _TimelineSummaryCard(
+            subscription: timeline.subscription!,
+            mealPlanProvidedDate: _mealPlanProvidedDate(steps),
+            lastMealDate: _lastMealPlanDate(days),
+          ),
         const SizedBox(height: AppSizes.spacing16),
 
         const _HealthProfileButton(),
@@ -633,13 +637,44 @@ class _ConsultationSlotButton extends StatelessWidget {
 
 /// Gradient hero summarising the active subscription.
 class _TimelineSummaryCard extends StatelessWidget {
-  const _TimelineSummaryCard({required this.subscription});
+  const _TimelineSummaryCard({
+    required this.subscription,
+    this.mealPlanProvidedDate,
+    this.lastMealDate,
+  });
 
   final TimelineSubscription subscription;
 
+  /// When the meal plan was provided — the range start. No date range is shown
+  /// until this is available.
+  final DateTime? mealPlanProvidedDate;
+
+  /// Last day covered by the meal plan (last daily-meal date) — the range end.
+  final DateTime? lastMealDate;
+
   @override
   Widget build(BuildContext context) {
-    final range = _dateRangeLabel(subscription.startDate, subscription.endDate);
+    // Range is meal-plan-provided → last meal-plan day; the duration is the
+    // inclusive gap between them. The provided date is a UTC instant (shown in
+    // IST); the last meal date is already a plain calendar date.
+    DateTime istDate(DateTime d) {
+      final i = d.toUtc().add(const Duration(hours: 5, minutes: 30));
+      return DateTime(i.year, i.month, i.day);
+    }
+
+    String fmt(DateTime d) =>
+        '${d.day} ${_kMonthLong[d.month - 1].substring(0, 3)}';
+
+    String? range;
+    int? durationDays;
+    if (mealPlanProvidedDate != null && lastMealDate != null) {
+      final start = istDate(mealPlanProvidedDate!);
+      final end =
+          DateTime(lastMealDate!.year, lastMealDate!.month, lastMealDate!.day);
+      range = '${fmt(start)} – ${fmt(end)}';
+      final gap = end.difference(start).inDays + 1; // inclusive
+      if (gap > 0) durationDays = gap;
+    }
     return Container(
       padding: const EdgeInsets.all(AppSizes.spacing16),
       decoration: BoxDecoration(
@@ -689,32 +724,35 @@ class _TimelineSummaryCard extends StatelessWidget {
               ],
             ),
           ],
-          const SizedBox(height: AppSizes.spacing12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(AppSizes.radius8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.hourglass_bottom_rounded,
-                    size: AppSizes.icon16, color: Colors.white),
-                const SizedBox(width: 6),
-                Text(
-                  '${subscription.remainingDays} '
-                  '${subscription.remainingDays == 1 ? 'day' : 'days'} remaining',
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize13,
-                    fontWeight: AppTypography.bold,
-                    color: Colors.white,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ],
-            ),
-          ),
+          //const SizedBox(height: AppSizes.spacing12),
+          // Container(
+          //   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          //   decoration: BoxDecoration(
+          //     color: Colors.white.withValues(alpha: 0.15),
+          //     borderRadius: BorderRadius.circular(AppSizes.radius8),
+          //   ),
+          //   child: Row(
+          //     mainAxisSize: MainAxisSize.min,
+          //     children: [
+          //       const Icon(Icons.hourglass_bottom_rounded,
+          //           size: AppSizes.icon16, color: Colors.white),
+          //       const SizedBox(width: 6),
+          //       Text(
+          //         durationDays != null
+          //             ? '$durationDays '
+          //                 '${durationDays == 1 ? 'day' : 'days'} plan'
+          //             : '${subscription.remainingDays} '
+          //                 '${subscription.remainingDays == 1 ? 'day' : 'days'} remaining',
+          //         style: const TextStyle(
+          //           fontSize: AppTypography.fontSize13,
+          //           fontWeight: AppTypography.bold,
+          //           color: Colors.white,
+          //           fontFamily: 'Lato',
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
         ],
       ),
     );
@@ -1731,6 +1769,33 @@ class _StatusPill extends StatelessWidget {
   }
 }
 
+/// The date the meal plan was provided — the completed `meal_plan_*` step's
+/// date. Used as the subscription range start. Returns the earliest such date
+/// when several meal-plan steps are completed.
+DateTime? _mealPlanProvidedDate(List<TimelineStep> steps) {
+  DateTime? earliest;
+  for (final s in steps) {
+    final isMealPlan = s.key.toLowerCase().startsWith('meal_plan') ||
+        s.name.toLowerCase().contains('meal plan');
+    if (isMealPlan && s.status == TimelineStatus.completed && s.date != null) {
+      if (earliest == null || s.date!.isBefore(earliest)) earliest = s.date;
+    }
+  }
+  return earliest;
+}
+
+/// The last day covered by the meal plan — the latest daily-meal date.
+/// Used as the subscription range end.
+DateTime? _lastMealPlanDate(List<TimelineDay> days) {
+  DateTime? latest;
+  for (final d in days) {
+    final parsed = d.parsedDate;
+    if (parsed == null) continue;
+    if (latest == null || parsed.isAfter(latest)) latest = parsed;
+  }
+  return latest;
+}
+
 /// Whether the "Choose consultation time slot" button is enabled.
 ///
 /// Once a consultation is `completed`, booking the next one is locked until the
@@ -1791,20 +1856,6 @@ IconData _slotIcon(String slot) {
 String? _dayLabel(DateTime? d) {
   if (d == null) return null;
   return '${_kWeekdayShort[d.weekday - 1]}, ${d.day} ${_kMonthLong[d.month - 1].substring(0, 3)}';
-}
-
-/// "2 Jul – 13 Jul" from UTC start/end, shown in IST.
-String? _dateRangeLabel(DateTime? start, DateTime? end) {
-  DateTime ist(DateTime d) =>
-      d.toUtc().add(const Duration(hours: 5, minutes: 30));
-  String fmt(DateTime d) {
-    final i = ist(d);
-    return '${i.day} ${_kMonthLong[i.month - 1].substring(0, 3)}';
-  }
-
-  if (start == null && end == null) return null;
-  if (start != null && end != null) return '${fmt(start)} – ${fmt(end)}';
-  return fmt((start ?? end)!);
 }
 
 // ─── Shared date helpers ──────────────────────────────────────────────────────
