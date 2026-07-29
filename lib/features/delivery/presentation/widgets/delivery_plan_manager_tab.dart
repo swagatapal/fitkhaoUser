@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../profile/models/delivery_address_model.dart';
+import '../../../profile/presentation/screens/address_form_screen.dart';
 import '../../../profile/providers/delivery_address_provider.dart';
 import '../../models/delivery_slot_model.dart';
 import '../../models/dish_category_model.dart';
@@ -192,14 +193,8 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
     required List<DishCategory> categories,
     required List<DeliveryAddressModel> addresses,
   }) async {
-    if (addresses.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Add a delivery address first.'),
-        backgroundColor: AppColors.errorColor,
-        behavior: SnackBarBehavior.floating,
-      ));
-      return;
-    }
+    // Addresses may be empty — the wizard's address step lets the user add one
+    // inline, so we no longer block entry here.
     if (groups.isEmpty) return;
 
     final result = await showModalBottomSheet<List<_SlotEntry>>(
@@ -210,7 +205,6 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
         dayLabel: _day.label,
         groups: groups,
         categories: categories,
-        addresses: addresses,
         existing: _plans[_selectedDay]!,
       ),
     );
@@ -761,26 +755,25 @@ class _DeliveryCard extends StatelessWidget {
 // Each step progressively reveals: slot → meals → address.
 // ═══════════════════════════════════════════════════════════════════════════
 
-class _DeliveryWizardSheet extends StatefulWidget {
+class _DeliveryWizardSheet extends ConsumerStatefulWidget {
   const _DeliveryWizardSheet({
     required this.dayLabel,
     required this.groups,
     required this.categories,
-    required this.addresses,
     required this.existing,
   });
 
   final String dayLabel;
   final List<_SlotGroup> groups;
   final List<DishCategory> categories;
-  final List<DeliveryAddressModel> addresses;
   final List<_SlotEntry> existing;
 
   @override
-  State<_DeliveryWizardSheet> createState() => _DeliveryWizardSheetState();
+  ConsumerState<_DeliveryWizardSheet> createState() =>
+      _DeliveryWizardSheetState();
 }
 
-class _DeliveryWizardSheetState extends State<_DeliveryWizardSheet> {
+class _DeliveryWizardSheetState extends ConsumerState<_DeliveryWizardSheet> {
   int _step = 0;
   late final List<_SlotEntry> _working;
   late final List<bool> _skipped;
@@ -834,8 +827,28 @@ class _DeliveryWizardSheetState extends State<_DeliveryWizardSheet> {
 
   void _back() => setState(() => _step--);
 
+  /// Opens the add-address screen; the newly created address is auto-selected
+  /// for this delivery when the user returns.
+  Future<void> _addAddress() async {
+    final before = ref.read(addressProvider).addresses.map((a) => a.id).toSet();
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => const AddressFormScreen()),
+    );
+    if (!mounted) return;
+    final added = ref
+        .read(addressProvider)
+        .addresses
+        .where((a) => !before.contains(a.id))
+        .toList();
+    if (added.isNotEmpty) {
+      setState(() => _entry.addressId = added.first.id);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Live address list — reflects an address added from within this sheet.
+    final addresses = ref.watch(addressProvider.select((s) => s.addresses));
     final skipped = _skipped[_step];
     final slotChosen = _entry.slotId.isNotEmpty;
     final mealsChosen = _entry.categoryIds.isNotEmpty;
@@ -983,16 +996,25 @@ class _DeliveryWizardSheetState extends State<_DeliveryWizardSheet> {
                   ],
                   if (slotChosen && mealsChosen && !skipped) ...[
                     const SizedBox(height: AppSizes.spacing16),
-                    _StepLabel(3, 'Delivery address'),
+                    Row(
+                      children: [
+                        Expanded(child: _StepLabel(3, 'Delivery address')),
+                        _AddAddressButton(onTap: _addAddress),
+                      ],
+                    ),
                     const SizedBox(height: AppSizes.spacing8),
-                    for (final a in widget.addresses)
-                      _RadioTile(
-                        title:
-                            a.label.isEmpty ? 'Address' : _capitalize(a.label),
-                        subtitle: a.formattedAddress,
-                        selected: _entry.addressId == a.id,
-                        onTap: () => setState(() => _entry.addressId = a.id),
-                      ),
+                    if (addresses.isEmpty)
+                      _AddAddressPrompt(onTap: _addAddress)
+                    else
+                      for (final a in addresses)
+                        _RadioTile(
+                          title: a.label.isEmpty
+                              ? 'Address'
+                              : _capitalize(a.label),
+                          subtitle: a.formattedAddress,
+                          selected: _entry.addressId == a.id,
+                          onTap: () => setState(() => _entry.addressId = a.id),
+                        ),
                   ],
                 ],
               ),
@@ -1171,6 +1193,81 @@ class _StepLabel extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Compact "Add new" action shown beside the delivery-address step label.
+class _AddAddressButton extends StatelessWidget {
+  const _AddAddressButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        foregroundColor: AppColors.primaryGreen,
+        padding: const EdgeInsets.symmetric(horizontal: AppSizes.spacing8),
+        minimumSize: const Size(0, 32),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ),
+      icon: const Icon(Icons.add_location_alt_rounded, size: AppSizes.icon16),
+      label: const Text(
+        'Add new',
+        style: TextStyle(
+          fontFamily: 'Lato',
+          fontSize: AppTypography.fontSize12,
+          fontWeight: AppTypography.bold,
+        ),
+      ),
+    );
+  }
+}
+
+/// Empty-state tile prompting the user to add their first address inline.
+class _AddAddressPrompt extends StatelessWidget {
+  const _AddAddressPrompt({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(AppSizes.spacing12),
+        decoration: BoxDecoration(
+          color: AppColors.primaryGreen.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+          border: Border.all(
+            color: AppColors.primaryGreen.withValues(alpha: 0.4),
+          ),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.add_location_alt_outlined,
+                size: AppSizes.icon20, color: AppColors.primaryGreen),
+            const SizedBox(width: AppSizes.spacing12),
+            Expanded(
+              child: Text(
+                'Add a delivery address to continue',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize13,
+                  fontWeight: AppTypography.semiBold,
+                  color: AppColors.textPrimary.withValues(alpha: 0.9),
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                size: AppSizes.icon20, color: AppColors.primaryGreen),
+          ],
+        ),
+      ),
     );
   }
 }
