@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../models/subscription_cancel_preview_model.dart';
 import '../../providers/subscription_cancel_provider.dart';
 import '../../providers/wallet_provider.dart';
@@ -50,8 +51,11 @@ class _CancelSubscriptionSheetState
       );
 
       if (res.success) {
-        // Refresh wallet + subscription so the rest of the app reflects it.
+        // Refresh wallet + profile so the rest of the app reflects it — the
+        // reloaded profile clears activeSubscription, hiding the "My
+        // Subscription" affordance and flipping the home shell immediately.
         await ref.read(walletProvider.notifier).loadWalletBalance();
+        await ref.read(authProvider.notifier).loadProfile();
         if (!mounted) return;
         navigator.pop();
         messenger.showSnackBar(
@@ -170,9 +174,10 @@ class _CancelSubscriptionSheetState
   Widget _buildPreviewBody(SubscriptionCancelPreview p) {
     final methods = p.availableRefundMethods;
     // Resolve the effective selected method (default to the first available).
-    final selected = (_selectedMethod != null && methods.contains(_selectedMethod))
-        ? _selectedMethod!
-        : (methods.isNotEmpty ? methods.first : '');
+    final selected =
+        (_selectedMethod != null && methods.contains(_selectedMethod))
+            ? _selectedMethod!
+            : (methods.isNotEmpty ? methods.first : '');
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),

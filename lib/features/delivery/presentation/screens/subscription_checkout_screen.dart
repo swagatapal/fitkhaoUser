@@ -6,6 +6,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/services/razorpay_service.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../models/subscription_pricing_preview_model.dart';
 import '../../providers/subscription_pricing_provider.dart';
 import '../../providers/wallet_provider.dart';
@@ -43,8 +44,10 @@ class _SubscriptionCheckoutScreenState
   late final RazorpayService _razorpayService;
   String? _razorpayOrderId;
 
-  PricingPreviewArgs get _args =>
-      (planId: widget.planId, cancelAnytimeSelected: widget.cancelAnytimeSelected);
+  PricingPreviewArgs get _args => (
+        planId: widget.planId,
+        cancelAnytimeSelected: widget.cancelAnytimeSelected
+      );
 
   double get _walletBalance =>
       ref.read(walletProvider.select((s) => s.wallet?.couponBalance)) ?? 0;
@@ -86,7 +89,8 @@ class _SubscriptionCheckoutScreenState
     String? sdkOrderId,
     String? signature,
   ) {
-    debugPrint('[SubscriptionCheckout] Razorpay success — paymentId=$paymentId');
+    debugPrint(
+        '[SubscriptionCheckout] Razorpay success — paymentId=$paymentId');
     _verifyAndFinalise(
       paymentId: paymentId,
       sdkOrderId: sdkOrderId,
@@ -142,9 +146,12 @@ class _SubscriptionCheckoutScreenState
     }
   }
 
-  /// Refresh wallet + profile so the active subscription reflects everywhere.
+  /// Refresh wallet + profile so the active subscription reflects everywhere —
+  /// the reloaded profile populates activeSubscription, so the "My
+  /// Subscription" affordance and the home shell update instantly.
   Future<void> _refreshAfterPurchase() async {
     await ref.read(walletProvider.notifier).loadWalletBalance();
+    await ref.read(authProvider.notifier).loadProfile();
   }
 
   void _showConfirmationDialog(
@@ -508,8 +515,8 @@ class _SubscriptionCheckoutScreenState
             Expanded(
               child: previewAsync.when(
                 loading: () => const Center(
-                  child: CircularProgressIndicator(
-                      color: AppColors.primaryGreen),
+                  child:
+                      CircularProgressIndicator(color: AppColors.primaryGreen),
                 ),
                 error: (_, __) => _ErrorView(
                   onRetry: () => ref.invalidate(
@@ -866,7 +873,8 @@ class _SubscriptionCheckoutScreenState
       decoration: BoxDecoration(
         color: const Color(0xFFFFF8E1),
         borderRadius: BorderRadius.circular(AppSizes.radius12),
-        border: Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.4)),
+        border:
+            Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.4)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -934,8 +942,8 @@ class _SubscriptionCheckoutScreenState
           decoration: BoxDecoration(
             color: AppColors.primaryGreen.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(AppSizes.radius12),
-            border:
-                Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.18)),
+            border: Border.all(
+                color: AppColors.primaryGreen.withValues(alpha: 0.18)),
           ),
           child: SubscriptionBenefitsList(plan: preview.plan),
         ),
@@ -1182,7 +1190,8 @@ class _SummaryRow extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            fontSize: muted ? AppTypography.fontSize12 : AppTypography.fontSize14,
+            fontSize:
+                muted ? AppTypography.fontSize12 : AppTypography.fontSize14,
             fontWeight: weight,
             color: muted ? AppColors.textSecondary : AppColors.textPrimary,
             fontFamily: 'Lato',

@@ -47,6 +47,7 @@ class MySubscriptionScreen extends ConsumerStatefulWidget {
     super.key,
     this.planName = 'Your Plan',
     this.subscriptionId = '',
+    this.onSwitchToOrder,
   });
 
   /// Shown in the header subtitle. Optional — defaults to a neutral label.
@@ -55,6 +56,10 @@ class MySubscriptionScreen extends ConsumerStatefulWidget {
   /// Active subscription id — enables the Invoice action and real event
   /// history. When empty, the Journey tab shows the placeholder timeline.
   final String subscriptionId;
+
+  /// When hosted inside the home shell, this switches to the food-ordering
+  /// view. When null the screen is a pushed route and shows a back button.
+  final VoidCallback? onSwitchToOrder;
 
   @override
   ConsumerState<MySubscriptionScreen> createState() =>
@@ -84,8 +89,10 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen> {
             child: Column(
               children: [
                 _Header(
-                    planName: widget.planName,
-                    subscriptionId: widget.subscriptionId),
+                  planName: widget.planName,
+                  subscriptionId: widget.subscriptionId,
+                  onSwitchToOrder: widget.onSwitchToOrder,
+                ),
                 const _Tabs(),
                 Expanded(
                   child: TabBarView(
@@ -108,13 +115,21 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen> {
 // ─── Header ──────────────────────────────────────────────────────────────────
 
 class _Header extends StatelessWidget {
-  const _Header({required this.planName, required this.subscriptionId});
+  const _Header({
+    required this.planName,
+    required this.subscriptionId,
+    this.onSwitchToOrder,
+  });
 
   final String planName;
   final String subscriptionId;
+  final VoidCallback? onSwitchToOrder;
 
   @override
   Widget build(BuildContext context) {
+    // Home-shell mode: no back button (this is the home base); the switch to
+    // the food-ordering view is offered instead.
+    final inShell = onSwitchToOrder != null;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSizes.p20,
@@ -132,19 +147,21 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => context.pop(),
-            child: Container(
-              padding: const EdgeInsets.all(AppSizes.spacing8),
-              decoration: BoxDecoration(
-                color: AppColors.darkGreen,
-                borderRadius: BorderRadius.circular(AppSizes.radius8),
+          if (!inShell) ...[
+            GestureDetector(
+              onTap: () => context.pop(),
+              child: Container(
+                padding: const EdgeInsets.all(AppSizes.spacing8),
+                decoration: BoxDecoration(
+                  color: AppColors.darkGreen,
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+                child: const Icon(Icons.arrow_back,
+                    color: AppColors.textWhite, size: AppSizes.icon24),
               ),
-              child: const Icon(Icons.arrow_back,
-                  color: AppColors.textWhite, size: AppSizes.icon24),
             ),
-          ),
-          const SizedBox(width: AppSizes.spacing12),
+            const SizedBox(width: AppSizes.spacing12),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,9 +188,61 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          if (subscriptionId.isNotEmpty)
+          if (inShell) _OrderFoodButton(onTap: onSwitchToOrder!),
+          if (subscriptionId.isNotEmpty) ...[
+            if (inShell) const SizedBox(width: AppSizes.spacing8),
             _InvoiceButton(subscriptionId: subscriptionId),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+/// Header pill (home-shell mode) that switches to the food-ordering view.
+class _OrderFoodButton extends StatelessWidget {
+  const _OrderFoodButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(30),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.spacing12,
+            vertical: AppSizes.spacing8,
+          ),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.darkGreen, AppColors.primaryGreen],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.restaurant_menu_rounded,
+                  color: Colors.white, size: AppSizes.icon16),
+              SizedBox(width: 6),
+              Text(
+                'Order Food',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize12,
+                  fontWeight: AppTypography.bold,
+                  color: Colors.white,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

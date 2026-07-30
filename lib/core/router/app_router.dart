@@ -14,7 +14,7 @@ import '../../features/auth/screens/map_picker_screen.dart';
 import '../../features/auth/screens/bmi_analysis_screen.dart';
 import '../../features/auth/screens/health_score_screen.dart';
 import '../../features/profile/presentation/screens/detailed_health_info_screen.dart';
-import '../../features/delivery/presentation/screens/delivery_screen.dart';
+import '../../features/delivery/presentation/screens/home_shell.dart';
 import '../../features/history/presentation/screens/history_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/preferences_saved_screen.dart';
@@ -157,7 +157,7 @@ class AppRouter {
         name: RouteNames.home,
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
-          child: const DeliveryScreen(),
+          child: const HomeShell(),
         ),
       ),
 

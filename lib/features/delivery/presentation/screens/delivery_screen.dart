@@ -67,7 +67,11 @@ const List<_DishTypeOption> _kDishTypeOptions = [
 ];
 
 class DeliveryScreen extends ConsumerStatefulWidget {
-  const DeliveryScreen({super.key});
+  const DeliveryScreen({super.key, this.onSwitchToSubscription});
+
+  /// When hosted inside the home shell for a subscribed user, this switches
+  /// back to the subscription view instead of pushing a new route.
+  final VoidCallback? onSwitchToSubscription;
 
   @override
   ConsumerState<DeliveryScreen> createState() => _DeliveryScreenState();
@@ -487,7 +491,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                             bottom: MediaQuery.of(context).size.height * 0.03 +
                                 (cartBarVisible ? 84 : 0),
                           ),
-                          child: _MySubscriptionFab(sub: sub),
+                          child: _MySubscriptionFab(
+                            sub: sub,
+                            onSwitch: widget.onSwitchToSubscription,
+                          ),
                         ),
                       );
                     },
@@ -519,7 +526,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       ),
     );
   }
-
 
   // ── Passive banner ──────────────────────────────────────────────────────────
 
@@ -2876,9 +2882,12 @@ class _SubscriptionPromoCard extends ConsumerWidget {
 /// Floating pill that opens the full subscription screen. Rendered as an
 /// overlay in [DeliveryScreen] only while the user has an active plan.
 class _MySubscriptionFab extends StatelessWidget {
-  const _MySubscriptionFab({required this.sub});
+  const _MySubscriptionFab({required this.sub, this.onSwitch});
 
   final SubscriptionInfo sub;
+
+  /// When set (home-shell mode) tapping switches views instead of pushing.
+  final VoidCallback? onSwitch;
 
   @override
   Widget build(BuildContext context) {
@@ -2886,14 +2895,15 @@ class _MySubscriptionFab extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(30),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => MySubscriptionScreen(
-              planName: sub.planName,
-              subscriptionId: sub.id,
-            ),
-          ),
-        ),
+        onTap: onSwitch ??
+            () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => MySubscriptionScreen(
+                      planName: sub.planName,
+                      subscriptionId: sub.id,
+                    ),
+                  ),
+                ),
         child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSizes.spacing16,
@@ -2957,7 +2967,7 @@ class _ActiveSubscriptionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSizes.spacing12),
         decoration: BoxDecoration(
-          gradient:  LinearGradient(
+          gradient: LinearGradient(
             colors: [AppColors.darkGreen, AppColors.primaryGreen],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -3002,7 +3012,8 @@ class _ActiveSubscriptionCard extends StatelessWidget {
                             horizontal: AppSizes.spacing8, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.22),
-                          borderRadius: BorderRadius.circular(AppSizes.radius20),
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radius20),
                         ),
                         child: const Text(
                           'ACTIVE',

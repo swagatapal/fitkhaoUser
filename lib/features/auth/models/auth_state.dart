@@ -38,8 +38,10 @@ class AuthState {
   // Detailed health information
   /// MongoDB _id of the selected ProfessionGroup
   final String professionGroupId;
+
   /// Per-exercise data: [{exerciseGroupId, daysPerWeek, hoursPerDay}]
   final List<Map<String, dynamic>> exercises;
+
   /// Server-driven flag — false means user must contact nutritionist to update
   final bool isUpdateable;
 
@@ -126,6 +128,7 @@ class AuthState {
   });
 
   AuthState copyWith({
+    bool clearActiveSubscription = false,
     String? userId,
     String? phoneNumber,
     String? countryCode,
@@ -224,11 +227,13 @@ class AuthState {
       targetCarbs: targetCarbs ?? this.targetCarbs,
       targetKCalories: targetKCalories ?? this.targetKCalories,
       lastUpdatedTargetKCal:
-      lastUpdatedTargetKCal ?? this.lastUpdatedTargetKCal,
+          lastUpdatedTargetKCal ?? this.lastUpdatedTargetKCal,
       selectedGoal: selectedGoal ?? this.selectedGoal,
       selectedConditionCodes:
-      selectedConditionCodes ?? this.selectedConditionCodes,
-      activeSubscription: activeSubscription ?? this.activeSubscription,
+          selectedConditionCodes ?? this.selectedConditionCodes,
+      activeSubscription: clearActiveSubscription
+          ? null
+          : (activeSubscription ?? this.activeSubscription),
       profileUpdatedAt: profileUpdatedAt ?? this.profileUpdatedAt,
     );
   }

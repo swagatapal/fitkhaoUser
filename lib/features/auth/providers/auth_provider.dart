@@ -115,9 +115,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = state.copyWith(
           isLoading: false,
           errorMessage: null,
-          receivedOtpMessage: response.message+response.otpId.toString(),
-              // for dev
-             //+response.otpId.toString()
+          receivedOtpMessage: response.message + response.otpId.toString(),
+          // for dev
+          //+response.otpId.toString()
         );
         _startResendTimer();
         return true;
@@ -191,9 +191,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = state.copyWith(
           isResendingOtp: false,
           errorMessage: null,
-          receivedOtpMessage: response.message+response.otpId.toString(),
-              //for dev
-            //+response.otpId.toString()
+          receivedOtpMessage: response.message + response.otpId.toString(),
+          //for dev
+          //+response.otpId.toString()
         );
         _startResendTimer();
         return true;
@@ -236,9 +236,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(name: name);
   }
 
-  void saveImageUrl(String imgUrl){
+  void saveImageUrl(String imgUrl) {
     state = state.copyWith(imgUrl: imgUrl);
   }
+
   /// Save user gender and date of birth
   void savePersonalInfo({
     required String gender,
@@ -341,13 +342,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final response = await _authRepository.getProfile();
 
-      debugPrint('[AuthNotifier] Profile fetch response keys: ${response.keys.toList()}');
+      debugPrint(
+          '[AuthNotifier] Profile fetch response keys: ${response.keys.toList()}');
 
       // Support both response formats:
       // New: { "user": { ... } }
       // Old: { "success": true, "data": { "user": { ... } } }
       Map<String, dynamic>? user;
-      if (response.containsKey('user') && response['user'] is Map<String, dynamic>) {
+      if (response.containsKey('user') &&
+          response['user'] is Map<String, dynamic>) {
         user = response['user'] as Map<String, dynamic>;
       } else if (response['data'] is Map<String, dynamic>) {
         final data = response['data'] as Map<String, dynamic>;
@@ -359,7 +362,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final userId = user?['id'] as String? ?? '';
       final mobileNumber = user?['mobileNumber'] as String? ?? '';
 
-      debugPrint('[AuthNotifier] Parsed user: ${user != null}, profile: ${profile != null}');
+      debugPrint(
+          '[AuthNotifier] Parsed user: ${user != null}, profile: ${profile != null}');
 
       if (user != null && profile != null) {
         // Extract profile data
@@ -374,7 +378,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         // final height = 149.0;
         final doesWorkout = profile['doesWorkout'] as bool? ?? false;
         final professionGroupId = profile['professionGroupId'] as String? ?? '';
-        final selectedGoal = profile['selectedGoal'] as String? ?? 'regular-bmi-maintenance';
+        final selectedGoal =
+            profile['selectedGoal'] as String? ?? 'regular-bmi-maintenance';
 
         // Parse exercises array: [{exerciseGroupId, daysPerWeek, hoursPerDay}]
         final rawExercises = profile['exercises'] as List<dynamic>? ?? [];
@@ -387,7 +392,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final targetProtein = (profile['targetProtein'] as num?)?.toDouble();
         final targetFat = (profile['targetFat'] as num?)?.toDouble();
         final targetCarbs = (profile['targetCarbs'] as num?)?.toDouble();
-        final targetKCalories = (profile['targetKCalories'] as num?)?.toDouble();
+        final targetKCalories =
+            (profile['targetKCalories'] as num?)?.toDouble();
 
         // Parse lastUpdatedTargetKCal
         DateTime? lastUpdatedTargetKCal;
@@ -396,7 +402,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           try {
             lastUpdatedTargetKCal = DateTime.parse(lastUpdatedStr);
           } catch (e) {
-            debugPrint('[AuthNotifier] Error parsing lastUpdatedTargetKCal: $e');
+            debugPrint(
+                '[AuthNotifier] Error parsing lastUpdatedTargetKCal: $e');
           }
         }
 
@@ -427,7 +434,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         String otherConditions = '';
         final List<String> selectedCodes = [];
 
-        final specialConditionsList = profile['specialConditions'] as List<dynamic>?;
+        final specialConditionsList =
+            profile['specialConditions'] as List<dynamic>?;
         if (specialConditionsList != null) {
           for (final condition in specialConditionsList) {
             if (condition is Map<String, dynamic>) {
@@ -474,7 +482,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
         // Extract digestive issues (new key: regularlyDiarrhoeal)
         final digestiveIssues =
-        profile['digestiveIssues'] as Map<String, dynamic>?;
+            profile['digestiveIssues'] as Map<String, dynamic>?;
         final regularlyConstipated =
             digestiveIssues?['regularlyConstipated'] as bool? ?? false;
         final regularlyDiarrhoeal =
@@ -507,18 +515,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
         // Parse activeSubscription from profile API
         SubscriptionInfo? activeSubscription;
-        final activeSubJson = user['activeSubscription'] as Map<String, dynamic>?;
+        final activeSubJson =
+            user['activeSubscription'] as Map<String, dynamic>?;
         if (activeSubJson != null) {
           try {
             activeSubscription = SubscriptionInfo.fromJson(activeSubJson);
-            debugPrint('[AuthNotifier] Active subscription: ${activeSubscription.planName} (${activeSubscription.planCode}), status=${activeSubscription.status}');
+            debugPrint(
+                '[AuthNotifier] Active subscription: ${activeSubscription.planName} (${activeSubscription.planCode}), status=${activeSubscription.status}');
           } catch (e) {
             debugPrint('[AuthNotifier] Error parsing activeSubscription: $e');
           }
         }
 
-        // Update state with fetched data
+        // Update state with fetched data. When the profile carries no active
+        // subscription, clear any stale one (copyWith's ?? would otherwise keep
+        // it) so cancellation reflects across the app immediately.
         state = state.copyWith(
+          clearActiveSubscription: activeSubscription == null,
           userId: userId,
           phoneNumber: mobileNumber.isNotEmpty ? mobileNumber : null,
           name: name,
@@ -592,7 +605,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         availableCategories: availableCategories,
       );
 
-      debugPrint('[AuthNotifier] Profile data prepared: ${profileData.toFullJson()}');
+      debugPrint(
+          '[AuthNotifier] Profile data prepared: ${profileData.toFullJson()}');
 
       // Call API to update profile
       final response = await _authRepository.updateProfile(
@@ -615,7 +629,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       } else {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: message ?? 'Failed to update profile. Please try again.',
+          errorMessage:
+              message ?? 'Failed to update profile. Please try again.',
         );
         return false;
       }
@@ -644,7 +659,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         availableCategories: availableCategories,
       );
 
-      debugPrint('[AuthNotifier] Profile data prepared: ${profileData.toFullJson()}');
+      debugPrint(
+          '[AuthNotifier] Profile data prepared: ${profileData.toFullJson()}');
 
       // Call API to update profile
       final response = await _authRepository.updateProfile(
@@ -667,12 +683,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
           isUpdateable: isUpdateable,
           errorMessage: null,
         );
-        debugPrint('[AuthNotifier] Profile updated successfully, isUpdateable: $isUpdateable');
+        debugPrint(
+            '[AuthNotifier] Profile updated successfully, isUpdateable: $isUpdateable');
         return true;
       } else {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: message ?? 'Failed to update profile. Please try again.',
+          errorMessage:
+              message ?? 'Failed to update profile. Please try again.',
         );
         return false;
       }
@@ -736,7 +754,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final deviceToken = await deviceInfoService.getDeviceToken();
       final appVersion = await deviceInfoService.getAppVersion();
 
-      debugPrint('[AuthNotifier] Device Info - Type: $deviceType, ID: $deviceId, Version: $appVersion');
+      debugPrint(
+          '[AuthNotifier] Device Info - Type: $deviceType, ID: $deviceId, Version: $appVersion');
 
       // Call API to register device
       final response = await _authRepository.registerDevice(
@@ -752,7 +771,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         debugPrint('[AuthNotifier] Device registered successfully');
         return true;
       } else {
-        final message = response['message'] as String? ?? 'Failed to register device';
+        final message =
+            response['message'] as String? ?? 'Failed to register device';
         debugPrint('[AuthNotifier] Device registration failed: $message');
         return false;
       }
@@ -791,7 +811,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void reset() {
     _resendTimer?.cancel();
-    state =  AuthState();
+    state = AuthState();
   }
 }
 
