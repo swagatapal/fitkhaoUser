@@ -469,17 +469,16 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                   ),
                 ),
 
-                // ── Floating "My Subscription" button (active plan only) ────
-                // Sits above the cart bar when the cart is showing so the two
-                // never overlap.
+                // ── Floating subscription button ────────────────────────────
+                // Active plan → "My Subscription"; otherwise → "Take
+                // Subscription". Sits above the cart bar when the cart is
+                // showing so the two never overlap.
                 Positioned.fill(
                   child: Consumer(
                     builder: (context, ref, _) {
                       final sub = ref.watch(
                           authProvider.select((s) => s.activeSubscription));
-                      if (sub == null || !sub.isActive) {
-                        return const SizedBox.shrink();
-                      }
+                      final hasActive = sub != null && sub.isActive;
                       final cartBarVisible =
                           ref.watch(cartTotalItemsProvider) > 0 &&
                               isOrderingActive;
@@ -491,10 +490,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                             bottom: MediaQuery.of(context).size.height * 0.03 +
                                 (cartBarVisible ? 84 : 0),
                           ),
-                          child: _MySubscriptionFab(
-                            sub: sub,
-                            onSwitch: widget.onSwitchToSubscription,
-                          ),
+                          child: hasActive
+                              ? _MySubscriptionFab(
+                                  sub: sub,
+                                  onSwitch: widget.onSwitchToSubscription,
+                                )
+                              : const _TakeSubscriptionFab(),
                         ),
                       );
                     },
@@ -2932,6 +2933,65 @@ class _MySubscriptionFab extends StatelessWidget {
               SizedBox(width: AppSizes.spacing8),
               Text(
                 'My Subscription',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.bold,
+                  color: Colors.white,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Floating pill shown when the user has no active subscription — opens the
+/// plans screen. Mirrors [_MySubscriptionFab] so the two read as one control.
+class _TakeSubscriptionFab extends StatelessWidget {
+  const _TakeSubscriptionFab();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(30),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const SubscriptionPlanScreen(),
+          ),
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.spacing16,
+            vertical: AppSizes.spacing12,
+          ),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.darkGreen, AppColors.primaryGreen],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryGreen.withValues(alpha: 0.35),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.workspace_premium_rounded,
+                  color: Colors.white, size: AppSizes.icon20),
+              SizedBox(width: AppSizes.spacing8),
+              Text(
+                'Take Subscription',
                 style: TextStyle(
                   fontSize: AppTypography.fontSize14,
                   fontWeight: AppTypography.bold,

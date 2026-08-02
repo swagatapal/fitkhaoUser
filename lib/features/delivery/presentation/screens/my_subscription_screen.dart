@@ -86,23 +86,35 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen> {
           backgroundColor: const Color(0xFFFAFBFC),
           body: SafeArea(
             bottom: false,
-            child: Column(
+            child: Stack(
               children: [
-                _Header(
-                  planName: widget.planName,
-                  subscriptionId: widget.subscriptionId,
-                  onSwitchToOrder: widget.onSwitchToOrder,
+                Column(
+                  children: [
+                    _Header(
+                      planName: widget.planName,
+                      subscriptionId: widget.subscriptionId,
+                      showBackButton: widget.onSwitchToOrder == null,
+                    ),
+                    const _Tabs(),
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          const _JourneyTab(),
+                          const _DietChartTab(),
+                          const DeliveryPlanManagerTab(),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const _Tabs(),
-                Expanded(
-                  child: TabBarView(
-                    children: [
-                      const _JourneyTab(),
-                      const _DietChartTab(),
-                      const DeliveryPlanManagerTab(),
-                    ],
+                // Floating "Order Food" pill (home-shell mode) — switches to the
+                // food-ordering view, mirroring the delivery screen's FAB.
+                if (widget.onSwitchToOrder != null)
+                  Positioned(
+                    right: AppSizes.screenPaddingHorizontal,
+                    bottom: MediaQuery.of(context).size.height * 0.03,
+                    child: _OrderFoodFab(onTap: widget.onSwitchToOrder!),
                   ),
-                ),
               ],
             ),
           ),
@@ -118,18 +130,17 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.planName,
     required this.subscriptionId,
-    this.onSwitchToOrder,
+    this.showBackButton = true,
   });
 
   final String planName;
   final String subscriptionId;
-  final VoidCallback? onSwitchToOrder;
+
+  /// Hidden in home-shell mode (this screen is the home base there).
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
-    // Home-shell mode: no back button (this is the home base); the switch to
-    // the food-ordering view is offered instead.
-    final inShell = onSwitchToOrder != null;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSizes.p20,
@@ -147,7 +158,7 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (!inShell) ...[
+          if (showBackButton) ...[
             GestureDetector(
               onTap: () => context.pop(),
               child: Container(
@@ -188,34 +199,36 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          if (inShell) _OrderFoodButton(onTap: onSwitchToOrder!),
-          if (subscriptionId.isNotEmpty) ...[
-            if (inShell) const SizedBox(width: AppSizes.spacing8),
+          if (subscriptionId.isNotEmpty)
             _InvoiceButton(subscriptionId: subscriptionId),
-          ],
         ],
       ),
     );
   }
 }
 
-/// Header pill (home-shell mode) that switches to the food-ordering view.
-class _OrderFoodButton extends StatelessWidget {
-  const _OrderFoodButton({required this.onTap});
+/// Floating "Order Food" pill (home-shell mode) that switches to the
+/// food-ordering view. Mirrors the delivery screen's subscription FAB.
+///
+/// Hidden on the Delivery Plan Manager tab (index 2), which has its own
+/// full-width bottom save bar the pill would otherwise overlap.
+class _OrderFoodFab extends StatelessWidget {
+  const _OrderFoodFab({required this.onTap});
 
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final controller = DefaultTabController.maybeOf(context);
+    final pill = Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(30),
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSizes.spacing12,
-            vertical: AppSizes.spacing8,
+            horizontal: AppSizes.spacing16,
+            vertical: AppSizes.spacing12,
           ),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
@@ -224,17 +237,24 @@ class _OrderFoodButton extends StatelessWidget {
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primaryGreen.withValues(alpha: 0.35),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.restaurant_menu_rounded,
-                  color: Colors.white, size: AppSizes.icon16),
-              SizedBox(width: 6),
+                  color: Colors.white, size: AppSizes.icon20),
+              SizedBox(width: AppSizes.spacing8),
               Text(
                 'Order Food',
                 style: TextStyle(
-                  fontSize: AppTypography.fontSize12,
+                  fontSize: AppTypography.fontSize14,
                   fontWeight: AppTypography.bold,
                   color: Colors.white,
                   fontFamily: 'Lato',
@@ -244,6 +264,19 @@ class _OrderFoodButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+
+    if (controller == null) return pill;
+    return AnimatedBuilder(
+      animation: controller.animation ?? controller,
+      builder: (context, _) {
+        final onPlanManager = controller.index == 2;
+        return AnimatedOpacity(
+          opacity: onPlanManager ? 0 : 1,
+          duration: const Duration(milliseconds: 180),
+          child: IgnorePointer(ignoring: onPlanManager, child: pill),
+        );
+      },
     );
   }
 }
