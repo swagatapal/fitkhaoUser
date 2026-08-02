@@ -566,13 +566,7 @@ class _TimelineContent extends ConsumerWidget {
               _JourneyMeetingLinkCard(link: booking.meetingLink),
           ],
         ],
-        if (days.isNotEmpty) ...[
-          const SizedBox(height: AppSizes.spacing20),
-          const _SectionHeader('Daily meals'),
-          const SizedBox(height: AppSizes.spacing12),
-          for (final day in days) _DailyMealsCard(day: day),
-        ],
-        if (steps.isEmpty && days.isEmpty)
+        if (steps.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: AppSizes.spacing32),
             child: _CenterMessage(
