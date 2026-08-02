@@ -9,8 +9,6 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/utils/time_converter.dart';
-import '../../../auth/models/auth_state.dart';
-import '../../../auth/providers/auth_provider.dart';
 import '../../../consultation/presentation/screens/book_consultation_screen.dart';
 import '../../../consultation/providers/consultation_providers.dart';
 import '../widgets/delivery_plan_manager_tab.dart';
@@ -252,7 +250,7 @@ class _OrderFoodFab extends StatelessWidget {
                   color: Colors.white, size: AppSizes.icon20),
               SizedBox(width: AppSizes.spacing8),
               Text(
-                'Order Food',
+                'Go To Outlet',
                 style: TextStyle(
                   fontSize: AppTypography.fontSize14,
                   fontWeight: AppTypography.bold,
@@ -463,22 +461,50 @@ class _Tabs extends StatelessWidget {
 class _JourneyTab extends ConsumerWidget {
   const _JourneyTab();
 
+  /// Refetches the journey timeline (and the consultation booking that feeds the
+  /// meeting-link card). `AsyncValue.when` keeps the current data on screen while
+  /// this runs (skipLoadingOnRefresh), so the pull spinner shows over live
+  /// content instead of a full-screen loader.
+  Future<void> _refresh(WidgetRef ref) async {
+    ref.invalidate(activeBookingProvider);
+    ref.invalidate(subscriptionTimelineProvider);
+    await ref.read(subscriptionTimelineProvider.future);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(subscriptionTimelineProvider);
-    return async.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: AppColors.primaryGreen),
+    return RefreshIndicator(
+      color: AppColors.primaryGreen,
+      onRefresh: () => _refresh(ref),
+      child: async.when(
+        // Loading / error are wrapped in an always-scrollable list so the
+        // pull-to-refresh gesture works from those states too.
+        loading: () => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 240),
+            Center(
+              child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            ),
+          ],
+        ),
+        error: (e, st) {
+          debugPrint('[Journey] timeline error: $e\n$st');
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              const SizedBox(height: 120),
+              _CenterMessage(
+                icon: Icons.error_outline_rounded,
+                message: 'Could not load your journey.\n$e',
+                onRetry: () => ref.invalidate(subscriptionTimelineProvider),
+              ),
+            ],
+          );
+        },
+        data: (timeline) => _TimelineContent(timeline: timeline),
       ),
-      error: (e, st) {
-        debugPrint('[Journey] timeline error: $e\n$st');
-        return _CenterMessage(
-          icon: Icons.error_outline_rounded,
-          message: 'Could not load your journey.\n$e',
-          onRetry: () => ref.invalidate(subscriptionTimelineProvider),
-        );
-      },
-      data: (timeline) => _TimelineContent(timeline: timeline),
     );
   }
 }
@@ -499,11 +525,8 @@ class _TimelineContent extends ConsumerWidget {
     final firstConsultationIdx =
         steps.indexWhere((s) => s.key.toLowerCase().startsWith('consultation'));
 
-    // Booking a consultation is gated on the user having filled their health
-    // profile (the mandatory body metrics in the detailed health screen).
-    final hasHealthProfile = _hasHealthProfile(ref.watch(authProvider));
-
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
         AppSizes.screenPaddingHorizontal,
         AppSizes.spacing16,
@@ -518,27 +541,23 @@ class _TimelineContent extends ConsumerWidget {
             mealPlanProvidedDate: _mealPlanProvidedDate(steps),
             lastMealDate: _lastMealPlanDate(days),
           ),
-        const SizedBox(height: AppSizes.spacing16),
-
-        const _HealthProfileButton(),
-        const SizedBox(height: AppSizes.spacing12),
-        _ConsultationSlotButton(
-          enabled: hasHealthProfile && _canBookConsultation(steps),
-          disabledSubtitle: !hasHealthProfile
-              ? 'Complete your health profile first'
-              : 'Available after your meal plan is provided',
-        ),
 
         if (steps.isNotEmpty) ...[
           const SizedBox(height: AppSizes.spacing20),
           const _SectionHeader('Your journey'),
           const SizedBox(height: AppSizes.spacing12),
           for (var i = 0; i < steps.length; i++) ...[
-            _TimelineStepTile(
-              step: steps[i],
-              isFirst: i == 0,
-              isLast: i == steps.length - 1,
-            ),
+            () {
+              final action = _stepAction(context, steps[i], days);
+              return _TimelineStepTile(
+                step: steps[i],
+                isFirst: i == 0,
+                isLast: i == steps.length - 1,
+                onTap: action.onTap,
+                ctaLabel: action.ctaLabel,
+                ctaIcon: action.ctaIcon,
+              );
+            }(),
             // After the first consultation step, surface the meeting link when
             // the nutritionist has provided one.
             if (i == firstConsultationIdx &&
@@ -580,175 +599,6 @@ class _SectionHeader extends StatelessWidget {
         fontWeight: AppTypography.bold,
         color: AppColors.textPrimary,
         fontFamily: 'Lato',
-      ),
-    );
-  }
-}
-
-/// Entry point to the user's detailed health profile, shown above the
-/// subscription summary in the Journey tab.
-class _HealthProfileButton extends StatelessWidget {
-  const _HealthProfileButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppSizes.radius12),
-        onTap: () => context.push(RouteNames.detailedHealthInfo),
-        child: Container(
-          padding: const EdgeInsets.all(AppSizes.spacing12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppSizes.radius12),
-            border: Border.all(
-                color: AppColors.primaryGreen.withValues(alpha: 0.3)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppSizes.spacing8),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppSizes.radius8),
-                ),
-                child: const Icon(Icons.monitor_heart_rounded,
-                    color: AppColors.primaryGreen, size: AppSizes.icon20),
-              ),
-              const SizedBox(width: AppSizes.spacing12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Health profile',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize14,
-                        fontWeight: AppTypography.bold,
-                        color: AppColors.textPrimary,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'View and update your health details',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize12,
-                        color: AppColors.textSecondary,
-                        fontFamily: 'Lato',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: AppColors.primaryGreen, size: AppSizes.icon24),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Opens the consultation booking flow (pick nutritionist → slot → confirm).
-/// Disabled once a consultation is completed, until the meal plan is provided.
-class _ConsultationSlotButton extends StatelessWidget {
-  const _ConsultationSlotButton({
-    this.enabled = true,
-    this.disabledSubtitle = 'Available after your meal plan is provided',
-  });
-
-  final bool enabled;
-
-  /// Subtitle shown while the button is disabled (reason depends on the gate).
-  final String disabledSubtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = enabled ? _kAccent : AppColors.textTertiary;
-    return Opacity(
-      opacity: enabled ? 1 : 0.75,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppSizes.radius12),
-          onTap: enabled
-              ? () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const BookConsultationScreen(),
-                    ),
-                  )
-              : null,
-          child: Container(
-            padding: const EdgeInsets.all(AppSizes.spacing12),
-            decoration: BoxDecoration(
-              color: enabled ? Colors.white : const Color(0xFFF4F5F6),
-              borderRadius: BorderRadius.circular(AppSizes.radius12),
-              border: Border.all(color: accent.withValues(alpha: 0.3)),
-              boxShadow: enabled
-                  ? [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(AppSizes.spacing8),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppSizes.radius8),
-                  ),
-                  child: Icon(Icons.event_available_rounded,
-                      color: accent, size: AppSizes.icon20),
-                ),
-                const SizedBox(width: AppSizes.spacing12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Choose consultation time slot',
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize14,
-                          fontWeight: AppTypography.bold,
-                          color: AppColors.textPrimary,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        enabled
-                            ? 'Book a session with a nutritionist'
-                            : disabledSubtitle,
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize12,
-                          color: AppColors.textSecondary,
-                          fontFamily: 'Lato',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(enabled ? Icons.chevron_right_rounded : Icons.lock_rounded,
-                    color: accent, size: AppSizes.icon24),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -876,16 +726,25 @@ class _TimelineSummaryCard extends StatelessWidget {
 }
 
 /// One journey step: a status-coloured node + rails on the left, a card right.
+///
+/// When [onTap] is set the whole card behaves as a button; steps 1 & 2 also
+/// surface an inline [ctaLabel] call-to-action inside the card.
 class _TimelineStepTile extends StatelessWidget {
   const _TimelineStepTile({
     required this.step,
     required this.isFirst,
     required this.isLast,
+    this.onTap,
+    this.ctaLabel,
+    this.ctaIcon,
   });
 
   final TimelineStep step;
   final bool isFirst;
   final bool isLast;
+  final VoidCallback? onTap;
+  final String? ctaLabel;
+  final IconData? ctaIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -897,6 +756,66 @@ class _TimelineStepTile extends StatelessWidget {
     final dateStr = step.status == TimelineStatus.completed && step.date != null
         ? convertMongoUtcToIst(step.date!)
         : '';
+    final tappable = onTap != null;
+
+    final card = Container(
+      padding: const EdgeInsets.all(AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border: Border.all(color: AppColors.borderColor.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  step.name,
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+              _TimelineStatusChip(step.status),
+              if (tappable) ...[
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right_rounded,
+                    size: AppSizes.icon20, color: AppColors.textTertiary),
+              ],
+            ],
+          ),
+          if (dateStr.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              dateStr,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize10,
+                fontWeight: AppTypography.semiBold,
+                color: v.color,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ],
+          if (ctaLabel != null) ...[
+            const SizedBox(height: AppSizes.spacing8),
+            _StepCta(
+                label: ctaLabel!, icon: ctaIcon ?? Icons.arrow_forward_rounded),
+          ],
+        ],
+      ),
+    );
 
     return IntrinsicHeight(
       child: Row(
@@ -942,57 +861,59 @@ class _TimelineStepTile extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(bottom: AppSizes.spacing12),
-              child: Container(
-                padding: const EdgeInsets.all(AppSizes.spacing12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppSizes.radius12),
-                  border: Border.all(
-                      color: AppColors.borderColor.withValues(alpha: 0.4)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            step.name,
-                            style: const TextStyle(
-                              fontSize: AppTypography.fontSize14,
-                              fontWeight: AppTypography.bold,
-                              color: AppColors.textPrimary,
-                              fontFamily: 'Lato',
-                            ),
-                          ),
-                        ),
-                        _TimelineStatusChip(step.status),
-                      ],
-                    ),
-                    if (dateStr.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        dateStr,
-                        style: TextStyle(
-                          fontSize: AppTypography.fontSize10,
-                          fontWeight: AppTypography.semiBold,
-                          color: v.color,
-                          fontFamily: 'Lato',
-                        ),
+              child: tappable
+                  ? Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(AppSizes.radius12),
+                        onTap: onTap,
+                        child: card,
                       ),
-                    ],
-                  ],
-                ),
+                    )
+                  : card,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Inline call-to-action shown inside a tappable journey step (steps 1 & 2).
+class _StepCta extends StatelessWidget {
+  const _StepCta({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.spacing12,
+        vertical: AppSizes.spacing8,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: AppSizes.icon16, color: AppColors.primaryGreen),
+          const SizedBox(width: AppSizes.spacing8),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: AppTypography.fontSize12,
+                fontWeight: AppTypography.bold,
+                color: AppColors.primaryGreen,
+                fontFamily: 'Lato',
               ),
             ),
           ),
+          const Icon(Icons.arrow_forward_rounded,
+              size: AppSizes.icon16, color: AppColors.primaryGreen),
         ],
       ),
     );
@@ -1086,6 +1007,131 @@ class _JourneyMeetingLinkCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Full-screen view of a service period's scheduled deliveries — reuses the
+/// same [_DailyMealsCard] rows shown inline on the Journey tab. Opened by
+/// tapping a "Service Period" journey step.
+class ServicePeriodMealsScreen extends StatelessWidget {
+  const ServicePeriodMealsScreen({
+    super.key,
+    required this.title,
+    required this.days,
+  });
+
+  final String title;
+  final List<TimelineDay> days;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAFBFC),
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _BackHeader(
+                title: title.trim().isEmpty ? 'Service period' : title,
+                subtitle: 'Your scheduled deliveries',
+              ),
+              Expanded(
+                child: days.isEmpty
+                    ? const _CenterMessage(
+                        icon: Icons.local_shipping_rounded,
+                        message: 'No deliveries scheduled for this period yet.',
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSizes.screenPaddingHorizontal,
+                          AppSizes.spacing16,
+                          AppSizes.screenPaddingHorizontal,
+                          AppSizes.spacing32,
+                        ),
+                        children: [
+                          for (final day in days) _DailyMealsCard(day: day),
+                        ],
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Simple white header with a back button, title and subtitle.
+class _BackHeader extends StatelessWidget {
+  const _BackHeader({required this.title, this.subtitle = ''});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.p20,
+        vertical: AppSizes.spacing12,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: AppSizes.shadowBlur10,
+            offset: const Offset(0, AppSizes.spacing2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).maybePop(),
+            child: Container(
+              padding: const EdgeInsets.all(AppSizes.spacing8),
+              decoration: BoxDecoration(
+                color: AppColors.darkGreen,
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+              child: const Icon(Icons.arrow_back,
+                  color: AppColors.textWhite, size: AppSizes.icon24),
+            ),
+          ),
+          const SizedBox(width: AppSizes.spacing12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize20,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                if (subtitle.isNotEmpty)
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      color: AppColors.textSecondary.withValues(alpha: 0.9),
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1912,38 +1958,69 @@ DateTime? _lastMealPlanDate(List<TimelineDay> days) {
   return latest;
 }
 
-/// Whether the user has filled their detailed health profile.
+/// Resolves what tapping a journey step does, plus the optional inline CTA.
 ///
-/// The three body metrics (age, height, weight) are mandatory on the health
-/// screen, so their presence is a reliable signal the profile was saved.
-bool _hasHealthProfile(AuthState s) {
-  return (s.age ?? 0) > 0 && (s.height ?? 0) > 0 && (s.weight ?? 0) > 0;
-}
-
-/// Whether the "Choose consultation time slot" button is enabled.
+///  • Subscription created → open the health profile ("Complete your health
+///    profile").
+///  • Consultation          → open the booking flow ("Choose your consultation
+///    slot").
+///  • Meal plan provided     → jump to the Diet Chart tab (index 1).
+///  • Service period         → open the dedicated daily-meals screen.
 ///
-/// Once a consultation is `completed`, booking the next one is locked until the
-/// matching meal plan is provided (e.g. `consultation_1` completed →
-/// disabled until `meal_plan_1` is `completed`).
-bool _canBookConsultation(List<TimelineStep> steps) {
-  int? lastCompletedConsult;
-  for (final s in steps) {
-    if (s.status == TimelineStatus.completed &&
-        s.key.startsWith('consultation_')) {
-      final n = int.tryParse(s.key.substring('consultation_'.length));
-      if (n != null &&
-          (lastCompletedConsult == null || n > lastCompletedConsult)) {
-        lastCompletedConsult = n;
-      }
-    }
-  }
-  if (lastCompletedConsult == null) return true;
+/// Matched by step key first (stable), falling back to the display name.
+({VoidCallback? onTap, String? ctaLabel, IconData? ctaIcon}) _stepAction(
+  BuildContext context,
+  TimelineStep step,
+  List<TimelineDay> days,
+) {
+  final key = step.key.toLowerCase();
+  final name = step.name.toLowerCase();
 
-  final mealKey = 'meal_plan_$lastCompletedConsult';
-  for (final s in steps) {
-    if (s.key == mealKey) return s.status == TimelineStatus.completed;
+  bool has(String needle) => key.contains(needle) || name.contains(needle);
+
+  if (has('subscription')) {
+    return (
+      onTap: () => context.push(RouteNames.detailedHealthInfo),
+      ctaLabel: 'Complete your health profile',
+      ctaIcon: Icons.monitor_heart_rounded,
+    );
   }
-  return true; // no gating meal-plan step for this consultation
+  if (has('consultation')) {
+    return (
+      onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const BookConsultationScreen(),
+            ),
+          ),
+      ctaLabel: 'Choose your consultation slot',
+      ctaIcon: Icons.event_available_rounded,
+    );
+  }
+  if (key.startsWith('meal_plan') || has('meal plan')) {
+    // The Diet Chart tab (index 1) already renders the full meal plan.
+    return (
+      onTap: () => DefaultTabController.maybeOf(context)?.animateTo(1),
+      ctaLabel: null,
+      ctaIcon: null,
+    );
+  }
+  if (has('service')) {
+    return (
+      onTap: days.isEmpty
+          ? null
+          : () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ServicePeriodMealsScreen(
+                    title: step.name,
+                    days: days,
+                  ),
+                ),
+              ),
+      ctaLabel: null,
+      ctaIcon: null,
+    );
+  }
+  return (onTap: null, ctaLabel: null, ctaIcon: null);
 }
 
 /// A subscription-slot order can be changed/cancelled only before
