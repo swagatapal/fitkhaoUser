@@ -484,8 +484,7 @@ class _TabsState extends ConsumerState<_Tabs>
             tabs: [
               const Tab(text: 'Journey'),
               const Tab(text: 'Diet Chart'),
-              Tab(text:'Delivery Plan Manager'),
-
+              Tab(text: 'Delivery Plan Manager'),
             ],
           ),
         ),
@@ -498,7 +497,6 @@ class _TabsState extends ConsumerState<_Tabs>
     );
   }
 }
-
 
 /// Tappable prompt below the tab bar — blinking arrow points up to the tab.
 class _ChooseSlotBanner extends StatelessWidget {
@@ -532,7 +530,6 @@ class _ChooseSlotBanner extends StatelessWidget {
           ),
           child: Row(
             children: [
-
               const Expanded(
                 child: Text(
                   'Please choose your delivery slots',
@@ -567,7 +564,6 @@ class _ChooseSlotBanner extends StatelessWidget {
                 child: const Icon(Icons.arrow_upward_rounded,
                     color: _kAccent, size: AppSizes.icon18),
               ),
-
             ],
           ),
         ),
@@ -2143,6 +2139,11 @@ DateTime? _lastMealPlanDate(List<TimelineDay> days) {
     );
   }
   if (has('consultation')) {
+    // Once the consultation is completed there's nothing to book, so the step
+    // is disabled (not tappable, no CTA).
+    if (step.status == TimelineStatus.completed) {
+      return (onTap: null, ctaLabel: null, ctaIcon: null, note: null);
+    }
     return (
       onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
