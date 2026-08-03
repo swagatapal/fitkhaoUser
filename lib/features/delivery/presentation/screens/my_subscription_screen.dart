@@ -21,6 +21,7 @@ import '../../../profile/providers/delivery_address_provider.dart';
 import '../../models/subscription_timeline_model.dart';
 import '../../providers/delivery_slot_list_provider.dart';
 import '../../providers/subscription_detail_provider.dart';
+import '../../providers/weekly_delivery_slot_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // My Subscription — opened by tapping the active-plan banner.
@@ -84,7 +85,8 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen> {
         child: Scaffold(
           backgroundColor: const Color(0xFFFAFBFC),
           body: SafeArea(
-            bottom: false,
+            top: true,
+            bottom: true,
             child: Stack(
               children: [
                 Column(
@@ -423,33 +425,152 @@ class _InvoiceButtonState extends ConsumerState<_InvoiceButton> {
   }
 }
 
-class _Tabs extends StatelessWidget {
+class _Tabs extends ConsumerStatefulWidget {
   const _Tabs();
 
   @override
+  ConsumerState<_Tabs> createState() => _TabsState();
+}
+
+class _TabsState extends ConsumerState<_Tabs>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _blinkCtrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 750),
+  )..repeat(reverse: true);
+
+  late final Animation<double> _blink =
+      Tween<double>(begin: 0.3, end: 1).animate(
+    CurvedAnimation(parent: _blinkCtrl, curve: Curves.easeInOut),
+  );
+
+  @override
+  void dispose() {
+    _blinkCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: const TabBar(
-        labelColor: AppColors.primaryGreen,
-        unselectedLabelColor: AppColors.textSecondary,
-        indicatorColor: AppColors.primaryGreen,
-        indicatorWeight: 2.5,
-        labelStyle: TextStyle(
-          fontSize: AppTypography.fontSize13,
-          fontWeight: AppTypography.bold,
-          fontFamily: 'Lato',
+    // Prompt to set up delivery slots — surfaced on the tab bar (visible from
+    // every tab) once we know there's no saved delivery preference. `hasPreference`
+    // flips as soon as a plan is saved (the provider is invalidated on save).
+    final needsSlot = ref.watch(
+      weeklyDeliverySlotsProvider.select(
+        (a) => a.valueOrNull != null && !a.valueOrNull!.hasPreference,
+      ),
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          color: Colors.white,
+          child: TabBar(
+            labelColor: AppColors.primaryGreen,
+            unselectedLabelColor: AppColors.textSecondary,
+            indicatorColor: AppColors.primaryGreen,
+            indicatorWeight: 2.5,
+            labelStyle: const TextStyle(
+              fontSize: AppTypography.fontSize13,
+              fontWeight: AppTypography.bold,
+              fontFamily: 'Lato',
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: AppTypography.fontSize13,
+              fontWeight: AppTypography.semiBold,
+              fontFamily: 'Lato',
+            ),
+            tabs: [
+              const Tab(text: 'Journey'),
+              const Tab(text: 'Diet Chart'),
+              Tab(text:'Delivery Plan Manager'),
+
+            ],
+          ),
         ),
-        unselectedLabelStyle: TextStyle(
-          fontSize: AppTypography.fontSize13,
-          fontWeight: AppTypography.semiBold,
-          fontFamily: 'Lato',
+        if (needsSlot)
+          _ChooseSlotBanner(
+            blink: _blink,
+            onTap: () => DefaultTabController.of(context).animateTo(2),
+          ),
+      ],
+    );
+  }
+}
+
+
+/// Tappable prompt below the tab bar — blinking arrow points up to the tab.
+class _ChooseSlotBanner extends StatelessWidget {
+  const _ChooseSlotBanner({required this.blink, required this.onTap});
+
+  final Animation<double> blink;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.screenPaddingHorizontal,
+            vertical: AppSizes.spacing10,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                _kAccent.withValues(alpha: 0.14),
+                _kAccent.withValues(alpha: 0.05),
+              ],
+            ),
+            border: Border(
+              bottom: BorderSide(color: _kAccent.withValues(alpha: 0.25)),
+            ),
+          ),
+          child: Row(
+            children: [
+
+              const Expanded(
+                child: Text(
+                  'Please choose your delivery slots',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize13,
+                    fontWeight: AppTypography.bold,
+                    color: _kAccent,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _kAccent,
+                  borderRadius: BorderRadius.circular(AppSizes.radius20),
+                ),
+                child: const Text(
+                  'Set up',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize10,
+                    fontWeight: AppTypography.bold,
+                    color: Colors.white,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSizes.spacing8),
+              FadeTransition(
+                opacity: blink,
+                child: const Icon(Icons.arrow_upward_rounded,
+                    color: _kAccent, size: AppSizes.icon18),
+              ),
+
+            ],
+          ),
         ),
-        tabs: [
-          Tab(text: 'Journey'),
-          Tab(text: 'Diet Chart'),
-          Tab(text: 'Delivery Plan Manager'),
-        ],
       ),
     );
   }

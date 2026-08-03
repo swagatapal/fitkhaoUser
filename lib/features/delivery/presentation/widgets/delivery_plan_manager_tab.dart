@@ -189,6 +189,20 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
   int get _plannedDayCount =>
       Weekday.all.where((w) => _plans[w.wire]!.any((e) => e.isComplete)).length;
 
+  /// Whether every available meal category has been chosen somewhere in the
+  /// plan — a save requirement alongside all 7 days being configured. Returns
+  /// false while categories are still loading (nothing to confirm against).
+  bool _allMealTypesCovered(List<DishCategory> categories) {
+    if (categories.isEmpty) return false;
+    final chosen = <String>{};
+    for (final list in _plans.values) {
+      for (final e in list) {
+        if (e.isComplete) chosen.addAll(e.categoryIds);
+      }
+    }
+    return categories.every((c) => chosen.contains(c.id));
+  }
+
   Future<void> _runWizard({
     required List<_SlotGroup> groups,
     required List<DishCategory> categories,
@@ -332,6 +346,20 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
     final groups = _buildSlotGroups(slots);
     final entries = _plans[_selectedDay]!;
 
+    final allDaysSet = _plannedDayCount == Weekday.all.length;
+    final mealsCovered = _allMealTypesCovered(categories);
+    final canSave = allDaysSet && mealsCovered;
+
+    final String saveLabel;
+    if (!allDaysSet) {
+      saveLabel = 'Set all 7 days to save ($_plannedDayCount/7)';
+    } else if (!mealsCovered) {
+      saveLabel = 'Choose all meal types to save';
+    } else {
+      saveLabel =
+          _hadPreference ? 'Update delivery plan' : 'Save delivery plan';
+    }
+
     return Column(
       children: [
         // ── Weekday tabs ──
@@ -371,10 +399,8 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
                 ),
         ),
         _SaveBar(
-          label: _plannedDayCount == Weekday.all.length
-              ? (_hadPreference ? 'Update delivery plan' : 'Save delivery plan')
-              : 'Set all 7 days to save ($_plannedDayCount/7)',
-          enabled: _plannedDayCount == Weekday.all.length,
+          label: saveLabel,
+          enabled: canSave,
           submitting: submitting,
           onSave: _save,
         ),
