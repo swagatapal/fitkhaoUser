@@ -369,7 +369,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         // Extract profile data
         final name = profile['name'] as String? ?? '';
         final imgUrl = profile['imgUrl'] as String? ?? "";
-        final age = profile['age'] as int? ?? 0;
+        // Parse as num→double so fractional ages (e.g. 12.5) survive and a
+        // double payload never throws on an `as int` cast.
+        final age = (profile['age'] as num?)?.toDouble() ?? 0.0;
         //final age = 14;
         final gender = profile['gender'] as String? ?? 'male';
         final weight = (profile['weight'] as num?)?.toDouble() ?? 0.0;
@@ -407,11 +409,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
           }
         }
 
-        // Calculate date of birth from age (approximate)
+        // Calculate date of birth from age (approximate). DOB is whole-year
+        // based, so the fractional part of age is intentionally dropped here.
         DateTime? dateOfBirth;
         if (age > 0) {
           final now = DateTime.now();
-          dateOfBirth = DateTime(now.year - age, now.month, now.day);
+          dateOfBirth = DateTime(now.year - age.toInt(), now.month, now.day);
         }
 
         // Extract address
@@ -540,7 +543,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           dateOfBirth: dateOfBirth,
           height: height > 0 ? height : null,
           weight: weight > 0 ? weight : null,
-          age: double.parse(age.toString()),
+          age: age,
           doesExercise: doesWorkout,
           professionGroupId: professionGroupId,
           exercises: exercises,

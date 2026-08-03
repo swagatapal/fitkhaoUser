@@ -145,15 +145,15 @@ class _DetailedHealthInfoScreenState
       }
 
       if (authState.age != null && authState.age! > 0) {
-        _age = authState.age!.toStringAsFixed(0);
+        _age = _formatMetric(authState.age!);
         _ageController.text = _age;
       }
       if (authState.height != null && authState.height! > 0) {
-        _heightCm = authState.height!.toStringAsFixed(0);
+        _heightCm = _formatMetric(authState.height!);
         _heightController.text = _heightCm;
       }
       if (authState.weight != null && authState.weight! > 0) {
-        _weightKg = authState.weight!.toStringAsFixed(0);
+        _weightKg = _formatMetric(authState.weight!);
         _weightController.text = _weightKg;
       }
 
@@ -457,6 +457,17 @@ class _DetailedHealthInfoScreenState
   String _capitalize(String text) {
     if (text.isEmpty) return text;
     return text[0].toUpperCase() + text.substring(1);
+  }
+
+  /// Formats a body metric (age/height/weight) for display: whole numbers show
+  /// without a decimal (e.g. 60), fractional values keep their decimals with
+  /// trailing zeros stripped (e.g. 12.50 → "12.5").
+  String _formatMetric(double v) {
+    if (v == v.roundToDouble()) return v.toStringAsFixed(0);
+    return v
+        .toStringAsFixed(2)
+        .replaceAll(RegExp(r'0+$'), '')
+        .replaceAll(RegExp(r'\.$'), '');
   }
 
   @override

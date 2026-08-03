@@ -6,14 +6,16 @@ import 'auth_state.dart';
 class ProfileUpdateRequest {
   final String? name;
   final String? email;
-  final int? age;
+  final num? age; // years — may be fractional (e.g. 12.5)
   final String? gender; // male|female
   final double? weight; // kg
   final double? height; // cm
   final String? selectedGoal;
   final bool? doesWorkout;
+
   /// MongoDB _id of the selected ProfessionGroup
   final String? professionGroupId;
+
   /// Per-exercise data: [{exerciseGroupId, daysPerWeek, hoursPerDay}]
   final List<Map<String, dynamic>>? exercises;
   final Address? address;
@@ -80,9 +82,9 @@ class ProfileUpdateRequest {
 
   /// Build specialConditions array from selected codes and available categories
   static List<Map<String, dynamic>> _buildSpecialConditionsArray(
-      List<String> selectedCodes,
-      List<PhysiologicalCategory> availableCategories,
-      ) {
+    List<String> selectedCodes,
+    List<PhysiologicalCategory> availableCategories,
+  ) {
     if (availableCategories.isNotEmpty) {
       return availableCategories.map((cat) {
         return {
@@ -101,17 +103,15 @@ class ProfileUpdateRequest {
   }
 
   factory ProfileUpdateRequest.fromAuthState(
-      AuthState s, {
-        List<PhysiologicalCategory> availableCategories = const [],
-      }) {
+    AuthState s, {
+    List<PhysiologicalCategory> availableCategories = const [],
+  }) {
     int? computedAge;
     if (s.dateOfBirth != null) {
       final now = DateTime.now();
       int years = now.year - s.dateOfBirth!.year;
-      final hasHadBirthdayThisYear =
-          (now.month > s.dateOfBirth!.month) ||
-              (now.month == s.dateOfBirth!.month &&
-                  now.day >= s.dateOfBirth!.day);
+      final hasHadBirthdayThisYear = (now.month > s.dateOfBirth!.month) ||
+          (now.month == s.dateOfBirth!.month && now.day >= s.dateOfBirth!.day);
       if (!hasHadBirthdayThisYear) years -= 1;
       computedAge = max(0, years);
     }
@@ -121,12 +121,11 @@ class ProfileUpdateRequest {
       availableCategories,
     );
 
-    final digestive =
-    _mapRegularityStatusToDigestiveIssues(s.regularityStatus);
+    final digestive = _mapRegularityStatusToDigestiveIssues(s.regularityStatus);
 
     final addr = Address(
       buildingName:
-      s.buildingNameNumber.isNotEmpty ? s.buildingNameNumber : null,
+          s.buildingNameNumber.isNotEmpty ? s.buildingNameNumber : null,
       street: s.street.isNotEmpty ? s.street : null,
       pincode: s.pincode.isNotEmpty ? s.pincode : null,
       latitude: s.latitude,
@@ -136,7 +135,9 @@ class ProfileUpdateRequest {
     return ProfileUpdateRequest(
       name: s.name.isNotEmpty ? s.name : null,
       email: '',
-      age: computedAge,
+      // Prefer the entered age (keeps decimals like 12.5); fall back to the
+      // age derived from date of birth.
+      age: s.age ?? computedAge,
       gender: s.gender.isNotEmpty ? s.gender : null,
       weight: s.weight,
       height: s.height,
@@ -145,7 +146,7 @@ class ProfileUpdateRequest {
           : 'regular-bmi-maintenance',
       doesWorkout: s.doesExercise,
       professionGroupId:
-      s.professionGroupId.isNotEmpty ? s.professionGroupId : null,
+          s.professionGroupId.isNotEmpty ? s.professionGroupId : null,
       exercises: s.exercises.isNotEmpty ? s.exercises : null,
       address: addr,
       specialConditions: specialConditionsArray,
@@ -174,12 +175,12 @@ class ProfileUpdateRequest {
       'exercises': exercises ?? [],
       'specialConditions': specialConditions ?? [],
       'digestiveIssues': (digestiveIssues ??
-          const DigestiveIssues(
-            regularlyConstipated: false,
-            regularlyDiarrhoeal: false,
-            none: false,
-            both: false,
-          ))
+              const DigestiveIssues(
+                regularlyConstipated: false,
+                regularlyDiarrhoeal: false,
+                none: false,
+                both: false,
+              ))
           .toFullJson(),
       'isUpdateable': isUpdateable,
     };
