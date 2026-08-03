@@ -9,6 +9,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/utils/time_converter.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../../consultation/presentation/screens/book_consultation_screen.dart';
 import '../../../consultation/providers/consultation_providers.dart';
 import '../widgets/delivery_plan_manager_tab.dart';
@@ -525,6 +526,13 @@ class _TimelineContent extends ConsumerWidget {
     final firstConsultationIdx =
         steps.indexWhere((s) => s.key.toLowerCase().startsWith('consultation'));
 
+    // "Last updated" stamp for the health-profile step, from the profile API.
+    final profileUpdatedAt =
+        ref.watch(authProvider.select((s) => s.profileUpdatedAt));
+    final healthUpdatedNote = profileUpdatedAt != null
+        ? 'Last updated ${_formatUpdatedAt(profileUpdatedAt)}'
+        : null;
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
@@ -548,7 +556,12 @@ class _TimelineContent extends ConsumerWidget {
           const SizedBox(height: AppSizes.spacing12),
           for (var i = 0; i < steps.length; i++) ...[
             () {
-              final action = _stepAction(context, steps[i], days);
+              final action = _stepAction(
+                context,
+                steps[i],
+                days,
+                healthUpdatedNote: healthUpdatedNote,
+              );
               return _TimelineStepTile(
                 step: steps[i],
                 isFirst: i == 0,
@@ -556,6 +569,7 @@ class _TimelineContent extends ConsumerWidget {
                 onTap: action.onTap,
                 ctaLabel: action.ctaLabel,
                 ctaIcon: action.ctaIcon,
+                note: action.note,
               );
             }(),
             // After the first consultation step, surface the meeting link when
@@ -731,6 +745,7 @@ class _TimelineStepTile extends StatelessWidget {
     this.onTap,
     this.ctaLabel,
     this.ctaIcon,
+    this.note,
   });
 
   final TimelineStep step;
@@ -739,6 +754,9 @@ class _TimelineStepTile extends StatelessWidget {
   final VoidCallback? onTap;
   final String? ctaLabel;
   final IconData? ctaIcon;
+
+  /// Small caption under the CTA (e.g. "Last updated 3 Aug 2026, 2:30 PM").
+  final String? note;
 
   @override
   Widget build(BuildContext context) {
@@ -806,6 +824,27 @@ class _TimelineStepTile extends StatelessWidget {
             const SizedBox(height: AppSizes.spacing8),
             _StepCta(
                 label: ctaLabel!, icon: ctaIcon ?? Icons.arrow_forward_rounded),
+          ],
+          if (note != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.update_rounded,
+                    size: AppSizes.icon14,
+                    color: AppColors.textSecondary.withValues(alpha: 0.8)),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    note!,
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize10,
+                      color: AppColors.textSecondary.withValues(alpha: 0.9),
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ],
       ),
@@ -1962,11 +2001,13 @@ DateTime? _lastMealPlanDate(List<TimelineDay> days) {
 ///  • Service period         → open the dedicated daily-meals screen.
 ///
 /// Matched by step key first (stable), falling back to the display name.
-({VoidCallback? onTap, String? ctaLabel, IconData? ctaIcon}) _stepAction(
+({VoidCallback? onTap, String? ctaLabel, IconData? ctaIcon, String? note})
+    _stepAction(
   BuildContext context,
   TimelineStep step,
-  List<TimelineDay> days,
-) {
+  List<TimelineDay> days, {
+  String? healthUpdatedNote,
+}) {
   final key = step.key.toLowerCase();
   final name = step.name.toLowerCase();
 
@@ -1975,8 +2016,9 @@ DateTime? _lastMealPlanDate(List<TimelineDay> days) {
   if (has('subscription')) {
     return (
       onTap: () => context.push(RouteNames.detailedHealthInfo),
-      ctaLabel: 'Complete your health profile',
+      ctaLabel: 'Update your health profile',
       ctaIcon: Icons.monitor_heart_rounded,
+      note: healthUpdatedNote,
     );
   }
   if (has('consultation')) {
@@ -1988,6 +2030,7 @@ DateTime? _lastMealPlanDate(List<TimelineDay> days) {
           ),
       ctaLabel: 'Choose your consultation slot',
       ctaIcon: Icons.event_available_rounded,
+      note: null,
     );
   }
   if (key.startsWith('meal_plan') || has('meal plan')) {
@@ -1996,6 +2039,7 @@ DateTime? _lastMealPlanDate(List<TimelineDay> days) {
       onTap: () => DefaultTabController.maybeOf(context)?.animateTo(1),
       ctaLabel: null,
       ctaIcon: null,
+      note: null,
     );
   }
   if (has('service')) {
@@ -2012,9 +2056,20 @@ DateTime? _lastMealPlanDate(List<TimelineDay> days) {
               ),
       ctaLabel: null,
       ctaIcon: null,
+      note: null,
     );
   }
-  return (onTap: null, ctaLabel: null, ctaIcon: null);
+  return (onTap: null, ctaLabel: null, ctaIcon: null, note: null);
+}
+
+/// "3 Aug 2026, 2:30 PM" (IST) from a stored profile-update timestamp.
+String _formatUpdatedAt(DateTime d) {
+  final i = d.toUtc().add(const Duration(hours: 5, minutes: 30));
+  final mon = _kMonthLong[i.month - 1].substring(0, 3);
+  final period = i.hour >= 12 ? 'PM' : 'AM';
+  final h12 = i.hour % 12 == 0 ? 12 : i.hour % 12;
+  final min = i.minute.toString().padLeft(2, '0');
+  return '${i.day} $mon ${i.year}, $h12:$min $period';
 }
 
 /// A subscription-slot order can be changed/cancelled only before
