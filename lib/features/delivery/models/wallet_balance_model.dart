@@ -41,7 +41,8 @@ class WalletBalanceData {
     return WalletBalanceData(
       wallet: WalletInfo.fromJson(json['wallet'] as Map<String, dynamic>),
       subscription: json['subscription'] != null
-          ? SubscriptionInfo.fromJson(json['subscription'] as Map<String, dynamic>)
+          ? SubscriptionInfo.fromJson(
+              json['subscription'] as Map<String, dynamic>)
           : null,
       message: json['message'] as String? ?? '',
     );
@@ -86,12 +87,16 @@ class WalletInfo {
 ///   • /api/wallet/balance → subscription      (uses `id`, `planType`, `isActive`, `remainingDays`)
 class SubscriptionInfo {
   final String id;
-  final String planCode;    // e.g. "PLN003"
-  final String planName;    // e.g. "Pro" — primary source for tier logic
-  final String planType;    // legacy field from wallet API (e.g. "pro")
+  final String planCode; // e.g. "PLN003"
+  final String planName; // e.g. "Pro" — primary source for tier logic
+  final String planType; // legacy field from wallet API (e.g. "pro")
   final int planAmount;
   final String status;
   final String startDate;
+
+  /// When meal deliveries actually begin (profile API). May differ from
+  /// [startDate]; empty when not provided.
+  final String serviceStartDate;
   final String endDate;
   final int remainingDays;
   final bool isActive;
@@ -111,6 +116,7 @@ class SubscriptionInfo {
     required this.planAmount,
     required this.status,
     required this.startDate,
+    this.serviceStartDate = '',
     required this.endDate,
     required this.remainingDays,
     required this.isActive,
@@ -133,6 +139,7 @@ class SubscriptionInfo {
       planAmount: (json['planAmount'] as num?)?.toInt() ?? 0,
       status: status,
       startDate: json['startDate'] as String? ?? '',
+      serviceStartDate: json['serviceStartDate'] as String? ?? '',
       endDate: json['endDate'] as String? ?? '',
       remainingDays: (json['remainingDays'] as num?)?.toInt() ?? 0,
       isActive: isActive,

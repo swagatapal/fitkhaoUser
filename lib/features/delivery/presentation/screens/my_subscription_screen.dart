@@ -650,6 +650,13 @@ class _TimelineContent extends ConsumerWidget {
         ? 'Last updated ${_formatUpdatedAt(profileUpdatedAt)}'
         : null;
 
+    // Service window from the profile's active subscription (UTC ISO strings).
+    final activeSub =
+        ref.watch(authProvider.select((s) => s.activeSubscription));
+    final serviceStartDate =
+        DateTime.tryParse(activeSub?.serviceStartDate ?? '');
+    final subscriptionEndDate = DateTime.tryParse(activeSub?.endDate ?? '');
+
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(
@@ -663,8 +670,8 @@ class _TimelineContent extends ConsumerWidget {
         if (timeline.subscription != null)
           _TimelineSummaryCard(
             subscription: timeline.subscription!,
-            mealPlanProvidedDate: _mealPlanProvidedDate(steps),
-            lastMealDate: _lastMealPlanDate(days),
+            serviceStartDate: serviceStartDate,
+            endDate: subscriptionEndDate,
           ),
 
         if (steps.isNotEmpty) ...[
@@ -733,38 +740,33 @@ class _SectionHeader extends StatelessWidget {
 class _TimelineSummaryCard extends StatelessWidget {
   const _TimelineSummaryCard({
     required this.subscription,
-    this.mealPlanProvidedDate,
-    this.lastMealDate,
+    this.serviceStartDate,
+    this.endDate,
   });
 
   final TimelineSubscription subscription;
 
-  /// When the meal plan was provided — the range start. No date range is shown
-  /// until this is available.
-  final DateTime? mealPlanProvidedDate;
-
-  /// Last day covered by the meal plan (last daily-meal date) — the range end.
-  final DateTime? lastMealDate;
+  /// Service window from the profile's active subscription (UTC instants,
+  /// shown in IST). The range is hidden until both are available.
+  final DateTime? serviceStartDate;
+  final DateTime? endDate;
 
   @override
   Widget build(BuildContext context) {
-    // Range is meal-plan-provided → last meal-plan day; the duration is the
-    // inclusive gap between them. The provided date is a UTC instant (shown in
-    // IST); the last meal date is already a plain calendar date.
+    // Both are UTC instants → convert to their IST calendar date for display.
     DateTime istDate(DateTime d) {
       final i = d.toUtc().add(const Duration(hours: 5, minutes: 30));
       return DateTime(i.year, i.month, i.day);
     }
 
     String fmt(DateTime d) =>
-        '${d.day} ${_kMonthLong[d.month - 1].substring(0, 3)}';
+        '${d.day} ${_kMonthLong[d.month - 1].substring(0, 3)} ${d.year}';
 
     String? range;
-    if (mealPlanProvidedDate != null && lastMealDate != null) {
-      final start = istDate(mealPlanProvidedDate!);
-      final end =
-          DateTime(lastMealDate!.year, lastMealDate!.month, lastMealDate!.day);
-      range = '${fmt(start)} – ${fmt(end)}';
+    if (serviceStartDate != null && endDate != null) {
+      range = '${fmt(istDate(serviceStartDate!))} – ${fmt(istDate(endDate!))}';
+    } else if (endDate != null) {
+      range = 'Ends ${fmt(istDate(endDate!))}';
     }
     return Container(
       padding: const EdgeInsets.all(AppSizes.spacing16),
@@ -2079,33 +2081,6 @@ class _StatusPill extends StatelessWidget {
     case TimelineStatus.unknown:
       return (icon: Icons.circle_outlined, color: AppColors.textSecondary);
   }
-}
-
-/// The date the meal plan was provided — the completed `meal_plan_*` step's
-/// date. Used as the subscription range start. Returns the earliest such date
-/// when several meal-plan steps are completed.
-DateTime? _mealPlanProvidedDate(List<TimelineStep> steps) {
-  DateTime? earliest;
-  for (final s in steps) {
-    final isMealPlan = s.key.toLowerCase().startsWith('meal_plan') ||
-        s.name.toLowerCase().contains('meal plan');
-    if (isMealPlan && s.status == TimelineStatus.completed && s.date != null) {
-      if (earliest == null || s.date!.isBefore(earliest)) earliest = s.date;
-    }
-  }
-  return earliest;
-}
-
-/// The last day covered by the meal plan — the latest daily-meal date.
-/// Used as the subscription range end.
-DateTime? _lastMealPlanDate(List<TimelineDay> days) {
-  DateTime? latest;
-  for (final d in days) {
-    final parsed = d.parsedDate;
-    if (parsed == null) continue;
-    if (latest == null || parsed.isAfter(latest)) latest = parsed;
-  }
-  return latest;
 }
 
 /// Resolves what tapping a journey step does, plus the optional inline CTA.
