@@ -658,6 +658,15 @@ class _TimelineContent extends ConsumerWidget {
       ),
     );
 
+    // …and on a delivery slot being set up. The consultation is enabled ONLY
+    // once we've confirmed a saved preference exists — while the preference is
+    // loading (or on error) it stays gated, so it never opens prematurely.
+    final hasDeliverySlot = ref.watch(
+      weeklyDeliverySlotsProvider.select(
+        (a) => a.valueOrNull?.hasPreference == true,
+      ),
+    );
+
     // Service window from the profile's active subscription (UTC ISO strings).
     final activeSub =
         ref.watch(authProvider.select((s) => s.activeSubscription));
@@ -694,6 +703,7 @@ class _TimelineContent extends ConsumerWidget {
                 days,
                 healthUpdatedNote: healthUpdatedNote,
                 hasHealthProfile: hasHealthProfile,
+                hasDeliverySlot: hasDeliverySlot,
               );
               return _TimelineStepTile(
                 step: steps[i],
@@ -2109,6 +2119,7 @@ class _StatusPill extends StatelessWidget {
   List<TimelineDay> days, {
   String? healthUpdatedNote,
   bool hasHealthProfile = true,
+  bool hasDeliverySlot = true,
 }) {
   final key = step.key.toLowerCase();
   final name = step.name.toLowerCase();
@@ -2137,6 +2148,15 @@ class _StatusPill extends StatelessWidget {
         ctaLabel: null,
         ctaIcon: null,
         note: 'Update your health profile first',
+      );
+    }
+    // …and until a delivery slot is set up in the Delivery Plan Manager.
+    if (!hasDeliverySlot) {
+      return (
+        onTap: null,
+        ctaLabel: null,
+        ctaIcon: null,
+        note: 'Please choose your delivery slot first',
       );
     }
     return (

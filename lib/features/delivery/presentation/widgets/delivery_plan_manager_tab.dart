@@ -55,6 +55,23 @@ IconData _categoryIcon(String name) {
 String _capitalize(String s) =>
     s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
+/// "Home · V968+MVV, Chib, 712136" from a populated address label + summary.
+String _addressText(String label, String summary) {
+  final l = label.isEmpty ? '' : _capitalize(label);
+  if (l.isEmpty) return summary;
+  if (summary.isEmpty) return l;
+  return '$l · $summary';
+}
+
+/// Maps a slot name (e.g. "Morning A") to its group key for the group icon.
+String _groupKeyFromName(String slotName) {
+  final n = slotName.toLowerCase();
+  if (n.contains('morning')) return 'morning';
+  if (n.contains('afternoon')) return 'afternoon';
+  if (n.contains('night') || n.contains('evening')) return 'night';
+  return '';
+}
+
 /// A slot group presented as one wizard step (e.g. "Morning" → [Morning A/B]).
 class _SlotGroup {
   final String key; // 'morning'
@@ -104,16 +121,32 @@ String _todayWire() {
 }
 
 /// One delivery of a day — mirrors an entry of the API's `slots` array.
+///
+/// [slotId]/[categoryIds]/[addressId] are the source of truth (what gets saved).
+/// The remaining fields are the populated display strings the GET response
+/// carries; they stay empty for locally-built entries, which then fall back to
+/// provider lookups for display.
 class _SlotEntry {
   String slotId;
   final Set<String> categoryIds;
   String addressId;
 
+  // Populated display data (GET only) — empty for wizard-created entries.
+  String slotName;
+  String slotTimeRange;
+  List<String> mealNames;
+  String addressText;
+
   _SlotEntry({
     this.slotId = '',
     Set<String>? categoryIds,
     this.addressId = '',
-  }) : categoryIds = categoryIds ?? <String>{};
+    this.slotName = '',
+    this.slotTimeRange = '',
+    List<String>? mealNames,
+    this.addressText = '',
+  })  : categoryIds = categoryIds ?? <String>{},
+        mealNames = mealNames ?? <String>[];
 
   bool get isComplete =>
       slotId.isNotEmpty && categoryIds.isNotEmpty && addressId.isNotEmpty;
@@ -122,6 +155,10 @@ class _SlotEntry {
         slotId: slotId,
         categoryIds: {...categoryIds},
         addressId: addressId,
+        slotName: slotName,
+        slotTimeRange: slotTimeRange,
+        mealNames: [...mealNames],
+        addressText: addressText,
       );
 
   Map<String, dynamic> toJson() => {
@@ -176,6 +213,13 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
           slotId: s.slotId,
           categoryIds: {...s.categoryIds},
           addressId: s.deliveryAddressId,
+          slotName: s.slotName,
+          slotTimeRange: s.slotTimeRange,
+          mealNames: [
+            for (final c in s.categories)
+              if (c.name.isNotEmpty) c.name,
+          ],
+          addressText: _addressText(s.addressLabel, s.addressSummary),
         ));
       }
     }
@@ -298,6 +342,8 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
   Widget build(BuildContext context) {
     super.build(context);
 
+    // React to LATER changes (e.g. after a save/refresh) that arrive while the
+    // tab is already mounted.
     ref.listen<AsyncValue<WeeklyDeliverySlotsResponse>>(
       weeklyDeliverySlotsProvider,
       (_, next) {
@@ -312,6 +358,14 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
     final addresses = ref.watch(addressProvider.select((s) => s.addresses));
     final submitting =
         ref.watch(weeklySlotsSubmitProvider.select((s) => s.isSubmitting));
+
+    // Initialise from data that's ALREADY resolved when this tab mounts — the
+    // listener above only fires on subsequent changes, and the provider is kept
+    // warm elsewhere (the tab bar), so it's usually loaded before we get here.
+    final weeklyData = weeklyAsync.valueOrNull;
+    if (weeklyData != null && !_initialized) {
+      _initFrom(weeklyData); // mutates state during build (one-time init only)
+    }
 
     if (weeklyAsync.isLoading ||
         slotsAsync.isLoading ||
@@ -603,16 +657,37 @@ class _DayPlanView extends StatelessWidget {
     return null;
   }
 
-  String _mealsLabel(Set<String> ids) {
+  /// "Morning A · 7:00 AM - 8:00 AM" — populated data first, else slot lookup.
+  String _slotTitle(_SlotEntry e) {
+    if (e.slotName.isNotEmpty) {
+      return e.slotTimeRange.isEmpty
+          ? e.slotName
+          : '${e.slotName} · ${e.slotTimeRange}';
+    }
+    final s = _slot(e.slotId);
+    if (s == null) return 'Delivery';
+    return s.timeRange.isEmpty ? s.slotName : '${s.slotName} · ${s.timeRange}';
+  }
+
+  String _slotGroupKey(_SlotEntry e) {
+    final name =
+        e.slotName.isNotEmpty ? e.slotName : (_slot(e.slotId)?.slotName ?? '');
+    final key = _groupKeyFromName(name);
+    return key.isNotEmpty ? key : (_slot(e.slotId)?.groupKey ?? '');
+  }
+
+  String _mealsLabel(_SlotEntry e) {
+    if (e.mealNames.isNotEmpty) return e.mealNames.join(', ');
     final names = [
       for (final c in categories)
-        if (ids.contains(c.id)) c.name,
+        if (e.categoryIds.contains(c.id)) c.name,
     ];
     return names.isEmpty ? 'Meals' : names.join(', ');
   }
 
-  String _addressLabel(String id) {
-    final a = addresses.where((e) => e.id == id);
+  String _addressLabel(_SlotEntry e) {
+    if (e.addressText.isNotEmpty) return e.addressText;
+    final a = addresses.where((x) => x.id == e.addressId);
     if (a.isEmpty) return 'Address';
     final label = a.first.label;
     return '${label.isEmpty ? 'Address' : _capitalize(label)} · '
@@ -631,9 +706,10 @@ class _DayPlanView extends StatelessWidget {
       children: [
         for (final e in valid)
           _DeliveryCard(
-            slot: _slot(e.slotId),
-            meals: _mealsLabel(e.categoryIds),
-            address: _addressLabel(e.addressId),
+            title: _slotTitle(e),
+            groupKey: _slotGroupKey(e),
+            meals: _mealsLabel(e),
+            address: _addressLabel(e),
           ),
         const SizedBox(height: AppSizes.spacing8),
         Row(
@@ -691,20 +767,22 @@ class _DayPlanView extends StatelessWidget {
 
 class _DeliveryCard extends StatelessWidget {
   const _DeliveryCard({
-    required this.slot,
+    required this.title,
+    required this.groupKey,
     required this.meals,
     required this.address,
   });
 
-  final DeliverySlotApiModel? slot;
+  final String title;
+  final String groupKey;
   final String meals;
   final String address;
 
   @override
   Widget build(BuildContext context) {
-    final groupIcon = slot == null
+    final groupIcon = groupKey.isEmpty
         ? Icons.local_shipping_rounded
-        : _groupVisual(slot!.groupKey).icon;
+        : _groupVisual(groupKey).icon;
     return Container(
       margin: const EdgeInsets.only(bottom: AppSizes.spacing12),
       padding: const EdgeInsets.all(AppSizes.spacing12),
@@ -731,9 +809,7 @@ class _DeliveryCard extends StatelessWidget {
               const SizedBox(width: AppSizes.spacing8),
               Expanded(
                 child: Text(
-                  slot == null
-                      ? 'Delivery'
-                      : '${slot!.slotName} · ${slot!.timeRange}',
+                  title.isEmpty ? 'Delivery' : title,
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize14,
                     fontWeight: AppTypography.bold,
