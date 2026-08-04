@@ -650,6 +650,14 @@ class _TimelineContent extends ConsumerWidget {
         ? 'Last updated ${_formatUpdatedAt(profileUpdatedAt)}'
         : null;
 
+    // Consultation booking is gated on the health profile being filled (the
+    // three mandatory body metrics from the detailed health screen).
+    final hasHealthProfile = ref.watch(
+      authProvider.select(
+        (s) => (s.age ?? 0) > 0 && (s.height ?? 0) > 0 && (s.weight ?? 0) > 0,
+      ),
+    );
+
     // Service window from the profile's active subscription (UTC ISO strings).
     final activeSub =
         ref.watch(authProvider.select((s) => s.activeSubscription));
@@ -685,6 +693,7 @@ class _TimelineContent extends ConsumerWidget {
                 steps[i],
                 days,
                 healthUpdatedNote: healthUpdatedNote,
+                hasHealthProfile: hasHealthProfile,
               );
               return _TimelineStepTile(
                 step: steps[i],
@@ -2099,6 +2108,7 @@ class _StatusPill extends StatelessWidget {
   TimelineStep step,
   List<TimelineDay> days, {
   String? healthUpdatedNote,
+  bool hasHealthProfile = true,
 }) {
   final key = step.key.toLowerCase();
   final name = step.name.toLowerCase();
@@ -2118,6 +2128,16 @@ class _StatusPill extends StatelessWidget {
     // is disabled (not tappable, no CTA).
     if (step.status == TimelineStatus.completed) {
       return (onTap: null, ctaLabel: null, ctaIcon: null, note: null);
+    }
+    // Booking is locked until the health profile is filled — disabled with a
+    // hint pointing to the (first) health-profile step.
+    if (!hasHealthProfile) {
+      return (
+        onTap: null,
+        ctaLabel: null,
+        ctaIcon: null,
+        note: 'Update your health profile first',
+      );
     }
     return (
       onTap: () => Navigator.of(context).push(
