@@ -863,8 +863,7 @@ class _SubscriptionCheckoutScreenState
           'will be deducted and the remaining amount refunded to your wallet.';
     } else {
       body =
-          'This plan is non-cancellable. Enable “Cancel anytime” on the plan '
-          'screen if you may want to cancel later.';
+          'Please note: This subscription is non-refundable by default. To receive an applicable refund upon cancellation, you must enable "Cancel Anytime" before subscribing. If you do not enable this option, any unused meals remaining after cancellation will be considered cancelled, and you will receive a ₹50 discount coupon for each cancelled meal, which can be redeemed on food orders from our outlet';
     }
 
     return Container(
