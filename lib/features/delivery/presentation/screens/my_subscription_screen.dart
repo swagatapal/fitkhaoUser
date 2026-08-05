@@ -42,6 +42,10 @@ import '../../providers/weekly_delivery_slot_provider.dart';
 
 const Color _kAccent = Color(0xFFC66301);
 
+/// Readable golden-yellow used for the "not yet done" state of a step CTA
+/// (e.g. health profile not updated). Turns green once completed.
+const Color _kWarnYellow = Color(0xFFCA8A04);
+
 class MySubscriptionScreen extends ConsumerStatefulWidget {
   const MySubscriptionScreen({
     super.key,
@@ -712,6 +716,7 @@ class _TimelineContent extends ConsumerWidget {
                 onTap: action.onTap,
                 ctaLabel: action.ctaLabel,
                 ctaIcon: action.ctaIcon,
+                ctaColor: action.ctaColor,
                 note: action.note,
               );
             }(),
@@ -883,6 +888,7 @@ class _TimelineStepTile extends StatelessWidget {
     this.onTap,
     this.ctaLabel,
     this.ctaIcon,
+    this.ctaColor,
     this.note,
   });
 
@@ -892,6 +898,9 @@ class _TimelineStepTile extends StatelessWidget {
   final VoidCallback? onTap;
   final String? ctaLabel;
   final IconData? ctaIcon;
+
+  /// Accent for the CTA — e.g. yellow while pending, green once done.
+  final Color? ctaColor;
 
   /// Small caption under the CTA (e.g. "Last updated 3 Aug 2026, 2:30 PM").
   final String? note;
@@ -961,7 +970,10 @@ class _TimelineStepTile extends StatelessWidget {
           if (ctaLabel != null) ...[
             const SizedBox(height: AppSizes.spacing8),
             _StepCta(
-                label: ctaLabel!, icon: ctaIcon ?? Icons.arrow_forward_rounded),
+              label: ctaLabel!,
+              icon: ctaIcon ?? Icons.arrow_forward_rounded,
+              color: ctaColor ?? AppColors.primaryGreen,
+            ),
           ],
           if (note != null) ...[
             const SizedBox(height: 6),
@@ -1052,10 +1064,15 @@ class _TimelineStepTile extends StatelessWidget {
 
 /// Inline call-to-action shown inside a tappable journey step (steps 1 & 2).
 class _StepCta extends StatelessWidget {
-  const _StepCta({required this.label, required this.icon});
+  const _StepCta({
+    required this.label,
+    required this.icon,
+    this.color = AppColors.primaryGreen,
+  });
 
   final String label;
   final IconData icon;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -1065,26 +1082,26 @@ class _StepCta extends StatelessWidget {
         vertical: AppSizes.spacing8,
       ),
       decoration: BoxDecoration(
-        color: AppColors.primaryGreen.withValues(alpha: 0.08),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(AppSizes.radius8),
       ),
       child: Row(
         children: [
-          Icon(icon, size: AppSizes.icon16, color: AppColors.primaryGreen),
+          Icon(icon, size: AppSizes.icon16, color: color),
           const SizedBox(width: AppSizes.spacing8),
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: AppTypography.fontSize12,
                 fontWeight: AppTypography.bold,
-                color: AppColors.primaryGreen,
+                color: color,
                 fontFamily: 'Lato',
               ),
             ),
           ),
-          const Icon(Icons.arrow_forward_rounded,
-              size: AppSizes.icon16, color: AppColors.primaryGreen),
+          Icon(Icons.arrow_forward_rounded,
+              size: AppSizes.icon16, color: color),
         ],
       ),
     );
@@ -2112,8 +2129,13 @@ class _StatusPill extends StatelessWidget {
 ///  • Service period         → open the dedicated daily-meals screen.
 ///
 /// Matched by step key first (stable), falling back to the display name.
-({VoidCallback? onTap, String? ctaLabel, IconData? ctaIcon, String? note})
-    _stepAction(
+({
+  VoidCallback? onTap,
+  String? ctaLabel,
+  IconData? ctaIcon,
+  Color? ctaColor,
+  String? note,
+}) _stepAction(
   BuildContext context,
   TimelineStep step,
   List<TimelineDay> days, {
@@ -2127,10 +2149,12 @@ class _StatusPill extends StatelessWidget {
   bool has(String needle) => key.contains(needle) || name.contains(needle);
 
   if (has('subscription')) {
+    // Yellow while the health profile hasn't been filled; green once it has.
     return (
       onTap: () => context.push(RouteNames.detailedHealthInfo),
       ctaLabel: 'Update your health profile',
       ctaIcon: Icons.monitor_heart_rounded,
+      ctaColor: hasHealthProfile ? AppColors.primaryGreen : _kWarnYellow,
       note: healthUpdatedNote,
     );
   }
@@ -2138,7 +2162,13 @@ class _StatusPill extends StatelessWidget {
     // Once the consultation is completed there's nothing to book, so the step
     // is disabled (not tappable, no CTA).
     if (step.status == TimelineStatus.completed) {
-      return (onTap: null, ctaLabel: null, ctaIcon: null, note: null);
+      return (
+        onTap: null,
+        ctaLabel: null,
+        ctaIcon: null,
+        ctaColor: null,
+        note: null,
+      );
     }
     // Booking is locked until the health profile is filled — disabled with a
     // hint pointing to the (first) health-profile step.
@@ -2147,6 +2177,7 @@ class _StatusPill extends StatelessWidget {
         onTap: null,
         ctaLabel: null,
         ctaIcon: null,
+        ctaColor: null,
         note: 'Update your health profile first',
       );
     }
@@ -2156,6 +2187,7 @@ class _StatusPill extends StatelessWidget {
         onTap: null,
         ctaLabel: null,
         ctaIcon: null,
+        ctaColor: null,
         note: 'Please choose your delivery slot first',
       );
     }
@@ -2167,6 +2199,7 @@ class _StatusPill extends StatelessWidget {
           ),
       ctaLabel: 'Choose your consultation slot',
       ctaIcon: Icons.event_available_rounded,
+      ctaColor: AppColors.primaryGreen,
       note: null,
     );
   }
@@ -2176,6 +2209,7 @@ class _StatusPill extends StatelessWidget {
       onTap: () => DefaultTabController.maybeOf(context)?.animateTo(1),
       ctaLabel: null,
       ctaIcon: null,
+      ctaColor: null,
       note: null,
     );
   }
@@ -2193,10 +2227,17 @@ class _StatusPill extends StatelessWidget {
               ),
       ctaLabel: null,
       ctaIcon: null,
+      ctaColor: null,
       note: null,
     );
   }
-  return (onTap: null, ctaLabel: null, ctaIcon: null, note: null);
+  return (
+    onTap: null,
+    ctaLabel: null,
+    ctaIcon: null,
+    ctaColor: null,
+    note: null,
+  );
 }
 
 /// "3 Aug 2026, 2:30 PM" (IST) from a stored profile-update timestamp.

@@ -505,7 +505,7 @@ class _DetailedHealthInfoScreenState
     }
 
     return Scaffold(
-      //backgroundColor: Colors.white,
+      backgroundColor: Colors.white,
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
