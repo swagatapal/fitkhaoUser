@@ -34,25 +34,27 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
   }
 
   Future<void> _handleContinue() async {
+    // Capture the router BEFORE the async gap — completing registration flips
+    // auth state, which can trigger a router redirect that deactivates this
+    // screen. Looking it up on `context` afterwards would crash.
+    final router = GoRouter.of(context);
+
     ref.read(authProvider.notifier).saveName(_name);
 
     setState(() => _isProcessing = true);
     // Address fields are not collected here; AuthState defaults ('' / 0.0)
     // are serialised correctly by Address.toFullJson().
-    final success = await ref.read(authProvider.notifier).completeRegistration();
+    final success =
+        await ref.read(authProvider.notifier).completeRegistration();
     if (!mounted) return;
     setState(() => _isProcessing = false);
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Registration completed successfully!'),
-          backgroundColor: AppColors.primaryGreen,
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 2),
-        ),
-      );
-      context.go(RouteNames.home);
+      // Navigate straight to home — landing there is the success signal. We
+      // deliberately don't show a SnackBar here: this screen is torn down by the
+      // navigation, and a still-animating SnackBar would fire status callbacks
+      // against the deactivated Scaffold and crash.
+      router.go(RouteNames.home);
     }
   }
 
@@ -99,20 +101,20 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
               Text(
                 AppStrings.tellUsYourName,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: context.responsiveFontSize(22.0),
-                  fontFamily: "Lato",
-                ),
+                      fontWeight: FontWeight.w700,
+                      fontSize: context.responsiveFontSize(22.0),
+                      fontFamily: "Lato",
+                    ),
               ),
               SizedBox(height: spacing8),
               Text(
                 AppStrings.pleaseEnterYourName,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: const Color(0xFF2B292A),
-                  fontWeight: FontWeight.w400,
-                  fontSize: context.responsiveFontSize(16.0),
-                  fontFamily: "Lato",
-                ),
+                      color: const Color(0xFF2B292A),
+                      fontWeight: FontWeight.w400,
+                      fontSize: context.responsiveFontSize(16.0),
+                      fontFamily: "Lato",
+                    ),
               ),
               SizedBox(height: spacing40),
               Column(
@@ -123,18 +125,19 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
                       Text(
                         AppStrings.nameLabel,
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: context.responsiveFontSize(14.0),
-                          fontFamily: 'Lato',
-                        ),
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: context.responsiveFontSize(14.0),
+                              fontFamily: 'Lato',
+                            ),
                       ),
                       const SizedBox(width: AppSizes.spacing4),
                       Text(
                         '*',
                         style: TextStyle(
                           color: AppColors.errorColor,
-                          fontSize: context.responsiveFontSize(AppTypography.fontSize16),
+                          fontSize: context
+                              .responsiveFontSize(AppTypography.fontSize16),
                         ),
                       ),
                     ],
@@ -155,9 +158,9 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
                       });
                     },
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontSize: context.responsiveFontSize(16.0),
-                      fontFamily: 'Lato',
-                    ),
+                          fontSize: context.responsiveFontSize(16.0),
+                          fontFamily: 'Lato',
+                        ),
                     decoration: InputDecoration(
                       hintText: 'Your Name',
                       hintStyle: TextStyle(
@@ -204,10 +207,10 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
                   Text(
                     AppStrings.putYourFirstAndLastName,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
-                      fontSize: context.responsiveFontSize(12.0),
-                      fontFamily: 'Lato',
-                    ),
+                          color: AppColors.textTertiary,
+                          fontSize: context.responsiveFontSize(12.0),
+                          fontFamily: 'Lato',
+                        ),
                   ),
                 ],
               ),
@@ -215,7 +218,8 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
               PrimaryButton(
                 text: AppStrings.continueText,
                 textColor: Colors.white,
-                onPressed: _name.isNotEmpty && !isSubmitting ? _handleContinue : null,
+                onPressed:
+                    _name.isNotEmpty && !isSubmitting ? _handleContinue : null,
                 isLoading: isSubmitting,
                 height: AppSizes.buttonHeight,
                 disabledBackgroundColor: const Color(0xFFA0D488),
