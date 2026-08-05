@@ -471,14 +471,44 @@ class _RecordCard extends ConsumerWidget {
               ),
               const SizedBox(width: AppSizes.spacing8),
               Expanded(
-                child: Text(
-                  record.recordType.label,
-                  style: const TextStyle(
-                    fontSize: AppTypography.fontSize14,
-                    fontWeight: AppTypography.semiBold,
-                    color: AppColors.textPrimary,
-                    fontFamily: 'Lato',
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      record.recordType.label,
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.semiBold,
+                        color: AppColors.textPrimary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    if (record.uploaderLabel.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            record.isOwnUpload
+                                ? Icons.person_rounded
+                                : Icons.medical_services_rounded,
+                            size: AppSizes.icon12,
+                            color:
+                                AppColors.textSecondary.withValues(alpha: 0.8),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Uploaded by ${record.uploaderLabel}',
+                            style: TextStyle(
+                              fontSize: AppTypography.fontSize10,
+                              color: AppColors.textSecondary
+                                  .withValues(alpha: 0.9),
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
               ),
               if (_dateLabel.isNotEmpty)
@@ -490,27 +520,30 @@ class _RecordCard extends ConsumerWidget {
                     fontFamily: 'Lato',
                   ),
                 ),
-              const SizedBox(width: AppSizes.spacing4),
-              // Delete this record.
-              deleting
-                  ? const Padding(
-                      padding: EdgeInsets.all(6),
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: AppColors.errorColor),
+              // Delete is available only for records the user uploaded.
+              if (record.isOwnUpload) ...[
+                const SizedBox(width: AppSizes.spacing4),
+                deleting
+                    ? const Padding(
+                        padding: EdgeInsets.all(6),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: AppColors.errorColor),
+                        ),
+                      )
+                    : GestureDetector(
+                        onTap: () => _confirmAndDelete(context, ref),
+                        behavior: HitTestBehavior.opaque,
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(Icons.delete_outline_rounded,
+                              size: AppSizes.icon18,
+                              color: AppColors.errorColor),
+                        ),
                       ),
-                    )
-                  : GestureDetector(
-                      onTap: () => _confirmAndDelete(context, ref),
-                      behavior: HitTestBehavior.opaque,
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Icon(Icons.delete_outline_rounded,
-                            size: AppSizes.icon18, color: AppColors.errorColor),
-                      ),
-                    ),
+              ],
             ],
           ),
           if (record.notes.isNotEmpty) ...[

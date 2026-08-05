@@ -76,13 +76,33 @@ class MedicalRecord {
   final List<MedicalRecordDocument> documents;
   final DateTime? createdAt;
 
+  /// Who uploaded this record — "user", "nutritionist", etc. (from the API).
+  final String uploaderRole;
+
   const MedicalRecord({
     required this.id,
     required this.recordType,
     required this.notes,
     required this.documents,
     this.createdAt,
+    this.uploaderRole = '',
   });
+
+  /// Only records the signed-in user uploaded can be deleted by them.
+  bool get isOwnUpload => uploaderRole.toLowerCase() == 'user';
+
+  /// Human-readable uploader, e.g. "You", "Nutritionist".
+  String get uploaderLabel {
+    switch (uploaderRole.toLowerCase()) {
+      case 'user':
+        return 'You';
+      case '':
+        return '';
+      default:
+        final w = uploaderRole.replaceAll('_', ' ');
+        return '${w[0].toUpperCase()}${w.substring(1)}';
+    }
+  }
 
   factory MedicalRecord.fromJson(Map<String, dynamic> json) {
     final rawDocs = (json['documents'] ?? json['files'] ?? json['attachments'])
@@ -106,6 +126,9 @@ class MedicalRecord {
           const [],
       createdAt: DateTime.tryParse(
           (json['createdAt'] ?? json['uploadedAt'] ?? '') as String? ?? ''),
+      uploaderRole:
+          (json['uploaderRole'] ?? json['uploadedByRole'] ?? '') as String? ??
+              '',
     );
   }
 }
