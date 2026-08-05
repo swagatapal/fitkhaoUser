@@ -1150,7 +1150,7 @@ class _JourneyMeetingLinkCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Join Google Meet',
+                        'Join Online Meeting',
                         style: TextStyle(
                           fontSize: AppTypography.fontSize14,
                           fontWeight: AppTypography.bold,

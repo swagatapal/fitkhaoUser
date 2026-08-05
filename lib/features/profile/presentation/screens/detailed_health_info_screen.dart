@@ -733,16 +733,16 @@ class _DetailedHealthInfoScreenState
                   ),
                 ),
                 SizedBox(height: spacing12),
-                Text(
-                  AppStrings.physiologicalConditions,
-                  style: TextStyle(
-                    fontSize: context.responsiveFontSize(14.0),
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.textPrimary,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-                SizedBox(height: spacing12),
+                // Text(
+                //   AppStrings.physiologicalConditions,
+                //   style: TextStyle(
+                //     fontSize: context.responsiveFontSize(14.0),
+                //     fontWeight: FontWeight.w400,
+                //     color: AppColors.textPrimary,
+                //     fontFamily: 'Lato',
+                //   ),
+                // ),
+                // SizedBox(height: spacing12),
 
                 // Dynamic physiological conditions from API
                 _buildDynamicConditions(),
