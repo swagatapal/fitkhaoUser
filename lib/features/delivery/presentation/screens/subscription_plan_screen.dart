@@ -132,9 +132,7 @@ class _SubscriptionPlanScreenState
                 ),
               ),
             ),
-
             const SizedBox(width: AppSizes.spacing12),
-
             const Expanded(
               child: Text(
                 'Choose Your Plan',
@@ -298,8 +296,8 @@ class _CompactIconButton extends StatelessWidget {
             color: AppColors.primaryGreen.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(AppSizes.radius8),
           ),
-          child: Icon(icon,
-              color: AppColors.primaryGreen, size: AppSizes.icon20),
+          child:
+              Icon(icon, color: AppColors.primaryGreen, size: AppSizes.icon20),
         ),
       ),
     );
@@ -314,7 +312,8 @@ class _ActivePlanBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sub = ref.watch(
-      walletProvider.select((s) => s.hasActiveSubscription ? s.subscription : null),
+      walletProvider
+          .select((s) => s.hasActiveSubscription ? s.subscription : null),
     );
     if (sub == null) return const SizedBox.shrink();
 
@@ -371,7 +370,7 @@ class _ActivePlanBanner extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${sub.remainingDays} days left · ends ${convertMongoUtcToIst(sub.endDate)}',
+                      'ends ${convertMongoUtcToIstExceptTime(sub.endDate)}',
                       style: TextStyle(
                         fontSize: AppTypography.fontSize10,
                         color: Colors.white.withValues(alpha: 0.9),
@@ -642,43 +641,58 @@ class _CancelAnytimeToggle extends ConsumerWidget {
               : AppColors.borderColor.withValues(alpha: 0.5),
         ),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Icon(Icons.event_busy_rounded,
-              size: AppSizes.icon18,
-              color: enabled ? AppColors.primaryGreen : AppColors.textSecondary),
-          const SizedBox(width: AppSizes.spacing8),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Cancel anytime',
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize13,
-                    fontWeight: AppTypography.semiBold,
-                    color: AppColors.textPrimary,
-                    fontFamily: 'Lato',
-                  ),
+          Row(
+            children: [
+              Icon(Icons.event_busy_rounded,
+                  size: AppSizes.icon18,
+                  color: enabled
+                      ? AppColors.primaryGreen
+                      : AppColors.textSecondary),
+              const SizedBox(width: AppSizes.spacing8),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Cancel anytime',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize13,
+                        fontWeight: AppTypography.semiBold,
+                        color: AppColors.textPrimary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    SizedBox(height: 1),
+                    Text(
+                      'Cancel your plan whenever you want (small fee applies)',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize10,
+                        color: AppColors.textSecondary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 1),
-                Text(
-                  'Cancel your plan whenever you want (small fee applies)',
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize10,
-                    color: AppColors.textSecondary,
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ],
+              ),
+              Switch.adaptive(
+                value: enabled,
+                activeThumbColor: AppColors.primaryGreen,
+                onChanged: (v) =>
+                    ref.read(cancelAnytimeProvider(planId).notifier).state = v,
+              ),
+            ],
+          ),
+          SizedBox(height: 4,),
+          Text(
+            'Please note: This subscription is non-refundable by default. To receive an applicable refund upon cancellation, you must enable "Cancel Anytime" before subscribing. If you do not enable this option, any unused meals remaining after cancellation will be considered cancelled, and you will receive a ₹50 discount coupon for each cancelled meal, which can be redeemed on food orders from our outlet.',
+            style: TextStyle(
+              fontSize: 8,
+              color: AppColors.textSecondary,
+              fontFamily: 'Lato',
             ),
-          ),
-          Switch.adaptive(
-            value: enabled,
-            activeThumbColor: AppColors.primaryGreen,
-            onChanged: (v) =>
-                ref.read(cancelAnytimeProvider(planId).notifier).state = v,
-          ),
+          )
         ],
       ),
     );
@@ -841,15 +855,15 @@ class _SubscribeBar extends ConsumerWidget {
       label = 'Free plan — no payment needed';
       onPressed = null;
     } else {
-      label = 'Subscribe · ${selected.formattedPrice} / ${selected.planValidity}';
+      label =
+          'Subscribe · ${selected.formattedPrice} / ${selected.planValidity}';
       final plan = selected;
       onPressed = () => Navigator.push(
             context,
             MaterialPageRoute<void>(
               builder: (_) => SubscriptionCheckoutScreen(
                 planId: plan.id,
-                cancelAnytimeSelected:
-                    ref.read(cancelAnytimeProvider(plan.id)),
+                cancelAnytimeSelected: ref.read(cancelAnytimeProvider(plan.id)),
               ),
             ),
           );
@@ -969,7 +983,8 @@ class _ErrorState extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.errorColor,
               ),
-              child: const Text('Try Again', style: TextStyle(fontFamily: 'Lato')),
+              child:
+                  const Text('Try Again', style: TextStyle(fontFamily: 'Lato')),
             ),
           ),
         ],
@@ -989,7 +1004,8 @@ class _EmptyState extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.primaryGreen.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(AppSizes.radius12),
-        border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.2)),
+        border:
+            Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -1019,4 +1035,3 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
-
