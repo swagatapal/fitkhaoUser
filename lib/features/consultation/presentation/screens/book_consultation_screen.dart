@@ -28,6 +28,26 @@ const _kMonthShort = [
 String _apiDate(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+/// Parses a slot start-time string into minutes since midnight, tolerating both
+/// 12-hour ("7:00 AM", "12:30 PM") and 24-hour ("07:00", "13:00") formats.
+/// Returns null if it can't be parsed (so such a slot is never hidden).
+int? _timeToMinutes(String raw) {
+  final s = raw.trim().toUpperCase();
+  if (s.isEmpty) return null;
+  final hm = RegExp(r'(\d{1,2})(?::(\d{1,2}))?').firstMatch(s);
+  if (hm == null) return null;
+  var h = int.tryParse(hm.group(1)!) ?? -1;
+  final m = int.tryParse(hm.group(2) ?? '0') ?? 0;
+  final isPm = s.contains('PM');
+  final isAm = s.contains('AM');
+  if (isAm || isPm) {
+    if (h == 12) h = 0; // 12 AM → 0, 12 PM → 12 (after +12 below)
+    if (isPm) h += 12;
+  }
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return h * 60 + m;
+}
+
 /// Book a consultation: pick a nutritionist, a date, an available time slot,
 /// then confirm. Wired to /api/user/nutritionists, the slots endpoint and
 /// /api/user/consultations/book-slot.
@@ -1206,26 +1226,49 @@ class _SlotsView extends ConsumerWidget {
         compact: true,
       ),
       data: (availabilities) {
-        final hasAny = availabilities.any((a) => a.times.isNotEmpty);
-        if (!hasAny) {
-          return const _CenterMessage(
+        // When the chosen date is today, hide slots whose start time has
+        // already passed — only upcoming slots are bookable.
+        final now = DateTime.now();
+        final isToday = date.year == now.year &&
+            date.month == now.month &&
+            date.day == now.day;
+        final nowMinutes = now.hour * 60 + now.minute;
+
+        bool isUpcoming(ConsultationTime t) {
+          if (!isToday) return true;
+          final start = _timeToMinutes(t.fromTime);
+          if (start == null) return true; // unparseable → don't hide
+          return start > nowMinutes;
+        }
+
+        // Filter each availability's times, then keep only non-empty groups.
+        final groups = [
+          for (final a in availabilities) a.times.where(isUpcoming).toList(),
+        ];
+        final hadAnySlots = availabilities.any((a) => a.times.isNotEmpty);
+        final hasUpcoming = groups.any((t) => t.isNotEmpty);
+
+        if (!hasUpcoming) {
+          return _CenterMessage(
             icon: Icons.event_busy_rounded,
-            message: 'No slots available on this date.',
+            message: isToday && hadAnySlots
+                ? 'No more slots available today. Please pick another date.'
+                : 'No slots available on this date.',
             compact: true,
           );
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final a in availabilities)
-              if (a.times.isNotEmpty)
+            for (final times in groups)
+              if (times.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: AppSizes.spacing12),
                   child: Wrap(
                     spacing: AppSizes.spacing8,
                     runSpacing: AppSizes.spacing8,
                     children: [
-                      for (final t in a.times)
+                      for (final t in times)
                         _SlotChip(
                           label: t.label,
                           selected: !t.isBooked && t.id == selectedTimeId,
