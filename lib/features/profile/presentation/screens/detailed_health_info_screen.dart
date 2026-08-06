@@ -57,7 +57,10 @@ class _DetailedHealthInfoScreenState
   final TextEditingController _weightController = TextEditingController();
 
   bool _isInitialized = false;
-  String? _uploadedImageUrl;
+
+  // Wizard step (0 Personal · 1 Lifestyle · 2 Health · 3 Documents).
+  int _currentStep = 0;
+  static const _kStepTitles = ['Personal', 'Lifestyle', 'Health', 'Documents'];
 
   // ── Validation state (frontend). All fields are required except the
   // prescription attachment. Errors are surfaced inline under each field. ──
@@ -70,31 +73,18 @@ class _DetailedHealthInfoScreenState
   final Map<String, String?> _durationError = {};
 
   final ScrollController _scrollController = ScrollController();
-  bool _isCollapsed = false;
-
-  // Header fully collapses when scroll offset exceeds this threshold
-  static const double _collapseThreshold = 200.0;
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
     // Load profile data when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadProfileData();
     });
   }
 
-  void _onScroll() {
-    final collapsed = _scrollController.offset > _collapseThreshold;
-    if (collapsed != _isCollapsed) {
-      setState(() => _isCollapsed = collapsed);
-    }
-  }
-
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _ageController.dispose();
     _heightController.dispose();
@@ -138,12 +128,6 @@ class _DetailedHealthInfoScreenState
     final authState = ref.read(authProvider);
 
     setState(() {
-      // Basic info
-      // Load existing profile image URL from server
-      if (authState.imgUrl != null && authState.imgUrl!.isNotEmpty) {
-        _uploadedImageUrl = authState.imgUrl;
-      }
-
       if (authState.age != null && authState.age! > 0) {
         _age = _formatMetric(authState.age!);
         _ageController.text = _age;
@@ -318,16 +302,135 @@ class _DetailedHealthInfoScreenState
     return isValid;
   }
 
+  /// Validates only the Personal step (age / height / weight).
+  bool _validatePersonalStep() {
+    final ageText = _age.trim();
+    final ageVal = double.tryParse(ageText);
+    String? ageErr;
+    if (ageText.isEmpty) {
+      ageErr = 'Age is required';
+    } else if (ageVal == null || ageVal <= 0 || ageVal > 120) {
+      ageErr = 'Enter a valid age (1–120)';
+    }
+
+    final heightText = _heightCm.trim();
+    final heightVal = double.tryParse(heightText);
+    String? heightErr;
+    if (heightText.isEmpty) {
+      heightErr = 'Height is required';
+    } else if (heightVal == null || heightVal <= 0 || heightVal > 300) {
+      heightErr = 'Enter a valid height in cm';
+    }
+
+    final weightText = _weightKg.trim();
+    final weightVal = double.tryParse(weightText);
+    String? weightErr;
+    if (weightText.isEmpty) {
+      weightErr = 'Weight is required';
+    } else if (weightVal == null || weightVal <= 0 || weightVal > 500) {
+      weightErr = 'Enter a valid weight in kg';
+    }
+
+    setState(() {
+      _showErrors = true;
+      _ageError = ageErr;
+      _heightError = heightErr;
+      _weightError = weightErr;
+    });
+    return ageErr == null && heightErr == null && weightErr == null;
+  }
+
+  /// Validates only the Lifestyle step (exercise details when exercising).
+  bool _validateLifestyleStep() {
+    if (!_doesExercise) {
+      setState(() {
+        _exerciseTypeError = null;
+        _daysError.clear();
+        _durationError.clear();
+      });
+      return true;
+    }
+    String? exerciseTypeErr;
+    final Map<String, String?> daysErr = {};
+    final Map<String, String?> durationErr = {};
+    if (_selectedExerciseTypes.isEmpty) {
+      exerciseTypeErr = 'Select at least one exercise type';
+    } else {
+      for (final type in _selectedExerciseTypes) {
+        final daysText = (_daysPerExercise[type] ?? '').trim();
+        final days = int.tryParse(daysText);
+        if (daysText.isEmpty) {
+          daysErr[type] = 'Required';
+        } else if (days == null || days < 1 || days > 7) {
+          daysErr[type] = 'Enter 1–7 days';
+        }
+        final durText = (_durationPerExercise[type] ?? '').trim();
+        final dur = double.tryParse(durText);
+        if (durText.isEmpty) {
+          durationErr[type] = 'Required';
+        } else if (dur == null || dur <= 0 || dur > 24) {
+          durationErr[type] = 'Enter 1–24 hrs';
+        }
+      }
+    }
+    setState(() {
+      _showErrors = true;
+      _exerciseTypeError = exerciseTypeErr;
+      _daysError
+        ..clear()
+        ..addAll(daysErr);
+      _durationError
+        ..clear()
+        ..addAll(durationErr);
+    });
+    return exerciseTypeErr == null && daysErr.isEmpty && durationErr.isEmpty;
+  }
+
+  void _showValidationSnack() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please fill all required fields to continue.'),
+        backgroundColor: AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  /// Advances to the next step, validating the current one first.
+  void _onNext() {
+    bool ok = true;
+    if (_currentStep == 0) ok = _validatePersonalStep();
+    if (_currentStep == 1) ok = _validateLifestyleStep();
+    if (!ok) {
+      _showValidationSnack();
+      return;
+    }
+    setState(() => _currentStep = (_currentStep + 1).clamp(0, 3));
+    _scrollController.jumpTo(0);
+  }
+
+  void _onBack() {
+    setState(() => _currentStep = (_currentStep - 1).clamp(0, 3));
+    _scrollController.jumpTo(0);
+  }
+
   Future<void> _handleSave() async {
     if (!_validateForm()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill all required fields before saving.'),
-          backgroundColor: AppColors.errorColor,
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 3),
-        ),
-      );
+      // Jump back to the first step that has an error so it's visible.
+      final personalBad =
+          _ageError != null || _heightError != null || _weightError != null;
+      final lifestyleBad = _exerciseTypeError != null ||
+          _daysError.isNotEmpty ||
+          _durationError.isNotEmpty;
+      setState(() {
+        if (personalBad) {
+          _currentStep = 0;
+        } else if (lifestyleBad) {
+          _currentStep = 1;
+        }
+      });
+      _showValidationSnack();
       return;
     }
 
@@ -488,378 +591,540 @@ class _DetailedHealthInfoScreenState
       }
     });
 
-    final spacing12 = context.responsiveSpacing(12.0);
     final spacing16 = context.responsiveSpacing(16.0);
     final spacing20 = context.responsiveSpacing(20.0);
     final spacing24 = context.responsiveSpacing(24.0);
 
-    if (authState.isLoading && !_isInitialized) {
-      return Scaffold(
-        body: CustomScrollView(
-          slivers: [
-            _buildSkeletonSliverAppBar(),
-            _buildSkeletonFormContent(),
-          ],
-        ),
-      );
-    }
+    // Single scaffold: the app bar stays static while the body swaps between
+    // the skeleton loader (initial fetch) and the wizard content.
+    final isLoading = authState.isLoading && !_isInitialized;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          // ── Collapsing header with parallax ──
-          SliverAppBar(
-            expandedHeight: 270,
-            pinned: true,
-            backgroundColor: const Color(0xFF4A7D33),
-            automaticallyImplyLeading: false,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            leading: Padding(
-              padding: const EdgeInsets.only(left: 12, top: 8, bottom: 8),
-              child: GestureDetector(
-                onTap: () => Navigator.of(context).maybePop(),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF5D9E40),
-                    borderRadius: BorderRadius.circular(AppSizes.radius8),
-                  ),
-                  child: const Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                    size: AppSizes.icon20,
+      appBar: _buildAppBar(),
+      body: isLoading
+          ? CustomScrollView(
+              slivers: [
+                _buildSkeletonFormContent(),
+              ],
+            )
+          : Column(
+              children: [
+                _buildStepIndicator(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(
+                        spacing20, spacing16, spacing20, spacing24),
+                    child: _buildStepContent(authState),
                   ),
                 ),
+                _buildBottomBar(authState),
+              ],
+            ),
+    );
+  }
+
+  // ─── Wizard scaffolding ───
+
+  /// Green app bar with a back button and the screen title — matches the
+  /// original pinned app bar (status bar tinted green, white content).
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: const Color(0xFF4A7D33),
+      automaticallyImplyLeading: false,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      systemOverlayStyle: SystemUiOverlayStyle.light,
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 12, top: 8, bottom: 8),
+        child: GestureDetector(
+          onTap: () => Navigator.of(context).maybePop(),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF5D9E40),
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+            ),
+            child: const Icon(
+              Icons.arrow_back,
+              color: Colors.white,
+              size: AppSizes.icon20,
+            ),
+          ),
+        ),
+      ),
+      title: const Text(
+        'Health Profile',
+        style: TextStyle(
+          fontSize: AppTypography.fontSize18,
+          fontWeight: AppTypography.bold,
+          color: Colors.white,
+          fontFamily: 'Lato',
+        ),
+      ),
+    );
+  }
+
+  /// Four-step progress indicator (Personal · Lifestyle · Health · Documents).
+  Widget _buildStepIndicator() {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.responsiveSpacing(12.0),
+        vertical: context.responsiveSpacing(16.0),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(
+          _kStepTitles.length,
+          (i) => Expanded(child: _buildStepColumn(i)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepColumn(int index) {
+    final isCompleted = index < _currentStep;
+    final isCurrent = index == _currentStep;
+    final isFirst = index == 0;
+    final isLast = index == _kStepTitles.length - 1;
+    const grey = Color(0xFFCBD5E1);
+    const greyText = Color(0xFF94A3B8);
+    final green = AppColors.primaryGreen;
+
+    Color connector(bool reached) => reached ? green : grey;
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: 2,
+                color: isFirst
+                    ? Colors.transparent
+                    : connector(index <= _currentStep),
               ),
             ),
-            // Page title — fades in only once the header collapses.
-            title: AnimatedOpacity(
-              opacity: _isCollapsed ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 250),
-              child: const Text(
-                'Health Profile',
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: (isCompleted || isCurrent) ? green : Colors.white,
+                border: Border.all(
+                  color: (isCompleted || isCurrent) ? green : grey,
+                  width: 2,
+                ),
+              ),
+              child: Center(
+                child: isCompleted
+                    ? const Icon(Icons.check, color: Colors.white, size: 16)
+                    : Text(
+                        '${index + 1}',
+                        style: TextStyle(
+                          color: isCurrent ? Colors.white : greyText,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+              ),
+            ),
+            Expanded(
+              child: Container(
+                height: 2,
+                color: isLast
+                    ? Colors.transparent
+                    : connector(index < _currentStep),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Text(
+                _kStepTitles[index],
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: AppTypography.fontSize18,
-                  fontWeight: AppTypography.bold,
-                  color: Colors.white,
+                  fontSize: context.responsiveFontSize(11.0),
+                  fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w500,
+                  color: (isCompleted || isCurrent) ? green : greyText,
                   fontFamily: 'Lato',
                 ),
               ),
             ),
-            actions: [
-              // Circular profile avatar — fades in when header collapses
-              AnimatedOpacity(
-                opacity: _isCollapsed ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 250),
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 6, bottom: 6),
-                  child: CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppColors.primaryGreen,
-                    backgroundImage: (_uploadedImageUrl != null &&
-                            _uploadedImageUrl!.isNotEmpty)
-                        ? NetworkImage(_uploadedImageUrl!)
-                        : const NetworkImage("https://i.sstatic.net/l60Hf.png"),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
+            if (isCompleted) ...[
+              const SizedBox(width: 2),
+              Icon(Icons.check, size: 12, color: green),
             ],
-            flexibleSpace: FlexibleSpaceBar(
-              collapseMode: CollapseMode.parallax,
-              background: _buildImageSection(),
-            ),
-          ),
+          ],
+        ),
+      ],
+    );
+  }
 
-          // ── Scrollable form content ──
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(spacing20, spacing20, spacing20, 0),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
+  Widget _buildStepContent(AuthState authState) {
+    switch (_currentStep) {
+      case 0:
+        return _buildPersonalStep();
+      case 1:
+        return _buildLifestyleStep();
+      case 2:
+        return _buildHealthStep();
+      default:
+        return _buildDocumentsStep(authState);
+    }
+  }
+
+  /// Bottom navigation bar: Back / Next per step, Save Profile on the last step.
+  Widget _buildBottomBar(AuthState authState) {
+    final isLast = _currentStep == _kStepTitles.length - 1;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
+    Widget nextButton() => SizedBox(
+          height: context.inputHeight,
+          child: ElevatedButton(
+            onPressed: _onNext,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
                 Text(
-                  "Select type of Physical Activity",
+                  'Next',
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFF2B292A),
-                    fontFamily: "Lato",
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Lato',
                   ),
                 ),
-                SizedBox(height: spacing12),
-
-                // Body Details Section
-                _buildSectionTitle(AppStrings.bodyDetails),
-                SizedBox(height: spacing12),
-                _buildNumberField(
-                  label: AppStrings.ageDetails,
-                  controller: _ageController,
-                  isRequired: true,
-                  errorText: _ageError,
-                  onChanged: (value) => setState(() {
-                    _age = value;
-                    if (_showErrors) _ageError = null;
-                  }),
-                ),
-                SizedBox(height: spacing12),
-                _buildNumberField(
-                  label: AppStrings.heightInCms,
-                  controller: _heightController,
-                  isRequired: true,
-                  errorText: _heightError,
-                  onChanged: (value) => setState(() {
-                    _heightCm = value;
-                    if (_showErrors) _heightError = null;
-                  }),
-                ),
-                SizedBox(height: spacing12),
-                _buildNumberField(
-                  label: AppStrings.weightInKg,
-                  controller: _weightController,
-                  isRequired: true,
-                  errorText: _weightError,
-                  onChanged: (value) => setState(() {
-                    _weightKg = value;
-                    if (_showErrors) _weightError = null;
-                  }),
-                ),
-                SizedBox(height: spacing16),
-
-                // Goal Selection Section
-                Row(
-                  children: [
-                    const Text(
-                      "Select Goal",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF2B292A),
-                        fontFamily: "Lato",
-                      ),
-                    ),
-                    // const SizedBox(width: 4),
-                    // const Text(
-                    //   "*",
-                    //   style: TextStyle(
-                    //     fontSize: 18,
-                    //     fontWeight: FontWeight.w400,
-                    //     color: Colors.red,
-                    //     fontFamily: "Lato",
-                    //   ),
-                    // ),
-                  ],
-                ),
-                SizedBox(height: spacing12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildGoalOption(
-                        title: 'Fat Loss',
-                        value: 'fat-loss',
-                      ),
-                    ),
-                    SizedBox(width: spacing12),
-                    Expanded(
-                      child: _buildGoalOption(
-                        title: 'Lean Mass Gain',
-                        value: 'lean-mass-gain',
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: spacing12),
-                _buildGoalOption(
-                  title: 'Regular BMI Maintenance',
-                  value: 'regular-bmi-maintenance',
-                ),
-                SizedBox(height: spacing16),
-
-                // Physical Activity Section
-                _buildSectionTitle(AppStrings.professionPhysicalWork),
-                SizedBox(height: spacing16),
-                _buildDynamicProfessions(spacing12),
-                SizedBox(height: spacing16),
-
-                // Exercise Section
-                _buildSectionTitle(AppStrings.exercise),
-                SizedBox(height: spacing16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildExerciseToggle(
-                        label: AppStrings.iExercise,
-                        icon: Icons.fitness_center,
-                        isSelected: _doesExercise,
-                        onTap: () => setState(() => _doesExercise = true),
-                      ),
-                    ),
-                    SizedBox(width: spacing12),
-                    Expanded(
-                      child: _buildExerciseToggle(
-                        label: AppStrings.iDontExerciseShort,
-                        icon: Icons.event_busy,
-                        isSelected: !_doesExercise,
-                        onTap: () => setState(() {
-                          _doesExercise = false;
-                          // No exercise → clear any exercise-related errors.
-                          _exerciseTypeError = null;
-                          _daysError.clear();
-                          _durationError.clear();
-                        }),
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Exercise type list + inline days/duration per selected type
-                if (_doesExercise) ...[
-                  SizedBox(height: spacing16),
-                  _buildSectionTitle(AppStrings.typeOfExercise),
-                  SizedBox(height: spacing12),
-                  _buildDynamicExerciseTypes(spacing12),
-                ],
-
-                SizedBox(height: spacing20),
-
-                // Physiological Status Section
-                Text(
-                  AppStrings.selectPhysiologicalStatus,
-                  style: const TextStyle(
-                    fontFamily: "Lato",
-                    fontSize: 18,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xFF2B292A),
-                  ),
-                ),
-                SizedBox(height: spacing12),
-                // Text(
-                //   AppStrings.physiologicalConditions,
-                //   style: TextStyle(
-                //     fontSize: context.responsiveFontSize(14.0),
-                //     fontWeight: FontWeight.w400,
-                //     color: AppColors.textPrimary,
-                //     fontFamily: 'Lato',
-                //   ),
-                // ),
-                // SizedBox(height: spacing12),
-
-                // Dynamic physiological conditions from API
-                _buildDynamicConditions(),
-
-                SizedBox(height: spacing24),
-
-                // Regular Status Section
-                _buildSectionTitle(AppStrings.areYouRegularly),
-                SizedBox(height: spacing16),
-                _buildRegularStatusOption(
-                    AppStrings.constipated, 'constipated'),
-                SizedBox(height: spacing12),
-                _buildRegularStatusOption(AppStrings.diarrhoeal, 'diarrhoeal'),
-                SizedBox(height: spacing12),
-                _buildRegularStatusOption(AppStrings.both, 'both'),
-                SizedBox(height: spacing12),
-                _buildRegularStatusOption(AppStrings.none, 'none'),
-
-                SizedBox(height: spacing24),
-
-                // Prescriptions / medical records — upload + history
-                const PrescriptionUploadSection(),
-
-                SizedBox(height: spacing24),
-
-                // Contact Nutritionist banner when profile updates are locked
-                if (!authState.isUpdateable) ...[
-                  Container(
-                    padding: EdgeInsets.all(context.responsiveSpacing(12.0)),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange.shade300),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline,
-                            color: Colors.orange.shade700, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Profile updates are locked. Please contact your nutritionist to update.',
-                            style: TextStyle(
-                              fontSize: context.responsiveFontSize(13.0),
-                              color: Colors.orange.shade800,
-                              fontFamily: 'Lato',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: context.responsiveSpacing(12.0)),
-                ],
-                // Save Button
-                PrimaryButton(
-                  text: _getSaveButtonText(),
-                  onPressed: authState.isUpdateable ? _handleSave : null,
-                  textColor: Colors.white,
-                  height: context.inputHeight,
-                  isLoading: authState.isLoading,
-                ),
-                SizedBox(height: context.responsiveSpacing(100.0)),
-              ]),
+                SizedBox(width: 6),
+                Icon(Icons.arrow_forward, size: 18),
+              ],
             ),
           ),
+        );
+
+    Widget backButton() => SizedBox(
+          height: context.inputHeight,
+          child: OutlinedButton(
+            onPressed: _onBack,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primaryGreen,
+              side: const BorderSide(
+                color: AppColors.primaryGreen,
+                width: 1.5,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.arrow_back, size: 18),
+                SizedBox(width: 6),
+                Text(
+                  'Back',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+    final saveButton = PrimaryButton(
+      text: _getSaveButtonText(),
+      onPressed: authState.isUpdateable ? _handleSave : null,
+      textColor: Colors.white,
+      height: context.inputHeight,
+      isLoading: authState.isLoading,
+    );
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        context.responsiveSpacing(20.0),
+        context.responsiveSpacing(12.0),
+        context.responsiveSpacing(20.0),
+        context.responsiveSpacing(12.0) + bottomInset,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 8,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          if (_currentStep > 0) ...[
+            Expanded(child: backButton()),
+            SizedBox(width: context.responsiveSpacing(12.0)),
+          ],
+          Expanded(child: isLast ? saveButton : nextButton()),
         ],
       ),
     );
   }
 
-  // ─── Skeleton/Loading State Builders ───
+  // ─── Step content ───
 
-  Widget _buildSkeletonSliverAppBar() {
-    return SliverAppBar(
-      expandedHeight: 270,
-      pinned: true,
-      backgroundColor: const Color(0xFF4A7D33),
-      automaticallyImplyLeading: false,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      flexibleSpace: FlexibleSpaceBar(
-        collapseMode: CollapseMode.parallax,
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF4A7D33), Color(0xFF4A7D33)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+  Widget _buildStepHeading(String title, String subtitle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: context.responsiveFontSize(20.0),
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF2B292A),
+            fontFamily: 'Lato',
+          ),
+        ),
+        if (subtitle.isNotEmpty) ...[
+          SizedBox(height: context.responsiveSpacing(4.0)),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: context.responsiveFontSize(13.0),
+              color: AppColors.textSecondary,
+              fontFamily: 'Lato',
             ),
           ),
-          child: Stack(
-            fit: StackFit.expand,
+        ],
+      ],
+    );
+  }
+
+  Widget _buildBlockHeading(String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: context.responsiveFontSize(16.0),
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF2B292A),
+        fontFamily: 'Lato',
+      ),
+    );
+  }
+
+  // Step 1 · Personal — body metrics + goal.
+  Widget _buildPersonalStep() {
+    final spacing12 = context.responsiveSpacing(12.0);
+    final spacing16 = context.responsiveSpacing(16.0);
+    final spacing24 = context.responsiveSpacing(24.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildStepHeading('Personal Details', 'Tell us a bit about yourself'),
+        SizedBox(height: spacing16),
+        _buildNumberField(
+          label: AppStrings.ageDetails,
+          controller: _ageController,
+          isRequired: true,
+          errorText: _ageError,
+          onChanged: (value) => setState(() {
+            _age = value;
+            if (_showErrors) _ageError = null;
+          }),
+        ),
+        SizedBox(height: spacing12),
+        _buildNumberField(
+          label: AppStrings.heightInCms,
+          controller: _heightController,
+          isRequired: true,
+          errorText: _heightError,
+          onChanged: (value) => setState(() {
+            _heightCm = value;
+            if (_showErrors) _heightError = null;
+          }),
+        ),
+        SizedBox(height: spacing12),
+        _buildNumberField(
+          label: AppStrings.weightInKg,
+          controller: _weightController,
+          isRequired: true,
+          errorText: _weightError,
+          onChanged: (value) => setState(() {
+            _weightKg = value;
+            if (_showErrors) _weightError = null;
+          }),
+        ),
+        SizedBox(height: spacing24),
+        _buildBlockHeading('Select Goal'),
+        SizedBox(height: spacing12),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Image.asset(
-                "assets/images/header_bg.png",
-                width: double.infinity,
-                fit: BoxFit.cover,
+              Expanded(
+                child: _buildGoalOption(
+                  title: 'Lose Fat',
+                  value: 'fat-loss',
+                  icon: Icons.local_fire_department_outlined,
+                ),
               ),
-              Positioned(
-                top: AppSizes.headerHeight,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: _buildSkeletonBox(
-                    width: AppSizes.containerWidthLarge,
-                    height: AppSizes.containerHeightMLarge,
-                    borderRadius: AppSizes.radius16,
-                  ),
+              SizedBox(width: spacing12),
+              Expanded(
+                child: _buildGoalOption(
+                  title: 'Gain Muscle',
+                  value: 'lean-mass-gain',
+                  icon: Icons.fitness_center,
+                ),
+              ),
+              SizedBox(width: spacing12),
+              Expanded(
+                child: _buildGoalOption(
+                  title: 'Maintain Weight',
+                  value: 'regular-bmi-maintenance',
+                  icon: Icons.balance_outlined,
                 ),
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
+
+  // Step 2 · Lifestyle — activity level + exercise.
+  Widget _buildLifestyleStep() {
+    final spacing12 = context.responsiveSpacing(12.0);
+    final spacing16 = context.responsiveSpacing(16.0);
+    final spacing24 = context.responsiveSpacing(24.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildStepHeading('Activity Level', 'Select your usual physical work'),
+        SizedBox(height: spacing16),
+        _buildDynamicProfessions(spacing12),
+        SizedBox(height: spacing24),
+        _buildBlockHeading('Exercise Habit'),
+        SizedBox(height: spacing12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildExerciseToggle(
+                label: AppStrings.iExercise,
+                icon: Icons.fitness_center,
+                isSelected: _doesExercise,
+                onTap: () => setState(() => _doesExercise = true),
+              ),
+            ),
+            SizedBox(width: spacing12),
+            Expanded(
+              child: _buildExerciseToggle(
+                label: AppStrings.iDontExerciseShort,
+                icon: Icons.event_busy,
+                isSelected: !_doesExercise,
+                onTap: () => setState(() {
+                  _doesExercise = false;
+                  _exerciseTypeError = null;
+                  _daysError.clear();
+                  _durationError.clear();
+                }),
+              ),
+            ),
+          ],
+        ),
+        if (_doesExercise) ...[
+          SizedBox(height: spacing16),
+          _buildBlockHeading(AppStrings.typeOfExercise),
+          SizedBox(height: spacing12),
+          _buildDynamicExerciseTypes(spacing12),
+        ],
+      ],
+    );
+  }
+
+  // Step 3 · Health — medical conditions + digestive status.
+  Widget _buildHealthStep() {
+    final spacing12 = context.responsiveSpacing(12.0);
+    final spacing16 = context.responsiveSpacing(16.0);
+    final spacing24 = context.responsiveSpacing(24.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildStepHeading('Medical Conditions', 'Select all that apply to you'),
+        SizedBox(height: spacing16),
+        _buildConditionsGrid(),
+        SizedBox(height: spacing24),
+        _buildBlockHeading(AppStrings.areYouRegularly),
+        SizedBox(height: spacing12),
+        _buildRegularStatusOption(AppStrings.constipated, 'constipated'),
+        SizedBox(height: spacing12),
+        _buildRegularStatusOption(AppStrings.diarrhoeal, 'diarrhoeal'),
+        SizedBox(height: spacing12),
+        _buildRegularStatusOption(AppStrings.both, 'both'),
+        SizedBox(height: spacing12),
+        _buildRegularStatusOption(AppStrings.none, 'none'),
+        SizedBox(height: spacing16),
+      ],
+    );
+  }
+
+  // Step 4 · Documents — upload medical records.
+  Widget _buildDocumentsStep(AuthState authState) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildStepHeading(
+            'Upload Documents', 'Add prescriptions or lab reports (optional)'),
+        SizedBox(height: context.responsiveSpacing(16.0)),
+        const PrescriptionUploadSection(),
+        if (!authState.isUpdateable) ...[
+          SizedBox(height: context.responsiveSpacing(16.0)),
+          Container(
+            padding: EdgeInsets.all(context.responsiveSpacing(12.0)),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.shade300),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline,
+                    color: Colors.orange.shade700, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Profile updates are locked. Please contact your nutritionist to update.',
+                    style: TextStyle(
+                      fontSize: context.responsiveFontSize(13.0),
+                      color: Colors.orange.shade800,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ─── Skeleton/Loading State Builders ───
 
   Widget _buildSkeletonFormContent() {
     final spacing12 = context.responsiveSpacing(12.0);
@@ -1055,89 +1320,6 @@ class _DetailedHealthInfoScreenState
     );
   }
 
-  Widget _buildImageSection() {
-    return Stack(
-      fit: StackFit.expand,
-      clipBehavior: Clip.none,
-      children: [
-        // Green gradient background with pattern
-        Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF4A7D33), Color(0xFF4A7D33)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Image.asset(
-            "assets/images/header_bg.png",
-            width: double.infinity,
-            fit: BoxFit.cover,
-          ),
-        ),
-
-        // Centered profile image
-        Positioned(
-          top: AppSizes.headerHeight,
-          left: 0,
-          right: 0,
-          child: Center(
-            child: Container(
-              width: AppSizes.containerWidthLarge,
-              height: AppSizes.containerHeightMLarge,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppSizes.radius16),
-                color: _uploadedImageUrl == null || _uploadedImageUrl!.isEmpty
-                    ? AppColors.primaryGreen.withValues(alpha: 0.1)
-                    : Colors.transparent,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppSizes.radius12),
-                child: _uploadedImageUrl != null &&
-                        _uploadedImageUrl!.isNotEmpty
-                    ? Image.network(
-                        _uploadedImageUrl!,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
-                              color: AppColors.primaryGreen,
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return Image.network(
-                              "https://i.sstatic.net/l60Hf.png",
-                              fit: BoxFit.cover);
-                        },
-                      )
-                    : Image.network("https://i.sstatic.net/l60Hf.png",
-                        fit: BoxFit.cover),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: TextStyle(
-        fontSize: context.responsiveFontSize(14.0),
-        fontWeight: FontWeight.w400,
-        color: AppColors.textPrimary,
-        fontFamily: 'Lato',
-      ),
-    );
-  }
-
   Widget _buildNumberField({
     required String label,
     required TextEditingController controller,
@@ -1226,8 +1408,8 @@ class _DetailedHealthInfoScreenState
     );
   }
 
-  /// Build dynamic physiological conditions from API
-  Widget _buildDynamicConditions() {
+  /// Build dynamic physiological conditions from the API as a 2-column grid.
+  Widget _buildConditionsGrid() {
     final categoryState = ref.watch(physiologicalCategoryProvider);
 
     if (categoryState.isLoading) {
@@ -1262,19 +1444,44 @@ class _DetailedHealthInfoScreenState
 
     if (displayCategories.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      children: displayCategories.map((category) {
-        return _buildConditionCheckbox(category.name, category.code,
-            generalCode: generalCode);
-      }).toList(),
-    );
+    final spacing = context.responsiveSpacing(12.0);
+    final rows = <Widget>[];
+    for (int i = 0; i < displayCategories.length; i += 2) {
+      final left = displayCategories[i];
+      final right =
+          i + 1 < displayCategories.length ? displayCategories[i + 1] : null;
+      rows.add(
+        Padding(
+          padding: EdgeInsets.only(bottom: spacing),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _buildConditionCard(left.name, left.code,
+                      generalCode: generalCode),
+                ),
+                SizedBox(width: spacing),
+                Expanded(
+                  child: right != null
+                      ? _buildConditionCard(right.name, right.code,
+                          generalCode: generalCode)
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return Column(children: rows);
   }
 
-  /// Checkbox for a dynamic condition code.
+  /// Bordered checkbox card for a dynamic condition code.
   /// [generalCode] is the code for the hidden "General" category — it is
   /// automatically added when no specific condition remains selected, and
   /// removed when any specific condition is selected.
-  Widget _buildConditionCheckbox(String label, String code,
+  Widget _buildConditionCard(String label, String code,
       {String generalCode = ''}) {
     final isChecked = _selectedConditionCodes.contains(code);
     return GestureDetector(
@@ -1298,7 +1505,17 @@ class _DetailedHealthInfoScreenState
         });
       },
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: context.responsiveSpacing(8.0)),
+        padding: EdgeInsets.all(context.responsiveSpacing(12.0)),
+        decoration: BoxDecoration(
+          color: isChecked
+              ? AppColors.primaryGreen.withValues(alpha: 0.08)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(context.responsiveSpacing(8.0)),
+          border: Border.all(
+            color: isChecked ? AppColors.primaryGreen : AppColors.borderColor,
+            width: AppSizes.borderMedium,
+          ),
+        ),
         child: Row(
           children: [
             Container(
@@ -1322,12 +1539,14 @@ class _DetailedHealthInfoScreenState
                     )
                   : null,
             ),
-            SizedBox(width: context.responsiveSpacing(AppSizes.spacing12)),
+            SizedBox(width: context.responsiveSpacing(AppSizes.spacing8)),
             Expanded(
               child: Text(
                 label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: context.responsiveFontSize(14.0),
+                  fontSize: context.responsiveFontSize(13.0),
                   color: AppColors.textPrimary,
                   fontFamily: 'Lato',
                 ),
@@ -1388,8 +1607,10 @@ class _DetailedHealthInfoScreenState
       child: Container(
         padding: EdgeInsets.all(context.responsiveSpacing(12.0)),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(context.responsiveSpacing(4.0)),
+          color: isSelected
+              ? AppColors.primaryGreen.withValues(alpha: 0.08)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(context.responsiveSpacing(8.0)),
           border: Border.all(
             color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
             width: AppSizes.borderMedium,
@@ -1592,9 +1813,11 @@ class _DetailedHealthInfoScreenState
           child: Container(
             padding: EdgeInsets.all(context.responsiveSpacing(12.0)),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isSelected
+                  ? AppColors.primaryGreen.withValues(alpha: 0.08)
+                  : Colors.white,
               borderRadius:
-                  BorderRadius.circular(context.responsiveSpacing(4.0)),
+                  BorderRadius.circular(context.responsiveSpacing(8.0)),
               border: Border.all(
                 color:
                     isSelected ? AppColors.primaryGreen : AppColors.borderColor,
@@ -1695,8 +1918,10 @@ class _DetailedHealthInfoScreenState
       child: Container(
         padding: EdgeInsets.all(context.responsiveSpacing(12.0)),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(context.responsiveSpacing(4.0)),
+          color: isSelected
+              ? AppColors.primaryGreen.withValues(alpha: 0.08)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(context.responsiveSpacing(8.0)),
           border: Border.all(
             color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
             width: AppSizes.borderMedium,
@@ -1731,6 +1956,7 @@ class _DetailedHealthInfoScreenState
   Widget _buildGoalOption({
     required String title,
     required String value,
+    required IconData icon,
   }) {
     final isSelected = _selectedGoal == value;
     return GestureDetector(
@@ -1738,27 +1964,40 @@ class _DetailedHealthInfoScreenState
       child: Container(
         padding: EdgeInsets.symmetric(
           horizontal: context.responsiveSpacing(8.0),
-          vertical: context.responsiveSpacing(8.0),
+          vertical: context.responsiveSpacing(14.0),
         ),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryGreen : Colors.white,
-          borderRadius: BorderRadius.circular(context.responsiveSpacing(50.0)),
+          color: isSelected
+              ? AppColors.primaryGreen.withValues(alpha: 0.08)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(context.responsiveSpacing(12.0)),
           border: Border.all(
             color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
             width: 1.5,
           ),
         ),
-        child: Center(
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: context.responsiveFontSize(14.0),
-              fontWeight: FontWeight.w600,
-              color: isSelected ? Colors.white : AppColors.textPrimary,
-              fontFamily: 'Lato',
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: AppSizes.icon24,
+              color:
+                  isSelected ? AppColors.primaryGreen : AppColors.textSecondary,
             ),
-            textAlign: TextAlign.center,
-          ),
+            SizedBox(height: context.responsiveSpacing(8.0)),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: context.responsiveFontSize(13.0),
+                fontWeight: FontWeight.w600,
+                color:
+                    isSelected ? AppColors.primaryGreen : AppColors.textPrimary,
+                fontFamily: 'Lato',
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
