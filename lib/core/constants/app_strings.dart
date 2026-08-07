@@ -114,7 +114,7 @@ class AppStrings {
   static const String mentionOtherConditions = 'Mention other Conditions *';
   static const String areYouRegularly = 'Are you Regularly';
   static const String constipated = 'Constipated';
-  static const String diarrhoeal = 'Diarrhoeal';
+  static const String diarrhoeal = 'Diarrheal';
   static const String both = 'Both';
   static const String none = 'None';
   static const String save = 'Save';
