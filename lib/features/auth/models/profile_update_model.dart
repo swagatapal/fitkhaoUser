@@ -11,6 +11,9 @@ class ProfileUpdateRequest {
   final double? weight; // kg
   final double? height; // cm
   final String? selectedGoal;
+
+  /// Food preference: veg | non-veg | vegan
+  final String? foodPreference;
   final bool? doesWorkout;
 
   /// MongoDB _id of the selected ProfessionGroup
@@ -33,6 +36,7 @@ class ProfileUpdateRequest {
     this.weight,
     this.height,
     this.selectedGoal,
+    this.foodPreference,
     this.doesWorkout,
     this.professionGroupId,
     this.exercises,
@@ -144,6 +148,7 @@ class ProfileUpdateRequest {
       selectedGoal: s.selectedGoal.isNotEmpty
           ? s.selectedGoal
           : 'regular-bmi-maintenance',
+      foodPreference: s.foodPreference.isNotEmpty ? s.foodPreference : 'veg',
       doesWorkout: s.doesExercise,
       professionGroupId:
           s.professionGroupId.isNotEmpty ? s.professionGroupId : null,
@@ -171,6 +176,7 @@ class ProfileUpdateRequest {
       'address': (address ?? const Address()).toFullJson(),
       'selectedKitchenId': selectedKitchenId ?? '',
       'selectedGoal': selectedGoal ?? '',
+      'foodPreference': foodPreference ?? 'veg',
       'professionGroupId': professionGroupId ?? '',
       'exercises': exercises ?? [],
       'specialConditions': specialConditions ?? [],

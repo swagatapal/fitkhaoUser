@@ -65,6 +65,9 @@ class AuthState {
   final DateTime? lastUpdatedTargetKCal;
   final String selectedGoal;
 
+  /// Food preference: veg | non-veg | vegan
+  final String foodPreference;
+
   // Selected physiological condition codes (from API)
   final List<String> selectedConditionCodes;
 
@@ -122,6 +125,7 @@ class AuthState {
     this.targetKCalories,
     this.lastUpdatedTargetKCal,
     this.selectedGoal = 'regular-bmi-maintenance',
+    this.foodPreference = 'veg',
     this.selectedConditionCodes = const [],
     this.activeSubscription,
     this.profileUpdatedAt,
@@ -176,6 +180,7 @@ class AuthState {
     double? targetKCalories,
     DateTime? lastUpdatedTargetKCal,
     String? selectedGoal,
+    String? foodPreference,
     List<String>? selectedConditionCodes,
     SubscriptionInfo? activeSubscription,
     DateTime? profileUpdatedAt,
@@ -229,6 +234,7 @@ class AuthState {
       lastUpdatedTargetKCal:
           lastUpdatedTargetKCal ?? this.lastUpdatedTargetKCal,
       selectedGoal: selectedGoal ?? this.selectedGoal,
+      foodPreference: foodPreference ?? this.foodPreference,
       selectedConditionCodes:
           selectedConditionCodes ?? this.selectedConditionCodes,
       activeSubscription: clearActiveSubscription

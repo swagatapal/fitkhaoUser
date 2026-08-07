@@ -312,6 +312,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String otherConditions,
     required String regularityStatus,
     required String selectedGoal,
+    String? foodPreference,
   }) {
     state = state.copyWith(
       height: height,
@@ -332,6 +333,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       otherConditions: otherConditions,
       regularityStatus: regularityStatus,
       selectedGoal: selectedGoal,
+      foodPreference: foodPreference,
     );
   }
 
@@ -382,6 +384,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         final professionGroupId = profile['professionGroupId'] as String? ?? '';
         final selectedGoal =
             profile['selectedGoal'] as String? ?? 'regular-bmi-maintenance';
+        final foodPreference = profile['foodPreference'] as String? ?? 'veg';
 
         // Parse exercises array: [{exerciseGroupId, daysPerWeek, hoursPerDay}]
         final rawExercises = profile['exercises'] as List<dynamic>? ?? [];
@@ -569,6 +572,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           targetKCalories: targetKCalories,
           lastUpdatedTargetKCal: lastUpdatedTargetKCal,
           selectedGoal: selectedGoal,
+          foodPreference: foodPreference,
           activeSubscription: activeSubscription,
           profileUpdatedAt: profileUpdatedAt,
           isLoading: false,

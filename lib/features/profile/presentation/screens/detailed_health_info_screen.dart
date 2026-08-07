@@ -50,6 +50,9 @@ class _DetailedHealthInfoScreenState
   // Gender selection (male, female, other)
   String _selectedGender = 'male';
 
+  // Food preference (veg, non-veg, vegan)
+  String _selectedFoodPreference = 'veg';
+
   // Goal selection
   String _selectedGoal =
       'fat-loss'; // fat-loss, lean-mass-gain, regular-bmi-maintenance
@@ -203,6 +206,13 @@ class _DetailedHealthInfoScreenState
       // Selected goal
       if (authState.selectedGoal.isNotEmpty) {
         _selectedGoal = authState.selectedGoal;
+      }
+
+      // Food preference
+      if (authState.foodPreference.isNotEmpty) {
+        final f = authState.foodPreference.toLowerCase();
+        _selectedFoodPreference =
+            (f == 'veg' || f == 'non-veg' || f == 'vegan') ? f : 'veg';
       }
 
       _isInitialized = true;
@@ -538,6 +548,7 @@ class _DetailedHealthInfoScreenState
       otherConditions: '',
       regularityStatus: _capitalize(_regularlyStatus),
       selectedGoal: _selectedGoal,
+      foodPreference: _selectedFoodPreference,
     );
 
     // Get available categories for building the save payload
@@ -1076,6 +1087,39 @@ class _DetailedHealthInfoScreenState
         _buildStepHeading('Activity Level', 'Select your usual physical work'),
         SizedBox(height: spacing16),
         _buildDynamicProfessions(spacing12),
+        SizedBox(height: spacing24),
+        _buildBlockHeading('Food Preference'),
+        SizedBox(height: spacing12),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildFoodPreferenceOption(
+                  title: 'Veg',
+                  value: 'veg',
+                  icon: Icons.eco_outlined,
+                ),
+              ),
+              SizedBox(width: spacing12),
+              Expanded(
+                child: _buildFoodPreferenceOption(
+                  title: 'Non-Veg',
+                  value: 'non-veg',
+                  icon: Icons.egg_alt_outlined,
+                ),
+              ),
+              SizedBox(width: spacing12),
+              Expanded(
+                child: _buildFoodPreferenceOption(
+                  title: 'Vegan',
+                  value: 'vegan',
+                  icon: Icons.spa_outlined,
+                ),
+              ),
+            ],
+          ),
+        ),
         SizedBox(height: spacing24),
         _buildBlockHeading('Exercise Habit'),
         SizedBox(height: spacing12),
@@ -2004,6 +2048,56 @@ class _DetailedHealthInfoScreenState
                 color: AppColors.textPrimary,
                 fontFamily: 'Lato',
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFoodPreferenceOption({
+    required String title,
+    required String value,
+    required IconData icon,
+  }) {
+    final isSelected = _selectedFoodPreference == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedFoodPreference = value),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.responsiveSpacing(8.0),
+          vertical: context.responsiveSpacing(12.0),
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primaryGreen.withValues(alpha: 0.08)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(context.responsiveSpacing(12.0)),
+          border: Border.all(
+            color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: AppSizes.icon24,
+              color:
+                  isSelected ? AppColors.primaryGreen : AppColors.textSecondary,
+            ),
+            SizedBox(height: context.responsiveSpacing(6.0)),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: context.responsiveFontSize(13.0),
+                fontWeight: FontWeight.w600,
+                color:
+                    isSelected ? AppColors.primaryGreen : AppColors.textPrimary,
+                fontFamily: 'Lato',
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
