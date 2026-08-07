@@ -1146,18 +1146,18 @@ class _DeliveryWizardSheetState extends ConsumerState<_DeliveryWizardSheet> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: Row(
                 children: [
-                  // TextButton(
-                  //   onPressed: _skip,
-                  //   style: TextButton.styleFrom(
-                  //     foregroundColor: AppColors.textSecondary,
-                  //     minimumSize: const Size(0, AppSizes.buttonHeight),
-                  //   ),
-                  //   child: const Text('Skip',
-                  //       style: TextStyle(
-                  //           fontFamily: 'Lato',
-                  //           fontWeight: AppTypography.semiBold)),
-                  // ),
-                  // const SizedBox(width: AppSizes.spacing8),
+                  TextButton(
+                    onPressed: _skip,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      minimumSize: const Size(0, AppSizes.buttonHeight),
+                    ),
+                    child: const Text('Skip',
+                        style: TextStyle(
+                            fontFamily: 'Lato',
+                            fontWeight: AppTypography.semiBold)),
+                  ),
+                  const SizedBox(width: AppSizes.spacing8),
                   Expanded(
                     child: SizedBox(
                       height: AppSizes.buttonHeight,
