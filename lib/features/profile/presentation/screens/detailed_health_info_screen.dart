@@ -47,6 +47,9 @@ class _DetailedHealthInfoScreenState
   String _regularlyStatus =
       'constipated'; // constipated, diarrhoeal, both, none
 
+  // Gender selection (male, female, other)
+  String _selectedGender = 'male';
+
   // Goal selection
   String _selectedGoal =
       'fat-loss'; // fat-loss, lean-mass-gain, regular-bmi-maintenance
@@ -190,6 +193,12 @@ class _DetailedHealthInfoScreenState
 
       // Regularity status
       _regularlyStatus = authState.regularityStatus.toLowerCase();
+
+      // Gender
+      if (authState.gender.isNotEmpty) {
+        final g = authState.gender.toLowerCase();
+        _selectedGender = (g == 'male' || g == 'female') ? g : 'other';
+      }
 
       // Selected goal
       if (authState.selectedGoal.isNotEmpty) {
@@ -477,7 +486,7 @@ class _DetailedHealthInfoScreenState
         parsedWeight != null ||
         dateOfBirth != null) {
       authNotifier.savePersonalInfo(
-        gender: authState.gender.isNotEmpty ? authState.gender : 'male',
+        gender: _selectedGender,
         dateOfBirth: dateOfBirth ?? authState.dateOfBirth ?? DateTime.now(),
         height: parsedHeight ?? authState.height ?? 0.0,
         weight: parsedWeight ?? authState.weight ?? 0.0,
@@ -937,6 +946,55 @@ class _DetailedHealthInfoScreenState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildStepHeading('Personal Details', 'Tell us a bit about yourself'),
+        SizedBox(height: spacing16),
+        RichText(
+          text: TextSpan(
+            text: 'Gender',
+            style: TextStyle(
+              fontSize: context.responsiveFontSize(14.0),
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w400,
+              fontFamily: 'Lato',
+            ),
+            children: const [
+              TextSpan(
+                text: ' *',
+                style: TextStyle(color: AppColors.errorColor),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: context.responsiveSpacing(8.0)),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildGenderOption(
+                  title: 'Male',
+                  value: 'male',
+                  icon: Icons.male,
+                ),
+              ),
+              SizedBox(width: spacing12),
+              Expanded(
+                child: _buildGenderOption(
+                  title: 'Female',
+                  value: 'female',
+                  icon: Icons.female,
+                ),
+              ),
+              SizedBox(width: spacing12),
+              Expanded(
+                child: _buildGenderOption(
+                  title: 'Others',
+                  value: 'other',
+                  icon: Icons.transgender,
+                ),
+              ),
+            ],
+          ),
+        ),
         SizedBox(height: spacing16),
         _buildNumberField(
           label: AppStrings.ageDetails,
@@ -1946,6 +2004,56 @@ class _DetailedHealthInfoScreenState
                 color: AppColors.textPrimary,
                 fontFamily: 'Lato',
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenderOption({
+    required String title,
+    required String value,
+    required IconData icon,
+  }) {
+    final isSelected = _selectedGender == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedGender = value),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.responsiveSpacing(8.0),
+          vertical: context.responsiveSpacing(12.0),
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primaryGreen.withValues(alpha: 0.08)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(context.responsiveSpacing(12.0)),
+          border: Border.all(
+            color: isSelected ? AppColors.primaryGreen : AppColors.borderColor,
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: AppSizes.icon24,
+              color:
+                  isSelected ? AppColors.primaryGreen : AppColors.textSecondary,
+            ),
+            SizedBox(height: context.responsiveSpacing(6.0)),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: context.responsiveFontSize(13.0),
+                fontWeight: FontWeight.w600,
+                color:
+                    isSelected ? AppColors.primaryGreen : AppColors.textPrimary,
+                fontFamily: 'Lato',
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
