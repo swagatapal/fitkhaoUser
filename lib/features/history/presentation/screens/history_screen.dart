@@ -42,10 +42,12 @@ class HistoryScreen extends ConsumerStatefulWidget {
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   late HistoryTab _selected = widget.initialTab;
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     // Load order history when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(orderHistoryProvider.notifier).loadOrderHistory(refresh: true);
@@ -54,8 +56,37 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   @override
   void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// Loads the next page when the list is scrolled near the bottom.
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 300) {
+      _loadMoreIfPossible();
+    }
+  }
+
+  /// The API paginates the combined order list, but each tab shows only a
+  /// filtered subset. When the visible list is too short to scroll yet more
+  /// pages exist (e.g. this page held mostly the other tab's orders), fetch the
+  /// next page automatically so pagination doesn't stall.
+  void _maybeAutoLoadMore() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadMoreIfPossible();
+    });
+  }
+
+  void _loadMoreIfPossible() {
+    final state = ref.read(orderHistoryProvider);
+    if (state.hasMore && !state.isLoading) {
+      ref.read(orderHistoryProvider.notifier).loadMore();
+    }
   }
 
   @override
@@ -112,18 +143,44 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                         onRefresh: () =>
                                             historyNotifier.refresh(),
                                         child: ListView.separated(
+                                          controller: _scrollController,
+                                          physics:
+                                              const AlwaysScrollableScrollPhysics(),
                                           padding: const EdgeInsets.only(
                                             left: AppSizes
                                                 .screenPaddingHorizontal,
                                             right: AppSizes
                                                 .screenPaddingHorizontal,
+                                            top: AppSizes.spacing12,
                                             bottom: AppSizes.spacing24,
                                           ),
-                                          itemCount: orders.length,
+                                          itemCount: orders.length +
+                                              (historyState.hasMore ? 1 : 0),
                                           separatorBuilder: (_, __) =>
                                               const SizedBox(
                                                   height: AppSizes.spacing12),
                                           itemBuilder: (context, index) {
+                                            // Trailing pagination loader.
+                                            if (index >= orders.length) {
+                                              _maybeAutoLoadMore();
+                                              return const Padding(
+                                                padding: EdgeInsets.symmetric(
+                                                  vertical: AppSizes.spacing16,
+                                                ),
+                                                child: Center(
+                                                  child: SizedBox(
+                                                    height: 24,
+                                                    width: 24,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: AppColors
+                                                          .primaryGreen,
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            }
                                             final order = orders[index];
                                             return _OrderCard(
                                               order: order,
