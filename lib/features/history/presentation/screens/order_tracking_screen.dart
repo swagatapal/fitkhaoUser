@@ -19,7 +19,8 @@ class OrderTrackingScreen extends ConsumerStatefulWidget {
   const OrderTrackingScreen({super.key, required this.order});
 
   @override
-  ConsumerState<OrderTrackingScreen> createState() => _OrderTrackingScreenState();
+  ConsumerState<OrderTrackingScreen> createState() =>
+      _OrderTrackingScreenState();
 }
 
 class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
@@ -89,9 +90,16 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                       const SizedBox(height: AppSizes.spacing16),
                       _buildDeliveryDetails(order),
                       const SizedBox(height: AppSizes.spacing16),
-                      _buildPriceSummary(order),
-                      const SizedBox(height: AppSizes.spacing16),
-                      _buildInvoiceButton(order),
+                      // Subscription-slot orders are billed via the plan, so we
+                      // hide the price breakdown + invoice and simply note that
+                      // it's covered by the subscription.
+                      if (_isSubscriptionOrder(order))
+                        _buildSubscriptionPaidCard()
+                      else ...[
+                        _buildPriceSummary(order),
+                        const SizedBox(height: AppSizes.spacing16),
+                        _buildInvoiceButton(order),
+                      ],
                       const SizedBox(height: AppSizes.spacing16),
                       const SizedBox(height: AppSizes.spacing16),
                       _buildTimeline(context, order),
@@ -187,7 +195,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     );
   }
 
-
   Widget _buildOrderItems(OrderHistory order) {
     return Container(
       width: double.infinity,
@@ -238,50 +245,50 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             ),
                           ),
                           const SizedBox(height: 4),
-
-                            Wrap(
-                              children: [
-                                (item.nutritionalInfo?.kcal == 0.0)?SizedBox.shrink():
-                                Text(
-                                  '• ${item.nutritionalInfo!.kcal.toStringAsFixed(0)} kcal ',
-                                  style: const TextStyle(
-                                    fontSize: AppTypography.fontSize12,
-                                    color: AppColors.textSecondary,
-                                    fontFamily: AppTypography.fontFamily,
-                                  ),
-                                ),
-
-                                (item.nutritionalInfo?.protein == 0.0)?SizedBox.shrink():
-                                Text(
-                                  '• ${item.nutritionalInfo!.protein.toStringAsFixed(1)}g Protein',
-                                  style: const TextStyle(
-                                    fontSize: AppTypography.fontSize12,
-                                    color: AppColors.textSecondary,
-                                    fontFamily: AppTypography.fontFamily,
-                                  ),
-                                ),
-
-                                (item.nutritionalInfo?.fat == 0.0)?SizedBox.shrink():
-                                Text(
-                                  '• ${item.nutritionalInfo!.fat.toStringAsFixed(1)}g Fat',
-                                  style: const TextStyle(
-                                    fontSize: AppTypography.fontSize12,
-                                    color: AppColors.textSecondary,
-                                    fontFamily: AppTypography.fontFamily,
-                                  ),
-                                ),
-
-                                (item.nutritionalInfo?.carbs == 0.0)?SizedBox.shrink():
-                                Text(
-                                  '• ${item.nutritionalInfo!.carbs.toStringAsFixed(1)}g Carbs',
-                                  style: const TextStyle(
-                                    fontSize: AppTypography.fontSize12,
-                                    color: AppColors.textSecondary,
-                                    fontFamily: AppTypography.fontFamily,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          Wrap(
+                            children: [
+                              (item.nutritionalInfo?.kcal == 0.0)
+                                  ? SizedBox.shrink()
+                                  : Text(
+                                      '• ${item.nutritionalInfo!.kcal.toStringAsFixed(0)} kcal ',
+                                      style: const TextStyle(
+                                        fontSize: AppTypography.fontSize12,
+                                        color: AppColors.textSecondary,
+                                        fontFamily: AppTypography.fontFamily,
+                                      ),
+                                    ),
+                              (item.nutritionalInfo?.protein == 0.0)
+                                  ? SizedBox.shrink()
+                                  : Text(
+                                      '• ${item.nutritionalInfo!.protein.toStringAsFixed(1)}g Protein',
+                                      style: const TextStyle(
+                                        fontSize: AppTypography.fontSize12,
+                                        color: AppColors.textSecondary,
+                                        fontFamily: AppTypography.fontFamily,
+                                      ),
+                                    ),
+                              (item.nutritionalInfo?.fat == 0.0)
+                                  ? SizedBox.shrink()
+                                  : Text(
+                                      '• ${item.nutritionalInfo!.fat.toStringAsFixed(1)}g Fat',
+                                      style: const TextStyle(
+                                        fontSize: AppTypography.fontSize12,
+                                        color: AppColors.textSecondary,
+                                        fontFamily: AppTypography.fontFamily,
+                                      ),
+                                    ),
+                              (item.nutritionalInfo?.carbs == 0.0)
+                                  ? SizedBox.shrink()
+                                  : Text(
+                                      '• ${item.nutritionalInfo!.carbs.toStringAsFixed(1)}g Carbs',
+                                      style: const TextStyle(
+                                        fontSize: AppTypography.fontSize12,
+                                        color: AppColors.textSecondary,
+                                        fontFamily: AppTypography.fontFamily,
+                                      ),
+                                    ),
+                            ],
+                          ),
                           if (item.specialInstructions != null)
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
@@ -359,10 +366,21 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             ),
           ),
           const SizedBox(height: AppSizes.spacing12),
+          if (order.deliveryDate.isNotEmpty) ...[
+            _buildDetailRow(Icons.calendar_today, 'Delivery Date',
+                _formatDeliveryDate(order.deliveryDate)),
+            const SizedBox(height: AppSizes.spacing8),
+          ],
+          if (_formatDeliverySlot(order.deliverySlot).isNotEmpty) ...[
+            _buildDetailRow(Icons.access_time, 'Delivery Slot',
+                _formatDeliverySlot(order.deliverySlot)),
+            const SizedBox(height: AppSizes.spacing8),
+          ],
           _buildDetailRow(Icons.location_on, 'Address',
               '${order.deliveryAddress.buildingName}, ${order.deliveryAddress.street}'),
           const SizedBox(height: AppSizes.spacing8),
-          _buildDetailRow(Icons.phone, 'Contact', order.deliveryAddress.contactNumber),
+          _buildDetailRow(
+              Icons.phone, 'Contact', order.deliveryAddress.contactNumber),
           if (order.deliveryAddress.deliveryInstructions != null) ...[
             const SizedBox(height: AppSizes.spacing8),
             _buildDetailRow(Icons.note, 'Delivery Instructions',
@@ -409,16 +427,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   }
 
   Widget _buildPriceSummary(OrderHistory order) {
-    final pricing = ref
-            .watch(appConstantsProvider)
-            .valueOrNull
-            ?.pricing ??
+    final pricing = ref.watch(appConstantsProvider).valueOrNull?.pricing ??
         PricingConstants.defaults;
 
     final subtotal = order.subtotal;
     final platformCharge = pricing.platformFee;
     final deliveryCharge = pricing.deliveryCharge;
-    final tax = (subtotal + platformCharge) * pricing.gstRate ;
+    final tax = (subtotal + platformCharge) * pricing.gstRate;
     final discount = order.discount;
     final total = subtotal + tax + platformCharge + deliveryCharge - discount;
 
@@ -452,9 +467,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           const SizedBox(height: AppSizes.spacing12),
           _buildPriceRow('Subtotal', subtotal),
           const SizedBox(height: AppSizes.spacing8),
-          _buildPriceRow('Commission and taxes (${((pricing.gstRate)*100).toStringAsFixed(0)}%)', tax),
+          _buildPriceRow(
+              'Commission and taxes (${((pricing.gstRate) * 100).toStringAsFixed(0)}%)',
+              tax),
           const SizedBox(height: AppSizes.spacing8),
-          platformCharge==0.0?SizedBox.shrink(): _buildPriceRow('Platform Charge', platformCharge),
+          platformCharge == 0.0
+              ? SizedBox.shrink()
+              : _buildPriceRow('Platform Charge', platformCharge),
           const SizedBox(height: AppSizes.spacing8),
           _buildPriceRow('Delivery Charge', deliveryCharge),
           if (discount > 0) ...[
@@ -517,7 +536,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     );
   }
 
-  Widget _buildPriceRow(String label, double amount, {bool isDiscount = false}) {
+  Widget _buildPriceRow(String label, double amount,
+      {bool isDiscount = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -543,7 +563,6 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       ],
     );
   }
-
 
   Widget _buildTimeline(BuildContext context, OrderHistory order) {
     final currentStatus = _normalizeOrderStatus(order.orderStatus);
@@ -752,6 +771,69 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         return -1;
     }
   }
+
+  /// Subscription-slot orders are paid through the plan, not per order.
+  bool _isSubscriptionOrder(OrderHistory order) {
+    return order.orderSource.trim().toLowerCase() == 'subscription_slot';
+  }
+
+  /// Simple "covered by your subscription" note shown in place of the price
+  /// summary + invoice for subscription-slot orders.
+  Widget _buildSubscriptionPaidCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSizes.p16),
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radius4),
+        border:
+            Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSizes.spacing8),
+            decoration: const BoxDecoration(
+              color: AppColors.primaryGreen,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.workspace_premium_rounded,
+              color: Colors.white,
+              size: AppSizes.icon20,
+            ),
+          ),
+          const SizedBox(width: AppSizes.spacing12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Paid via subscription',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize15,
+                    fontWeight: AppTypography.semiBold,
+                    color: AppColors.textPrimary,
+                    fontFamily: AppTypography.fontFamily,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'This order is covered by your active subscription plan.',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    color: AppColors.textSecondary,
+                    fontFamily: AppTypography.fontFamily,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInvoiceButton(OrderHistory order) {
     final isLoading = ref.watch(
       orderHistoryProvider.select((s) => s.isInvoiceLoading(order.id)),
@@ -844,6 +926,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       );
     }
   }
+
   Future<void> _callKitchen() async {
     final Uri phoneUri = Uri(scheme: 'tel', path: '9635139595');
     if (!await launchUrl(phoneUri)) {
@@ -869,7 +952,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppSizes.radius4),
-        border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.4)),
+        border:
+            Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.4)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: AppSizes.opacity08),
@@ -990,7 +1074,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         // const SizedBox(width: AppSizes.spacing12),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed:()=>  ProfileMenuActions.showContactUs(context),
+            onPressed: () => ProfileMenuActions.showContactUs(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryGreen,
               padding: const EdgeInsets.symmetric(vertical: AppSizes.p16),
@@ -1152,7 +1236,8 @@ class _OrderSummaryCard extends StatelessWidget {
                     vertical: AppSizes.spacing4,
                   ),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(order.orderStatus).withValues(alpha: 0.1),
+                    color: _getStatusColor(order.orderStatus)
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppSizes.radius4),
                   ),
                   child: Text(
@@ -1212,6 +1297,7 @@ class _OrderSummaryCard extends StatelessWidget {
         return status;
     }
   }
+
   static Color _getStatusColor(String status) {
     switch (status.trim().toLowerCase().replaceAll('-', '_')) {
       case 'pending':
@@ -1238,7 +1324,8 @@ class _OrderSummaryCard extends StatelessWidget {
       default:
         return AppColors.textSecondary;
     }
-  }}
+  }
+}
 
 class _TimelineTile extends StatelessWidget {
   final String title;
@@ -1259,21 +1346,20 @@ class _TimelineTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor =
-    isError ? AppColors.errorColor : AppColors.primaryGreen;
+    final activeColor = isError ? AppColors.errorColor : AppColors.primaryGreen;
 
     final dotColor =
-    isCompleted || isCurrent ? activeColor : AppColors.borderColor;
+        isCompleted || isCurrent ? activeColor : AppColors.borderColor;
 
     final innerIcon = isCompleted
         ? const Icon(Icons.check, size: 16, color: Colors.white)
         : isCurrent
-        ? Icon(
-      isError ? Icons.close : Icons.radio_button_checked,
-      size: 16,
-      color: Colors.white,
-    )
-        : const SizedBox.shrink();
+            ? Icon(
+                isError ? Icons.close : Icons.radio_button_checked,
+                size: 16,
+                color: Colors.white,
+              )
+            : const SizedBox.shrink();
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1312,7 +1398,7 @@ class _TimelineTile extends StatelessWidget {
                   style: TextStyle(
                     fontSize: AppTypography.fontSize14,
                     fontWeight:
-                    isCurrent ? AppTypography.bold : AppTypography.semiBold,
+                        isCurrent ? AppTypography.bold : AppTypography.semiBold,
                     color: isError && isCurrent
                         ? AppColors.errorColor
                         : AppColors.textPrimary,
@@ -1339,6 +1425,7 @@ class _TimelineTile extends StatelessWidget {
     );
   }
 }
+
 /// Reusable cached dish image with a green icon placeholder fallback.
 class _DishImage extends StatelessWidget {
   final String? url;
@@ -1372,10 +1459,12 @@ class _DishImage extends StatelessWidget {
         height: size,
         color: AppColors.primaryGreen.withValues(alpha: 0.08),
         child: const Center(
-          child: Icon(Icons.restaurant, color: AppColors.primaryGreen, size: 28),
+          child:
+              Icon(Icons.restaurant, color: AppColors.primaryGreen, size: 28),
         ),
       );
 }
+
 class _OrderTimelineStep {
   final String status;
   final String title;
