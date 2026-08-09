@@ -76,15 +76,53 @@ class SubscriptionTimelineResponse {
 class SubscriptionTimeline {
   final TimelineSubscription? subscription;
   final List<TimelineStep> steps;
-  final List<TimelineDay> dailyMeals;
+
+  /// Meal-plan phases, one per service period (`mealPlanNumber` → Service
+  /// Period N). Each phase carries its own date window and daily meals.
+  final List<MealPlanPhase> mealPlanOrders;
 
   const SubscriptionTimeline({
     this.subscription,
     required this.steps,
-    required this.dailyMeals,
+    required this.mealPlanOrders,
   });
 
+  /// All scheduled days flattened across every phase (chronological order is
+  /// preserved as returned by the API).
+  List<TimelineDay> get allDays => [
+        for (final phase in mealPlanOrders) ...phase.dailyMeals,
+      ];
+
+  /// The phase whose `mealPlanNumber` matches [number] (i.e. Service Period N),
+  /// or null when no such phase exists yet.
+  MealPlanPhase? phaseForNumber(int number) {
+    for (final phase in mealPlanOrders) {
+      if (phase.mealPlanNumber == number) return phase;
+    }
+    return null;
+  }
+
   factory SubscriptionTimeline.fromJson(Map<String, dynamic> json) {
+    // New shape: `mealPlanOrders` (list of phases). Legacy shape: a flat
+    // `dailyMeals` list at the top level → wrap it in a single phase (#1).
+    List<MealPlanPhase> phases;
+    final rawPhases = json['mealPlanOrders'] as List<dynamic>?;
+    if (rawPhases != null) {
+      phases = rawPhases
+          .whereType<Map<String, dynamic>>()
+          .map(MealPlanPhase.fromJson)
+          .toList();
+    } else {
+      final legacyDays = (json['dailyMeals'] as List<dynamic>?)
+              ?.whereType<Map<String, dynamic>>()
+              .map(TimelineDay.fromJson)
+              .toList() ??
+          const <TimelineDay>[];
+      phases = legacyDays.isEmpty
+          ? const []
+          : [MealPlanPhase(mealPlanNumber: 1, dailyMeals: legacyDays)];
+    }
+
     return SubscriptionTimeline(
       subscription: json['subscription'] != null
           ? TimelineSubscription.fromJson(
@@ -94,8 +132,34 @@ class SubscriptionTimeline {
               ?.map((e) => TimelineStep.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      mealPlanOrders: phases,
+    );
+  }
+}
+
+/// One meal-plan phase = one service period. `mealPlanNumber` 1 → "Service
+/// Period 1", 2 → "Service Period 2", and so on.
+class MealPlanPhase {
+  final int mealPlanNumber;
+  final DateTime? phaseStart;
+  final DateTime? phaseEnd;
+  final List<TimelineDay> dailyMeals;
+
+  const MealPlanPhase({
+    required this.mealPlanNumber,
+    this.phaseStart,
+    this.phaseEnd,
+    required this.dailyMeals,
+  });
+
+  factory MealPlanPhase.fromJson(Map<String, dynamic> json) {
+    return MealPlanPhase(
+      mealPlanNumber: (json['mealPlanNumber'] as num?)?.toInt() ?? 0,
+      phaseStart: DateTime.tryParse(json['phaseStart'] as String? ?? ''),
+      phaseEnd: DateTime.tryParse(json['phaseEnd'] as String? ?? ''),
       dailyMeals: (json['dailyMeals'] as List<dynamic>?)
-              ?.map((e) => TimelineDay.fromJson(e as Map<String, dynamic>))
+              ?.whereType<Map<String, dynamic>>()
+              .map(TimelineDay.fromJson)
               .toList() ??
           const [],
     );

@@ -640,7 +640,6 @@ class _TimelineContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final steps = timeline.steps;
-    final days = timeline.dailyMeals;
 
     // Meeting link for the first consultation — same source the booking screen
     // uses (token-scoped active consultation). Shown right after that step.
@@ -705,7 +704,7 @@ class _TimelineContent extends ConsumerWidget {
               final action = _stepAction(
                 context,
                 steps[i],
-                days,
+                timeline,
                 healthUpdatedNote: healthUpdatedNote,
                 hasHealthProfile: hasHealthProfile,
                 hasDeliverySlot: hasDeliverySlot,
@@ -1209,10 +1208,30 @@ class ServicePeriodMealsScreen extends StatelessWidget {
     super.key,
     required this.title,
     required this.days,
+    this.phaseStart,
+    this.phaseEnd,
   });
 
   final String title;
   final List<TimelineDay> days;
+
+  /// Optional service-period window (shown as the header subtitle).
+  final DateTime? phaseStart;
+  final DateTime? phaseEnd;
+
+  /// "8 Aug 2026 – 22 Aug 2026" (IST) when the window is known, otherwise the
+  /// generic fallback.
+  String get _subtitle {
+    DateTime ist(DateTime d) =>
+        d.toUtc().add(const Duration(hours: 5, minutes: 30));
+    String fmt(DateTime d) =>
+        '${ist(d).day} ${_kMonthLong[ist(d).month - 1].substring(0, 3)} ${ist(d).year}';
+    if (phaseStart != null && phaseEnd != null) {
+      return '${fmt(phaseStart!)} – ${fmt(phaseEnd!)}';
+    }
+    if (phaseStart != null) return 'From ${fmt(phaseStart!)}';
+    return 'Your scheduled deliveries';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1226,7 +1245,7 @@ class ServicePeriodMealsScreen extends StatelessWidget {
             children: [
               _BackHeader(
                 title: title.trim().isEmpty ? 'Service period' : title,
-                subtitle: 'Your scheduled deliveries',
+                subtitle: _subtitle,
               ),
               Expanded(
                 child: days.isEmpty
@@ -2161,7 +2180,7 @@ class _StatusPill extends StatelessWidget {
 }) _stepAction(
   BuildContext context,
   TimelineStep step,
-  List<TimelineDay> days, {
+  SubscriptionTimeline timeline, {
   String? healthUpdatedNote,
   bool hasHealthProfile = true,
   bool hasDeliverySlot = true,
@@ -2237,6 +2256,14 @@ class _StatusPill extends StatelessWidget {
     );
   }
   if (has('service')) {
+    // Resolve the meal-plan phase for this service period. `service_period_1`
+    // → Service Period 1 → mealPlanNumber 1, and so on. Fall back to matching
+    // the phase by list position when the number can't be parsed.
+    final periodNumber =
+        _extractTrailingNumber(step.key) ?? _extractTrailingNumber(step.name);
+    final phase =
+        periodNumber != null ? timeline.phaseForNumber(periodNumber) : null;
+    final days = phase?.dailyMeals ?? const <TimelineDay>[];
     return (
       onTap: days.isEmpty
           ? null
@@ -2245,6 +2272,8 @@ class _StatusPill extends StatelessWidget {
                   builder: (_) => ServicePeriodMealsScreen(
                     title: step.name,
                     days: days,
+                    phaseStart: phase?.phaseStart,
+                    phaseEnd: phase?.phaseEnd,
                   ),
                 ),
               ),
@@ -2261,6 +2290,14 @@ class _StatusPill extends StatelessWidget {
     ctaColor: null,
     note: null,
   );
+}
+
+/// Extracts the last integer in a string (e.g. "service_period_2" → 2,
+/// "Service Period 2" → 2). Returns null when there's no digit.
+int? _extractTrailingNumber(String s) {
+  final matches = RegExp(r'\d+').allMatches(s);
+  if (matches.isEmpty) return null;
+  return int.tryParse(matches.last.group(0)!);
 }
 
 /// "3 Aug 2026, 2:30 PM" (IST) from a stored profile-update timestamp.
