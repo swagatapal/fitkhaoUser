@@ -15,8 +15,19 @@ import '../../../policy/models/app_constants_model.dart';
 import '../../../policy/providers/app_constants_provider.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
-  final OrderHistory order;
-  const OrderTrackingScreen({super.key, required this.order});
+  /// The order to show. May be null when the screen is opened by id only
+  /// (e.g. from the subscription meals list) — details are then fetched.
+  final OrderHistory? order;
+
+  /// Order id to fetch when a full [order] object isn't available.
+  final String? orderId;
+
+  const OrderTrackingScreen({super.key, required OrderHistory this.order})
+      : orderId = null;
+
+  /// Opens the screen with only an order id; the full details are fetched.
+  const OrderTrackingScreen.byId({super.key, required String this.orderId})
+      : order = null;
 
   @override
   ConsumerState<OrderTrackingScreen> createState() =>
@@ -24,15 +35,41 @@ class OrderTrackingScreen extends ConsumerStatefulWidget {
 }
 
 class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
+  String get _orderId => widget.order?.id ?? widget.orderId!;
+
   @override
   Widget build(BuildContext context) {
-    final orderId = widget.order.id;
+    final orderId = _orderId;
     final detailsAsync = ref.watch(orderDetailsProvider(orderId));
 
     // Show the order passed from the list instantly; swap in the freshly
-    // fetched details the moment they arrive (no blank-screen flash).
+    // fetched details the moment they arrive (no blank-screen flash). When
+    // opened by id there's no fallback yet, so show a loader/error until the
+    // fetch resolves.
     final order = detailsAsync.valueOrNull ?? widget.order;
     final isRefreshing = detailsAsync.isLoading;
+
+    if (order == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: detailsAsync.hasError
+                    ? _buildDetailsError(orderId)
+                    : const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primaryGreen,
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     // A fetch failure is non-blocking — the fallback order stays on screen.
     ref.listen<AsyncValue<OrderHistory>>(orderDetailsProvider(orderId),
@@ -873,8 +910,41 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     );
   }
 
+  Widget _buildDetailsError(String orderId) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSizes.spacing24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline,
+                size: 48, color: AppColors.errorColor),
+            const SizedBox(height: AppSizes.spacing16),
+            const Text(
+              'Could not load order details. Please try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize14,
+                color: AppColors.textSecondary,
+                fontFamily: AppTypography.fontFamily,
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacing16),
+            ElevatedButton(
+              onPressed: () => ref.invalidate(orderDetailsProvider(orderId)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryGreen,
+              ),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleViewInvoice() async {
-    final orderId = widget.order.id;
+    final orderId = _orderId;
     try {
       final url = await ref
           .read(orderHistoryProvider.notifier)

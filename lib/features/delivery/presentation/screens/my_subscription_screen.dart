@@ -18,6 +18,7 @@ import '../../../dashboard/providers/meal_plan_provider.dart';
 import '../../../policy/models/app_constants_model.dart';
 import '../../../policy/providers/app_constants_provider.dart';
 import '../../../profile/providers/delivery_address_provider.dart';
+import '../../../history/presentation/screens/order_tracking_screen.dart';
 import '../../models/subscription_timeline_model.dart';
 import '../../providers/delivery_slot_list_provider.dart';
 import '../../providers/subscription_detail_provider.dart';
@@ -1473,6 +1474,16 @@ class _MealRowState extends ConsumerState<_MealRow> {
     );
   }
 
+  /// Opens the full order details / tracking screen for this meal's order.
+  void _openOrderDetails() {
+    if (meal.orderId.isEmpty) return;
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => OrderTrackingScreen.byId(orderId: meal.orderId),
+      ),
+    );
+  }
+
   Future<void> _changeSlot() async {
     final changed = await showModalBottomSheet<bool>(
       context: context,
@@ -1554,29 +1565,41 @@ class _MealRowState extends ConsumerState<_MealRow> {
                 color: AppColors.textSecondary.withValues(alpha: 0.7)),
           ),
         ],
-        if (canModify) ...[
-          const SizedBox(width: 2),
-          if (_busy)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              child: SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.primaryGreen),
+        const SizedBox(width: 2),
+        if (_busy)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10),
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: AppColors.primaryGreen),
+            ),
+          )
+        else
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded,
+                size: AppSizes.icon20, color: AppColors.textSecondary),
+            padding: EdgeInsets.zero,
+            onSelected: (v) {
+              if (v == 'details') _openOrderDetails();
+              if (v == 'change') _changeSlot();
+              if (v == 'cancel') _cancelOrder();
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'details',
+                child: Row(
+                  children: [
+                    Icon(Icons.receipt_long_rounded,
+                        size: AppSizes.icon18, color: AppColors.primaryGreen),
+                    SizedBox(width: AppSizes.spacing8),
+                    Text('Order details', style: TextStyle(fontFamily: 'Lato')),
+                  ],
+                ),
               ),
-            )
-          else
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded,
-                  size: AppSizes.icon20, color: AppColors.textSecondary),
-              padding: EdgeInsets.zero,
-              onSelected: (v) {
-                if (v == 'change') _changeSlot();
-                if (v == 'cancel') _cancelOrder();
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(
+              if (canModify)
+                const PopupMenuItem(
                   value: 'change',
                   child: Row(
                     children: [
@@ -1588,7 +1611,8 @@ class _MealRowState extends ConsumerState<_MealRow> {
                     ],
                   ),
                 ),
-                PopupMenuItem(
+              if (canModify)
+                const PopupMenuItem(
                   value: 'cancel',
                   child: Row(
                     children: [
@@ -1601,9 +1625,8 @@ class _MealRowState extends ConsumerState<_MealRow> {
                     ],
                   ),
                 ),
-              ],
-            ),
-        ],
+            ],
+          ),
       ],
     );
   }
