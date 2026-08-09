@@ -144,6 +144,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // The Subscription tab is only shown when the user has an active
+    // subscription (same source the home shell uses).
+    final hasSubscription = ref.watch(
+      authProvider.select((s) =>
+          s.activeSubscription != null && s.activeSubscription!.isActive),
+    );
+
+    // Guard: if the subscription tab was selected and the subscription went
+    // away, fall back to the outlet tab.
+    if (!hasSubscription && _source == OrderHistorySource.subscription) {
+      _source = OrderHistorySource.outlet;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _ensureLoaded(OrderHistorySource.outlet);
+      });
+    }
+
     final historyState = ref.watch(orderHistoryListProvider(_source));
     final historyNotifier =
         ref.read(orderHistoryListProvider(_source).notifier);
@@ -172,16 +188,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSizes.screenPaddingHorizontal,
-                        AppSizes.spacing12,
-                        AppSizes.screenPaddingHorizontal,
-                        0,
+                    // Tabs only make sense with an active subscription; without
+                    // one, just the outlet orders are shown.
+                    if (hasSubscription) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSizes.screenPaddingHorizontal,
+                          AppSizes.spacing12,
+                          AppSizes.screenPaddingHorizontal,
+                          0,
+                        ),
+                        child: _buildSegmentedControl(context),
                       ),
-                      child: _buildSegmentedControl(context),
-                    ),
-                    const SizedBox(height: AppSizes.spacing12),
+                      const SizedBox(height: AppSizes.spacing12),
+                    ] else
+                      const SizedBox(height: AppSizes.spacing12),
                     Expanded(
                       child: Material(
                         color: AppColors.textWhite,
