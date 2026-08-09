@@ -354,16 +354,16 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             fontFamily: AppTypography.fontFamily,
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '₹${item.subtotal.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: AppTypography.fontSize14,
-                            fontWeight: AppTypography.bold,
-                            color: AppColors.primaryGreen,
-                            fontFamily: AppTypography.fontFamily,
-                          ),
-                        ),
+                        // const SizedBox(height: 4),
+                        // Text(
+                        //   '₹${item.subtotal.toStringAsFixed(0)}',
+                        //   style: const TextStyle(
+                        //     fontSize: AppTypography.fontSize14,
+                        //     fontWeight: AppTypography.bold,
+                        //     color: AppColors.primaryGreen,
+                        //     fontFamily: AppTypography.fontFamily,
+                        //   ),
+                        // ),
                       ],
                     ),
                   ],
