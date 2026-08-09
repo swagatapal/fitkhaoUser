@@ -3,7 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/providers.dart';
 import '../models/order_history_model.dart';
 
-/// State for order history
+/// Order source filter — maps to the `src` query param on /api/orders/history.
+enum OrderHistorySource {
+  outlet,
+  subscription;
+
+  String get query =>
+      this == OrderHistorySource.subscription ? 'subscription' : 'outlet';
+}
+
+// ─── Paginated list (per source) ─────────────────────────────────────────────
+
+/// Paginated list state for a single order source (outlet or subscription).
 class OrderHistoryState {
   final List<OrderHistory> orders;
   final bool isLoading;
@@ -11,24 +22,13 @@ class OrderHistoryState {
   final bool hasMore;
   final int currentOffset;
 
-  /// Per-order invoice loading state (keyed by orderId).
-  final Map<String, bool> invoiceLoading;
-
-  /// Order IDs that have a review submission in-flight.
-  final Set<String> reviewSubmitting;
-
   const OrderHistoryState({
     this.orders = const [],
     this.isLoading = false,
     this.error,
     this.hasMore = true,
     this.currentOffset = 0,
-    this.invoiceLoading = const {},
-    this.reviewSubmitting = const {},
   });
-
-  bool isInvoiceLoading(String orderId) => invoiceLoading[orderId] == true;
-  bool isReviewSubmitting(String orderId) => reviewSubmitting.contains(orderId);
 
   OrderHistoryState copyWith({
     List<OrderHistory>? orders,
@@ -36,8 +36,6 @@ class OrderHistoryState {
     String? error,
     bool? hasMore,
     int? currentOffset,
-    Map<String, bool>? invoiceLoading,
-    Set<String>? reviewSubmitting,
   }) {
     return OrderHistoryState(
       orders: orders ?? this.orders,
@@ -45,23 +43,25 @@ class OrderHistoryState {
       error: error,
       hasMore: hasMore ?? this.hasMore,
       currentOffset: currentOffset ?? this.currentOffset,
-      invoiceLoading: invoiceLoading ?? this.invoiceLoading,
-      reviewSubmitting: reviewSubmitting ?? this.reviewSubmitting,
     );
   }
 }
 
-/// Order history notifier
-class OrderHistoryNotifier extends StateNotifier<OrderHistoryState> {
+/// Manages the paginated order list for one [source]. Each source keeps its own
+/// offset / hasMore, so the two tabs paginate independently.
+class OrderHistoryListNotifier extends StateNotifier<OrderHistoryState> {
   final Ref ref;
+  final OrderHistorySource source;
 
-  OrderHistoryNotifier(this.ref) : super(const OrderHistoryState());
+  static const _pageSize = 20;
 
-  /// Load initial order history
+  OrderHistoryListNotifier(this.ref, this.source)
+      : super(const OrderHistoryState());
+
+  /// Load the first (or next, when [refresh] is false) page for this source.
   Future<void> loadOrderHistory({bool refresh = false}) async {
     if (state.isLoading) return;
 
-    // If refreshing, reset state
     if (refresh) {
       state = const OrderHistoryState(isLoading: true);
     } else {
@@ -71,13 +71,13 @@ class OrderHistoryNotifier extends StateNotifier<OrderHistoryState> {
     try {
       final repository = ref.read(orderHistoryRepositoryProvider);
       final response = await repository.getOrderHistory(
-        limit: 20,
+        limit: _pageSize,
         offset: refresh ? 0 : state.currentOffset,
+        src: source.query,
       );
 
       if (response.success && response.data != null) {
         final newOrders = response.data!.orders;
-
         state = state.copyWith(
           orders: refresh ? newOrders : [...state.orders, ...newOrders],
           isLoading: false,
@@ -88,13 +88,11 @@ class OrderHistoryNotifier extends StateNotifier<OrderHistoryState> {
               : state.currentOffset + newOrders.length,
         );
       } else {
-        state = state.copyWith(
-          isLoading: false,
-          error: response.message,
-        );
+        state = state.copyWith(isLoading: false, error: response.message);
       }
     } catch (e) {
-      debugPrint('[OrderHistoryNotifier] Error loading order history: $e');
+      debugPrint(
+          '[OrderHistoryListNotifier] Error loading ${source.query}: $e');
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to load order history. Please try again.',
@@ -102,17 +100,58 @@ class OrderHistoryNotifier extends StateNotifier<OrderHistoryState> {
     }
   }
 
-  /// Load more orders (pagination)
+  /// Load the next page (pagination).
   Future<void> loadMore() async {
     if (state.isLoading || !state.hasMore) return;
-
     await loadOrderHistory(refresh: false);
   }
 
-  /// Refresh order history
+  /// Reload from the first page.
   Future<void> refresh() async {
     await loadOrderHistory(refresh: true);
   }
+}
+
+/// Paginated order list, one independent instance per [OrderHistorySource].
+final orderHistoryListProvider = StateNotifierProvider.family<
+    OrderHistoryListNotifier, OrderHistoryState, OrderHistorySource>(
+  (ref, source) => OrderHistoryListNotifier(ref, source),
+);
+
+// ─── Per-order actions (invoice + review) ────────────────────────────────────
+
+/// Per-order action state — invoice generation + review submission. Shared
+/// across sources since it's keyed by orderId.
+class OrderActionsState {
+  /// Per-order invoice loading state (keyed by orderId).
+  final Map<String, bool> invoiceLoading;
+
+  /// Order IDs that have a review submission in-flight.
+  final Set<String> reviewSubmitting;
+
+  const OrderActionsState({
+    this.invoiceLoading = const {},
+    this.reviewSubmitting = const {},
+  });
+
+  bool isInvoiceLoading(String orderId) => invoiceLoading[orderId] == true;
+  bool isReviewSubmitting(String orderId) => reviewSubmitting.contains(orderId);
+
+  OrderActionsState copyWith({
+    Map<String, bool>? invoiceLoading,
+    Set<String>? reviewSubmitting,
+  }) {
+    return OrderActionsState(
+      invoiceLoading: invoiceLoading ?? this.invoiceLoading,
+      reviewSubmitting: reviewSubmitting ?? this.reviewSubmitting,
+    );
+  }
+}
+
+class OrderActionsNotifier extends StateNotifier<OrderActionsState> {
+  final Ref ref;
+
+  OrderActionsNotifier(this.ref) : super(const OrderActionsState());
 
   /// Generates the invoice for [orderId] and returns the PDF URL.
   /// Tracks per-order loading state so the caller can show a spinner.
@@ -157,41 +196,13 @@ class OrderHistoryNotifier extends StateNotifier<OrderHistoryState> {
       );
     }
   }
-
-  /// Get upcoming orders
-  List<OrderHistory> get upcomingOrders {
-    return state.orders.where((order) {
-      return order.orderStatus != 'delivered' &&
-          order.orderStatus != 'cancelled';
-    }).toList();
-  }
-
-  /// Get delivered orders
-  List<OrderHistory> get deliveredOrders {
-    return state.orders.where((order) {
-      return order.orderStatus == 'delivered';
-    }).toList();
-  }
-
-  /// Orders paid via an active subscription (paymentMethod == "subscription").
-  List<OrderHistory> get subscriptionOrders {
-    return state.orders
-        .where((o) => o.paymentMethod.trim().toLowerCase() == 'subscription')
-        .toList();
-  }
-
-  /// Regular outlet orders — everything not paid via subscription.
-  List<OrderHistory> get outletOrders {
-    return state.orders
-        .where((o) => o.paymentMethod.trim().toLowerCase() != 'subscription')
-        .toList();
-  }
 }
 
-/// Provider for order history
+/// Per-order actions provider (invoice + review). Kept under the historical
+/// `orderHistoryProvider` name so the tracking / review screens are unchanged.
 final orderHistoryProvider =
-    StateNotifierProvider<OrderHistoryNotifier, OrderHistoryState>((ref) {
-  return OrderHistoryNotifier(ref);
+    StateNotifierProvider<OrderActionsNotifier, OrderActionsState>((ref) {
+  return OrderActionsNotifier(ref);
 });
 
 /// Fetches the full, up-to-date details for a single order (GET /api/orders/:id).

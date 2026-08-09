@@ -113,26 +113,15 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
         color: const Color(0xFFC66301),
         label: 'Add Address',
         subtitle: 'Add delivery address',
-        onTap: () => ProfileMenuActions.open(
-            context, const AddressListScreen(),
-            insideDrawer: true),
-      ),
-      _NavItem(
-        icon: Icons.schedule_rounded,
-        color: const Color(0xFFC66301),
-        label: 'Orders',
-        subtitle: 'Track active orders',
-        onTap: () => ProfileMenuActions.open(
-            context, const HistoryScreen(initialTab: HistoryTab.upcoming),
+        onTap: () => ProfileMenuActions.open(context, const AddressListScreen(),
             insideDrawer: true),
       ),
       _NavItem(
         icon: Icons.receipt_long_outlined,
-        color: const Color(0xFF20A39E),
-        label: 'Order History',
-        subtitle: 'Your past orders',
-        onTap: () => ProfileMenuActions.open(
-            context, const HistoryScreen(initialTab: HistoryTab.delivered),
+        color: const Color(0xFFC66301),
+        label: 'Orders',
+        subtitle: 'Outlet & subscription orders',
+        onTap: () => ProfileMenuActions.open(context, const HistoryScreen(),
             insideDrawer: true),
       ),
       _NavItem(
@@ -172,7 +161,6 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
         onTap: () => ProfileMenuActions.open(context, const PolicyScreen(),
             insideDrawer: true),
       ),
-
     ];
 
     // Ordered list of animated blocks — each gets a sequential stagger slot.
@@ -312,9 +300,7 @@ class _Header extends StatelessWidget {
                   Row(
                     children: [
                       _Avatar(
-                          hasImage: hasImage,
-                          imgUrl: imgUrl,
-                          initial: initial),
+                          hasImage: hasImage, imgUrl: imgUrl, initial: initial),
                       // const Spacer(),
                       // _EditChip(
                       //   onTap: () => ProfileMenuActions.open(
@@ -902,8 +888,9 @@ class _KitchenPickerSheet extends ConsumerWidget {
                     kitchen.name,
                     style: TextStyle(
                       fontSize: AppTypography.fontSize14,
-                      fontWeight:
-                          isSelected ? AppTypography.bold : AppTypography.medium,
+                      fontWeight: isSelected
+                          ? AppTypography.bold
+                          : AppTypography.medium,
                       color: AppColors.textPrimary,
                       fontFamily: 'Lato',
                     ),

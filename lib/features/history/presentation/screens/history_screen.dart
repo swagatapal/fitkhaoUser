@@ -29,9 +29,6 @@ import '../../../delivery/presentation/screens/checkout_screen.dart';
 /// Which tab the history screen opens on.
 enum HistoryTab { upcoming, delivered }
 
-/// Order-source tabs shown on the history screen.
-enum HistoryOrderKind { outlet, subscription }
-
 class HistoryScreen extends ConsumerStatefulWidget {
   /// Tab to display first — defaults to [HistoryTab.upcoming].
   final HistoryTab initialTab;
@@ -43,8 +40,9 @@ class HistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
-  /// Active source tab — Outlet vs Subscription orders.
-  HistoryOrderKind _kind = HistoryOrderKind.outlet;
+  /// Active source tab — Outlet vs Subscription orders. Each source is fetched
+  /// from its own paginated endpoint (`src=outlet` / `src=subscription`).
+  OrderHistorySource _source = OrderHistorySource.outlet;
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -61,13 +59,29 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   bool _isOrderUpcoming(OrderHistory order) =>
       !_terminalStatuses.contains(order.orderStatus.trim().toLowerCase());
 
+  /// Returns a copy of [orders] sorted by delivery date ascending, so the
+  /// nearest delivery appears first. Orders with an unparseable/empty delivery
+  /// date sink to the bottom.
+  List<OrderHistory> _sortByDeliveryDate(List<OrderHistory> orders) {
+    final sorted = [...orders];
+    sorted.sort((a, b) {
+      final da = DateTime.tryParse(a.deliveryDate);
+      final db = DateTime.tryParse(b.deliveryDate);
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return da.compareTo(db);
+    });
+    return sorted;
+  }
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    // Load order history when screen initializes
+    // Load the initial (outlet) tab when the screen initializes.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(orderHistoryProvider.notifier).loadOrderHistory(refresh: true);
+      _ensureLoaded(_source);
     });
   }
 
@@ -79,6 +93,29 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     super.dispose();
   }
 
+  /// Kicks off the first-page load for [source] if it hasn't been fetched yet.
+  void _ensureLoaded(OrderHistorySource source) {
+    final state = ref.read(orderHistoryListProvider(source));
+    final untouched = state.orders.isEmpty &&
+        !state.isLoading &&
+        state.hasMore &&
+        state.error == null;
+    if (untouched) {
+      ref
+          .read(orderHistoryListProvider(source).notifier)
+          .loadOrderHistory(refresh: true);
+    }
+  }
+
+  /// Switches the active source tab, loading its data on first visit.
+  void _selectSource(OrderHistorySource source) {
+    if (_source == source) return;
+    setState(() => _source = source);
+    // Reset the scroll position for the newly shown list.
+    if (_scrollController.hasClients) _scrollController.jumpTo(0);
+    _ensureLoaded(source);
+  }
+
   /// Loads the next page when the list is scrolled near the bottom.
   void _onScroll() {
     if (!_scrollController.hasClients) return;
@@ -88,10 +125,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
   }
 
-  /// The API paginates the combined order list, but each tab shows only a
-  /// filtered subset. When the visible list is too short to scroll yet more
-  /// pages exist (e.g. this page held mostly the other tab's orders), fetch the
-  /// next page automatically so pagination doesn't stall.
+  /// When the visible list is too short to scroll yet more pages exist, fetch
+  /// the next page automatically so pagination doesn't stall.
   void _maybeAutoLoadMore() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -100,16 +135,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   void _loadMoreIfPossible() {
-    final state = ref.read(orderHistoryProvider);
+    final notifier = ref.read(orderHistoryListProvider(_source).notifier);
+    final state = ref.read(orderHistoryListProvider(_source));
     if (state.hasMore && !state.isLoading) {
-      ref.read(orderHistoryProvider.notifier).loadMore();
+      notifier.loadMore();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final historyState = ref.watch(orderHistoryProvider);
-    final historyNotifier = ref.read(orderHistoryProvider.notifier);
+    final historyState = ref.watch(orderHistoryListProvider(_source));
+    final historyNotifier =
+        ref.read(orderHistoryListProvider(_source).notifier);
 
     // Pull the cancel window from the backend; fall back to defaults while
     // loading or if the request fails — the card never shows NaN / 0.
@@ -117,10 +154,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ref.watch(appConstantsProvider).valueOrNull?.cancelOrderWindowSeconds ??
             AppConstants.defaults.cancelOrderWindowSeconds;
 
-    // Filter orders by the active source tab (outlet vs subscription).
-    final orders = _kind == HistoryOrderKind.subscription
-        ? historyNotifier.subscriptionOrders
-        : historyNotifier.outletOrders;
+    // Orders come pre-filtered from the server (src=outlet | src=subscription).
+    // Subscription orders are ordered by delivery date — nearest delivery first.
+    final orders = _source == OrderHistorySource.subscription
+        ? _sortByDeliveryDate(historyState.orders)
+        : historyState.orders;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -218,8 +256,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                               onCancelOrder: _cancelOrder,
                                               onCancelSuccess: () {
                                                 ref
-                                                    .read(orderHistoryProvider
-                                                        .notifier)
+                                                    .read(
+                                                        orderHistoryListProvider(
+                                                                _source)
+                                                            .notifier)
                                                     .refresh();
                                               },
                                               onReorder: () => _reorder(order),
@@ -297,7 +337,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  Widget _buildErrorState(String error, OrderHistoryNotifier notifier) {
+  Widget _buildErrorState(String error, OrderHistoryListNotifier notifier) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSizes.spacing24),
@@ -350,13 +390,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         children: [
           _SegmentChip(
             label: 'Outlet Order',
-            selected: _kind == HistoryOrderKind.outlet,
-            onTap: () => setState(() => _kind = HistoryOrderKind.outlet),
+            selected: _source == OrderHistorySource.outlet,
+            onTap: () => _selectSource(OrderHistorySource.outlet),
           ),
           _SegmentChip(
             label: 'Subscription Order',
-            selected: _kind == HistoryOrderKind.subscription,
-            onTap: () => setState(() => _kind = HistoryOrderKind.subscription),
+            selected: _source == OrderHistorySource.subscription,
+            onTap: () => _selectSource(OrderHistorySource.subscription),
           ),
         ],
       ),
@@ -411,7 +451,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         backgroundColor: AppColors.primaryGreen,
         behavior: SnackBarBehavior.floating,
       ));
-      await ref.read(orderHistoryProvider.notifier).refresh();
+      await ref.read(orderHistoryListProvider(_source).notifier).refresh();
     }
   }
 

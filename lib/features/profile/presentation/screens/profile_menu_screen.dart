@@ -13,7 +13,6 @@ import '../../../policy/presentation/screens/policy_screen.dart';
 import '../../../delivery/presentation/screens/subscription_plan_screen.dart';
 import '../../../delivery/presentation/screens/cart_screen.dart';
 import 'address_list_screen.dart';
-import 'detailed_health_info_screen.dart';
 import 'edit_profile_screen.dart';
 import 'profile_menu_actions.dart';
 
@@ -121,25 +120,13 @@ class ProfileMenuScreen extends ConsumerWidget {
                                 onTap: () => ProfileMenuActions.open(
                                     context, const CartScreen())),
                             _MenuEntry(
-                              icon: Icons.schedule_rounded,
+                              icon: Icons.receipt_long_outlined,
                               color: const Color(0xFFC66301),
                               title: 'Orders',
-                              subtitle: 'Track active orders',
+                              subtitle: 'Outlet & subscription orders',
                               onTap: () => ProfileMenuActions.open(
                                 context,
-                                const HistoryScreen(
-                                    initialTab: HistoryTab.upcoming),
-                              ),
-                            ),
-                            _MenuEntry(
-                              icon: Icons.receipt_long_outlined,
-                              color: const Color(0xFF20A39E),
-                              title: 'Order History',
-                              subtitle: 'Your past orders',
-                              onTap: () => ProfileMenuActions.open(
-                                context,
-                                const HistoryScreen(
-                                    initialTab: HistoryTab.delivered),
+                                const HistoryScreen(),
                               ),
                             ),
                           ],

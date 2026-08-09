@@ -24,11 +24,13 @@ class OrderHistoryRepository {
     required List<DishRatingInput> items,
     String? feedback,
   }) async {
-    debugPrint('[OrderHistoryRepository] Submitting review for order: $orderId');
+    debugPrint(
+        '[OrderHistoryRepository] Submitting review for order: $orderId');
 
     final token = _localStorage.getAuthToken();
     if (token == null || token.isEmpty) {
-      throw AuthException(message: 'Authentication required. Please login again.');
+      throw AuthException(
+          message: 'Authentication required. Please login again.');
     }
 
     final body = <String, dynamic>{
@@ -61,11 +63,13 @@ class OrderHistoryRepository {
 
   /// Generate and fetch the invoice URL for a given order.
   Future<String> getInvoiceUrl(String orderId) async {
-    debugPrint('[OrderHistoryRepository] Generating invoice for order: $orderId');
+    debugPrint(
+        '[OrderHistoryRepository] Generating invoice for order: $orderId');
 
     final token = _localStorage.getAuthToken();
     if (token == null || token.isEmpty) {
-      throw AuthException(message: 'Authentication required. Please login again.');
+      throw AuthException(
+          message: 'Authentication required. Please login again.');
     }
 
     try {
@@ -85,9 +89,11 @@ class OrderHistoryRepository {
         throw NetworkException(message: msg, originalError: null);
       }
 
-      final url = (json['data'] as Map<String, dynamic>?)?['invoiceUrl'] as String?;
+      final url =
+          (json['data'] as Map<String, dynamic>?)?['invoiceUrl'] as String?;
       if (url == null || url.isEmpty) {
-        throw NetworkException(message: 'Invoice URL not found', originalError: null);
+        throw NetworkException(
+            message: 'Invoice URL not found', originalError: null);
       }
 
       return url;
@@ -154,10 +160,14 @@ class OrderHistoryRepository {
     }
   }
 
-  /// Fetch order history with pagination
+  /// Fetch order history with pagination.
+  ///
+  /// [src] filters by order source server-side ("outlet" | "subscription").
+  /// When empty/null, no `src` param is sent (all orders).
   Future<OrderHistoryResponse> getOrderHistory({
     int limit = 20,
     int offset = 0,
+    String? src,
   }) async {
     debugPrint('[OrderHistoryRepository] Fetching order history via API...');
 
@@ -177,7 +187,9 @@ class OrderHistoryRepository {
       };
 
       // Build path with query parameters
-      final path = '${AppConfig.orderHistoryPath}?limit=$limit&offset=$offset';
+      final srcParam = (src != null && src.isNotEmpty) ? '&src=$src' : '';
+      final path =
+          '${AppConfig.orderHistoryPath}?limit=$limit&offset=$offset$srcParam';
 
       // Make GET request
       final json = await _apiClient.getJson(
