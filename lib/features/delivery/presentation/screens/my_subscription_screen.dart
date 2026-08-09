@@ -12,6 +12,7 @@ import '../../../../core/utils/time_converter.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../consultation/presentation/screens/book_consultation_screen.dart';
 import '../../../consultation/providers/consultation_providers.dart';
+import '../widgets/app_drawer.dart';
 import '../widgets/delivery_plan_manager_tab.dart';
 import '../../../dashboard/models/meal_plan_model.dart';
 import '../../../dashboard/providers/meal_plan_provider.dart';
@@ -72,6 +73,8 @@ class MySubscriptionScreen extends ConsumerStatefulWidget {
 }
 
 class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   @override
   void initState() {
     super.initState();
@@ -83,12 +86,19 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Home-shell mode (the subscription screen is the app's home base) shows a
+    // hamburger that opens the shared app drawer — mirroring the delivery
+    // screen. In pushed mode there's a back button instead and no drawer.
+    final isHomeBase = widget.onSwitchToOrder != null;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: DefaultTabController(
         length: 3,
         child: Scaffold(
+          key: _scaffoldKey,
           backgroundColor: const Color(0xFFFAFBFC),
+          drawer: isHomeBase ? const AppDrawer() : null,
           body: SafeArea(
             top: true,
             bottom: true,
@@ -100,6 +110,9 @@ class _MySubscriptionScreenState extends ConsumerState<MySubscriptionScreen> {
                       planName: widget.planName,
                       subscriptionId: widget.subscriptionId,
                       showBackButton: widget.onSwitchToOrder == null,
+                      onMenuTap: isHomeBase
+                          ? () => _scaffoldKey.currentState?.openDrawer()
+                          : null,
                     ),
                     const _Tabs(),
                     Expanded(
@@ -137,13 +150,17 @@ class _Header extends StatelessWidget {
     required this.planName,
     required this.subscriptionId,
     this.showBackButton = true,
+    this.onMenuTap,
   });
 
   final String planName;
   final String subscriptionId;
 
-  /// Hidden in home-shell mode (this screen is the home base there).
+  /// Shows a back button (pushed-route mode). Hidden in home-shell mode.
   final bool showBackButton;
+
+  /// When provided (home-shell mode), a hamburger icon opens the app drawer.
+  final VoidCallback? onMenuTap;
 
   @override
   Widget build(BuildContext context) {
@@ -175,6 +192,24 @@ class _Header extends StatelessWidget {
                 ),
                 child: const Icon(Icons.arrow_back,
                     color: AppColors.textWhite, size: AppSizes.icon24),
+              ),
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+          ] else if (onMenuTap != null) ...[
+            GestureDetector(
+              onTap: onMenuTap,
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+                child: const Icon(
+                  Icons.menu_rounded,
+                  color: AppColors.darkGreen,
+                  size: 22,
+                ),
               ),
             ),
             const SizedBox(width: AppSizes.spacing12),
