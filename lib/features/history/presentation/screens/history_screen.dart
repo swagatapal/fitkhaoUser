@@ -29,6 +29,9 @@ import '../../../delivery/presentation/screens/checkout_screen.dart';
 /// Which tab the history screen opens on.
 enum HistoryTab { upcoming, delivered }
 
+/// Order-source tabs shown on the history screen.
+enum HistoryOrderKind { outlet, subscription }
+
 class HistoryScreen extends ConsumerStatefulWidget {
   /// Tab to display first — defaults to [HistoryTab.upcoming].
   final HistoryTab initialTab;
@@ -40,9 +43,23 @@ class HistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
-  late HistoryTab _selected = widget.initialTab;
+  /// Active source tab — Outlet vs Subscription orders.
+  HistoryOrderKind _kind = HistoryOrderKind.outlet;
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+
+  /// An order is "upcoming" (cancellable / slot-changeable) until it reaches a
+  /// terminal state; delivered/cancelled orders show the reorder action.
+  static const _terminalStatuses = {
+    'delivered',
+    'cancelled',
+    'canceled',
+    'rejected',
+    'failed',
+  };
+
+  bool _isOrderUpcoming(OrderHistory order) =>
+      !_terminalStatuses.contains(order.orderStatus.trim().toLowerCase());
 
   @override
   void initState() {
@@ -100,10 +117,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ref.watch(appConstantsProvider).valueOrNull?.cancelOrderWindowSeconds ??
             AppConstants.defaults.cancelOrderWindowSeconds;
 
-    // Filter orders based on selection
-    final orders = _selected == HistoryTab.upcoming
-        ? historyNotifier.upcomingOrders
-        : historyNotifier.deliveredOrders;
+    // Filter orders by the active source tab (outlet vs subscription).
+    final orders = _kind == HistoryOrderKind.subscription
+        ? historyNotifier.subscriptionOrders
+        : historyNotifier.outletOrders;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -112,19 +129,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         body: SafeArea(
           child: Column(
             children: [
-              _buildHeader(widget.initialTab),
+              _buildHeader(),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSizes.screenPaddingHorizontal,
+                        AppSizes.spacing12,
+                        AppSizes.screenPaddingHorizontal,
+                        0,
+                      ),
+                      child: _buildSegmentedControl(context),
+                    ),
                     const SizedBox(height: AppSizes.spacing12),
-                    // Padding(
-                    //   padding: const EdgeInsets.symmetric(
-                    //     horizontal: AppSizes.screenPaddingHorizontal,
-                    //   ),
-                    //   child: _buildSearchBar(),
-                    // ),
-                    // const SizedBox(height: AppSizes.spacing8),
                     Expanded(
                       child: Material(
                         color: AppColors.textWhite,
@@ -184,8 +203,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                                             final order = orders[index];
                                             return _OrderCard(
                                               order: order,
-                                              isUpcoming: _selected ==
-                                                  HistoryTab.upcoming,
+                                              isUpcoming:
+                                                  _isOrderUpcoming(order),
                                               cancelWindowSeconds:
                                                   cancelWindowSeconds,
                                               onTap: () => Navigator.push<void>(
@@ -330,14 +349,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       child: Row(
         children: [
           _SegmentChip(
-            label: 'Upcoming',
-            selected: _selected == HistoryTab.upcoming,
-            onTap: () => setState(() => _selected = HistoryTab.upcoming),
+            label: 'Outlet Order',
+            selected: _kind == HistoryOrderKind.outlet,
+            onTap: () => setState(() => _kind = HistoryOrderKind.outlet),
           ),
           _SegmentChip(
-            label: 'Delivered',
-            selected: _selected == HistoryTab.delivered,
-            onTap: () => setState(() => _selected = HistoryTab.delivered),
+            label: 'Subscription Order',
+            selected: _kind == HistoryOrderKind.subscription,
+            onTap: () => setState(() => _kind = HistoryOrderKind.subscription),
           ),
         ],
       ),
@@ -396,7 +415,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
   }
 
-  Widget _buildHeader(HistoryTab tabStatus) {
+  Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSizes.p20,
@@ -434,11 +453,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  tabStatus == HistoryTab.upcoming
-                      ? 'Upcoming Orders'
-                      : 'Delivered Orders',
-                  style: const TextStyle(
+                const Text(
+                  'My Orders',
+                  style: TextStyle(
                     fontSize: AppTypography.fontSize20,
                     fontWeight: AppTypography.bold,
                     color: AppColors.textPrimary,

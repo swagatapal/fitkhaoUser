@@ -83,7 +83,9 @@ class OrderHistoryNotifier extends StateNotifier<OrderHistoryState> {
           isLoading: false,
           error: null,
           hasMore: response.data!.hasMore,
-          currentOffset: refresh ? newOrders.length : state.currentOffset + newOrders.length,
+          currentOffset: refresh
+              ? newOrders.length
+              : state.currentOffset + newOrders.length,
         );
       } else {
         state = state.copyWith(
@@ -159,7 +161,8 @@ class OrderHistoryNotifier extends StateNotifier<OrderHistoryState> {
   /// Get upcoming orders
   List<OrderHistory> get upcomingOrders {
     return state.orders.where((order) {
-      return order.orderStatus != 'delivered' && order.orderStatus != 'cancelled';
+      return order.orderStatus != 'delivered' &&
+          order.orderStatus != 'cancelled';
     }).toList();
   }
 
@@ -169,10 +172,25 @@ class OrderHistoryNotifier extends StateNotifier<OrderHistoryState> {
       return order.orderStatus == 'delivered';
     }).toList();
   }
+
+  /// Orders paid via an active subscription (paymentMethod == "subscription").
+  List<OrderHistory> get subscriptionOrders {
+    return state.orders
+        .where((o) => o.paymentMethod.trim().toLowerCase() == 'subscription')
+        .toList();
+  }
+
+  /// Regular outlet orders — everything not paid via subscription.
+  List<OrderHistory> get outletOrders {
+    return state.orders
+        .where((o) => o.paymentMethod.trim().toLowerCase() != 'subscription')
+        .toList();
+  }
 }
 
 /// Provider for order history
-final orderHistoryProvider = StateNotifierProvider<OrderHistoryNotifier, OrderHistoryState>((ref) {
+final orderHistoryProvider =
+    StateNotifierProvider<OrderHistoryNotifier, OrderHistoryState>((ref) {
   return OrderHistoryNotifier(ref);
 });
 
