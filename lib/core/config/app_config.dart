@@ -74,6 +74,13 @@ class AppConfig {
   static const String consultationCancelSlotPath =
       '/api/user/consultations/cancel-slot';
 
+  /// All consultations for a subscription (GET, `?subscriptionId=`).
+  static const String consultationsPath = '/api/consultations';
+
+  /// Update a consultation's status (PATCH, body `{status, notes?}`).
+  static String consultationStatusPath(String consultationId) =>
+      '/api/consultations/$consultationId/status';
+
   /// Weekly delivery-slot preferences (auth).
   /// • get  → GET
   /// • set  → POST (first-time)

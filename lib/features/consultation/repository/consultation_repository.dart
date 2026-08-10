@@ -104,6 +104,78 @@ class ConsultationRepository {
     }
   }
 
+  /// GET /api/consultations?subscriptionId={id} — every consultation booked
+  /// under the subscription. Returns the raw records (each carries
+  /// `consultationNumber` and `_id`).
+  Future<List<Map<String, dynamic>>> getSubscriptionConsultations(
+      String subscriptionId) async {
+    try {
+      final json = await _apiClient.getJson(
+        '${AppConfig.consultationsPath}?subscriptionId=$subscriptionId',
+        headers: _authHeaders(),
+      );
+      final data = json['data'];
+      List<dynamic> raw;
+      if (data is List) {
+        raw = data;
+      } else if (data is Map<String, dynamic>) {
+        raw = (data['consultations'] ??
+            data['items'] ??
+            data['docs'] ??
+            const <dynamic>[]) as List<dynamic>;
+      } else {
+        raw = const <dynamic>[];
+      }
+      return raw.whereType<Map<String, dynamic>>().toList();
+    } catch (e) {
+      throw _wrap(e, 'consultations');
+    }
+  }
+
+  /// PATCH /api/consultations/{id}/status — updates the status (e.g. "missed").
+  Future<Map<String, dynamic>> updateConsultationStatus({
+    required String consultationId,
+    required String status,
+    String? notes,
+  }) async {
+    try {
+      return await _apiClient.patchJson(
+        AppConfig.consultationStatusPath(consultationId),
+        headers: _authHeaders(),
+        body: {
+          'status': status,
+          if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+        },
+      );
+    } catch (e) {
+      throw _wrap(e, 'consultation-status');
+    }
+  }
+
+  /// Marks the consultation with [consultationNumber] under [subscriptionId] as
+  /// "missed" (skipped): resolves its id via the list endpoint, then PATCHes.
+  Future<void> skipConsultation({
+    required String subscriptionId,
+    required int consultationNumber,
+    String? notes,
+  }) async {
+    final list = await getSubscriptionConsultations(subscriptionId);
+    final match = list.firstWhere(
+      (c) => (c['consultationNumber'] as num?)?.toInt() == consultationNumber,
+      orElse: () => const <String, dynamic>{},
+    );
+    final id = (match['_id'] ?? match['id']) as String?;
+    if (id == null || id.isEmpty) {
+      throw NetworkException(
+          message: 'Consultation not found.', originalError: null);
+    }
+    await updateConsultationStatus(
+      consultationId: id,
+      status: 'missed',
+      notes: notes,
+    );
+  }
+
   Map<String, String> _authHeaders() {
     final token = _localStorage.getAuthToken();
     if (token == null || token.isEmpty) {

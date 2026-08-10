@@ -736,16 +736,47 @@ class _TimelineContent extends ConsumerWidget {
           const SizedBox(height: AppSizes.spacing12),
           for (var i = 0; i < steps.length; i++) ...[
             () {
+              final step = steps[i];
+
+              // Consultation gating: 2nd+ consultations unlock 10 days after
+              // the previous consultation's date, and can be skipped.
+              final consultationNumber = _consultationNumber(step);
+              DateTime? consultationUnlockAt;
+              var consultationPrevDone = true;
+              if (consultationNumber != null && consultationNumber >= 2) {
+                final prev =
+                    _consultationStepByNumber(steps, consultationNumber - 1);
+                consultationPrevDone =
+                    prev != null && prev.status == TimelineStatus.completed;
+                final prevDate = prev?.date;
+                if (consultationPrevDone && prevDate != null) {
+                  consultationUnlockAt = prevDate.add(const Duration(days: 10));
+                }
+              }
+
               final action = _stepAction(
                 context,
-                steps[i],
+                step,
                 timeline,
                 healthUpdatedNote: healthUpdatedNote,
                 hasHealthProfile: hasHealthProfile,
                 hasDeliverySlot: hasDeliverySlot,
+                consultationNumber: consultationNumber,
+                consultationUnlockAt: consultationUnlockAt,
+                consultationPrevDone: consultationPrevDone,
               );
+
+              // A skip button appears on every consultation after the 1st that
+              // hasn't been completed/cancelled yet.
+              final subscriptionId = timeline.subscription?.id ?? '';
+              final showSkip = consultationNumber != null &&
+                  consultationNumber >= 2 &&
+                  subscriptionId.isNotEmpty &&
+                  step.status != TimelineStatus.completed &&
+                  step.status != TimelineStatus.cancelled;
+
               return _TimelineStepTile(
-                step: steps[i],
+                step: step,
                 isFirst: i == 0,
                 isLast: i == steps.length - 1,
                 onTap: action.onTap,
@@ -753,6 +784,12 @@ class _TimelineContent extends ConsumerWidget {
                 ctaIcon: action.ctaIcon,
                 ctaColor: action.ctaColor,
                 note: action.note,
+                skipButton: showSkip
+                    ? _SkipConsultationButton(
+                        subscriptionId: subscriptionId,
+                        consultationNumber: consultationNumber,
+                      )
+                    : null,
               );
             }(),
             // After the first consultation step, surface the meeting link when
@@ -925,6 +962,7 @@ class _TimelineStepTile extends StatelessWidget {
     this.ctaIcon,
     this.ctaColor,
     this.note,
+    this.skipButton,
   });
 
   final TimelineStep step;
@@ -939,6 +977,9 @@ class _TimelineStepTile extends StatelessWidget {
 
   /// Small caption under the CTA (e.g. "Last updated 3 Aug 2026, 2:30 PM").
   final String? note;
+
+  /// Optional "Skip" action shown for 2nd+ consultations.
+  final Widget? skipButton;
 
   @override
   Widget build(BuildContext context) {
@@ -1030,6 +1071,10 @@ class _TimelineStepTile extends StatelessWidget {
                 ),
               ],
             ),
+          ],
+          if (skipButton != null) ...[
+            const SizedBox(height: AppSizes.spacing8),
+            skipButton!,
           ],
         ],
       ),
@@ -1138,6 +1183,129 @@ class _StepCta extends StatelessWidget {
           Icon(Icons.arrow_forward_rounded,
               size: AppSizes.icon16, color: color),
         ],
+      ),
+    );
+  }
+}
+
+/// "Skip" action for a 2nd+ consultation — marks it missed via
+/// PATCH /api/consultations/{id}/status, resolving the id from the
+/// subscription's consultation list by number.
+class _SkipConsultationButton extends ConsumerStatefulWidget {
+  const _SkipConsultationButton({
+    required this.subscriptionId,
+    required this.consultationNumber,
+  });
+
+  final String subscriptionId;
+  final int consultationNumber;
+
+  @override
+  ConsumerState<_SkipConsultationButton> createState() =>
+      _SkipConsultationButtonState();
+}
+
+class _SkipConsultationButtonState
+    extends ConsumerState<_SkipConsultationButton> {
+  bool _busy = false;
+
+  Future<void> _skip() async {
+    if (_busy) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+        ),
+        title: const Text('Skip this consultation?',
+            style:
+                TextStyle(fontFamily: 'Lato', fontWeight: AppTypography.bold)),
+        content: const Text(
+          'This consultation will be marked as missed. You can’t undo this.',
+          style: TextStyle(fontFamily: 'Lato'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Keep', style: TextStyle(fontFamily: 'Lato')),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.errorColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Skip', style: TextStyle(fontFamily: 'Lato')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(consultationRepositoryProvider).skipConsultation(
+            subscriptionId: widget.subscriptionId,
+            consultationNumber: widget.consultationNumber,
+            notes: 'User skipped the consultation',
+          );
+      // Refresh the journey + booking gate so the change reflects immediately.
+      ref.invalidate(subscriptionTimelineProvider);
+      ref.invalidate(activeBookingProvider);
+      if (!mounted) return;
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Consultation skipped.'),
+        backgroundColor: AppColors.primaryGreen,
+        behavior: SnackBarBehavior.floating,
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      messenger.showSnackBar(SnackBar(
+        content: Text(e.toString().replaceFirst('Exception: ', '')),
+        backgroundColor: AppColors.errorColor,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: OutlinedButton.icon(
+        onPressed: _busy ? null : _skip,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.textSecondary,
+          side: BorderSide(color: AppColors.borderColor.withValues(alpha: 0.8)),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.spacing12,
+            vertical: AppSizes.spacing6,
+          ),
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+          ),
+        ),
+        icon: _busy
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.textSecondary),
+              )
+            : const Icon(Icons.skip_next_rounded, size: AppSizes.icon16),
+        label: Text(
+          _busy ? 'Skipping…' : 'Skip consultation',
+          style: const TextStyle(
+            fontSize: AppTypography.fontSize12,
+            fontWeight: AppTypography.semiBold,
+            fontFamily: 'Lato',
+          ),
+        ),
       ),
     );
   }
@@ -2248,6 +2416,9 @@ class _StatusPill extends StatelessWidget {
   String? healthUpdatedNote,
   bool hasHealthProfile = true,
   bool hasDeliverySlot = true,
+  int? consultationNumber,
+  DateTime? consultationUnlockAt,
+  bool consultationPrevDone = true,
 }) {
   final key = step.key.toLowerCase();
   final name = step.name.toLowerCase();
@@ -2275,6 +2446,28 @@ class _StatusPill extends StatelessWidget {
         ctaColor: null,
         note: null,
       );
+    }
+    // 2nd+ consultations unlock 10 days after the previous consultation.
+    if (consultationNumber != null && consultationNumber >= 2) {
+      if (!consultationPrevDone) {
+        return (
+          onTap: null,
+          ctaLabel: null,
+          ctaIcon: null,
+          ctaColor: null,
+          note: 'Available after your previous consultation',
+        );
+      }
+      if (consultationUnlockAt != null &&
+          DateTime.now().isBefore(consultationUnlockAt)) {
+        return (
+          onTap: null,
+          ctaLabel: null,
+          ctaIcon: null,
+          ctaColor: null,
+          note: 'Unlocks on ${_formatConsultationUnlock(consultationUnlockAt)}',
+        );
+      }
     }
     // Booking is locked until the health profile is filled — disabled with a
     // hint pointing to the (first) health-profile step.
@@ -2362,6 +2555,31 @@ int? _extractTrailingNumber(String s) {
   final matches = RegExp(r'\d+').allMatches(s);
   if (matches.isEmpty) return null;
   return int.tryParse(matches.last.group(0)!);
+}
+
+/// Consultation number for a step (e.g. "consultation_2" → 2), or null when the
+/// step isn't a consultation.
+int? _consultationNumber(TimelineStep step) {
+  final key = step.key.toLowerCase();
+  final name = step.name.toLowerCase();
+  if (!key.contains('consultation') && !name.contains('consultation')) {
+    return null;
+  }
+  return _extractTrailingNumber(step.key) ?? _extractTrailingNumber(step.name);
+}
+
+/// Finds the consultation step with the given [number].
+TimelineStep? _consultationStepByNumber(List<TimelineStep> steps, int number) {
+  for (final s in steps) {
+    if (_consultationNumber(s) == number) return s;
+  }
+  return null;
+}
+
+/// "12 Aug 2026" (IST) — the date a gated consultation becomes available.
+String _formatConsultationUnlock(DateTime d) {
+  final i = d.toUtc().add(const Duration(hours: 5, minutes: 30));
+  return '${i.day} ${_kMonthLong[i.month - 1].substring(0, 3)} ${i.year}';
 }
 
 /// "3 Aug 2026, 2:30 PM" (IST) from a stored profile-update timestamp.
