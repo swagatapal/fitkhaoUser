@@ -2898,7 +2898,7 @@ class _CouponCard extends StatelessWidget {
                           child: Text(
                             coupon.code,
                             style: const TextStyle(
-                              fontSize: AppTypography.fontSize13,
+                              fontSize: 11,
                               fontWeight: AppTypography.bold,
                               color: AppColors.primaryGreen,
                               letterSpacing: 1.2,
