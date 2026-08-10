@@ -1607,7 +1607,10 @@ class _MealRowState extends ConsumerState<_MealRow> {
             ],
           ),
         ),
-        _MealStatusChip(label: meal.statusLabel, status: meal.status),
+        _MealStatusChip(
+            label: meal.statusLabel,
+            status: meal.status,
+            statusRaw: meal.statusRaw),
         if (locked) ...[
           const SizedBox(width: 4),
           Tooltip(
@@ -1688,17 +1691,43 @@ class _MealRowState extends ConsumerState<_MealRow> {
 
 /// Status chip that falls back to the raw label (e.g. "Confirmed").
 class _MealStatusChip extends StatelessWidget {
-  const _MealStatusChip({required this.label, required this.status});
+  const _MealStatusChip({
+    required this.label,
+    required this.status,
+    this.statusRaw = '',
+  });
 
   final String label;
   final TimelineStatus status;
 
+  /// Raw backend status (e.g. "confirmed", "delivered", "cancelled"), used to
+  /// pick the chip colour: confirmed → orange, delivered → green, cancelled/
+  /// rejected/failed → red.
+  final String statusRaw;
+
+  Color get _color {
+    switch (statusRaw.trim().toLowerCase().replaceAll('-', '_')) {
+      case 'confirmed':
+      case 'pending':
+        return Colors.orange;
+      case 'delivered':
+        return AppColors.successColor;
+      case 'cancelled':
+      case 'canceled':
+      case 'rejected':
+      case 'failed':
+        return AppColors.errorColor;
+    }
+    // Fall back to the timeline-status visual for anything else.
+    return status == TimelineStatus.unknown
+        ? AppColors.primaryGreen
+        : _timelineStatusVisual(status).color;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (label.isEmpty) return const SizedBox.shrink();
-    final c = status == TimelineStatus.unknown
-        ? AppColors.primaryGreen
-        : _timelineStatusVisual(status).color;
+    final c = _color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
