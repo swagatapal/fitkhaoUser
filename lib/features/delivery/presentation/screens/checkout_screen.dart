@@ -998,7 +998,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         if (p.gstAmount > 0) ...[
           const SizedBox(height: AppSizes.spacing8),
           _buildSummaryRow(
-            'Commission and Taxes (${p.gstPercent.toStringAsFixed(0)}%)',
+            'Commission and Taxes ',
+                // '(${p.gstPercent.toStringAsFixed(0)}%)',
             '₹${p.gstAmount.toStringAsFixed(2)}',
           ),
         ],
