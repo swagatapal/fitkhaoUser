@@ -164,10 +164,12 @@ class OrderHistoryRepository {
   ///
   /// [src] filters by order source server-side ("outlet" | "subscription").
   /// When empty/null, no `src` param is sent (all orders).
+  /// [endDate] (yyyy-MM-dd) caps the history up to that day when provided.
   Future<OrderHistoryResponse> getOrderHistory({
     int limit = 20,
     int offset = 0,
     String? src,
+    String? endDate,
   }) async {
     debugPrint('[OrderHistoryRepository] Fetching order history via API...');
 
@@ -188,8 +190,10 @@ class OrderHistoryRepository {
 
       // Build path with query parameters
       final srcParam = (src != null && src.isNotEmpty) ? '&src=$src' : '';
-      final path =
-          '${AppConfig.orderHistoryPath}?limit=$limit&offset=$offset$srcParam';
+      final endParam =
+          (endDate != null && endDate.isNotEmpty) ? '&endDate=$endDate' : '';
+      final path = '${AppConfig.orderHistoryPath}'
+          '?limit=$limit&offset=$offset$srcParam$endParam';
 
       // Make GET request
       final json = await _apiClient.getJson(

@@ -118,6 +118,76 @@ final orderHistoryListProvider = StateNotifierProvider.family<
   (ref, source) => OrderHistoryListNotifier(ref, source),
 );
 
+// ─── Full history archive (all sources, up to today) ─────────────────────────
+
+/// Paginated full order history — all sources, capped at today's date
+/// (`endDate=<today>`). Used by the profile "Order History" screen.
+class OrderHistoryArchiveNotifier extends StateNotifier<OrderHistoryState> {
+  final Ref ref;
+  static const _pageSize = 20;
+
+  OrderHistoryArchiveNotifier(this.ref) : super(const OrderHistoryState());
+
+  static String _todayYmd() {
+    final n = DateTime.now();
+    final m = n.month.toString().padLeft(2, '0');
+    final d = n.day.toString().padLeft(2, '0');
+    return '${n.year}-$m-$d';
+  }
+
+  Future<void> load({bool refresh = false}) async {
+    if (state.isLoading) return;
+
+    if (refresh) {
+      state = const OrderHistoryState(isLoading: true);
+    } else {
+      state = state.copyWith(isLoading: true, error: null);
+    }
+
+    try {
+      final repository = ref.read(orderHistoryRepositoryProvider);
+      final response = await repository.getOrderHistory(
+        limit: _pageSize,
+        offset: refresh ? 0 : state.currentOffset,
+        endDate: _todayYmd(),
+      );
+
+      if (response.success && response.data != null) {
+        final newOrders = response.data!.orders;
+        state = state.copyWith(
+          orders: refresh ? newOrders : [...state.orders, ...newOrders],
+          isLoading: false,
+          error: null,
+          hasMore: response.data!.hasMore,
+          currentOffset: refresh
+              ? newOrders.length
+              : state.currentOffset + newOrders.length,
+        );
+      } else {
+        state = state.copyWith(isLoading: false, error: response.message);
+      }
+    } catch (e) {
+      debugPrint('[OrderHistoryArchiveNotifier] Error: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load order history. Please try again.',
+      );
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (state.isLoading || !state.hasMore) return;
+    await load(refresh: false);
+  }
+
+  Future<void> refresh() async => load(refresh: true);
+}
+
+final orderHistoryArchiveProvider =
+    StateNotifierProvider<OrderHistoryArchiveNotifier, OrderHistoryState>(
+  (ref) => OrderHistoryArchiveNotifier(ref),
+);
+
 // ─── Per-order actions (invoice + review) ────────────────────────────────────
 
 /// Per-order action state — invoice generation + review submission. Shared

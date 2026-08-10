@@ -8,6 +8,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../history/presentation/screens/history_screen.dart';
+import '../../../history/presentation/screens/order_history_archive_screen.dart';
 import '../../../notification/presentation/notification_screen.dart';
 import '../../../policy/presentation/screens/policy_screen.dart';
 import '../../../delivery/presentation/screens/subscription_plan_screen.dart';
@@ -127,6 +128,16 @@ class ProfileMenuScreen extends ConsumerWidget {
                               onTap: () => ProfileMenuActions.open(
                                 context,
                                 const HistoryScreen(),
+                              ),
+                            ),
+                            _MenuEntry(
+                              icon: Icons.history_rounded,
+                              color: const Color(0xFF20A39E),
+                              title: 'Order History',
+                              subtitle: 'All your past orders',
+                              onTap: () => ProfileMenuActions.open(
+                                context,
+                                const OrderHistoryArchiveScreen(),
                               ),
                             ),
                           ],
