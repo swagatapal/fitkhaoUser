@@ -172,12 +172,17 @@ class _CancelSubscriptionSheetState
   }
 
   Widget _buildPreviewBody(SubscriptionCancelPreview p) {
+    // When "cancel anytime" wasn't selected, the refund is issued as ₹50 meal
+    // coupons instead of money — no refund destination is chosen.
+    final couponMode = !p.cancelAnytimeSelected;
     final methods = p.availableRefundMethods;
-    // Resolve the effective selected method (default to the first available).
-    final selected =
-        (_selectedMethod != null && methods.contains(_selectedMethod))
+    // Resolve the effective selected method. In coupon mode the cancellation
+    // is confirmed with the 'coupon' method rather than a refund destination.
+    final selected = couponMode
+        ? 'coupon'
+        : ((_selectedMethod != null && methods.contains(_selectedMethod))
             ? _selectedMethod!
-            : (methods.isNotEmpty ? methods.first : '');
+            : (methods.isNotEmpty ? methods.first : ''));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
@@ -239,8 +244,15 @@ class _CancelSubscriptionSheetState
             ),
           ),
 
-          // Refund method
-          if (methods.isNotEmpty) ...[
+          // Refund destination — money refund, or ₹50 coupons when the user
+          // didn't opt into "cancel anytime".
+          if (couponMode) ...[
+            const SizedBox(height: AppSizes.spacing16),
+            _CouponRefundCard(
+              couponCount: p.remainingMeals,
+              couponValue: SubscriptionCancelPreview.couponValue,
+            ),
+          ] else if (methods.isNotEmpty) ...[
             const SizedBox(height: AppSizes.spacing16),
             const Text(
               'Refund to',
@@ -290,7 +302,9 @@ class _CancelSubscriptionSheetState
                           color: Colors.white, strokeWidth: 2),
                     )
                   : Text(
-                      'Confirm Cancellation · Refund ${_fmtMoney(p.refundAmount)}',
+                      couponMode
+                          ? 'Confirm Cancellation'
+                          : 'Confirm Cancellation · Refund ${_fmtMoney(p.refundAmount)}',
                       style: const TextStyle(
                         fontSize: AppTypography.fontSize14,
                         fontWeight: AppTypography.bold,
@@ -378,6 +392,79 @@ class _BreakdownRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Shown in place of the "Refund to" section when the refund is issued as
+/// ₹50 meal coupons (cancel-anytime not selected).
+class _CouponRefundCard extends StatelessWidget {
+  const _CouponRefundCard({
+    required this.couponCount,
+    required this.couponValue,
+  });
+
+  final int couponCount;
+  final double couponValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = couponCount * couponValue;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSizes.spacing16),
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border: Border.all(
+          color: AppColors.primaryGreen.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSizes.spacing8),
+            decoration: const BoxDecoration(
+              color: AppColors.primaryGreen,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.confirmation_number_outlined,
+              color: Colors.white,
+              size: AppSizes.icon20,
+            ),
+          ),
+          const SizedBox(width: AppSizes.spacing12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'You’ll receive meal coupons',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.semiBold,
+                    color: AppColors.textPrimary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$couponCount ${couponCount == 1 ? 'coupon' : 'coupons'} of '
+                  '${_fmtMoney(couponValue)} each'
+                  '${couponCount > 0 ? ' · worth ${_fmtMoney(total)}' : ''}',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    color: AppColors.textSecondary.withValues(alpha: 0.9),
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

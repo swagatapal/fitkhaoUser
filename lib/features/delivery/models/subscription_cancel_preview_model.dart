@@ -27,6 +27,9 @@ class SubscriptionCancelPreviewResponse {
 ///
 /// All money fields are doubles (the API may send integers or decimals).
 class SubscriptionCancelPreview {
+  /// When true, the user chose "cancel anytime" → a money refund (wallet/bank).
+  /// When false, the refund is issued as ₹50 coupons for the unconsumed meals.
+  final bool cancelAnytimeSelected;
   final double planAmount;
   final double consultationFee;
   final int mealsPerDay;
@@ -38,6 +41,7 @@ class SubscriptionCancelPreview {
   final CancelPreviewSubscription? subscription;
 
   const SubscriptionCancelPreview({
+    this.cancelAnytimeSelected = true,
     this.planAmount = 0,
     this.consultationFee = 0,
     this.mealsPerDay = 0,
@@ -52,9 +56,20 @@ class SubscriptionCancelPreview {
   /// Total value of the meals already consumed — deducted from the refund.
   double get consumedMealsValue => pricePerMeal * mealsConsumed;
 
+  /// Number of unconsumed meals — one ₹50 coupon is issued per meal when the
+  /// refund is taken as coupons (cancelAnytimeSelected == false).
+  int get remainingMeals {
+    final r = totalMeals - mealsConsumed;
+    return r > 0 ? r : 0;
+  }
+
+  /// Face value of a single meal coupon (₹).
+  static const double couponValue = 50;
+
   factory SubscriptionCancelPreview.fromJson(Map<String, dynamic> json) {
     final sub = json['subscription'];
     return SubscriptionCancelPreview(
+      cancelAnytimeSelected: json['cancelAnytimeSelected'] as bool? ?? true,
       planAmount: (json['planAmount'] as num?)?.toDouble() ?? 0,
       consultationFee: (json['consultationFee'] as num?)?.toDouble() ?? 0,
       mealsPerDay: (json['mealsPerDay'] as num?)?.toInt() ?? 0,
