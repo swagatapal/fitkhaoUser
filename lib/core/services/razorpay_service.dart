@@ -51,10 +51,10 @@ class RazorpayPaymentConfig {
 /// ```
 class RazorpayService {
   // ── Test key — swap for live key before production release ───────────────
-  //dev
-  static const String _KeyId = 'rzp_test_T2flTl66nhmAnC';
+  // //dev
+  // static const String _KeyId = 'rzp_test_T2flTl66nhmAnC';
   //live
-  //static const String _KeyId = 'rzp_live_So8WdDY0fRhLfF';
+  static const String _KeyId = 'rzp_live_So8WdDY0fRhLfF';
 
   static String get _keyId => _KeyId;
   // ─────────────────────────────────────────────────────────────────────────

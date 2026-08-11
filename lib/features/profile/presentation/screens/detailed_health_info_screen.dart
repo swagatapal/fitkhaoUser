@@ -1539,10 +1539,9 @@ class _DetailedHealthInfoScreenState
       }
     }
 
-    // Filter out "General" — it is implicit and should not appear in the UI
-    final displayCategories = categoryState.categories
-        .where((c) => c.name.toLowerCase() != 'general')
-        .toList();
+    // Show every category, including "General" (acts as a "no specific
+    // condition" option that's mutually exclusive with the others).
+    final displayCategories = categoryState.categories;
 
     if (displayCategories.isEmpty) return const SizedBox.shrink();
 
@@ -1580,26 +1579,33 @@ class _DetailedHealthInfoScreenState
   }
 
   /// Bordered checkbox card for a dynamic condition code.
-  /// [generalCode] is the code for the hidden "General" category — it is
-  /// automatically added when no specific condition remains selected, and
-  /// removed when any specific condition is selected.
+  /// [generalCode] is the code for the "General" category — it is mutually
+  /// exclusive with the specific conditions: selecting General clears the
+  /// specifics, and selecting any specific clears General.
   Widget _buildConditionCard(String label, String code,
       {String generalCode = ''}) {
     final isChecked = _selectedConditionCodes.contains(code);
+    final isGeneral = generalCode.isNotEmpty && code == generalCode;
     return GestureDetector(
       onTap: () {
         setState(() {
-          if (isChecked) {
-            _selectedConditionCodes.remove(code);
-            // If nothing specific remains, restore General as the default
-            final hasSpecific =
-                _selectedConditionCodes.any((c) => c != generalCode);
-            if (!hasSpecific && generalCode.isNotEmpty) {
-              _selectedConditionCodes.add(generalCode);
+          if (isGeneral) {
+            // General is a "no specific condition" option — selecting it clears
+            // everything else; tapping again deselects it.
+            if (isChecked) {
+              _selectedConditionCodes.remove(code);
+            } else {
+              _selectedConditionCodes
+                ..clear()
+                ..add(code);
             }
           } else {
-            _selectedConditionCodes.add(code);
-            // Remove General once any specific condition is chosen
+            if (isChecked) {
+              _selectedConditionCodes.remove(code);
+            } else {
+              _selectedConditionCodes.add(code);
+            }
+            // Choosing any specific condition clears the "General" option.
             if (generalCode.isNotEmpty) {
               _selectedConditionCodes.remove(generalCode);
             }
