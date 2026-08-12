@@ -190,9 +190,14 @@ class _DetailedHealthInfoScreenState
         }
       }
 
-      // Health conditions — use selectedConditionCodes from API
+      // Health conditions — use selectedConditionCodes from API. Default to
+      // "General" when the user has no medical condition selected.
       _selectedConditionCodes.clear();
       _selectedConditionCodes.addAll(authState.selectedConditionCodes);
+      if (_selectedConditionCodes.isEmpty) {
+        final general = _generalConditionCode();
+        if (general.isNotEmpty) _selectedConditionCodes.add(general);
+      }
 
       // Regularity status
       _regularlyStatus = authState.regularityStatus.toLowerCase();
@@ -580,6 +585,14 @@ class _DetailedHealthInfoScreenState
   String _capitalize(String text) {
     if (text.isEmpty) return text;
     return text[0].toUpperCase() + text.substring(1);
+  }
+
+  /// Resolves the "General" physiological-category code (empty when unavailable).
+  String _generalConditionCode() {
+    for (final c in ref.read(physiologicalCategoryProvider).categories) {
+      if (c.name.toLowerCase() == 'general') return c.code;
+    }
+    return '';
   }
 
   /// Formats a body metric (age/height/weight) for display: whole numbers show
@@ -1590,24 +1603,24 @@ class _DetailedHealthInfoScreenState
       onTap: () {
         setState(() {
           if (isGeneral) {
-            // General is a "no specific condition" option — selecting it clears
-            // everything else; tapping again deselects it.
-            if (isChecked) {
-              _selectedConditionCodes.remove(code);
-            } else {
-              _selectedConditionCodes
-                ..clear()
-                ..add(code);
-            }
+            // General is the "no specific condition" default — selecting it
+            // clears everything else, and it stays selected (can't be emptied).
+            _selectedConditionCodes
+              ..clear()
+              ..add(code);
           } else {
             if (isChecked) {
               _selectedConditionCodes.remove(code);
             } else {
               _selectedConditionCodes.add(code);
             }
-            // Choosing any specific condition clears the "General" option.
+            // Choosing any specific condition clears "General"…
             if (generalCode.isNotEmpty) {
               _selectedConditionCodes.remove(generalCode);
+            }
+            // …and if no specific condition remains, fall back to General.
+            if (_selectedConditionCodes.isEmpty && generalCode.isNotEmpty) {
+              _selectedConditionCodes.add(generalCode);
             }
           }
         });
