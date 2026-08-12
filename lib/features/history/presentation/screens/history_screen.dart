@@ -1076,7 +1076,9 @@ class _OrderCardState extends State<_OrderCard> {
             ),
             if (_canChangeSlot) _buildChangeSlotSection(),
             if (_canCancel) _buildCancelSection(context),
-            if (_canReorder) _buildReorderSection(),
+
+            // for reorder
+            //if (_canReorder) _buildReorderSection(),
           ],
         ),
       ),
