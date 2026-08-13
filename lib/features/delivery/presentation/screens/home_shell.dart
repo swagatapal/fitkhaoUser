@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/providers/auth_provider.dart';
@@ -22,12 +23,46 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   // 0 = My Subscription, 1 = Order Food (delivery).
   int _index = 0;
 
+  /// Timestamp of the last back press on the subscription (home) view — used to
+  /// require a second back within [_exitWindow] to actually leave the app.
+  DateTime? _lastBackAt;
+  static const _exitWindow = Duration(seconds: 2);
+
   void _showSubscription() {
     if (_index != 0) setState(() => _index = 0);
   }
 
   void _showOrder() {
     if (_index != 1) setState(() => _index = 1);
+  }
+
+  /// Handles the system back gesture. On the Order-Food view it returns to the
+  /// subscription view; on the subscription (home) view it requires a
+  /// double-back within [_exitWindow] to exit, showing a toast on the first tap.
+  void _handleBack(bool didPop) {
+    if (didPop) return;
+
+    if (_index != 0) {
+      _showSubscription();
+      return;
+    }
+
+    final now = DateTime.now();
+    if (_lastBackAt != null && now.difference(_lastBackAt!) <= _exitWindow) {
+      SystemNavigator.pop();
+      return;
+    }
+
+    _lastBackAt = now;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Press back again to exit'),
+          duration: _exitWindow,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
   }
 
   @override
@@ -39,12 +74,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     if (!hasActive) return const DeliveryScreen();
 
     return PopScope(
-      // On the Order-Food view, the back gesture returns to the subscription
-      // view rather than leaving the app.
-      canPop: _index == 0,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _showSubscription();
-      },
+      // We intercept every back: on Order-Food it returns to the subscription
+      // view; on the subscription view a double-back exits the app.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) => _handleBack(didPop),
       child: IndexedStack(
         index: _index,
         children: [
