@@ -324,7 +324,7 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
     if (!mounted) return;
     if (ok) {
       setState(() => _hadPreference = true);
-      messenger.showSnackBar( SnackBar(
+      messenger.showSnackBar(SnackBar(
         content: Text('Delivery plan saved.'),
         backgroundColor: AppColors.primaryGreen,
         behavior: SnackBarBehavior.floating,
@@ -337,7 +337,6 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
         backgroundColor: AppColors.errorColor,
         behavior: SnackBarBehavior.floating,
         margin: EdgeInsets.only(bottom: 80, left: 16, right: 16),
-
       ));
     }
   }
@@ -457,7 +456,7 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
                 ),
         ),
 
-        Text("kjhgfds"),
+        const _PlanNote(),
         _SaveBar(
           label: saveLabel,
           enabled: canSave,
@@ -465,6 +464,49 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
           onSave: _save,
         ),
       ],
+    );
+  }
+}
+
+/// Informational note above the save bar — meal types are nutritionist-driven.
+class _PlanNote extends StatelessWidget {
+  const _PlanNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSizes.screenPaddingHorizontal,
+        0,
+        AppSizes.screenPaddingHorizontal,
+        AppSizes.spacing8,
+      ),
+      padding: const EdgeInsets.all(AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: _kAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        border: Border.all(color: _kAccent.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded,
+              size: AppSizes.icon16, color: _kAccent),
+          const SizedBox(width: AppSizes.spacing8),
+          Expanded(
+            child: Text(
+              'Please note: your meal types vary based on your nutritionist’s '
+              'suggestion. Not every meal type is required to be delivered.',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize12,
+                color: AppColors.textPrimary.withValues(alpha: 0.85),
+                fontFamily: 'Lato',
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
