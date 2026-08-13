@@ -599,7 +599,8 @@ class _BookedConsultationViewState
           info.isRescheduleRequested
               ? 'Your nutritionist requested a reschedule. Tap Reschedule to '
                   'choose a new date and time.'
-              : 'You already have a consultation booked',
+              : 'You already have a consultation booked. You can reschedule '
+                  'your call anytime.',
           style: TextStyle(
             fontSize: AppTypography.fontSize12,
             color: AppColors.textSecondary.withValues(alpha: 0.9),
@@ -607,79 +608,35 @@ class _BookedConsultationViewState
           ),
         ),
         const SizedBox(height: AppSizes.spacing16),
-        if (info.isRescheduleRequested) ...[
-          // Reschedule is the primary action; cancelling is secondary.
-          SizedBox(
-            width: double.infinity,
-            height: AppSizes.buttonHeight,
-            child: ElevatedButton.icon(
-              onPressed: cancelling ? null : widget.onReschedule,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryGreen,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSizes.radius8),
-                ),
+        // Reschedule is always available: the nutritionist may request it, or
+        // the user can start it themselves. Only the label/copy differs — the
+        // action (opening the reschedule flow) is the same.
+        SizedBox(
+          width: double.infinity,
+          height: AppSizes.buttonHeight,
+          child: ElevatedButton.icon(
+            onPressed: cancelling ? null : widget.onReschedule,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
               ),
-              icon:
-                  const Icon(Icons.event_repeat_rounded, size: AppSizes.icon20),
-              label: const Text(
-                'Reschedule',
-                style: TextStyle(
-                  fontSize: AppTypography.fontSize14,
-                  fontWeight: AppTypography.bold,
-                  fontFamily: 'Lato',
-                ),
+            ),
+            icon: const Icon(Icons.event_repeat_rounded, size: AppSizes.icon20),
+            label: Text(
+              info.isRescheduleRequested
+                  ? 'Reschedule'
+                  : 'Reschedule your call',
+              style: const TextStyle(
+                fontSize: AppTypography.fontSize14,
+                fontWeight: AppTypography.bold,
+                fontFamily: 'Lato',
               ),
             ),
           ),
-          const SizedBox(height: AppSizes.spacing8),
-          // Center(
-          //   child: TextButton(
-          //     onPressed: cancelling ? null : _cancel,
-          //     child: Text(
-          //       cancelling ? 'Cancelling…' : 'Cancel consultation instead',
-          //       style: const TextStyle(
-          //         fontFamily: 'Lato',
-          //         fontWeight: AppTypography.semiBold,
-          //         color: AppColors.errorColor,
-          //       ),
-          //     ),
-          //   ),
-          // ),
-        ] else
-          SizedBox(
-            width: double.infinity,
-            height: AppSizes.buttonHeight,
-            // child: OutlinedButton.icon(
-            //   onPressed: cancelling ? null : _cancel,
-            //   style: OutlinedButton.styleFrom(
-            //     foregroundColor: AppColors.errorColor,
-            //     side: BorderSide(
-            //         color: AppColors.errorColor.withValues(alpha: 0.6)),
-            //     shape: RoundedRectangleBorder(
-            //       borderRadius: BorderRadius.circular(AppSizes.radius8),
-            //     ),
-            //   ),
-            //   icon: cancelling
-            //       ? const SizedBox(
-            //           width: 18,
-            //           height: 18,
-            //           child: CircularProgressIndicator(
-            //               strokeWidth: 2, color: AppColors.errorColor),
-            //         )
-            //       : const Icon(Icons.close_rounded, size: AppSizes.icon20),
-            //   label: Text(
-            //     cancelling ? 'Cancelling…' : 'Cancel consultation',
-            //     style: const TextStyle(
-            //       fontSize: AppTypography.fontSize14,
-            //       fontWeight: AppTypography.bold,
-            //       fontFamily: 'Lato',
-            //     ),
-            //   ),
-            // ),
-          ),
+        ),
       ],
     );
   }

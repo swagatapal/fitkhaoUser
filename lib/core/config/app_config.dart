@@ -25,13 +25,13 @@ class AppConfig {
   //static const String baseApiUrl = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net';
 
   // development url
-  static const String baseApiUrl =
-      'https://fitkhaodev-dtambvcxh2c2c7f3.centralindia-01.azurewebsites.net';
+  //static const String baseApiUrl =
+    //  'https://fitkhaodev-dtambvcxh2c2c7f3.centralindia-01.azurewebsites.net';
 
 
   // UAT url
-   //static const String baseApiUrl =
-    //   'https://fitkhaouat-cpaaf6ggg6hnabfr.centralindia-01.azurewebsites.net';
+   static const String baseApiUrl =
+       'https://fitkhaouat-cpaaf6ggg6hnabfr.centralindia-01.azurewebsites.net';
 
   // production url
   //static const String baseApiUrl  = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net';
