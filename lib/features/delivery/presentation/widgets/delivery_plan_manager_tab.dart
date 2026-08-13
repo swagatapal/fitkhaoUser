@@ -301,6 +301,7 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
           '${targets.length} ${targets.length == 1 ? 'day' : 'days'}.'),
       backgroundColor: AppColors.primaryGreen,
       behavior: SnackBarBehavior.floating,
+      margin: EdgeInsets.only(bottom: 80, left: 16, right: 16),
     ));
   }
 
@@ -323,10 +324,11 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
     if (!mounted) return;
     if (ok) {
       setState(() => _hadPreference = true);
-      messenger.showSnackBar(const SnackBar(
+      messenger.showSnackBar( SnackBar(
         content: Text('Delivery plan saved.'),
         backgroundColor: AppColors.primaryGreen,
         behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(bottom: 80, left: 16, right: 16),
       ));
     } else {
       messenger.showSnackBar(SnackBar(
@@ -334,6 +336,8 @@ class _DeliveryPlanManagerTabState extends ConsumerState<DeliveryPlanManagerTab>
             'Could not save your delivery plan.'),
         backgroundColor: AppColors.errorColor,
         behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(bottom: 80, left: 16, right: 16),
+
       ));
     }
   }
