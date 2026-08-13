@@ -417,6 +417,7 @@ class _DetailedHealthInfoScreenState
         backgroundColor: AppColors.errorColor,
         behavior: SnackBarBehavior.floating,
         duration: Duration(seconds: 2),
+        margin: EdgeInsets.only(bottom: 80, left: 16, right: 16),
       ),
     );
   }
@@ -572,6 +573,7 @@ class _DetailedHealthInfoScreenState
           backgroundColor: AppColors.primaryGreen,
           behavior: SnackBarBehavior.floating,
           duration: Duration(seconds: 3),
+          margin: EdgeInsets.only(bottom: 80, left: 16, right: 16),
         ),
       );
 
@@ -619,6 +621,7 @@ class _DetailedHealthInfoScreenState
             backgroundColor: AppColors.errorColor,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 3),
+            margin: EdgeInsets.only(bottom: 80, left: 16, right: 16),
           ),
         );
       }
