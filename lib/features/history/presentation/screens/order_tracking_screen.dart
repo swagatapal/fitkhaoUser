@@ -1189,7 +1189,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
   String _formatDeliveryDate(String dateStr) {
     try {
-      final date = DateTime.parse(dateStr);
+      // Parse the UTC date
+      final utcDate = DateTime.parse(dateStr).toUtc();
+
+      // Convert UTC → IST (UTC + 5:30)
+      final istDate = utcDate.add(const Duration(hours: 5, minutes: 30));
+
       final months = [
         'Jan',
         'Feb',
@@ -1204,7 +1209,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         'Nov',
         'Dec'
       ];
-      return '${date.day} ${months[date.month - 1]} ${date.year}';
+
+      return '${istDate.day} ${months[istDate.month - 1]} ${istDate.year}';
     } catch (e) {
       return dateStr;
     }
