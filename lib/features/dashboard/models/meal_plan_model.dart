@@ -152,7 +152,7 @@ class MealPlanDish {
   final double marketPrice;
   final String orderMeasuringUnit;
   final bool isActive;
-  final int dishServing;
+  final double dishServing;
 
   const MealPlanDish({
     required this.id,
@@ -188,7 +188,7 @@ class MealPlanDish {
       marketPrice: (json['marketPrice'] as num?)?.toDouble() ?? 0.0,
       orderMeasuringUnit: json['orderMeasuringUnit'] as String? ?? '',
       isActive: json['isActive'] as bool? ?? true,
-      dishServing: json['dishServing'] as int? ?? 1,
+      dishServing: (json['dishServing'] as num?)?.toDouble() ?? 1,
     );
   }
 }
