@@ -1,22 +1,23 @@
 import 'package:intl/intl.dart';
 
-String convertMongoUtcToIst(dynamic mongoTimestamp) {
-  DateTime utcDateTime;
-
+/// Parses a MongoDB timestamp (ISO string, [DateTime], or epoch ms) to a UTC
+/// [DateTime]. Returns null for empty/unparseable input instead of throwing.
+DateTime? _parseMongoUtc(dynamic mongoTimestamp) {
   if (mongoTimestamp is String) {
-    // Example: "2026-06-11T10:30:00.000Z"
-    utcDateTime = DateTime.parse(mongoTimestamp).toUtc();
+    if (mongoTimestamp.trim().isEmpty) return null;
+    return DateTime.tryParse(mongoTimestamp)?.toUtc();
   } else if (mongoTimestamp is DateTime) {
-    utcDateTime = mongoTimestamp.toUtc();
+    return mongoTimestamp.toUtc();
   } else if (mongoTimestamp is int) {
     // If timestamp is in milliseconds
-    utcDateTime = DateTime.fromMillisecondsSinceEpoch(
-      mongoTimestamp,
-      isUtc: true,
-    );
-  } else {
-    throw ArgumentError('Invalid MongoDB timestamp format');
+    return DateTime.fromMillisecondsSinceEpoch(mongoTimestamp, isUtc: true);
   }
+  return null;
+}
+
+String convertMongoUtcToIst(dynamic mongoTimestamp) {
+  final utcDateTime = _parseMongoUtc(mongoTimestamp);
+  if (utcDateTime == null) return '';
 
   // IST = UTC + 5 hours 30 minutes
   final DateTime istDateTime = utcDateTime.add(
@@ -27,22 +28,8 @@ String convertMongoUtcToIst(dynamic mongoTimestamp) {
 }
 
 String convertMongoUtcToIstExceptTime(dynamic mongoTimestamp) {
-  DateTime utcDateTime;
-
-  if (mongoTimestamp is String) {
-    // Example: "2026-06-11T10:30:00.000Z"
-    utcDateTime = DateTime.parse(mongoTimestamp).toUtc();
-  } else if (mongoTimestamp is DateTime) {
-    utcDateTime = mongoTimestamp.toUtc();
-  } else if (mongoTimestamp is int) {
-    // If timestamp is in milliseconds
-    utcDateTime = DateTime.fromMillisecondsSinceEpoch(
-      mongoTimestamp,
-      isUtc: true,
-    );
-  } else {
-    throw ArgumentError('Invalid MongoDB timestamp format');
-  }
+  final utcDateTime = _parseMongoUtc(mongoTimestamp);
+  if (utcDateTime == null) return '';
 
   // IST = UTC + 5 hours 30 minutes
   final DateTime istDateTime = utcDateTime.add(

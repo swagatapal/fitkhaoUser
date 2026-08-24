@@ -368,15 +368,18 @@ class _ActivePlanBanner extends ConsumerWidget {
                         fontFamily: 'Lato',
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'ends ${convertMongoUtcToIstExceptTime(sub.endDate)}',
-                      style: TextStyle(
-                        fontSize: AppTypography.fontSize10,
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontFamily: 'Lato',
+                    if (convertMongoUtcToIstExceptTime(sub.endDate)
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'ends ${convertMongoUtcToIstExceptTime(sub.endDate)}',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize10,
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontFamily: 'Lato',
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -684,7 +687,9 @@ class _CancelAnytimeToggle extends ConsumerWidget {
               ),
             ],
           ),
-          SizedBox(height: 4,),
+          SizedBox(
+            height: 4,
+          ),
           Text(
             'Please note: This subscription is non-refundable by default. To receive an applicable refund upon cancellation, you must enable "Cancel Anytime" before subscribing. If you do not enable this option, any unused meals remaining after cancellation will be considered cancelled, and you will receive a ₹50 discount coupon for each cancelled meal, which can be redeemed on food orders from our outlet.',
             style: TextStyle(
