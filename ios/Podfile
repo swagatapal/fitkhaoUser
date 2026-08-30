@@ -1,5 +1,6 @@
-# Uncomment this line to define a global platform for your project
-# platform :ios, '12.0'
+# iOS 15.0 is the floor imposed by our dependencies:
+#   GoogleMaps 9.4.0, Google-Maps-iOS-Utils 6.1.0 and Firebase 12.6.0 all declare `ios: 15.0`.
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -40,5 +41,22 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    target.build_configurations.each do |config|
+      # flutter_additional_ios_build_settings pins pods back to Flutter's default
+      # (13.0), which is below what GoogleMaps/Firebase require.
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+
+      # permission_handler compiles every permission handler by default. App Store
+      # review rejects binaries that reference permission APIs with no matching
+      # usage string (ITMS-90683), so only compile in the ones this app asks for.
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] += [
+        'PERMISSION_LOCATION=1',
+        'PERMISSION_CAMERA=1',
+        'PERMISSION_PHOTOS=1',
+        'PERMISSION_NOTIFICATIONS=1',
+      ]
+    end
   end
 end

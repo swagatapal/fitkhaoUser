@@ -70,6 +70,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '349432574858',
     projectId: 'fitkhao-f0135',
     storageBucket: 'fitkhao-f0135.firebasestorage.app',
-    iosBundleId: 'com.example.fitkhaoUser',
+    iosBundleId: 'com.fitkhao.fitkhaoUser',
   );
 }

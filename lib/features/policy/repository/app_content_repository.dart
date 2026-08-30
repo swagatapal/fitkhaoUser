@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/config/app_config.dart';
@@ -53,12 +55,17 @@ class AppContentRepository {
   /// so a network error never blocks the user from opening the app.
   Future<AppVersionModel?> checkAppVersion({
     required String currentVersion,
-    String platform = 'android',
+    String? platform,
   }) async {
+    // Defaulting to 'android' made iOS ask the backend for the Android version
+    // config, which 404s ("No version config found for platform: android") and
+    // silently disabled the update gate on iOS.
+    final resolvedPlatform = platform ??
+        (defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android');
     debugPrint('[AppContentRepository] Checking app version: $currentVersion');
     try {
       final json = await _apiClient.getJson(
-        '${AppConfig.appVersionPath}?platform=$platform&currentVersion=$currentVersion',
+        '${AppConfig.appVersionPath}?platform=$resolvedPlatform&currentVersion=$currentVersion',
       );
       debugPrint('[AppContentRepository] Version response: $json');
       return AppVersionModel.fromJson(json);

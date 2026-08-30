@@ -71,11 +71,19 @@ dependencies:
   intl: ^0.20.2
   image_picker: ^1.2.0
   phone_number_hint: ^0.0.6
-  firebase_core: ^4.3.0
-  firebase_analytics: ^12.1.0
-  firebase_messaging: ^16.1.0
+  # Pinned to the FlutterFire line that resolves Firebase iOS SDK 11.8.0.
+  # Firebase iOS SDK >= 11.9 is built with Xcode 16.2 and uses Swift 6 syntax
+  # (`sending`, access-level-on-import) that this machine's Xcode 15.4 / Swift
+  # 5.10 cannot parse. Raise these again once Xcode 16.2+ is installed.
+  firebase_core: 3.12.1
+  firebase_analytics: ^11.4.0
+  firebase_messaging: ^15.2.0
   flutter_local_notifications: ^18.0.1
-  razorpay_flutter: ^1.4.4
+  # 1.4.2+ calls RazorpayCheckout.subscribeToAnalyticsEvents, which every
+  # razorpay-core-pod build gates behind `#if compiler(>=5.3) && $NonescapableTypes`
+  # (Swift 6). Under Swift 5.10 the method vanishes from the module interface and
+  # the plugin fails to compile. 1.4.0 is the newest release without that call.
+  razorpay_flutter: 1.4.0
   cached_network_image: ^3.4.1
   url_launcher: ^6.3.1
   lottie: ^3.3.3
