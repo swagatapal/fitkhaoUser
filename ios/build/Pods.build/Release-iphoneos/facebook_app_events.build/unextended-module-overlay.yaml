@@ -1,0 +1,23 @@
+{
+  'version': 0,
+  'use-external-names': 'false',
+  'case-sensitive': 'false',
+  'roots': [{
+    'type': 'directory',
+    'name': "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Release-iphoneos/facebook_app_events/facebook_app_events.framework/Modules"
+    'contents': [{
+      'type': 'file',
+      'name': "module.modulemap",
+      'external-contents': "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/facebook_app_events.build/unextended-module.modulemap",
+    }]
+    },
+    {
+    'type': 'directory',
+    'name': "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Release-iphoneos/facebook_app_events/facebook_app_events.framework/Headers"
+    'contents': [{
+      'type': 'file',
+      'name': "facebook_app_events-Swift.h",
+      'external-contents': "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/facebook_app_events.build/unextended-interface-header.h",
+    }]
+    }]
+}

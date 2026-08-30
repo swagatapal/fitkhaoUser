@@ -1,0 +1,38 @@
+{
+  "main_library": {
+    "exported_symbols": [
+      {
+        "data": {
+          "global": [
+            "_geocoding_iosVersionString",
+            "_geocoding_iosVersionNumber"
+          ],
+          "objc_class": [
+            "PodsDummy_geocoding_ios",
+            "GeocodingHandler",
+            "GeocodingPlugin"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "@rpath/geocoding_ios.framework/geocoding_ios"
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "15",
+        "target": "arm64-ios"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

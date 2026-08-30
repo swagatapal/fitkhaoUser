@@ -1,0 +1,6 @@
+version: "Apple Swift version 5.10 (swiftlang-5.10.0.13 clang-1500.3.9.4)"
+options: "c81380ba98e2b29b9cd9c5a1f922ed58cb339431cd609ec29cb23501de85423d"
+build_start_time: [1788118487, 686616000]
+build_end_time: [1788118488, 412166000]
+inputs:
+  "/Users/swagatapal/.pub-cache/hosted/pub.dev/smart_auth-2.0.0/ios/Classes/SwiftSmartAuthPlugin.swift": [1780073640, 712025472]

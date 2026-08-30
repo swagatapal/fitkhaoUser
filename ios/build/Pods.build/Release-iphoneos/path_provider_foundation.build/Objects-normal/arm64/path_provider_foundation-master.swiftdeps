@@ -1,0 +1,9 @@
+version: "Apple Swift version 5.10 (swiftlang-5.10.0.13 clang-1500.3.9.4)"
+options: "ccafec17013ce7ca755d9bffd5b9145b2893308b1d94ea4b32bb502fcf30da35"
+build_start_time: [1788118482, 205116000]
+build_end_time: [1788118483, 203771000]
+inputs:
+  ? "/Users/swagatapal/.pub-cache/hosted/pub.dev/path_provider_foundation-2.4.1/darwin/path_provider_foundation/Sources/path_provider_foundation/PathProviderPlugin.swift"
+  : [1757439010, 980164702]
+  ? "/Users/swagatapal/.pub-cache/hosted/pub.dev/path_provider_foundation-2.4.1/darwin/path_provider_foundation/Sources/path_provider_foundation/messages.g.swift"
+  : [1757439010, 980441279]

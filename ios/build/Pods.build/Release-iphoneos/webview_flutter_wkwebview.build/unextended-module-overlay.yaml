@@ -1,0 +1,23 @@
+{
+  'version': 0,
+  'use-external-names': 'false',
+  'case-sensitive': 'false',
+  'roots': [{
+    'type': 'directory',
+    'name': "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Release-iphoneos/webview_flutter_wkwebview/webview_flutter_wkwebview.framework/Modules"
+    'contents': [{
+      'type': 'file',
+      'name': "module.modulemap",
+      'external-contents': "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/webview_flutter_wkwebview.build/unextended-module.modulemap",
+    }]
+    },
+    {
+    'type': 'directory',
+    'name': "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Release-iphoneos/webview_flutter_wkwebview/webview_flutter_wkwebview.framework/Headers"
+    'contents': [{
+      'type': 'file',
+      'name': "webview_flutter_wkwebview-Swift.h",
+      'external-contents': "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/webview_flutter_wkwebview.build/unextended-interface-header.h",
+    }]
+    }]
+}

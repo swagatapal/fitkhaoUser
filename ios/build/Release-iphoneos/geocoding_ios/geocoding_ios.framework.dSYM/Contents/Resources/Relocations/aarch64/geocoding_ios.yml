@@ -1,0 +1,34 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Release-iphoneos/geocoding_ios/geocoding_ios.framework/geocoding_ios'
+relocations:
+  - { offsetInCU: 0x34, offset: 0x59B57, size: 0x8, addend: 0x0, symName: _geocoding_iosVersionString, symObjAddr: 0x0, symBinAddr: 0x5A90, symSize: 0x0 }
+  - { offsetInCU: 0x69, offset: 0x59B8C, size: 0x8, addend: 0x0, symName: _geocoding_iosVersionNumber, symObjAddr: 0x30, symBinAddr: 0x5AC0, symSize: 0x0 }
+  - { offsetInCU: 0x27, offset: 0x59BC9, size: 0x8, addend: 0x0, symName: '-[CLPlacemark(CLPlacemarkExtensions) toPlacemarkDictionary]', symObjAddr: 0x0, symBinAddr: 0x4000, symSize: 0x4D8 }
+  - { offsetInCU: 0x58, offset: 0x59BFA, size: 0x8, addend: 0x0, symName: '-[CLPlacemark(CLPlacemarkExtensions) toPlacemarkDictionary]', symObjAddr: 0x0, symBinAddr: 0x4000, symSize: 0x4D8 }
+  - { offsetInCU: 0xAF, offset: 0x59C51, size: 0x8, addend: 0x0, symName: '-[CLPlacemark(CLPlacemarkExtensions) toLocationDictionary]', symObjAddr: 0x4D8, symBinAddr: 0x44D8, symSize: 0x200 }
+  - { offsetInCU: 0xF6, offset: 0x59C98, size: 0x8, addend: 0x0, symName: '+[CLPlacemark(CLPlacemarkExtensions) currentTimeInMilliSeconds:]', symObjAddr: 0x6D8, symBinAddr: 0x46D8, symSize: 0x24 }
+  - { offsetInCU: 0x27, offset: 0x59D62, size: 0x8, addend: 0x0, symName: '-[GeocodingHandler init]', symObjAddr: 0x0, symBinAddr: 0x46FC, symSize: 0x64 }
+  - { offsetInCU: 0x6E, offset: 0x59DA9, size: 0x8, addend: 0x0, symName: '-[GeocodingHandler init]', symObjAddr: 0x0, symBinAddr: 0x46FC, symSize: 0x64 }
+  - { offsetInCU: 0xA5, offset: 0x59DE0, size: 0x8, addend: 0x0, symName: '-[GeocodingHandler geocodeFromAddress:locale:success:failure:]', symObjAddr: 0x64, symBinAddr: 0x4760, symSize: 0xFC }
+  - { offsetInCU: 0x12C, offset: 0x59E67, size: 0x8, addend: 0x0, symName: '___62-[GeocodingHandler geocodeFromAddress:locale:success:failure:]_block_invoke', symObjAddr: 0x160, symBinAddr: 0x485C, symSize: 0x1C }
+  - { offsetInCU: 0x197, offset: 0x59ED2, size: 0x8, addend: 0x0, symName: ___copy_helper_block_e8_32b40b, symObjAddr: 0x17C, symBinAddr: 0x4878, symSize: 0x3C }
+  - { offsetInCU: 0x1C0, offset: 0x59EFB, size: 0x8, addend: 0x0, symName: ___destroy_helper_block_e8_32s40s, symObjAddr: 0x1B8, symBinAddr: 0x48B4, symSize: 0x28 }
+  - { offsetInCU: 0x1DF, offset: 0x59F1A, size: 0x8, addend: 0x0, symName: '-[GeocodingHandler geocodeToAddress:locale:success:failure:]', symObjAddr: 0x1E0, symBinAddr: 0x48DC, symSize: 0xD0 }
+  - { offsetInCU: 0x252, offset: 0x59F8D, size: 0x8, addend: 0x0, symName: '___60-[GeocodingHandler geocodeToAddress:locale:success:failure:]_block_invoke', symObjAddr: 0x2B0, symBinAddr: 0x49AC, symSize: 0x1C }
+  - { offsetInCU: 0x2BD, offset: 0x59FF8, size: 0x8, addend: 0x0, symName: '+[GeocodingHandler completeGeocodingWith:error:success:failure:]', symObjAddr: 0x2CC, symBinAddr: 0x49C8, symSize: 0x100 }
+  - { offsetInCU: 0x376, offset: 0x5A0B1, size: 0x8, addend: 0x0, symName: '+[GeocodingHandler languageCode:]', symObjAddr: 0x3CC, symBinAddr: 0x4AC8, symSize: 0x8 }
+  - { offsetInCU: 0x3B9, offset: 0x5A0F4, size: 0x8, addend: 0x0, symName: '-[GeocodingHandler .cxx_destruct]', symObjAddr: 0x3D4, symBinAddr: 0x4AD0, symSize: 0xC }
+  - { offsetInCU: 0x27, offset: 0x5A3B6, size: 0x8, addend: 0x0, symName: '+[GeocodingPlugin registerWithRegistrar:]', symObjAddr: 0x0, symBinAddr: 0x4ADC, symSize: 0xA0 }
+  - { offsetInCU: 0x68, offset: 0x5A3F7, size: 0x8, addend: 0x0, symName: '+[GeocodingPlugin registerWithRegistrar:]', symObjAddr: 0x0, symBinAddr: 0x4ADC, symSize: 0xA0 }
+  - { offsetInCU: 0xC7, offset: 0x5A456, size: 0x8, addend: 0x0, symName: '-[GeocodingPlugin handleMethodCall:result:]', symObjAddr: 0xA0, symBinAddr: 0x4B7C, symSize: 0x384 }
+  - { offsetInCU: 0x1A8, offset: 0x5A537, size: 0x8, addend: 0x0, symName: '___43-[GeocodingPlugin handleMethodCall:result:]_block_invoke', symObjAddr: 0x424, symBinAddr: 0x4F00, symSize: 0x4C }
+  - { offsetInCU: 0x20E, offset: 0x5A59D, size: 0x8, addend: 0x0, symName: ___copy_helper_block_e8_32b, symObjAddr: 0x470, symBinAddr: 0x4F4C, symSize: 0x10 }
+  - { offsetInCU: 0x237, offset: 0x5A5C6, size: 0x8, addend: 0x0, symName: ___destroy_helper_block_e8_32s, symObjAddr: 0x480, symBinAddr: 0x4F5C, symSize: 0x8 }
+  - { offsetInCU: 0x256, offset: 0x5A5E5, size: 0x8, addend: 0x0, symName: '___43-[GeocodingPlugin handleMethodCall:result:]_block_invoke.8', symObjAddr: 0x488, symBinAddr: 0x4F64, symSize: 0x54 }
+  - { offsetInCU: 0x2CC, offset: 0x5A65B, size: 0x8, addend: 0x0, symName: '___43-[GeocodingPlugin handleMethodCall:result:]_block_invoke.18', symObjAddr: 0x4DC, symBinAddr: 0x4FB8, symSize: 0x4C }
+  - { offsetInCU: 0x332, offset: 0x5A6C1, size: 0x8, addend: 0x0, symName: '___43-[GeocodingPlugin handleMethodCall:result:]_block_invoke_2', symObjAddr: 0x528, symBinAddr: 0x5004, symSize: 0x54 }
+  - { offsetInCU: 0x3A8, offset: 0x5A737, size: 0x8, addend: 0x0, symName: '+[GeocodingPlugin parseLocale:]', symObjAddr: 0x57C, symBinAddr: 0x5058, symSize: 0x9C }
+  - { offsetInCU: 0x3EB, offset: 0x5A77A, size: 0x8, addend: 0x0, symName: '+[GeocodingPlugin toLocationResult:]', symObjAddr: 0x618, symBinAddr: 0x50F4, symSize: 0x13C }
+  - { offsetInCU: 0x45D, offset: 0x5A7EC, size: 0x8, addend: 0x0, symName: '+[GeocodingPlugin toPlacemarkResult:]', symObjAddr: 0x754, symBinAddr: 0x5230, symSize: 0x13C }
+...

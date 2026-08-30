@@ -1,0 +1,23 @@
+{
+  'version': 0,
+  'use-external-names': 'false',
+  'case-sensitive': 'false',
+  'roots': [{
+    'type': 'directory',
+    'name': "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Release-iphoneos/smart_auth/smart_auth.framework/Modules"
+    'contents': [{
+      'type': 'file',
+      'name': "module.modulemap",
+      'external-contents': "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/smart_auth.build/unextended-module.modulemap",
+    }]
+    },
+    {
+    'type': 'directory',
+    'name': "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Release-iphoneos/smart_auth/smart_auth.framework/Headers"
+    'contents': [{
+      'type': 'file',
+      'name': "smart_auth-Swift.h",
+      'external-contents': "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/smart_auth.build/unextended-interface-header.h",
+    }]
+    }]
+}

@@ -1,0 +1,10 @@
+framework module webview_flutter_wkwebview {
+  umbrella header "webview_flutter_wkwebview-umbrella.h"
+
+  export *
+  module * { export * }
+}
+
+module webview_flutter_wkwebview.__Swift {
+  exclude header "webview_flutter_wkwebview-Swift.h"
+}

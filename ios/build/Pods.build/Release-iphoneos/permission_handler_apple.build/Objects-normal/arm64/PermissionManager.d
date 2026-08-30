@@ -1,0 +1,44 @@
+dependencies: \
+  /Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/permission_handler_apple.build/module.modulemap \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/PermissionManager.m \
+  /Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/Pods/Target\ Support\ Files/permission_handler_apple/permission_handler_apple-prefix.pch \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/PermissionManager.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Modules/module.modulemap \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/Flutter.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterAppDelegate.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterMacros.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterPlugin.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterBinaryMessenger.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterChannels.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterCodecs.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterPlatformViews.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterTexture.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterCallbackCache.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterDartProject.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterEngine.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterEngineGroup.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterHeadlessDartRunner.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterPluginAppLifeCycleDelegate.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterSceneDelegate.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterViewController.h \
+  /Users/swagatapal/development/flutter/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64/Flutter.framework/Headers/FlutterHourFormat.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/AudioVideoPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/PermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/PermissionHandlerEnums.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/AppTrackingTransparencyPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/UnknownPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/BackgroundRefreshStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/BluetoothPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/ContactPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/EventPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/LocationPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/MediaLibraryPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/PhonePermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/PhotoPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/SensorPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/SpeechPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/StoragePermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/NotificationPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/CriticalAlertsPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/AssistantPermissionStrategy.h \
+  /Users/swagatapal/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/util/Codec.h

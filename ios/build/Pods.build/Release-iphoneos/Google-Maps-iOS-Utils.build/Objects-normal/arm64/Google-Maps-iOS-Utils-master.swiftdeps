@@ -1,0 +1,25 @@
+version: "Apple Swift version 5.10 (swiftlang-5.10.0.13 clang-1500.3.9.4)"
+options: "9f3905087363378e9e3dfb3ecebd02afaf8e8c2d28f59346e998c5d6dd4d5b1a"
+build_start_time: [1788118187, 169405000]
+build_end_time: [1788118188, 223079000]
+inputs:
+  ? "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/Pods/Google-Maps-iOS-Utils/Sources/GoogleMapsUtils/GeometryUtils/CLLocationCoordinate2D+GeometryUtils.swift"
+  : [1788118001, 412359076]
+  ? "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/Pods/Google-Maps-iOS-Utils/Sources/GoogleMapsUtils/GeometryUtils/GMSPath+GeometryUtils.swift"
+  : [1788118001, 411266286]
+  ? "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/Pods/Google-Maps-iOS-Utils/Sources/GoogleMapsUtils/GeometryUtils/GMSPolygon+GeometryUtils.swift"
+  : [1788118001, 412713450]
+  ? "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/Pods/Google-Maps-iOS-Utils/Sources/GoogleMapsUtils/GeometryUtils/GMSPolyline+GeometryUtils.swift"
+  : [1788118001, 412539492]
+  ? "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/Pods/Google-Maps-iOS-Utils/Sources/GoogleMapsUtils/GeometryUtils/Internal/CartesianPoint.swift"
+  : [1788118001, 412148493]
+  ? "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/Pods/Google-Maps-iOS-Utils/Sources/GoogleMapsUtils/GeometryUtils/Internal/LatLngRadians.swift"
+  : [1788118001, 411931618]
+  ? "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/Pods/Google-Maps-iOS-Utils/Sources/GoogleMapsUtils/GeometryUtils/MapPoint.swift"
+  : [1788118001, 411498827]
+  ? "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/Pods/Google-Maps-iOS-Utils/Sources/GoogleMapsUtils/GeometryUtils/Math.swift"
+  : [1788118001, 410990203]
+  ? "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/Pods/Google-Maps-iOS-Utils/Sources/GoogleMapsUtils/Heatmap/HeatmapInterpolationPoints.swift"
+  : [1788118001, 413142949]
+  ? "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/Pods/Google-Maps-iOS-Utils/Sources/GoogleMapsUtils/Helper/MockMapView.swift"
+  : [1788118001, 413408324]

@@ -1,0 +1,52 @@
+{
+  "main_library": {
+    "exported_symbols": [
+      {
+        "data": {
+          "global": [
+            "_$s10smart_auth20SwiftSmartAuthPluginCACycfc",
+            "_$s10smart_auth20SwiftSmartAuthPluginCMa",
+            "_smart_authVersionNumber",
+            "_$s10smart_auth20SwiftSmartAuthPluginCMn",
+            "_smart_authVersionString",
+            "_$s10smart_auth20SwiftSmartAuthPluginCN",
+            "_$s10smart_auth20SwiftSmartAuthPluginC6handle_6resultySo17FlutterMethodCallC_yypSgctF",
+            "_$s10smart_auth20SwiftSmartAuthPluginC6handle_6resultySo17FlutterMethodCallC_yypSgctFTq",
+            "_$s10smart_auth20SwiftSmartAuthPluginCfD",
+            "_$s10smart_auth20SwiftSmartAuthPluginCACycfC",
+            "_$s10smart_auth20SwiftSmartAuthPluginC8register4withySo07FlutterF9Registrar_p_tFZ"
+          ],
+          "objc_class": [
+            "PodsDummy_smart_auth",
+            "SmartAuthPlugin",
+            "_TtC10smart_auth20SwiftSmartAuthPlugin"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "@rpath/smart_auth.framework/smart_auth"
+      }
+    ],
+    "swift_abi": [
+      {
+        "abi": 7
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "15",
+        "target": "arm64-ios"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

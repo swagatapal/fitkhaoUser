@@ -1,0 +1,4 @@
+Target dependency graph (2 targets)
+Target 'PromisesObjC' in project 'Pods'
+➜ Explicit dependency on target 'PromisesObjC-FBLPromises_Privacy' in project 'Pods'
+Target 'PromisesObjC-FBLPromises_Privacy' in project 'Pods' (no dependencies)

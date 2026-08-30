@@ -1,0 +1,13 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Release-iphoneos/package_info_plus/package_info_plus.framework/package_info_plus'
+relocations:
+  - { offsetInCU: 0x34, offset: 0x576C9, size: 0x8, addend: 0x0, symName: _package_info_plusVersionString, symObjAddr: 0x0, symBinAddr: 0x4BF0, symSize: 0x0 }
+  - { offsetInCU: 0x69, offset: 0x576FE, size: 0x8, addend: 0x0, symName: _package_info_plusVersionNumber, symObjAddr: 0x30, symBinAddr: 0x4C20, symSize: 0x0 }
+  - { offsetInCU: 0x27, offset: 0x5773B, size: 0x8, addend: 0x0, symName: '+[FPPPackageInfoPlusPlugin registerWithRegistrar:]', symObjAddr: 0x0, symBinAddr: 0x4000, symSize: 0xA0 }
+  - { offsetInCU: 0x5B, offset: 0x5776F, size: 0x8, addend: 0x0, symName: '+[FPPPackageInfoPlusPlugin registerWithRegistrar:]', symObjAddr: 0x0, symBinAddr: 0x4000, symSize: 0xA0 }
+  - { offsetInCU: 0xBA, offset: 0x577CE, size: 0x8, addend: 0x0, symName: '-[FPPPackageInfoPlusPlugin handleMethodCall:result:]', symObjAddr: 0xA0, symBinAddr: 0x40A0, symSize: 0x510 }
+  - { offsetInCU: 0x182, offset: 0x57896, size: 0x8, addend: 0x0, symName: '-[FPPPackageInfoPlusPlugin getInstallDate]', symObjAddr: 0x5B0, symBinAddr: 0x45B0, symSize: 0x110 }
+  - { offsetInCU: 0x1E5, offset: 0x578F9, size: 0x8, addend: 0x0, symName: '-[FPPPackageInfoPlusPlugin getUpdateDate]', symObjAddr: 0x6C0, symBinAddr: 0x46C0, symSize: 0xE0 }
+  - { offsetInCU: 0x248, offset: 0x5795C, size: 0x8, addend: 0x0, symName: '-[FPPPackageInfoPlusPlugin getTimeMillisStringFromDate:]', symObjAddr: 0x7A0, symBinAddr: 0x47A0, symSize: 0x74 }
+...

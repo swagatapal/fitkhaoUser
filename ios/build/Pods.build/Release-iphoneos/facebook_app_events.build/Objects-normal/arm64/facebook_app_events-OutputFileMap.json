@@ -1,0 +1,15 @@
+{
+  "" : {
+    "const-values" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/facebook_app_events.build/Objects-normal/arm64/facebook_app_events-master.swiftconstvalues",
+    "dependencies" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/facebook_app_events.build/Objects-normal/arm64/facebook_app_events-master.d",
+    "diagnostics" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/facebook_app_events.build/Objects-normal/arm64/facebook_app_events-master.dia",
+    "emit-module-dependencies" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/facebook_app_events.build/Objects-normal/arm64/facebook_app_events-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/facebook_app_events.build/Objects-normal/arm64/facebook_app_events-master-emit-module.dia",
+    "swift-dependencies" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/facebook_app_events.build/Objects-normal/arm64/facebook_app_events-master.swiftdeps"
+  },
+  "/Users/swagatapal/.pub-cache/hosted/pub.dev/facebook_app_events-0.28.0/ios/facebook_app_events/Sources/facebook_app_events/FacebookAppEventsPlugin.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphoneos/facebook_app_events.build/Objects-normal/arm64/FacebookAppEventsPlugin.o",
+    "llvm-bc" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/facebook_app_events.build/Objects-normal/arm64/FacebookAppEventsPlugin.bc",
+    "object" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/facebook_app_events.build/Objects-normal/arm64/FacebookAppEventsPlugin.o"
+  }
+}

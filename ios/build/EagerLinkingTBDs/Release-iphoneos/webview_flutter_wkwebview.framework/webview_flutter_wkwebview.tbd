@@ -1,0 +1,144 @@
+{
+  "main_library": {
+    "exported_symbols": [
+      {
+        "data": {
+          "global": [
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_7didFail9withErrorySo05WKWebH0C_So12WKNavigationCSgs0L0_ptF",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC15binaryMessenger11apiDelegateACSo013FlutterBinaryL0_p_AA0defghiN0_ptcfC",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC17ignoreCallsToDartSbvM",
+            "_$s25webview_flutter_wkwebview20WebViewFlutterPluginCACycfC",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarC26createConstructorNullError4type10parametersAA06PigeonI0CypXp_SDySSypSgGtF",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC6_codec33_C7EEC6A640D8C4524072DB89CFB81BC6LLSo27FlutterStandardMessageCodecCSgvM",
+            "_$s25webview_flutter_wkwebview26PigeonApiDelegateWKWebViewCfD",
+            "_$s25webview_flutter_wkwebview19FlutterAssetManagerC06urlForE0y10Foundation3URLVSgSSF",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplCfD",
+            "_$s25webview_flutter_wkwebview022FWFWebViewFlutterWKWebE11ExternalAPICACycfC",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC6_codec33_C7EEC6A640D8C4524072DB89CFB81BC6LLSo27FlutterStandardMessageCodecCSgvs",
+            "_$s25webview_flutter_wkwebview19FlutterAssetManagerCMa",
+            "_$s25webview_flutter_wkwebview20WebViewFlutterPluginCN",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC17ignoreCallsToDartSbvMTq",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_10didReceive17completionHandlerySo05WKWebH0C_So28NSURLAuthenticationChallengeCySo016NSURLSessionAuthO11DispositionV_So15NSURLCredentialCSgtctF",
+            "_$s25webview_flutter_wkwebview26PigeonApiDelegateWKWebViewCMn",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC36webViewWebContentProcessDidTerminateyySo05WKWebH0CF",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC8tearDownyyF",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarC20dispatchOnMainThread7executeyyySS_AA11PigeonErrorCtcc_tF",
+            "_$s25webview_flutter_wkwebview20WebViewFlutterPluginCfD",
+            "_$s25webview_flutter_wkwebview20WebViewFlutterPluginCACycfc",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC17ignoreCallsToDartSbvgTq",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC17ignoreCallsToDartSbvs",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplCN",
+            "_$s25webview_flutter_wkwebview022FWFWebViewFlutterWKWebE11ExternalAPICN",
+            "_$s25webview_flutter_wkwebview19FlutterAssetManagerC012lookupKeyForE0ySSSgSSF",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_10didReceive17completionHandlerySo05WKWebH0C_So28NSURLAuthenticationChallengeCySo016NSURLSessionAuthO11DispositionV_So15NSURLCredentialCSgtctFTq",
+            "_$s25webview_flutter_wkwebview26PigeonApiDelegateWKWebViewCACycfC",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarC15binaryMessenger12assetManagerACSo013FlutterBinaryG0_p_AA0j5AssetI0CtcfC",
+            "_$s25webview_flutter_wkwebview28PigeonApiDelegateURLResponseCfD",
+            "_$s25webview_flutter_wkwebview022FWFWebViewFlutterWKWebE11ExternalAPICMn",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_15decidePolicyFor15decisionHandlerySo05WKWebH0C_So18WKNavigationActionCySo0opJ0VctFTq",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplCACycfc",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarCN",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_7didFail9withErrorySo05WKWebH0C_So12WKNavigationCSgs0L0_ptFTq",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarCMm",
+            "_$s25webview_flutter_wkwebview022FWFWebViewFlutterWKWebE11ExternalAPICMa",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_9didFinishySo05WKWebH0C_So12WKNavigationCSgtF",
+            "_$s25webview_flutter_wkwebview28PigeonApiDelegateURLResponseCMn",
+            "_$s25webview_flutter_wkwebview28PigeonApiDelegateURLResponseCN",
+            "_webview_flutter_wkwebviewVersionNumber",
+            "_$s25webview_flutter_wkwebview26PigeonApiDelegateWKWebViewCN",
+            "_$s25webview_flutter_wkwebview28PigeonApiDelegateURLResponseCfd",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC5setUpyyF",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarCMa",
+            "_$s25webview_flutter_wkwebview28PigeonApiDelegateURLResponseCMa",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC17ignoreCallsToDartSbvg",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarCfd",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplCMa",
+            "_$s25webview_flutter_wkwebview19FlutterAssetManagerCN",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplCACycfC",
+            "_$s25webview_flutter_wkwebview20WebViewFlutterPluginC16detachFromEngine3forySo0fG9Registrar_p_tF",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplCMn",
+            "_$s25webview_flutter_wkwebview022FWFWebViewFlutterWKWebE11ExternalAPICfD",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_019didStartProvisionalD0ySo05WKWebH0C_So12WKNavigationCSgtFTq",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarC31createUnsupportedVersionMessage_19versionRequirementsS2S_SStF",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarCMa",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarCMn",
+            "_$s25webview_flutter_wkwebview022FWFWebViewFlutterWKWebE11ExternalAPICACycfc",
+            "_$s25webview_flutter_wkwebview19FlutterAssetManagerCMn",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_15decidePolicyFor15decisionHandlerySo05WKWebH0C_So18WKNavigationActionCySo0opJ0VctF",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC17ignoreCallsToDartSbvsTq",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarCfD",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC36webViewWebContentProcessDidTerminateyySo05WKWebH0CFTq",
+            "_$s25webview_flutter_wkwebview26PigeonApiDelegateWKWebViewCfd",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC6_codec33_C7EEC6A640D8C4524072DB89CFB81BC6LLSo27FlutterStandardMessageCodecCSgvpfi",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarCMn",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarCfD",
+            "_$s25webview_flutter_wkwebview19FlutterAssetManagerC6bundleACSo8NSBundleC_tcfC",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarC23logFlutterMethodFailure_10methodNameyAA11PigeonErrorC_SStF",
+            "_$s25webview_flutter_wkwebview28PigeonApiDelegateURLResponseCMm",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarCfd",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC17ignoreCallsToDartSbvpMV",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarC18createNullURLError33_EF29F4B740F0C7992345D36CC4DEBA7BLL3urlAA11PigeonErrorCSS_tF",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_019didStartProvisionalD0ySo05WKWebH0C_So12WKNavigationCSgtF",
+            "_$s25webview_flutter_wkwebview20WebViewFlutterPluginC8register4withySo0fG9Registrar_p_tFZ",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarC15binaryMessenger11apiDelegateACSo013FlutterBinaryG0_p_AA019WebKitLibraryPigeond3ApiI0_ptcfC",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_9didFinishySo05WKWebH0C_So12WKNavigationCSgtFTq",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarC22createUnknownEnumError04withH0AA06PigeonI0Cyp_tF",
+            "_$s25webview_flutter_wkwebview26PigeonApiDelegateWKWebViewCMm",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_018didFailProvisionalD09withErrorySo05WKWebH0C_So12WKNavigationCSgs0M0_ptFTq",
+            "_webview_flutter_wkwebviewVersionString",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarCN",
+            "_$s25webview_flutter_wkwebview26PigeonApiDelegateWKWebViewCMa",
+            "_$s25webview_flutter_wkwebview022FWFWebViewFlutterWKWebE11ExternalAPIC03webE013forIdentifier18withPluginRegistrySo0gE0CSgs5Int64V_So0fnO0_ptFZ",
+            "_$s25webview_flutter_wkwebview20WebViewFlutterPluginCMa",
+            "_$s25webview_flutter_wkwebview19FlutterAssetManagerCfD",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC17ignoreCallsToDartSbvpfi",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC5codecSo27FlutterStandardMessageCodecCvg",
+            "_$s25webview_flutter_wkwebview19FlutterAssetManagerCMm",
+            "_$s25webview_flutter_wkwebview19FlutterAssetManagerCfd",
+            "_$s25webview_flutter_wkwebview20WebViewFlutterPluginC16detachFromEngine3forySo0fG9Registrar_p_tFTq",
+            "_$s25webview_flutter_wkwebview20WebViewFlutterPluginCMn",
+            "_$s25webview_flutter_wkwebview20WebViewFlutterPluginC17proxyApiRegistrarAA17ProxyAPIRegistrarCSgvpfi",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_018didFailProvisionalD09withErrorySo05WKWebH0C_So12WKNavigationCSgs0M0_ptF",
+            "_$s25webview_flutter_wkwebview28PigeonApiDelegateURLResponseCACycfC",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarC29createUnsupportedVersionError6method19versionRequirementsAA06PigeonI0CSS_SStF",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC17ignoreCallsToDartSbvpWvd",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_15decidePolicyFor15decisionHandlerySo05WKWebH0C_So20WKNavigationResponseCySo0opJ0VctF",
+            "_$s25webview_flutter_wkwebview17ProxyAPIRegistrarCMm",
+            "_$s25webview_flutter_wkwebview22NavigationDelegateImplC7webView_15decidePolicyFor15decisionHandlerySo05WKWebH0C_So20WKNavigationResponseCySo0opJ0VctFTq",
+            "_$s25webview_flutter_wkwebview36WebKitLibraryPigeonProxyApiRegistrarC6_codec33_C7EEC6A640D8C4524072DB89CFB81BC6LLSo27FlutterStandardMessageCodecCSgvg"
+          ],
+          "objc_class": [
+            "PodsDummy_webview_flutter_wkwebview",
+            "_TtC25webview_flutter_wkwebview20WebViewFlutterPlugin",
+            "FWFWebViewFlutterWKWebViewExternalAPI",
+            "_TtC25webview_flutter_wkwebview22NavigationDelegateImpl"
+          ]
+        }
+      }
+    ],
+    "flags": [
+      {
+        "attributes": [
+          "not_app_extension_safe"
+        ]
+      }
+    ],
+    "install_names": [
+      {
+        "name": "@rpath/webview_flutter_wkwebview.framework/webview_flutter_wkwebview"
+      }
+    ],
+    "swift_abi": [
+      {
+        "abi": 7
+      }
+    ],
+    "target_info": [
+      {
+        "min_deployment": "15",
+        "target": "arm64-ios"
+      }
+    ]
+  },
+  "tapi_tbd_version": 5
+}

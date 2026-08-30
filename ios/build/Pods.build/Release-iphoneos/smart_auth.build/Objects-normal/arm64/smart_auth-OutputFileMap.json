@@ -1,0 +1,15 @@
+{
+  "" : {
+    "const-values" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/smart_auth.build/Objects-normal/arm64/smart_auth-master.swiftconstvalues",
+    "dependencies" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/smart_auth.build/Objects-normal/arm64/smart_auth-master.d",
+    "diagnostics" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/smart_auth.build/Objects-normal/arm64/smart_auth-master.dia",
+    "emit-module-dependencies" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/smart_auth.build/Objects-normal/arm64/smart_auth-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/smart_auth.build/Objects-normal/arm64/smart_auth-master-emit-module.dia",
+    "swift-dependencies" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/smart_auth.build/Objects-normal/arm64/smart_auth-master.swiftdeps"
+  },
+  "/Users/swagatapal/.pub-cache/hosted/pub.dev/smart_auth-2.0.0/ios/Classes/SwiftSmartAuthPlugin.swift" : {
+    "index-unit-output-path" : "/Pods.build/Release-iphoneos/smart_auth.build/Objects-normal/arm64/SwiftSmartAuthPlugin.o",
+    "llvm-bc" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/smart_auth.build/Objects-normal/arm64/SwiftSmartAuthPlugin.bc",
+    "object" : "/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Pods.build/Release-iphoneos/smart_auth.build/Objects-normal/arm64/SwiftSmartAuthPlugin.o"
+  }
+}

@@ -1,0 +1,134 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/swagatapal/Desktop/Flutter/fitkhao_all_app/fitkhao_user/ios/build/Release-iphoneos/geolocator_apple/geolocator_apple.framework/geolocator_apple'
+relocations:
+  - { offsetInCU: 0x34, offset: 0x58788, size: 0x8, addend: 0x0, symName: _geolocator_appleVersionString, symObjAddr: 0x0, symBinAddr: 0x81D0, symSize: 0x0 }
+  - { offsetInCU: 0x69, offset: 0x587BD, size: 0x8, addend: 0x0, symName: _geolocator_appleVersionNumber, symObjAddr: 0x30, symBinAddr: 0x8200, symSize: 0x0 }
+  - { offsetInCU: 0x27, offset: 0x587FA, size: 0x8, addend: 0x0, symName: '+[ActivityTypeMapper toCLActivityType:]', symObjAddr: 0x0, symBinAddr: 0x4000, symSize: 0x58 }
+  - { offsetInCU: 0x6D, offset: 0x58840, size: 0x8, addend: 0x0, symName: '+[ActivityTypeMapper toCLActivityType:]', symObjAddr: 0x0, symBinAddr: 0x4000, symSize: 0x58 }
+  - { offsetInCU: 0x27, offset: 0x588DA, size: 0x8, addend: 0x0, symName: '+[AuthorizationStatusMapper toDartIndex:]', symObjAddr: 0x0, symBinAddr: 0x4058, symSize: 0x28 }
+  - { offsetInCU: 0x51, offset: 0x58904, size: 0x8, addend: 0x0, symName: '+[AuthorizationStatusMapper toDartIndex:]', symObjAddr: 0x0, symBinAddr: 0x4058, symSize: 0x28 }
+  - { offsetInCU: 0x35, offset: 0x589AA, size: 0x8, addend: 0x0, symName: _GeolocatorErrorLocationUpdateFailure, symObjAddr: 0x168, symBinAddr: 0xC0F8, symSize: 0x0 }
+  - { offsetInCU: 0x55, offset: 0x589CA, size: 0x8, addend: 0x0, symName: _GeolocatorErrorLocationServicesDisabled, symObjAddr: 0x170, symBinAddr: 0xC100, symSize: 0x0 }
+  - { offsetInCU: 0x6B, offset: 0x589E0, size: 0x8, addend: 0x0, symName: _GeolocatorErrorLocationSubscriptionActive, symObjAddr: 0x178, symBinAddr: 0xC108, symSize: 0x0 }
+  - { offsetInCU: 0x81, offset: 0x589F6, size: 0x8, addend: 0x0, symName: _GeolocatorErrorPermissionDefinitionsNotFound, symObjAddr: 0x180, symBinAddr: 0xC110, symSize: 0x0 }
+  - { offsetInCU: 0x97, offset: 0x58A0C, size: 0x8, addend: 0x0, symName: _GeolocatorErrorPermissionDenied, symObjAddr: 0x188, symBinAddr: 0xC118, symSize: 0x0 }
+  - { offsetInCU: 0xAD, offset: 0x58A22, size: 0x8, addend: 0x0, symName: _GeolocatorErrorPermissionRequestInProgress, symObjAddr: 0x190, symBinAddr: 0xC120, symSize: 0x0 }
+  - { offsetInCU: 0x27, offset: 0x58A68, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler init]', symObjAddr: 0x0, symBinAddr: 0x4080, symSize: 0x58 }
+  - { offsetInCU: 0x41, offset: 0x58A82, size: 0x8, addend: 0x0, symName: _kMaxLocationLifeTimeInSeconds, symObjAddr: 0x9B8, symBinAddr: 0x8230, symSize: 0x0 }
+  - { offsetInCU: 0x22A, offset: 0x58C6B, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler init]', symObjAddr: 0x0, symBinAddr: 0x4080, symSize: 0x58 }
+  - { offsetInCU: 0x261, offset: 0x58CA2, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler getLocationManager]', symObjAddr: 0x58, symBinAddr: 0x40D8, symSize: 0x80 }
+  - { offsetInCU: 0x298, offset: 0x58CD9, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler setLocationManagerOverride:]', symObjAddr: 0xD8, symBinAddr: 0x4158, symSize: 0x4 }
+  - { offsetInCU: 0x2D7, offset: 0x58D18, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler getOneTimeLocationManager]', symObjAddr: 0xDC, symBinAddr: 0x415C, symSize: 0x80 }
+  - { offsetInCU: 0x30E, offset: 0x58D4F, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler setOneTimeLocationManagerOverride:]', symObjAddr: 0x15C, symBinAddr: 0x41DC, symSize: 0x4 }
+  - { offsetInCU: 0x34D, offset: 0x58D8E, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler getLastKnownPosition]', symObjAddr: 0x160, symBinAddr: 0x41E0, symSize: 0x98 }
+  - { offsetInCU: 0x3B4, offset: 0x58DF5, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler requestPositionWithDesiredAccuracy:resultHandler:errorHandler:]', symObjAddr: 0x1F8, symBinAddr: 0x4278, symSize: 0x88 }
+  - { offsetInCU: 0x437, offset: 0x58E78, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler startListeningWithDesiredAccuracy:distanceFilter:pauseLocationUpdatesAutomatically:showBackgroundLocationIndicator:activityType:allowBackgroundLocationUpdates:resultHandler:errorHandler:]', symObjAddr: 0x280, symBinAddr: 0x4300, symSize: 0xA4 }
+  - { offsetInCU: 0x4EA, offset: 0x58F2B, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler startUpdatingLocationWithDesiredAccuracy:distanceFilter:pauseLocationUpdatesAutomatically:activityType:isListeningForPositionUpdates:showBackgroundLocationIndicator:allowBackgroundLocationUpdates:]', symObjAddr: 0x324, symBinAddr: 0x43A4, symSize: 0xEC }
+  - { offsetInCU: 0x5C3, offset: 0x59004, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler stopOneTimeLocationListening]', symObjAddr: 0x410, symBinAddr: 0x4490, symSize: 0x4C }
+  - { offsetInCU: 0x5F6, offset: 0x59037, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler stopListening]', symObjAddr: 0x45C, symBinAddr: 0x44DC, symSize: 0x4C }
+  - { offsetInCU: 0x629, offset: 0x5906A, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler locationManager:didUpdateLocations:]', symObjAddr: 0x4A8, symBinAddr: 0x4528, symSize: 0x1D4 }
+  - { offsetInCU: 0x6C0, offset: 0x59101, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler locationManager:didFailWithError:]', symObjAddr: 0x67C, symBinAddr: 0x46FC, symSize: 0x1FC }
+  - { offsetInCU: 0x757, offset: 0x59198, size: 0x8, addend: 0x0, symName: '+[GeolocationHandler shouldEnableBackgroundLocationUpdates]', symObjAddr: 0x878, symBinAddr: 0x48F8, symSize: 0x74 }
+  - { offsetInCU: 0x78A, offset: 0x591CB, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler locationManager]', symObjAddr: 0x8EC, symBinAddr: 0x496C, symSize: 0x8 }
+  - { offsetInCU: 0x7C1, offset: 0x59202, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler setLocationManager:]', symObjAddr: 0x8F4, symBinAddr: 0x4974, symSize: 0xC }
+  - { offsetInCU: 0x802, offset: 0x59243, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler errorHandler]', symObjAddr: 0x900, symBinAddr: 0x4980, symSize: 0x8 }
+  - { offsetInCU: 0x839, offset: 0x5927A, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler setErrorHandler:]', symObjAddr: 0x908, symBinAddr: 0x4988, symSize: 0x8 }
+  - { offsetInCU: 0x878, offset: 0x592B9, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler oneTimeLocationManager]', symObjAddr: 0x910, symBinAddr: 0x4990, symSize: 0x8 }
+  - { offsetInCU: 0x8AF, offset: 0x592F0, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler setOneTimeLocationManager:]', symObjAddr: 0x918, symBinAddr: 0x4998, symSize: 0xC }
+  - { offsetInCU: 0x8F0, offset: 0x59331, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler oneTimeErrorHandler]', symObjAddr: 0x924, symBinAddr: 0x49A4, symSize: 0x8 }
+  - { offsetInCU: 0x927, offset: 0x59368, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler setOneTimeErrorHandler:]', symObjAddr: 0x92C, symBinAddr: 0x49AC, symSize: 0x8 }
+  - { offsetInCU: 0x966, offset: 0x593A7, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler currentLocationResultHandler]', symObjAddr: 0x934, symBinAddr: 0x49B4, symSize: 0x8 }
+  - { offsetInCU: 0x99D, offset: 0x593DE, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler setCurrentLocationResultHandler:]', symObjAddr: 0x93C, symBinAddr: 0x49BC, symSize: 0x8 }
+  - { offsetInCU: 0x9DC, offset: 0x5941D, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler listenerResultHandler]', symObjAddr: 0x944, symBinAddr: 0x49C4, symSize: 0x8 }
+  - { offsetInCU: 0xA13, offset: 0x59454, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler setListenerResultHandler:]', symObjAddr: 0x94C, symBinAddr: 0x49CC, symSize: 0x8 }
+  - { offsetInCU: 0xA52, offset: 0x59493, size: 0x8, addend: 0x0, symName: '-[GeolocationHandler .cxx_destruct]', symObjAddr: 0x954, symBinAddr: 0x49D4, symSize: 0x60 }
+  - { offsetInCU: 0x27, offset: 0x59552, size: 0x8, addend: 0x0, symName: '+[GeolocatorPlugin registerWithRegistrar:]', symObjAddr: 0x0, symBinAddr: 0x4A34, symSize: 0x1B0 }
+  - { offsetInCU: 0xFD, offset: 0x59628, size: 0x8, addend: 0x0, symName: '+[GeolocatorPlugin registerWithRegistrar:]', symObjAddr: 0x0, symBinAddr: 0x4A34, symSize: 0x1B0 }
+  - { offsetInCU: 0x19C, offset: 0x596C7, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin createGeolocationHandler]', symObjAddr: 0x1B0, symBinAddr: 0x4BE4, symSize: 0x5C }
+  - { offsetInCU: 0x1D3, offset: 0x596FE, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin setGeolocationHandlerOverride:]', symObjAddr: 0x20C, symBinAddr: 0x4C40, symSize: 0x4 }
+  - { offsetInCU: 0x212, offset: 0x5973D, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin createLocationAccuracyHandler]', symObjAddr: 0x210, symBinAddr: 0x4C44, symSize: 0x5C }
+  - { offsetInCU: 0x249, offset: 0x59774, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin setLocationAccuracyHandlerOverride:]', symObjAddr: 0x26C, symBinAddr: 0x4CA0, symSize: 0x4 }
+  - { offsetInCU: 0x288, offset: 0x597B3, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin createPermissionHandler]', symObjAddr: 0x270, symBinAddr: 0x4CA4, symSize: 0x5C }
+  - { offsetInCU: 0x2BF, offset: 0x597EA, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin setPermissionHandlerOverride:]', symObjAddr: 0x2CC, symBinAddr: 0x4D00, symSize: 0x4 }
+  - { offsetInCU: 0x2FE, offset: 0x59829, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin handleMethodCall:result:]', symObjAddr: 0x2D0, symBinAddr: 0x4D04, symSize: 0x340 }
+  - { offsetInCU: 0x384, offset: 0x598AF, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin onCheckPermission:]', symObjAddr: 0x610, symBinAddr: 0x5044, symSize: 0x8C }
+  - { offsetInCU: 0x3F2, offset: 0x5991D, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin onRequestPermission:]', symObjAddr: 0x69C, symBinAddr: 0x50D0, symSize: 0xE4 }
+  - { offsetInCU: 0x435, offset: 0x59960, size: 0x8, addend: 0x0, symName: '___40-[GeolocatorPlugin onRequestPermission:]_block_invoke', symObjAddr: 0x780, symBinAddr: 0x51B4, symSize: 0x4C }
+  - { offsetInCU: 0x49B, offset: 0x599C6, size: 0x8, addend: 0x0, symName: ___copy_helper_block_e8_32b, symObjAddr: 0x7CC, symBinAddr: 0x5200, symSize: 0x10 }
+  - { offsetInCU: 0x4C4, offset: 0x599EF, size: 0x8, addend: 0x0, symName: ___destroy_helper_block_e8_32s, symObjAddr: 0x7DC, symBinAddr: 0x5210, symSize: 0x8 }
+  - { offsetInCU: 0x4E3, offset: 0x59A0E, size: 0x8, addend: 0x0, symName: '___40-[GeolocatorPlugin onRequestPermission:]_block_invoke.34', symObjAddr: 0x7E4, symBinAddr: 0x5218, symSize: 0x54 }
+  - { offsetInCU: 0x559, offset: 0x59A84, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin onIsLocationServiceEnabled:]', symObjAddr: 0x838, symBinAddr: 0x526C, symSize: 0xA4 }
+  - { offsetInCU: 0x61C, offset: 0x59B47, size: 0x8, addend: 0x0, symName: '___47-[GeolocatorPlugin onIsLocationServiceEnabled:]_block_invoke', symObjAddr: 0x8DC, symBinAddr: 0x5310, symSize: 0x88 }
+  - { offsetInCU: 0x688, offset: 0x59BB3, size: 0x8, addend: 0x0, symName: '___47-[GeolocatorPlugin onIsLocationServiceEnabled:]_block_invoke_2', symObjAddr: 0x964, symBinAddr: 0x5398, symSize: 0x50 }
+  - { offsetInCU: 0x6EE, offset: 0x59C19, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin onGetLastKnownPosition:]', symObjAddr: 0x9B4, symBinAddr: 0x53E8, symSize: 0x10C }
+  - { offsetInCU: 0x777, offset: 0x59CA2, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin onGetCurrentPositionWithArguments:result:]', symObjAddr: 0xAC0, symBinAddr: 0x54F4, symSize: 0x1AC }
+  - { offsetInCU: 0x805, offset: 0x59D30, size: 0x8, addend: 0x0, symName: '___61-[GeolocatorPlugin onGetCurrentPositionWithArguments:result:]_block_invoke', symObjAddr: 0xC6C, symBinAddr: 0x56A0, symSize: 0x4C }
+  - { offsetInCU: 0x86B, offset: 0x59D96, size: 0x8, addend: 0x0, symName: '___61-[GeolocatorPlugin onGetCurrentPositionWithArguments:result:]_block_invoke.47', symObjAddr: 0xCB8, symBinAddr: 0x56EC, symSize: 0x54 }
+  - { offsetInCU: 0x8E1, offset: 0x59E0C, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin openSettings:]', symObjAddr: 0xD0C, symBinAddr: 0x5740, symSize: 0xF8 }
+  - { offsetInCU: 0x920, offset: 0x59E4B, size: 0x8, addend: 0x0, symName: '___33-[GeolocatorPlugin openSettings:]_block_invoke', symObjAddr: 0xE04, symBinAddr: 0x5838, symSize: 0x4C }
+  - { offsetInCU: 0x986, offset: 0x59EB1, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin geolocationHandler]', symObjAddr: 0xE50, symBinAddr: 0x5884, symSize: 0x8 }
+  - { offsetInCU: 0x9BD, offset: 0x59EE8, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin setGeolocationHandler:]', symObjAddr: 0xE58, symBinAddr: 0x588C, symSize: 0xC }
+  - { offsetInCU: 0x9FE, offset: 0x59F29, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin locationAccuracyHandler]', symObjAddr: 0xE64, symBinAddr: 0x5898, symSize: 0x8 }
+  - { offsetInCU: 0xA35, offset: 0x59F60, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin setLocationAccuracyHandler:]', symObjAddr: 0xE6C, symBinAddr: 0x58A0, symSize: 0xC }
+  - { offsetInCU: 0xA76, offset: 0x59FA1, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin permissionHandler]', symObjAddr: 0xE78, symBinAddr: 0x58AC, symSize: 0x8 }
+  - { offsetInCU: 0xAAD, offset: 0x59FD8, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin setPermissionHandler:]', symObjAddr: 0xE80, symBinAddr: 0x58B4, symSize: 0xC }
+  - { offsetInCU: 0xAEE, offset: 0x5A019, size: 0x8, addend: 0x0, symName: '-[GeolocatorPlugin .cxx_destruct]', symObjAddr: 0xE8C, symBinAddr: 0x58C0, symSize: 0x3C }
+  - { offsetInCU: 0x27, offset: 0x5A427, size: 0x8, addend: 0x0, symName: '-[LocationAccuracyHandler init]', symObjAddr: 0x0, symBinAddr: 0x58FC, symSize: 0x7C }
+  - { offsetInCU: 0x90, offset: 0x5A490, size: 0x8, addend: 0x0, symName: '-[LocationAccuracyHandler init]', symObjAddr: 0x0, symBinAddr: 0x58FC, symSize: 0x7C }
+  - { offsetInCU: 0xC7, offset: 0x5A4C7, size: 0x8, addend: 0x0, symName: '-[LocationAccuracyHandler getLocationAccuracyWithResult:]', symObjAddr: 0x7C, symBinAddr: 0x5978, symSize: 0x90 }
+  - { offsetInCU: 0x125, offset: 0x5A525, size: 0x8, addend: 0x0, symName: '-[LocationAccuracyHandler requestTemporaryFullAccuracyWithResult:purposeKey:]', symObjAddr: 0x10C, symBinAddr: 0x5A08, symSize: 0x158 }
+  - { offsetInCU: 0x193, offset: 0x5A593, size: 0x8, addend: 0x0, symName: '___77-[LocationAccuracyHandler requestTemporaryFullAccuracyWithResult:purposeKey:]_block_invoke', symObjAddr: 0x264, symBinAddr: 0x5B60, symSize: 0x80 }
+  - { offsetInCU: 0x209, offset: 0x5A609, size: 0x8, addend: 0x0, symName: ___copy_helper_block_e8_32s40b, symObjAddr: 0x2E4, symBinAddr: 0x5BE0, symSize: 0x34 }
+  - { offsetInCU: 0x232, offset: 0x5A632, size: 0x8, addend: 0x0, symName: ___destroy_helper_block_e8_32s40s, symObjAddr: 0x318, symBinAddr: 0x5C14, symSize: 0x28 }
+  - { offsetInCU: 0x251, offset: 0x5A651, size: 0x8, addend: 0x0, symName: '-[LocationAccuracyHandler locationManager]', symObjAddr: 0x340, symBinAddr: 0x5C3C, symSize: 0x8 }
+  - { offsetInCU: 0x288, offset: 0x5A688, size: 0x8, addend: 0x0, symName: '-[LocationAccuracyHandler setLocationManager:]', symObjAddr: 0x348, symBinAddr: 0x5C44, symSize: 0xC }
+  - { offsetInCU: 0x2C9, offset: 0x5A6C9, size: 0x8, addend: 0x0, symName: '-[LocationAccuracyHandler .cxx_destruct]', symObjAddr: 0x354, symBinAddr: 0x5C50, symSize: 0xC }
+  - { offsetInCU: 0x27, offset: 0x5A83D, size: 0x8, addend: 0x0, symName: '+[LocationAccuracyMapper toCLLocationAccuracy:]', symObjAddr: 0x0, symBinAddr: 0x5C5C, symSize: 0x68 }
+  - { offsetInCU: 0x51, offset: 0x5A867, size: 0x8, addend: 0x0, symName: '+[LocationAccuracyMapper toCLLocationAccuracy:]', symObjAddr: 0x0, symBinAddr: 0x5C5C, symSize: 0x68 }
+  - { offsetInCU: 0x27, offset: 0x5A908, size: 0x8, addend: 0x0, symName: '+[LocationDistanceMapper toCLLocationDistance:]', symObjAddr: 0x0, symBinAddr: 0x5CC4, symSize: 0x1C }
+  - { offsetInCU: 0x51, offset: 0x5A932, size: 0x8, addend: 0x0, symName: '+[LocationDistanceMapper toCLLocationDistance:]', symObjAddr: 0x0, symBinAddr: 0x5CC4, symSize: 0x1C }
+  - { offsetInCU: 0x27, offset: 0x5A9D1, size: 0x8, addend: 0x0, symName: '+[LocationMapper toDictionary:]', symObjAddr: 0x0, symBinAddr: 0x5CE0, symSize: 0x40C }
+  - { offsetInCU: 0x51, offset: 0x5A9FB, size: 0x8, addend: 0x0, symName: '+[LocationMapper toDictionary:]', symObjAddr: 0x0, symBinAddr: 0x5CE0, symSize: 0x40C }
+  - { offsetInCU: 0x113, offset: 0x5AABD, size: 0x8, addend: 0x0, symName: '+[LocationMapper currentTimeInMilliSeconds:]', symObjAddr: 0x40C, symBinAddr: 0x60EC, symSize: 0x24 }
+  - { offsetInCU: 0x27, offset: 0x5AB7D, size: 0x8, addend: 0x0, symName: '-[LocationServiceStreamHandler onCancelWithArguments:]', symObjAddr: 0x0, symBinAddr: 0x6110, symSize: 0x34 }
+  - { offsetInCU: 0xD5, offset: 0x5AC2B, size: 0x8, addend: 0x0, symName: '-[LocationServiceStreamHandler onCancelWithArguments:]', symObjAddr: 0x0, symBinAddr: 0x6110, symSize: 0x34 }
+  - { offsetInCU: 0x118, offset: 0x5AC6E, size: 0x8, addend: 0x0, symName: '-[LocationServiceStreamHandler onListenWithArguments:eventSink:]', symObjAddr: 0x34, symBinAddr: 0x6144, symSize: 0x9C }
+  - { offsetInCU: 0x16B, offset: 0x5ACC1, size: 0x8, addend: 0x0, symName: '-[LocationServiceStreamHandler locationManager:didChangeAuthorizationStatus:]', symObjAddr: 0xD0, symBinAddr: 0x61E0, symSize: 0x7C }
+  - { offsetInCU: 0x21F, offset: 0x5AD75, size: 0x8, addend: 0x0, symName: '___77-[LocationServiceStreamHandler locationManager:didChangeAuthorizationStatus:]_block_invoke', symObjAddr: 0x14C, symBinAddr: 0x625C, symSize: 0x78 }
+  - { offsetInCU: 0x28F, offset: 0x5ADE5, size: 0x8, addend: 0x0, symName: '___77-[LocationServiceStreamHandler locationManager:didChangeAuthorizationStatus:]_block_invoke_2', symObjAddr: 0x1C4, symBinAddr: 0x62D4, symSize: 0x50 }
+  - { offsetInCU: 0x2F9, offset: 0x5AE4F, size: 0x8, addend: 0x0, symName: ___copy_helper_block_e8_32s, symObjAddr: 0x214, symBinAddr: 0x6324, symSize: 0x8 }
+  - { offsetInCU: 0x320, offset: 0x5AE76, size: 0x8, addend: 0x0, symName: '-[LocationServiceStreamHandler locationManager]', symObjAddr: 0x224, symBinAddr: 0x632C, symSize: 0x8 }
+  - { offsetInCU: 0x357, offset: 0x5AEAD, size: 0x8, addend: 0x0, symName: '-[LocationServiceStreamHandler setLocationManager:]', symObjAddr: 0x22C, symBinAddr: 0x6334, symSize: 0xC }
+  - { offsetInCU: 0x398, offset: 0x5AEEE, size: 0x8, addend: 0x0, symName: '-[LocationServiceStreamHandler .cxx_destruct]', symObjAddr: 0x238, symBinAddr: 0x6340, symSize: 0x30 }
+  - { offsetInCU: 0x27, offset: 0x5B07D, size: 0x8, addend: 0x0, symName: '-[PermissionHandler getLocationManager]', symObjAddr: 0x0, symBinAddr: 0x6370, symSize: 0x5C }
+  - { offsetInCU: 0x192, offset: 0x5B1E8, size: 0x8, addend: 0x0, symName: '-[PermissionHandler getLocationManager]', symObjAddr: 0x0, symBinAddr: 0x6370, symSize: 0x5C }
+  - { offsetInCU: 0x1C9, offset: 0x5B21F, size: 0x8, addend: 0x0, symName: '-[PermissionHandler hasPermission]', symObjAddr: 0x5C, symBinAddr: 0x63CC, symSize: 0x20 }
+  - { offsetInCU: 0x210, offset: 0x5B266, size: 0x8, addend: 0x0, symName: '-[PermissionHandler checkPermission]', symObjAddr: 0x7C, symBinAddr: 0x63EC, symSize: 0x3C }
+  - { offsetInCU: 0x247, offset: 0x5B29D, size: 0x8, addend: 0x0, symName: '-[PermissionHandler requestPermission:errorHandler:]', symObjAddr: 0xB8, symBinAddr: 0x6428, symSize: 0x1B4 }
+  - { offsetInCU: 0x2EE, offset: 0x5B344, size: 0x8, addend: 0x0, symName: '-[PermissionHandler containsLocationAlwaysDescription]', symObjAddr: 0x26C, symBinAddr: 0x65DC, symSize: 0xA8 }
+  - { offsetInCU: 0x331, offset: 0x5B387, size: 0x8, addend: 0x0, symName: '-[PermissionHandler locationManager:didChangeAuthorizationStatus:]', symObjAddr: 0x314, symBinAddr: 0x6684, symSize: 0x74 }
+  - { offsetInCU: 0x394, offset: 0x5B3EA, size: 0x8, addend: 0x0, symName: '-[PermissionHandler cleanUp]', symObjAddr: 0x388, symBinAddr: 0x66F8, symSize: 0x38 }
+  - { offsetInCU: 0x3C7, offset: 0x5B41D, size: 0x8, addend: 0x0, symName: '-[PermissionHandler locationManager]', symObjAddr: 0x3C0, symBinAddr: 0x6730, symSize: 0x8 }
+  - { offsetInCU: 0x3FE, offset: 0x5B454, size: 0x8, addend: 0x0, symName: '-[PermissionHandler setLocationManager:]', symObjAddr: 0x3C8, symBinAddr: 0x6738, symSize: 0xC }
+  - { offsetInCU: 0x43F, offset: 0x5B495, size: 0x8, addend: 0x0, symName: '-[PermissionHandler confirmationHandler]', symObjAddr: 0x3D4, symBinAddr: 0x6744, symSize: 0x8 }
+  - { offsetInCU: 0x476, offset: 0x5B4CC, size: 0x8, addend: 0x0, symName: '-[PermissionHandler setConfirmationHandler:]', symObjAddr: 0x3DC, symBinAddr: 0x674C, symSize: 0x8 }
+  - { offsetInCU: 0x4B5, offset: 0x5B50B, size: 0x8, addend: 0x0, symName: '-[PermissionHandler errorHandler]', symObjAddr: 0x3E4, symBinAddr: 0x6754, symSize: 0x8 }
+  - { offsetInCU: 0x4EC, offset: 0x5B542, size: 0x8, addend: 0x0, symName: '-[PermissionHandler setErrorHandler:]', symObjAddr: 0x3EC, symBinAddr: 0x675C, symSize: 0x8 }
+  - { offsetInCU: 0x52B, offset: 0x5B581, size: 0x8, addend: 0x0, symName: '-[PermissionHandler .cxx_destruct]', symObjAddr: 0x3F4, symBinAddr: 0x6764, symSize: 0x3C }
+  - { offsetInCU: 0x27, offset: 0x5B5FF, size: 0x8, addend: 0x0, symName: '+[PermissionUtils isStatusGranted:]', symObjAddr: 0x0, symBinAddr: 0x67A0, symSize: 0x10 }
+  - { offsetInCU: 0x51, offset: 0x5B629, size: 0x8, addend: 0x0, symName: '+[PermissionUtils isStatusGranted:]', symObjAddr: 0x0, symBinAddr: 0x67A0, symSize: 0x10 }
+  - { offsetInCU: 0x27, offset: 0x5B6C3, size: 0x8, addend: 0x0, symName: '-[PositionStreamHandler initWithGeolocationHandler:]', symObjAddr: 0x0, symBinAddr: 0x67B0, symSize: 0x7C }
+  - { offsetInCU: 0xE3, offset: 0x5B77F, size: 0x8, addend: 0x0, symName: '-[PositionStreamHandler initWithGeolocationHandler:]', symObjAddr: 0x0, symBinAddr: 0x67B0, symSize: 0x7C }
+  - { offsetInCU: 0x12A, offset: 0x5B7C6, size: 0x8, addend: 0x0, symName: '-[PositionStreamHandler onListenWithArguments:eventSink:]', symObjAddr: 0x7C, symBinAddr: 0x682C, symSize: 0x370 }
+  - { offsetInCU: 0x1F1, offset: 0x5B88D, size: 0x8, addend: 0x0, symName: '___57-[PositionStreamHandler onListenWithArguments:eventSink:]_block_invoke', symObjAddr: 0x3EC, symBinAddr: 0x6B9C, symSize: 0x48 }
+  - { offsetInCU: 0x23C, offset: 0x5B8D8, size: 0x8, addend: 0x0, symName: ___copy_helper_block_e8_32w, symObjAddr: 0x434, symBinAddr: 0x6BE4, symSize: 0xC }
+  - { offsetInCU: 0x265, offset: 0x5B901, size: 0x8, addend: 0x0, symName: ___destroy_helper_block_e8_32w, symObjAddr: 0x440, symBinAddr: 0x6BF0, symSize: 0x8 }
+  - { offsetInCU: 0x284, offset: 0x5B920, size: 0x8, addend: 0x0, symName: '___57-[PositionStreamHandler onListenWithArguments:eventSink:]_block_invoke.17', symObjAddr: 0x448, symBinAddr: 0x6BF8, symSize: 0x6C }
+  - { offsetInCU: 0x2DF, offset: 0x5B97B, size: 0x8, addend: 0x0, symName: '-[PositionStreamHandler onCancelWithArguments:]', symObjAddr: 0x4B4, symBinAddr: 0x6C64, symSize: 0x34 }
+  - { offsetInCU: 0x322, offset: 0x5B9BE, size: 0x8, addend: 0x0, symName: '-[PositionStreamHandler onLocationDidChange:]', symObjAddr: 0x4E8, symBinAddr: 0x6C98, symSize: 0x58 }
+  - { offsetInCU: 0x380, offset: 0x5BA1C, size: 0x8, addend: 0x0, symName: '-[PositionStreamHandler onLocationFailureWithErrorCode:errorDescription:]', symObjAddr: 0x540, symBinAddr: 0x6CF0, symSize: 0x5C }
+  - { offsetInCU: 0x3EE, offset: 0x5BA8A, size: 0x8, addend: 0x0, symName: '-[PositionStreamHandler geolocationHandler]', symObjAddr: 0x59C, symBinAddr: 0x6D4C, symSize: 0x8 }
+  - { offsetInCU: 0x425, offset: 0x5BAC1, size: 0x8, addend: 0x0, symName: '-[PositionStreamHandler setGeolocationHandler:]', symObjAddr: 0x5A4, symBinAddr: 0x6D54, symSize: 0xC }
+  - { offsetInCU: 0x466, offset: 0x5BB02, size: 0x8, addend: 0x0, symName: '-[PositionStreamHandler .cxx_destruct]', symObjAddr: 0x5B0, symBinAddr: 0x6D60, symSize: 0x30 }
+...

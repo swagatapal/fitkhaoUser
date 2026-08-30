@@ -1,0 +1,7 @@
+version: "Apple Swift version 5.10 (swiftlang-5.10.0.13 clang-1500.3.9.4)"
+options: "4e6d592a00012174e2e15cbe032f4ad0114dd86eb4ea5698a645b6824d610897"
+build_start_time: [1788118198, 155185000]
+build_end_time: [1788118202, 341679000]
+inputs:
+  ? "/Users/swagatapal/.pub-cache/hosted/pub.dev/facebook_app_events-0.28.0/ios/facebook_app_events/Sources/facebook_app_events/FacebookAppEventsPlugin.swift"
+  : [1780245729, 630293003]

@@ -1,0 +1,4 @@
+Target dependency graph (2 targets)
+Target 'FBAEMKit' in project 'Pods'
+➜ Explicit dependency on target 'FBSDKCoreKit_Basics' in project 'Pods'
+Target 'FBSDKCoreKit_Basics' in project 'Pods' (no dependencies)
