@@ -26,7 +26,7 @@ class CouponSheetResult {
 /// the caller through the pricing preview.
 class SubscriptionCouponSheet extends ConsumerWidget {
   /// Rule type filter passed to `GET /api/user/coupons?ruleTypes=`.
-  static const String ruleType = 'subscription';
+  static const String ruleType = 'subscription_buy';
 
   /// Rule id of the currently applied coupon, if any.
   final String? appliedCouponId;

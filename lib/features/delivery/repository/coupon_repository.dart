@@ -40,7 +40,7 @@ class CouponRepository {
       final path = ruleTypes.isEmpty
           ? AppConfig.eligibleCouponsPath
           : '${AppConfig.eligibleCouponsPath}'
-              '?ruleTypes=${Uri.encodeQueryComponent(ruleTypes)}';
+          '?ruleTypes=${Uri.encodeQueryComponent(ruleTypes)}';
 
       final json = await _apiClient.getJson(path, headers: headers);
 

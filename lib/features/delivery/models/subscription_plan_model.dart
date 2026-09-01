@@ -5,6 +5,9 @@ class PlanFeatures {
   final int consultationCount;
   final int mealCountPerDay;
   final bool freeDelivery;
+
+  /// Per-delivery charge in rupees. `0` means delivery is free.
+  final double deliveryCharge;
   final bool snacks;
   final int discountPercent;
   final bool planBasedMealsAssgn;
@@ -20,6 +23,7 @@ class PlanFeatures {
     this.consultationCount = 0,
     this.mealCountPerDay = 0,
     this.freeDelivery = false,
+    this.deliveryCharge = 0,
     this.snacks = false,
     this.discountPercent = 0,
     this.planBasedMealsAssgn = false,
@@ -37,6 +41,7 @@ class PlanFeatures {
       consultationCount: (json['consultationCount'] as num?)?.toInt() ?? 0,
       mealCountPerDay: (json['mealCountPerDay'] as num?)?.toInt() ?? 0,
       freeDelivery: json['freeDelivery'] as bool? ?? false,
+      deliveryCharge: (json['deliveryCharge'] as num?)?.toDouble() ?? 0,
       snacks: json['snacks'] as bool? ?? false,
       discountPercent: (json['discountPercent'] as num?)?.toInt() ?? 0,
       planBasedMealsAssgn: json['planBasedMealsAssgn'] as bool? ?? false,
@@ -130,6 +135,10 @@ class SubscriptionPlan {
   final double consultationFee;
   final double gstPercentage;
   final double otherFeeAmt;
+
+  /// Per-delivery charge in rupees, echoed at the top level of the plan.
+  /// `0` means delivery is free.
+  final double deliveryCharge;
   final bool isActive;
   final PlanFeatures features;
   final PlanRules rules;
@@ -144,6 +153,7 @@ class SubscriptionPlan {
     this.consultationFee = 0,
     this.gstPercentage = 0,
     this.otherFeeAmt = 0,
+    this.deliveryCharge = 0,
     required this.isActive,
     this.features = const PlanFeatures(),
     this.rules = const PlanRules(),
@@ -157,6 +167,15 @@ class SubscriptionPlan {
 
   /// Formatted price string (e.g. "₹3999")
   String get formattedPrice => '₹${price.toStringAsFixed(0)}';
+
+  /// Effective per-delivery charge — the plan root value, or the one nested in
+  /// features when the root is absent.
+  double get effectiveDeliveryCharge =>
+      deliveryCharge > 0 ? deliveryCharge : features.deliveryCharge;
+
+  /// True when deliveries cost the subscriber nothing.
+  bool get hasFreeDelivery =>
+      features.freeDelivery || effectiveDeliveryCharge <= 0;
 
   factory SubscriptionPlan.fromJson(Map<String, dynamic> json) {
     return SubscriptionPlan(
@@ -175,6 +194,13 @@ class SubscriptionPlan {
       consultationFee: (json['consultationFee'] as num?)?.toDouble() ?? 0.0,
       gstPercentage: (json['gstPercentage'] as num?)?.toDouble() ?? 0.0,
       otherFeeAmt: (json['otherFeeAmt'] as num?)?.toDouble() ?? 0.0,
+      // Sent at both the plan root and inside `features`; prefer the root and
+      // fall back so either shape works.
+      deliveryCharge: (json['deliveryCharge'] as num?)?.toDouble() ??
+          ((json['features'] as Map<String, dynamic>?)?['deliveryCharge']
+                  as num?)
+              ?.toDouble() ??
+          0.0,
       isActive: json['isActive'] as bool? ?? false,
       features: json['features'] != null
           ? PlanFeatures.fromJson(json['features'] as Map<String, dynamic>)

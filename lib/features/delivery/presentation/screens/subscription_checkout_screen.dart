@@ -837,6 +837,18 @@ class _SubscriptionCheckoutScreenState
                 ),
               ],
 
+              // Delivery charge — billed per delivery, NOT part of the total
+              // below, so it is rendered muted like the other info-only lines.
+              const SizedBox(height: AppSizes.spacing6),
+              _SummaryRow(
+                label: 'Delivery charge',
+                value: preview.plan.hasFreeDelivery
+                    ? 'Free'
+                    : '${_money(preview.plan.effectiveDeliveryCharge)} per delivery',
+                muted: true,
+                isDiscount: preview.plan.hasFreeDelivery,
+              ),
+
               // Cancel-anytime add-on — only when opted in.
               if (showCancelFee) ...[
                 const SizedBox(height: AppSizes.spacing12),
@@ -1490,11 +1502,14 @@ class _SummaryRow extends StatelessWidget {
     final fontSize = muted
         ? AppTypography.fontSize12
         : (isBold ? AppTypography.fontSize16 : AppTypography.fontSize14);
-    final color = muted
-        ? AppColors.textSecondary
-        : ((isBold || isDiscount)
-            ? AppColors.primaryGreen
-            : AppColors.textPrimary);
+    // isDiscount wins over muted for the value colour: a "Free" / "− ₹200"
+    // figure stays green even on an info-only line, which keeps its smaller
+    // muted type size.
+    final color = isDiscount
+        ? AppColors.primaryGreen
+        : (muted
+            ? AppColors.textSecondary
+            : (isBold ? AppColors.primaryGreen : AppColors.textPrimary));
     final weight = isBold
         ? AppTypography.bold
         : (isDiscount ? AppTypography.semiBold : AppTypography.regular);

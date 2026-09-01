@@ -26,9 +26,12 @@ List<SubscriptionBenefit> deriveSubscriptionBenefits(SubscriptionPlan plan) {
     if (f.mealCountPerDay > 0)
       SubscriptionBenefit(
           Icons.restaurant_rounded, '${f.mealCountPerDay} meals every day'),
-    if (f.freeDelivery)
+    if (plan.hasFreeDelivery)
       const SubscriptionBenefit(
-          Icons.local_shipping_rounded, 'Free delivery on every order'),
+          Icons.local_shipping_rounded, 'Free delivery on every order')
+    else
+      SubscriptionBenefit(Icons.local_shipping_rounded,
+          '₹${_money(plan.effectiveDeliveryCharge)} delivery charge per order'),
     if (f.dietChart)
       const SubscriptionBenefit(
           Icons.menu_book_rounded, 'Personalised diet chart'),
@@ -63,6 +66,10 @@ List<SubscriptionBenefit> deriveSubscriptionBenefits(SubscriptionPlan plan) {
       SubscriptionBenefit(Icons.star_rounded, c, highlight: true),
   ];
 }
+
+/// Drops the decimal on whole rupee amounts (10.0 -> "10", 10.5 -> "10.50").
+String _money(double amount) =>
+    amount.toStringAsFixed(amount.truncateToDouble() == amount ? 0 : 2);
 
 /// Single benefit row — a tinted check icon + label.
 class SubscriptionBenefitRow extends StatelessWidget {
