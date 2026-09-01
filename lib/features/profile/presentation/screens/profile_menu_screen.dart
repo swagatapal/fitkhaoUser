@@ -14,6 +14,7 @@ import '../../../policy/presentation/screens/policy_screen.dart';
 import '../../../delivery/presentation/screens/subscription_plan_screen.dart';
 import '../../../delivery/presentation/screens/cart_screen.dart';
 import 'address_list_screen.dart';
+import 'all_coupons_screen.dart';
 import 'edit_profile_screen.dart';
 import 'profile_menu_actions.dart';
 
@@ -160,6 +161,14 @@ class ProfileMenuScreen extends ConsumerWidget {
                               subtitle: 'Plans & wallet balance',
                               onTap: () => ProfileMenuActions.open(
                                   context, const SubscriptionPlanScreen()),
+                            ),
+                            _MenuEntry(
+                              icon: Icons.local_offer_outlined,
+                              color: const Color(0xFFD81B60),
+                              title: 'All Coupons',
+                              subtitle: 'Offers you can use',
+                              onTap: () => ProfileMenuActions.open(
+                                  context, const AllCouponsScreen()),
                             ),
                             _MenuEntry(
                               icon: Icons.notifications_none_rounded,

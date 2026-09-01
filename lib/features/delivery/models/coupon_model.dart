@@ -28,6 +28,13 @@ class CouponModel {
   /// [couponImage], a download button is overlaid on the banner image.
   final List<String> promotionFiles;
 
+  /// True for coupons the backend issued automatically (e.g. the per-meal
+  /// credit granted when a subscription is cancelled) rather than a campaign.
+  final bool isSystemGenerated;
+
+  /// Free-text note from the backend, shown to the user when present.
+  final String remarks;
+
   const CouponModel({
     required this.id,
     required this.code,
@@ -45,6 +52,8 @@ class CouponModel {
     this.couponImage,
     this.couponContent,
     this.promotionFiles = const [],
+    this.isSystemGenerated = false,
+    this.remarks = '',
   });
 
   /// True when a promotional banner image should be shown instead of the
@@ -53,6 +62,27 @@ class CouponModel {
 
   /// True when downloadable promotion files are attached.
   bool get hasPromotionFiles => promotionFiles.isNotEmpty;
+
+  /// Human-readable label for [ruleType], e.g. 'subscription_buy' →
+  /// 'Subscriptions'. Unknown types fall back to a title-cased version of the
+  /// raw value so a new backend rule type still reads sensibly.
+  String get ruleTypeLabel {
+    switch (ruleType) {
+      case 'subscription_buy':
+      case 'subscription':
+        return 'Subscriptions';
+      case 'outlet':
+        return 'Outlet orders';
+      case '':
+        return 'All orders';
+      default:
+        return ruleType
+            .replaceAll('_', ' ')
+            .split(' ')
+            .map((w) => w.isEmpty ? w : w[0].toUpperCase() + w.substring(1))
+            .join(' ');
+    }
+  }
 
   factory CouponModel.fromJson(Map<String, dynamic> json) {
     final rawType = (json['discountType'] as String? ?? '').toLowerCase();
@@ -84,6 +114,8 @@ class CouponModel {
               .where((s) => s.isNotEmpty)
               .toList()
           : const [],
+      isSystemGenerated: json['isSystemGenerated'] as bool? ?? false,
+      remarks: json['remarks'] as String? ?? '',
     );
   }
 
