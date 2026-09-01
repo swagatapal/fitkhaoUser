@@ -8,6 +8,7 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/router/route_names.dart';
+import '../../../core/services/meta_event_service.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../shared/widgets/logo_widget.dart';
 import '../../../shared/widgets/primary_button.dart';
@@ -211,6 +212,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
             response.user?.name != null && response.user!.name!.isNotEmpty;
 
         if (hasProfile) {
+          // Existing user signing in. A user without a profile is still mid
+          // sign-up — they are counted as a registration on the name screen
+          // instead, so the two events never both fire for one account.
+          MetaEventService.instance.logLogin();
           context.go(RouteNames.home);
         } else {
           context.go(RouteNames.nameInput);

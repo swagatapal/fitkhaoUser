@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
+import '../../../../core/services/meta_event_service.dart';
 import '../../../../core/services/razorpay_service.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../models/coupon_model.dart';
@@ -45,6 +46,10 @@ class _SubscriptionCheckoutScreenState
 
   late final RazorpayService _razorpayService;
   String? _razorpayOrderId;
+
+  /// Amount the backend put on the Razorpay order, kept so the Purchase event
+  /// reports what was actually charged rather than the previewed total.
+  int? _razorpayAmountInPaise;
 
   /// Newest successfully loaded preview. Applying or removing a coupon re-keys
   /// [subscriptionPricingPreviewProvider] — a brand-new family entry with no
@@ -117,6 +122,7 @@ class _SubscriptionCheckoutScreenState
   void _onRazorpayFailure(int code, String message) {
     debugPrint('[SubscriptionCheckout] Razorpay failure — $code $message');
     _razorpayOrderId = null;
+    _razorpayAmountInPaise = null;
     if (!mounted) return;
     setState(() => _isProcessing = false);
     _showError(message);
@@ -129,6 +135,15 @@ class _SubscriptionCheckoutScreenState
     final preview = _preview;
     if (preview == null) return; // not loaded yet
     final method = _effectiveMethod(preview.pricing.totalAmount);
+
+    // A subscription is a single line item, so numItems is always 1.
+    MetaEventService.instance.logInitiateCheckout(
+      totalAmount: preview.pricing.totalAmount,
+      numItems: 1,
+      contentType: MetaEventService.contentTypeSubscription,
+      contentId: widget.planId,
+    );
+
     _showConfirmationDialog(preview, method);
   }
 
@@ -147,6 +162,12 @@ class _SubscriptionCheckoutScreenState
       if (!mounted) return;
       setState(() => _isProcessing = false);
       if (res.success) {
+        MetaEventService.instance.logPurchase(
+          amount: preview.pricing.totalAmount,
+          contentType: MetaEventService.contentTypeSubscription,
+          orderId: res.data?.subscriptionId,
+          numItems: 1,
+        );
         await _refreshAfterPurchase();
         if (!mounted) return;
         _showSuccessDialog();
@@ -311,6 +332,7 @@ class _SubscriptionCheckoutScreenState
       final amountInPaise = orderData.amountInPaise > 0
           ? orderData.amountInPaise
           : (preview.pricing.totalAmount * 100).toInt();
+      _razorpayAmountInPaise = amountInPaise;
 
       debugPrint(
         '[SubscriptionCheckout] Razorpay order created — '
@@ -339,6 +361,7 @@ class _SubscriptionCheckoutScreenState
       debugPrint(
           '[SubscriptionCheckout] createRazorpaySubscriptionOrder error: $e');
       _razorpayOrderId = null;
+      _razorpayAmountInPaise = null;
       if (!mounted) return;
       setState(() => _isProcessing = false);
       _showError('Payment initiation failed. Please try again.');
@@ -374,11 +397,24 @@ class _SubscriptionCheckoutScreenState
         purpose: 'subscription',
       );
 
+      // Read before clearing; falls back to the previewed total if the
+      // create-order response never carried an amount.
+      final paidAmount = (_razorpayAmountInPaise ?? 0) > 0
+          ? _razorpayAmountInPaise! / 100
+          : (_preview?.pricing.totalAmount ?? 0);
+
       _razorpayOrderId = null;
+      _razorpayAmountInPaise = null;
       if (!mounted) return;
       setState(() => _isProcessing = false);
 
       if (verifyResponse.success) {
+        MetaEventService.instance.logPurchase(
+          amount: paidAmount,
+          contentType: MetaEventService.contentTypeSubscription,
+          orderId: widget.planId,
+          numItems: 1,
+        );
         await _refreshAfterPurchase();
         if (!mounted) return;
         _showSuccessDialog();
@@ -390,6 +426,7 @@ class _SubscriptionCheckoutScreenState
     } catch (e) {
       debugPrint('[SubscriptionCheckout] verifyRazorpayPayment error: $e');
       _razorpayOrderId = null;
+      _razorpayAmountInPaise = null;
       if (!mounted) return;
       setState(() => _isProcessing = false);
       _showError('Payment verification failed. Please try again.');

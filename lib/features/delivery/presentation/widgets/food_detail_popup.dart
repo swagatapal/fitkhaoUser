@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/services/meta_event_service.dart';
 import '../../models/menu_item.dart';
 import '../../providers/cart_provider.dart';
 
@@ -22,7 +23,18 @@ class FoodDetailPopup extends ConsumerStatefulWidget {
 class _FoodDetailPopupState extends ConsumerState<FoodDetailPopup> {
   /// Add the item to the cart and close the popup.
   void _handleAddToCart() {
-    ref.read(cartProvider.notifier).addItem(widget.menuItem);
+    final item = widget.menuItem;
+    ref.read(cartProvider.notifier).addItem(item);
+
+    // Fire-and-forget: MetaEventService swallows its own errors, and the popup
+    // must close immediately rather than wait on an analytics round-trip.
+    MetaEventService.instance.logAddToCart(
+      price: item.price,
+      currency: 'INR',
+      productId: item.id,
+      productName: item.name,
+    );
+
     Navigator.of(context).pop();
   }
 

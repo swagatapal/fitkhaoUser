@@ -7,6 +7,7 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/router/route_names.dart';
+import '../../../core/services/meta_event_service.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../shared/widgets/logo_widget.dart';
 import '../../../shared/widgets/primary_button.dart';
@@ -50,6 +51,10 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
     setState(() => _isProcessing = false);
 
     if (success) {
+      // Sign-up is complete only once the profile is saved, so this is the
+      // point a new account actually exists.
+      MetaEventService.instance.logRegistration();
+
       // Navigate straight to home — landing there is the success signal. We
       // deliberately don't show a SnackBar here: this screen is torn down by the
       // navigation, and a still-animating SnackBar would fire status callbacks

@@ -9,6 +9,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
+import '../../../../core/services/meta_event_service.dart';
 import '../../../../core/services/razorpay_service.dart';
 import '../../models/cart_item.dart';
 import '../../models/coupon_model.dart';
@@ -1356,6 +1357,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     setState(() => _isProcessing = true);
 
+    // Logged after the address/serviceability guards so it marks a checkout the
+    // user could actually complete, not every tap of the button.
+    MetaEventService.instance.logInitiateCheckout(
+      totalAmount: subTotal,
+      numItems: cartItems.fold<int>(0, (sum, c) => sum + c.quantity),
+      contentType: MetaEventService.contentTypeOutletOrder,
+    );
+
     try {
       final localStorage = await ref.read(localStorageProvider.future);
       final userPhone = localStorage.getUserPhone() ?? '';
@@ -1435,10 +1444,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         couponIds: pending.couponIds,
       );
 
+      // Read the amount before _pendingOrder is cleared below.
+      final paidAmount = pending.amountInPaise / 100;
+      final itemCount = pending.items.fold<int>(0, (sum, i) => sum + i.quantity);
+
       _pendingOrder = null;
       if (!mounted) return;
 
       if (response.success && response.data != null) {
+        MetaEventService.instance.logPurchase(
+          amount: paidAmount,
+          contentType: MetaEventService.contentTypeOutletOrder,
+          orderId: response.data!.orderNumber,
+          numItems: itemCount,
+        );
         await ref.read(walletProvider.notifier).loadWalletBalance();
         if (!mounted) return;
         setState(() => _isProcessing = false);
@@ -1580,10 +1599,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         purpose: 'order_food',
       );
 
+      // Read the amount before _pendingOrder is cleared below. The backend may
+      // have overwritten amountInPaise on create-order, so this is the figure
+      // actually charged.
+      final paidAmount = (pending?.amountInPaise ?? 0) / 100;
+      final itemCount =
+          pending?.items.fold<int>(0, (sum, i) => sum + i.quantity) ?? 0;
+
       _pendingOrder = null;
       if (!mounted) return;
 
       if (verifyResponse.success) {
+        MetaEventService.instance.logPurchase(
+          amount: paidAmount,
+          contentType: MetaEventService.contentTypeOutletOrder,
+          orderId: verifyResponse.data?.orderNumber,
+          numItems: itemCount,
+        );
         await ref.read(walletProvider.notifier).loadWalletBalance();
         if (!mounted) return;
         setState(() => _isProcessing = false);
