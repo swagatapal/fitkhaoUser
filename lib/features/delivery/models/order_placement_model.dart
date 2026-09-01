@@ -118,16 +118,21 @@ class RazorpaySubscriptionOrderRequest {
   final bool cancelAnytimeSelected;
   final String purpose;
 
+  /// Rule ids of the coupons to redeem. Omitted from the body when empty.
+  final List<String> couponIds;
+
   const RazorpaySubscriptionOrderRequest({
     required this.planId,
     this.cancelAnytimeSelected = false,
     this.purpose = 'subscription',
+    this.couponIds = const [],
   });
 
   Map<String, dynamic> toJson() => {
         'purpose': purpose,
         'planId': planId,
         'cancelAnytimeSelected': cancelAnytimeSelected,
+        if (couponIds.isNotEmpty) 'couponIds': couponIds,
       };
 }
 

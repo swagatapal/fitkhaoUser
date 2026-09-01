@@ -33,20 +33,27 @@ class CouponNotifier extends StateNotifier<CouponState> {
 
   CouponNotifier(this._repository) : super(const CouponState());
 
-  Future<void> loadCoupons() async {
+  /// Loads the eligible coupons, optionally narrowed to a comma-separated set
+  /// of [ruleTypes] (e.g. `outlet`). Empty fetches every eligible coupon.
+  Future<void> loadCoupons({String ruleTypes = ''}) async {
     if (state.isLoading) return;
-    debugPrint('[CouponNotifier] Loading eligible coupons...');
+    debugPrint('[CouponNotifier] Loading eligible coupons '
+        '(ruleTypes=${ruleTypes.isEmpty ? 'all' : ruleTypes})...');
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      final response = await _repository.fetchEligibleCoupons();
+      final response =
+          await _repository.fetchEligibleCoupons(ruleTypes: ruleTypes);
       if (response.success) {
         state = CouponState(coupons: response.coupons, isLoading: false);
-        debugPrint('[CouponNotifier] Loaded ${response.coupons.length} coupons');
+        debugPrint(
+            '[CouponNotifier] Loaded ${response.coupons.length} coupons');
       } else {
         state = CouponState(
           isLoading: false,
-          error: response.message.isNotEmpty ? response.message : 'Failed to load coupons',
+          error: response.message.isNotEmpty
+              ? response.message
+              : 'Failed to load coupons',
         );
       }
     } catch (e) {
@@ -56,6 +63,26 @@ class CouponNotifier extends StateNotifier<CouponState> {
   }
 }
 
-final couponProvider = StateNotifierProvider<CouponNotifier, CouponState>((ref) {
+final couponProvider =
+    StateNotifierProvider<CouponNotifier, CouponState>((ref) {
   return CouponNotifier(ref.watch(couponRepositoryProvider));
 });
+
+/// Eligible coupons for a single rule type (e.g. `subscription`).
+///
+/// Kept separate from [couponProvider] — which the food checkout owns — so the
+/// two screens never overwrite each other's list. Auto-disposed and keyed by
+/// the rule type, so opening the sheet refetches and closing it discards.
+final eligibleCouponsProvider =
+    FutureProvider.autoDispose.family<List<CouponModel>, String>(
+  (ref, ruleTypes) async {
+    final repo = ref.watch(couponRepositoryProvider);
+    final res = await repo.fetchEligibleCoupons(ruleTypes: ruleTypes);
+    if (!res.success) {
+      throw Exception(res.message.isNotEmpty
+          ? res.message
+          : 'Could not load coupons. Please try again.');
+    }
+    return res.coupons;
+  },
+);

@@ -15,13 +15,21 @@ class CouponRepository {
   })  : _apiClient = apiClient,
         _localStorage = localStorage;
 
-  Future<CouponListResponse> fetchEligibleCoupons() async {
-    debugPrint('[CouponRepository] Fetching eligible coupons...');
+  /// Fetches the coupons the current user is eligible for.
+  ///
+  /// [ruleTypes] narrows the result to a comma-separated set of rule types
+  /// (e.g. `subscription`), matching the backend's `?ruleTypes=` filter. When
+  /// empty every eligible coupon is returned.
+  Future<CouponListResponse> fetchEligibleCoupons(
+      {String ruleTypes = ''}) async {
+    debugPrint('[CouponRepository] Fetching eligible coupons '
+        '(ruleTypes=${ruleTypes.isEmpty ? 'all' : ruleTypes})...');
 
     try {
       final token = _localStorage.getAuthToken();
       if (token == null || token.isEmpty) {
-        throw AuthException(message: 'Authentication required. Please login again.');
+        throw AuthException(
+            message: 'Authentication required. Please login again.');
       }
 
       final headers = {
@@ -29,10 +37,12 @@ class CouponRepository {
         'Authorization': 'Bearer $token',
       };
 
-      final json = await _apiClient.getJson(
-        AppConfig.eligibleCouponsPath,
-        headers: headers,
-      );
+      final path = ruleTypes.isEmpty
+          ? AppConfig.eligibleCouponsPath
+          : '${AppConfig.eligibleCouponsPath}'
+              '?ruleTypes=${Uri.encodeQueryComponent(ruleTypes)}';
+
+      final json = await _apiClient.getJson(path, headers: headers);
 
       debugPrint('[CouponRepository] Eligible coupons response: $json');
       return CouponListResponse.fromJson(json);

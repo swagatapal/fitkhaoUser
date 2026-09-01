@@ -7,10 +7,12 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/services/razorpay_service.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../models/coupon_model.dart';
 import '../../models/subscription_pricing_preview_model.dart';
 import '../../providers/subscription_pricing_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../widgets/subscription_benefits.dart';
+import '../widgets/subscription_coupon_sheet.dart';
 
 /// Subscription checkout.
 ///
@@ -44,9 +46,23 @@ class _SubscriptionCheckoutScreenState
   late final RazorpayService _razorpayService;
   String? _razorpayOrderId;
 
-  PricingPreviewArgs get _args => (
+  /// Newest successfully loaded preview. Applying or removing a coupon re-keys
+  /// [subscriptionPricingPreviewProvider] — a brand-new family entry with no
+  /// data — so this keeps the loaded screen up while the new totals arrive
+  /// instead of collapsing the page to a spinner.
+  SubscriptionPricingPreview? _lastPreview;
+
+  /// Coupon the user picked, or null when none is applied. Only the id is sent
+  /// to the backend — the discount itself is always recomputed server-side.
+  CouponModel? _appliedCoupon;
+
+  List<String> get _couponIds =>
+      _appliedCoupon == null ? const [] : [_appliedCoupon!.id];
+
+  PricingPreviewArgs get _args => pricingPreviewArgs(
         planId: widget.planId,
-        cancelAnytimeSelected: widget.cancelAnytimeSelected
+        cancelAnytimeSelected: widget.cancelAnytimeSelected,
+        couponIds: _couponIds,
       );
 
   double get _walletBalance =>
@@ -126,6 +142,7 @@ class _SubscriptionCheckoutScreenState
       final res = await repo.createSubscription(
         planId: widget.planId,
         cancelAnytimeSelected: widget.cancelAnytimeSelected,
+        couponIds: _couponIds,
       );
       if (!mounted) return;
       setState(() => _isProcessing = false);
@@ -274,6 +291,7 @@ class _SubscriptionCheckoutScreenState
       final createResponse = await orderRepo.createRazorpaySubscriptionOrder(
         planId: widget.planId,
         cancelAnytimeSelected: widget.cancelAnytimeSelected,
+        couponIds: _couponIds,
       );
 
       if (!createResponse.success || createResponse.data == null) {
@@ -504,27 +522,42 @@ class _SubscriptionCheckoutScreenState
   Widget build(BuildContext context) {
     final previewAsync = ref.watch(subscriptionPricingPreviewProvider(_args));
 
+    final loaded = previewAsync.valueOrNull;
+    if (loaded != null) _lastPreview = loaded;
+
+    // Fall back to the previous totals only while the next ones are in flight.
+    // On error the stale figures are dropped: paying against pricing the server
+    // has since rejected would be worse than showing a retry.
+    final preview = loaded ?? (previewAsync.hasError ? null : _lastPreview);
+    final isRepricing = previewAsync.isLoading && preview != null;
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: _buildBottomButton(previewAsync.valueOrNull),
+      bottomNavigationBar: _buildBottomButton(loaded, isRepricing: isRepricing),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
             _buildHeader(),
-            Expanded(
-              child: previewAsync.when(
-                loading: () => const Center(
-                  child:
-                      CircularProgressIndicator(color: AppColors.primaryGreen),
-                ),
-                error: (_, __) => _ErrorView(
-                  onRetry: () => ref.invalidate(
-                    subscriptionPricingPreviewProvider(_args),
-                  ),
-                ),
-                data: (preview) => _buildContent(preview),
+            if (isRepricing)
+              const LinearProgressIndicator(
+                minHeight: 2,
+                color: AppColors.primaryGreen,
+                backgroundColor: Colors.transparent,
               ),
+            Expanded(
+              child: preview != null
+                  ? _buildContent(preview, isRepricing: isRepricing)
+                  : previewAsync.hasError
+                      ? _ErrorView(
+                          onRetry: () => ref.invalidate(
+                            subscriptionPricingPreviewProvider(_args),
+                          ),
+                        )
+                      : const Center(
+                          child: CircularProgressIndicator(
+                              color: AppColors.primaryGreen),
+                        ),
             ),
           ],
         ),
@@ -532,27 +565,40 @@ class _SubscriptionCheckoutScreenState
     );
   }
 
-  Widget _buildContent(SubscriptionPricingPreview preview) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSizes.screenPaddingHorizontal,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: AppSizes.spacing16),
-            _buildPlanHeaderCard(preview),
-            const SizedBox(height: AppSizes.spacing20),
-            _buildPaymentSummary(preview),
-            const SizedBox(height: AppSizes.spacing20),
-            _buildPaymentMethod(preview),
-            const SizedBox(height: AppSizes.spacing12),
-            _buildCancellationNote(preview),
-            const SizedBox(height: AppSizes.spacing20),
-            _buildBenefitsSection(preview),
-            const SizedBox(height: AppSizes.spacing24),
-          ],
+  Widget _buildContent(
+    SubscriptionPricingPreview preview, {
+    required bool isRepricing,
+  }) {
+    // Dim + freeze the figures while the server recomputes them, so a stale
+    // total can never be tapped through.
+    return IgnorePointer(
+      ignoring: isRepricing,
+      child: Opacity(
+        opacity: isRepricing ? 0.55 : 1,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.screenPaddingHorizontal,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: AppSizes.spacing16),
+                _buildPlanHeaderCard(preview),
+                const SizedBox(height: AppSizes.spacing20),
+                _buildCouponSection(preview),
+                const SizedBox(height: AppSizes.spacing20),
+                _buildPaymentSummary(preview),
+                const SizedBox(height: AppSizes.spacing20),
+                _buildPaymentMethod(preview),
+                const SizedBox(height: AppSizes.spacing12),
+                _buildCancellationNote(preview),
+                const SizedBox(height: AppSizes.spacing20),
+                _buildBenefitsSection(preview),
+                const SizedBox(height: AppSizes.spacing24),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -769,6 +815,16 @@ class _SubscriptionCheckoutScreenState
                 _SummaryRow(label: 'Subtotal', value: _money(p.subtotal)),
               ],
 
+              // Coupon discount — server-computed, shown only when honoured.
+              if (p.hasDiscount) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                _SummaryRow(
+                  label: _discountLabel(p),
+                  value: '− ${_money(p.discount)}',
+                  isDiscount: true,
+                ),
+              ],
+
               // GST.
               if (p.gstAmount > 0) ...[
                 const SizedBox(height: AppSizes.spacing12),
@@ -792,6 +848,218 @@ class _SubscriptionCheckoutScreenState
         ),
       ],
     );
+  }
+
+  // ─── Coupon ─────────────────────────────────────────────────────────────────
+
+  /// Amount a coupon's `minOrderAmount` is judged against. The plan amount is
+  /// used rather than the total because it is the one figure a coupon never
+  /// changes — using the total would let an applied discount push the order
+  /// under the threshold that qualified it in the first place.
+  double _couponBaseAmount(SubscriptionPricingPreview preview) =>
+      preview.pricing.planAmount;
+
+  /// True when the server acknowledged the selected coupon. Either signal
+  /// counts — a named coupon in `appliedCoupons` or a non-zero discount — so a
+  /// response that carries only one of the two is still read as accepted.
+  bool _couponHonoured(SubscriptionPricingPreview preview) =>
+      preview.pricing.hasDiscount || preview.pricing.appliedCoupons.isNotEmpty;
+
+  /// True when a coupon is selected but the server did not honour it, e.g. it
+  /// expired between listing and checkout.
+  bool _couponRejected(SubscriptionPricingPreview preview) =>
+      _appliedCoupon != null && !_couponHonoured(preview);
+
+  Widget _buildCouponSection(SubscriptionPricingPreview preview) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Offers & coupons',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize18,
+            fontWeight: AppTypography.bold,
+            color: AppColors.textPrimary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        const SizedBox(height: AppSizes.spacing12),
+        if (_appliedCoupon == null)
+          _buildCouponCta(preview)
+        else
+          _buildAppliedCoupon(preview),
+        if (_couponRejected(preview)) ...[
+          const SizedBox(height: AppSizes.spacing8),
+          const Text(
+            'This coupon could not be applied to your plan. Try another one.',
+            style: TextStyle(
+              fontSize: AppTypography.fontSize12,
+              fontWeight: AppTypography.semiBold,
+              color: AppColors.errorColor,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Tappable tile shown when no coupon is applied.
+  Widget _buildCouponCta(SubscriptionPricingPreview preview) {
+    return GestureDetector(
+      onTap: () => _openCouponSheet(preview),
+      child: Container(
+        padding: const EdgeInsets.all(AppSizes.spacing12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+          border: Border.all(
+            color: AppColors.primaryGreen.withValues(alpha: 0.45),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppSizes.spacing8),
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+              child: const Icon(Icons.local_offer_outlined,
+                  size: AppSizes.icon20, color: AppColors.primaryGreen),
+            ),
+            const SizedBox(width: AppSizes.spacing12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Available coupons',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.semiBold,
+                      color: AppColors.textPrimary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Tap to see offers you can use on this plan',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      color: AppColors.textSecondary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.primaryGreen),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Confirmation tile shown once a coupon is applied.
+  Widget _buildAppliedCoupon(SubscriptionPricingPreview preview) {
+    final coupon = _appliedCoupon!;
+    final honoured = _couponHonoured(preview);
+    final accent = honoured ? AppColors.primaryGreen : AppColors.errorColor;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border: Border.all(color: accent.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        children: [
+          Icon(honoured ? Icons.verified_rounded : Icons.error_outline_rounded,
+              size: AppSizes.icon24, color: accent),
+          const SizedBox(width: AppSizes.spacing12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  honoured
+                      ? 'Coupon applied — ${coupon.name}'
+                      : 'Coupon not applied',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.bold,
+                    color: accent,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  honoured && preview.pricing.hasDiscount
+                      ? '${coupon.code} · you save '
+                          '${_money(preview.pricing.discount)}'
+                      : coupon.code,
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    color: AppColors.textSecondary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () => _openCouponSheet(preview),
+            style: TextButton.styleFrom(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSizes.spacing8),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text(
+              'Change',
+              style: TextStyle(
+                fontSize: AppTypography.fontSize13,
+                fontWeight: AppTypography.semiBold,
+                color: AppColors.primaryGreen,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: () => setState(() => _appliedCoupon = null),
+            icon: const Icon(Icons.close_rounded,
+                size: AppSizes.icon18, color: AppColors.textSecondary),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Remove coupon',
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Opens the coupon sheet and applies the result. Changing the selection
+  /// re-keys [subscriptionPricingPreviewProvider], so the totals are refetched
+  /// from the server rather than computed on the client.
+  Future<void> _openCouponSheet(SubscriptionPricingPreview preview) async {
+    final result = await SubscriptionCouponSheet.show(
+      context,
+      appliedCouponId: _appliedCoupon?.id,
+      orderAmount: _couponBaseAmount(preview),
+    );
+    if (result == null || !mounted) return; // dismissed, nothing changed
+    setState(() => _appliedCoupon = result.coupon);
+  }
+
+  /// "Coupon discount (SAVE20)" when the backend names the coupon it honoured.
+  static String _discountLabel(PricingPreview p) {
+    final code = p.appliedCoupons
+        .map((c) => c.code)
+        .firstWhere((c) => c.isNotEmpty, orElse: () => '');
+    return code.isEmpty ? 'Coupon discount' : 'Coupon discount ($code)';
   }
 
   // ─── Payment method (wallet vs online) ──────────────────────────────────────
@@ -950,11 +1218,14 @@ class _SubscriptionCheckoutScreenState
     );
   }
 
-  Widget _buildBottomButton(SubscriptionPricingPreview? preview) {
-    final canPay = preview != null && !_isProcessing;
+  Widget _buildBottomButton(
+    SubscriptionPricingPreview? preview, {
+    bool isRepricing = false,
+  }) {
+    final canPay = preview != null && !_isProcessing && !isRepricing;
     final String label;
     if (preview == null) {
-      label = 'Loading…';
+      label = isRepricing ? 'Updating total…' : 'Loading…';
     } else {
       final viaWallet =
           _effectiveMethod(preview.pricing.totalAmount) == 'wallet';
@@ -1164,6 +1435,7 @@ class _SummaryRow extends StatelessWidget {
     required this.value,
     this.isBold = false,
     this.muted = false,
+    this.isDiscount = false,
   });
 
   final String label;
@@ -1173,6 +1445,9 @@ class _SummaryRow extends StatelessWidget {
   /// Renders as a smaller, secondary "included" line — not a charged total.
   final bool muted;
 
+  /// Renders the value in green as a deduction from the total.
+  final bool isDiscount;
+
   @override
   Widget build(BuildContext context) {
     final fontSize = muted
@@ -1180,8 +1455,12 @@ class _SummaryRow extends StatelessWidget {
         : (isBold ? AppTypography.fontSize16 : AppTypography.fontSize14);
     final color = muted
         ? AppColors.textSecondary
-        : (isBold ? AppColors.primaryGreen : AppColors.textPrimary);
-    final weight = isBold ? AppTypography.bold : AppTypography.regular;
+        : ((isBold || isDiscount)
+            ? AppColors.primaryGreen
+            : AppColors.textPrimary);
+    final weight = isBold
+        ? AppTypography.bold
+        : (isDiscount ? AppTypography.semiBold : AppTypography.regular);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

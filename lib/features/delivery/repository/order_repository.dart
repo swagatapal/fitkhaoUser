@@ -196,9 +196,11 @@ class OrderRepository {
   Future<RazorpayCreateOrderResponse> createRazorpaySubscriptionOrder({
     required String planId,
     required bool cancelAnytimeSelected,
+    List<String> couponIds = const [],
   }) async {
     debugPrint('[OrderRepository] Creating Razorpay subscription order — '
-        'planId=$planId cancelAnytime=$cancelAnytimeSelected');
+        'planId=$planId cancelAnytime=$cancelAnytimeSelected '
+        'coupons=$couponIds');
 
     try {
       final token = _localStorage.getAuthToken();
@@ -215,6 +217,7 @@ class OrderRepository {
       final request = RazorpaySubscriptionOrderRequest(
         planId: planId,
         cancelAnytimeSelected: cancelAnytimeSelected,
+        couponIds: couponIds,
       );
 
       debugPrint(

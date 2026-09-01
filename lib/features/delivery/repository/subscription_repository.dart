@@ -42,13 +42,16 @@ class SubscriptionRepository {
   Future<SubscriptionResponse> createSubscription({
     required String planId,
     required bool cancelAnytimeSelected,
+    List<String> couponIds = const [],
   }) async {
     debugPrint('[SubscriptionRepository] Creating subscription (wallet) — '
-        'planId=$planId cancelAnytime=$cancelAnytimeSelected');
+        'planId=$planId cancelAnytime=$cancelAnytimeSelected '
+        'coupons=$couponIds');
     try {
       final request = SubscriptionRequest(
         planId: planId,
         cancelAnytimeSelected: cancelAnytimeSelected,
+        couponIds: couponIds,
       );
       final json = await _apiClient.postJson(
         AppConfig.createSubscriptionPath,
@@ -174,16 +177,24 @@ class SubscriptionRepository {
 
   /// Fetches the server-computed pricing preview for [planId], optionally with
   /// the "cancel anytime" add-on selected. Auth required.
+  ///
+  /// [couponIds] are the rule ids to price against; the server stays
+  /// authoritative and may return fewer applied coupons than were sent.
   Future<SubscriptionPricingPreviewResponse> getPricingPreview({
     required String planId,
     required bool cancelAnytimeSelected,
+    List<String> couponIds = const [],
   }) async {
     debugPrint(
-        '[SubscriptionRepository] Pricing preview planId=$planId cancelAnytime=$cancelAnytimeSelected');
+        '[SubscriptionRepository] Pricing preview planId=$planId cancelAnytime=$cancelAnytimeSelected coupons=$couponIds');
     try {
+      final couponQuery = couponIds.isEmpty
+          ? ''
+          : '&couponIds=${Uri.encodeQueryComponent(couponIds.join(','))}';
       final json = await _apiClient.getJson(
         '${AppConfig.subscriptionPricingPreviewPath}'
-        '?planId=$planId&cancelAnytimeSelected=$cancelAnytimeSelected',
+        '?planId=$planId&cancelAnytimeSelected=$cancelAnytimeSelected'
+        '$couponQuery',
         headers: _authHeaders(),
       );
       debugPrint('[SubscriptionRepository] Pricing preview response: $json');

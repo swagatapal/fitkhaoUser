@@ -1,3 +1,4 @@
+import 'order_preview_model.dart' show AppliedCoupon;
 import 'subscription_plan_model.dart';
 
 /// Response wrapper for GET /api/subscription/pricing-preview.
@@ -67,6 +68,13 @@ class PricingPreview {
   final double totalAmount;
   final double pricePerMeal;
 
+  /// Total coupon discount the backend actually applied.
+  final double discount;
+
+  /// The coupons the backend honoured. May be shorter than the ids that were
+  /// sent — the server is free to reject one that is no longer valid.
+  final List<AppliedCoupon> appliedCoupons;
+
   const PricingPreview({
     this.planAmount = 0,
     this.cancelAnytimeSelected = false,
@@ -76,10 +84,15 @@ class PricingPreview {
     this.gstAmount = 0,
     this.totalAmount = 0,
     this.pricePerMeal = 0,
+    this.discount = 0,
+    this.appliedCoupons = const [],
   });
 
   /// GST as a whole-number percentage for display (0.1 → 10).
   double get gstPercent => gstRate * 100;
+
+  /// True when a coupon actually reduced the payable amount.
+  bool get hasDiscount => discount > 0;
 
   factory PricingPreview.fromJson(Map<String, dynamic> json) {
     return PricingPreview(
@@ -91,6 +104,15 @@ class PricingPreview {
       gstAmount: (json['gstAmount'] as num?)?.toDouble() ?? 0,
       totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0,
       pricePerMeal: (json['pricePerMeal'] as num?)?.toDouble() ?? 0,
+      // The backend has used both keys for this field; accept either.
+      discount: (json['discount'] as num?)?.toDouble() ??
+          (json['couponDiscount'] as num?)?.toDouble() ??
+          0,
+      appliedCoupons: (json['appliedCoupons'] as List<dynamic>?)
+              ?.whereType<Map<String, dynamic>>()
+              .map(AppliedCoupon.fromJson)
+              .toList() ??
+          const [],
     );
   }
 }

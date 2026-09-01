@@ -759,7 +759,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   void _openCouponSheet() {
-    ref.read(couponProvider.notifier).loadCoupons();
+    // Food checkout redeems outlet coupons only.
+    ref.read(couponProvider.notifier).loadCoupons(ruleTypes: 'outlet');
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
