@@ -57,6 +57,11 @@ class _SubscriptionCheckoutScreenState
   /// instead of collapsing the page to a spinner.
   SubscriptionPricingPreview? _lastPreview;
 
+  /// Whether the "Plan amount" row is expanded to reveal what the plan price
+  /// is made up of. Collapsed by default so the summary leads with the figures
+  /// that are actually charged.
+  bool _planBreakdownExpanded = false;
+
   /// Coupon the user picked, or null when none is applied. Only the id is sent
   /// to the backend — the discount itself is always recomputed server-side.
   CouponModel? _appliedCoupon;
@@ -786,6 +791,9 @@ class _SubscriptionCheckoutScreenState
     final consultationFee = preview.plan.consultationFee;
     final showCancelFee = p.cancelAnytimeSelected && p.cancelAnytimeFee > 0;
 
+    // What the "Plan amount" disclosure would reveal.
+    final hasBreakdown = consultationFee > 0 || p.pricePerMeal > 0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -815,27 +823,53 @@ class _SubscriptionCheckoutScreenState
           ),
           child: Column(
             children: [
-              _SummaryRow(label: 'Plan amount', value: _money(p.planAmount)),
+              // Tapping the plan amount discloses what makes it up. Only a
+              // toggle when there is something inside — an empty dropdown
+              // would be a dead affordance.
+              _SummaryRow(
+                label: 'Plan amount',
+                value: _money(p.planAmount),
+                onTap: hasBreakdown
+                    ? () => setState(
+                        () => _planBreakdownExpanded = !_planBreakdownExpanded)
+                    : null,
+                expanded: _planBreakdownExpanded,
+              ),
 
-              // Consultation fee — already inside the plan amount (info only).
-              if (consultationFee > 0) ...[
-                const SizedBox(height: AppSizes.spacing6),
-                _SummaryRow(
-                  label: 'Incl. consultation fee',
-                  value: _money(consultationFee),
-                  muted: true,
+              // Breakdown of the plan amount — info only, all of it is already
+              // counted inside the figure above.
+              if (hasBreakdown)
+                AnimatedCrossFade(
+                  duration: const Duration(milliseconds: 200),
+                  sizeCurve: Curves.easeInOut,
+                  firstCurve: Curves.easeIn,
+                  secondCurve: Curves.easeOut,
+                  crossFadeState: _planBreakdownExpanded
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
+                  firstChild: const SizedBox(width: double.infinity),
+                  secondChild: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (consultationFee > 0) ...[
+                        const SizedBox(height: AppSizes.spacing6),
+                        _SummaryRow(
+                          label: 'Incl. consultation fee',
+                          value: _money(consultationFee),
+                          muted: true,
+                        ),
+                      ],
+                      if (p.pricePerMeal > 0) ...[
+                        const SizedBox(height: AppSizes.spacing6),
+                        _SummaryRow(
+                          label: 'Price per meal',
+                          value: _money(p.pricePerMeal),
+                          muted: true,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ],
-
-              // Per-meal price (info only).
-              if (p.pricePerMeal > 0) ...[
-                const SizedBox(height: AppSizes.spacing6),
-                _SummaryRow(
-                  label: 'Price per meal',
-                  value: _money(p.pricePerMeal),
-                  muted: true,
-                ),
-              ],
 
               // Delivery charge — billed per delivery, NOT part of the total
               // below, so it is rendered muted like the other info-only lines.
@@ -858,12 +892,6 @@ class _SubscriptionCheckoutScreenState
                 ),
               ],
 
-              // Subtotal (shown when it differs from plan amount).
-              if (p.subtotal > 0 && p.subtotal != p.planAmount) ...[
-                const SizedBox(height: AppSizes.spacing12),
-                _SummaryRow(label: 'Subtotal', value: _money(p.subtotal)),
-              ],
-
               // Coupon discount — server-computed, shown only when honoured.
               if (p.hasDiscount) ...[
                 const SizedBox(height: AppSizes.spacing12),
@@ -873,6 +901,14 @@ class _SubscriptionCheckoutScreenState
                   isDiscount: true,
                 ),
               ],
+
+              // Subtotal (shown when it differs from plan amount).
+              if (p.subtotal > 0 && p.subtotal != p.planAmount) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                _SummaryRow(label: 'Subtotal', value: _money(p.subtotal)),
+              ],
+
+
 
               // GST.
               if (p.gstAmount > 0) ...[
@@ -1485,6 +1521,8 @@ class _SummaryRow extends StatelessWidget {
     this.isBold = false,
     this.muted = false,
     this.isDiscount = false,
+    this.onTap,
+    this.expanded = false,
   });
 
   final String label;
@@ -1496,6 +1534,13 @@ class _SummaryRow extends StatelessWidget {
 
   /// Renders the value in green as a deduction from the total.
   final bool isDiscount;
+
+  /// When non-null the row becomes a disclosure toggle: a chevron is drawn
+  /// after the value and the whole row is tappable.
+  final VoidCallback? onTap;
+
+  /// Points the disclosure chevron up. Ignored unless [onTap] is set.
+  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
@@ -1514,29 +1559,70 @@ class _SummaryRow extends StatelessWidget {
         ? AppTypography.bold
         : (isDiscount ? AppTypography.semiBold : AppTypography.regular);
 
-    return Row(
+    final row = Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize:
-                muted ? AppTypography.fontSize12 : AppTypography.fontSize14,
-            fontWeight: weight,
-            color: muted ? AppColors.textSecondary : AppColors.textPrimary,
-            fontFamily: 'Lato',
+        // Flexible so a long label (e.g. a coupon code) ellipsises instead of
+        // overflowing the card.
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize:
+                  muted ? AppTypography.fontSize12 : AppTypography.fontSize14,
+              fontWeight: weight,
+              color: muted ? AppColors.textSecondary : AppColors.textPrimary,
+              fontFamily: 'Lato',
+            ),
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: fontSize,
-            fontWeight: weight,
-            color: color,
-            fontFamily: 'Lato',
-          ),
+        const SizedBox(width: AppSizes.spacing8),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: fontSize,
+                fontWeight: weight,
+                color: color,
+                fontFamily: 'Lato',
+              ),
+            ),
+            if (onTap != null) ...[
+              const SizedBox(width: AppSizes.spacing4),
+              AnimatedRotation(
+                turns: expanded ? 0.5 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: AppSizes.icon20,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ],
         ),
       ],
+    );
+
+    if (onTap == null) return row;
+
+    // MaterialType.transparency so the ripple paints over the card's own white
+    // Container instead of being hidden behind it.
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        child: Padding(
+          // Widens the hit area without visibly changing the row's rhythm.
+          padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing4),
+          child: row,
+        ),
+      ),
     );
   }
 }
