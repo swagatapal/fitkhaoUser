@@ -186,7 +186,98 @@ class ProfileMenuActions {
 
     if (shouldLogout != true || !context.mounted) return;
 
-    // Show a blocking loader while the logout request runs.
+    await _endSession(
+      context,
+      ref,
+      failureMessage: 'Failed to logout. Please try again.',
+    );
+  }
+
+  // ── Delete account ────────────────────────────────────────────────────────
+
+  /// Confirms, then ends the session and returns the user to phone sign-in.
+  ///
+  /// Shares [_endSession] with [confirmLogout] — the two differ only in their
+  /// wording. NOTE: this does not yet call a server-side delete endpoint; the
+  /// account still exists and signing in again restores it.
+  static Future<void> confirmDeleteAccount(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+        ),
+        title: const Text(
+          'Delete Account',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize18,
+            fontWeight: AppTypography.bold,
+            color: AppColors.textPrimary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        content: const Text(
+          'Are you sure you want to delete your account? You will be signed '
+          'out of the app.',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize14,
+            color: AppColors.textSecondary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: AppTypography.semiBold,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.errorColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radius4),
+              ),
+            ),
+            child: const Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: AppTypography.semiBold,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true || !context.mounted) return;
+
+    await _endSession(
+      context,
+      ref,
+      failureMessage: 'Could not delete your account. Please try again.',
+    );
+  }
+
+  /// Clears the session behind a blocking loader and sends the user back to
+  /// phone sign-in. Shared by logout and account deletion so the teardown
+  /// behaves identically for both.
+  static Future<void> _endSession(
+    BuildContext context,
+    WidgetRef ref, {
+    required String failureMessage,
+  }) async {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -205,8 +296,8 @@ class ProfileMenuActions {
       context.go(RouteNames.phoneAuth);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to logout. Please try again.'),
+        SnackBar(
+          content: Text(failureMessage),
           backgroundColor: AppColors.errorColor,
           behavior: SnackBarBehavior.floating,
         ),

@@ -200,9 +200,22 @@ class ProfileMenuScreen extends ConsumerWidget {
                       const SizedBox(height: AppSizes.spacing24),
 
                       // ── Logout ────────────────────────────────────────────────
-                      _LogoutButton(
+                      _DestructiveButton(
+                        icon: Icons.logout_rounded,
+                        label: 'Logout',
                         onTap: () =>
                             ProfileMenuActions.confirmLogout(context, ref),
+                      ),
+                      const SizedBox(height: AppSizes.spacing12),
+
+                      // ── Delete account ────────────────────────────────────────
+                      _DestructiveButton(
+                        icon: Icons.delete_forever_outlined,
+                        label: 'Delete Account',
+                        filled: false,
+                        onTap: () =>
+                            ProfileMenuActions.confirmDeleteAccount(
+                                context, ref),
                       ),
                       const SizedBox(height: AppSizes.spacing20),
 
@@ -640,17 +653,32 @@ class _MenuTile extends StatelessWidget {
   }
 }
 
-// ─── Logout button ───────────────────────────────────────────────────────────
+// ─── Destructive action button ───────────────────────────────────────────────
 
-class _LogoutButton extends StatelessWidget {
+/// Full-width red action used for logout and account deletion.
+///
+/// [filled] gives the tinted background carried by the primary action
+/// (logout); the unfilled variant reads as secondary, which keeps the far more
+/// consequential "Delete Account" from competing for the same tap.
+class _DestructiveButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
   final VoidCallback onTap;
+  final bool filled;
 
-  const _LogoutButton({required this.onTap});
+  const _DestructiveButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.filled = true,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.errorColor.withValues(alpha: 0.06),
+      color: filled
+          ? AppColors.errorColor.withValues(alpha: 0.06)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(AppSizes.radius12),
       child: InkWell(
         onTap: onTap,
@@ -661,18 +689,17 @@ class _LogoutButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppSizes.radius12),
             border: Border.all(
-              color: AppColors.errorColor.withValues(alpha: 0.25),
+              color: AppColors.errorColor.withValues(alpha: filled ? 0.25 : 0.2),
             ),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.logout_rounded,
-                  color: AppColors.errorColor, size: AppSizes.icon20),
-              SizedBox(width: AppSizes.spacing8),
+              Icon(icon, color: AppColors.errorColor, size: AppSizes.icon20),
+              const SizedBox(width: AppSizes.spacing8),
               Text(
-                'Logout',
-                style: TextStyle(
+                label,
+                style: const TextStyle(
                   fontSize: AppTypography.fontSize14,
                   fontWeight: AppTypography.bold,
                   color: AppColors.errorColor,
