@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/router/route_names.dart';
+import '../../../core/services/local_storage_service.dart';
 import '../../../core/utils/responsive_utils.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -66,8 +67,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  void _navigateToPhoneAuth() {
-    context.go(RouteNames.phoneAuth);
+  /// Ends onboarding straight into the app.
+  ///
+  /// Browsing the menu requires no account, so onboarding hands the user to
+  /// home as a guest rather than to the phone screen. Sign-in is offered later,
+  /// at the point an account-based action actually needs it.
+  Future<void> _navigateToPhoneAuth() async {
+    // Remember it was seen so a returning guest lands straight on the menu.
+    try {
+      final storage = await LocalStorageService.getInstance();
+      await storage.setOnboardingComplete(true);
+    } catch (e) {
+      // Never block entry on a preferences write.
+      debugPrint('[Onboarding] Could not persist completion: $e');
+    }
+    if (!mounted) return;
+    context.go(RouteNames.home);
   }
 
   @override

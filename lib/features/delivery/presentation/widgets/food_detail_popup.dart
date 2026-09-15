@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/auth/auth_gate.dart';
 import '../../../../core/services/meta_event_service.dart';
 import '../../models/menu_item.dart';
 import '../../providers/cart_provider.dart';
@@ -22,9 +23,19 @@ class FoodDetailPopup extends ConsumerStatefulWidget {
 
 class _FoodDetailPopupState extends ConsumerState<FoodDetailPopup> {
   /// Add the item to the cart and close the popup.
-  void _handleAddToCart() {
+  ///
+  /// Viewing a dish is open to everyone; putting one in a cart is account
+  /// work, so a guest is prompted to sign in here instead.
+  Future<void> _handleAddToCart() async {
     final item = widget.menuItem;
-    ref.read(cartProvider.notifier).addItem(item);
+
+    final added = await AuthGate.run(
+      context,
+      ref,
+      reason: 'add items to your cart',
+      action: () => ref.read(cartProvider.notifier).addItem(item),
+    );
+    if (!added || !mounted) return;
 
     // Fire-and-forget: MetaEventService swallows its own errors, and the popup
     // must close immediately rather than wait on an analytics round-trip.

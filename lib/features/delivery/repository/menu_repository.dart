@@ -32,16 +32,17 @@ class MenuRepository {
 
   // ─── Auth helpers ──────────────────────────────────────────────────────────
 
+  /// Headers for the catalogue endpoints.
+  ///
+  /// The token is attached only when one exists. These endpoints are public —
+  /// browsing the menu must work for guests, so a missing token is a normal
+  /// state here, not an error. (Personalised responses still key off the token
+  /// when it is present.)
   Map<String, String> _authHeaders() {
     final token = _localStorage.getAuthToken();
-    if (token == null || token.isEmpty) {
-      throw AuthException(
-        message: 'Authentication required. Please login again.',
-      );
-    }
     return {
-      'Authorization': 'Bearer $token',
       'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
   }
 

@@ -98,6 +98,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     }
   }
 
+  /// Whether onboarding has already been shown. Defaults to false (show it) if
+  /// preferences cannot be read.
+  Future<bool> _hasSeenOnboarding() async {
+    try {
+      final storage = await ref.read(localStorageProvider.future);
+      return storage.isOnboardingComplete();
+    } catch (e) {
+      debugPrint('[SplashScreen] Onboarding flag read failed: $e');
+      return false;
+    }
+  }
+
   void _setupAnimations() {
     // Background fade animation (0-500ms)
     _backgroundController = AnimationController(
@@ -190,8 +202,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       debugPrint('[SplashScreen] Navigating to home');
       context.go(RouteNames.home);
     } else {
-      debugPrint('[SplashScreen] Navigating to onboarding');
-      context.go(RouteNames.onboarding);
+      // No account yet. First run gets onboarding, which then drops the user
+      // into home as a guest; a returning guest who has already seen it goes
+      // straight to the menu. Sign-in is never forced here — it is requested
+      // only when an account-based action needs it.
+      final seenOnboarding = await _hasSeenOnboarding();
+      if (!mounted) return;
+      if (seenOnboarding) {
+        debugPrint('[SplashScreen] Navigating to home as guest');
+        context.go(RouteNames.home);
+      } else {
+        debugPrint('[SplashScreen] Navigating to onboarding');
+        context.go(RouteNames.onboarding);
+      }
     }
   }
 

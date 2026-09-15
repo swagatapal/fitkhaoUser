@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/providers.dart';
+import '../../../core/providers/session_provider.dart';
 import '../../../core/services/device_info_service.dart';
 import '../../delivery/providers/cart_provider.dart';
 import '../models/auth_state.dart';
@@ -156,6 +157,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
 
       if (response.success) {
+        // The repository has just persisted the auth token — tell the session
+        // flag to re-read it so guest gating lifts immediately.
+        _ref.read(sessionRevisionProvider.notifier).state++;
         state = state.copyWith(
           isLoading: false,
           errorMessage: null,
@@ -799,6 +803,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       // Clear user-scoped in-memory state that survives while the app stays alive.
       _ref.read(cartProvider.notifier).clearCart();
+
+      // The token is gone — flip the app back into guest mode.
+      _ref.read(sessionRevisionProvider.notifier).state++;
 
       // Reset state
       _resendTimer?.cancel();

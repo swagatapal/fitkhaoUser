@@ -6,6 +6,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/time_converter.dart';
+import '../../../../core/auth/auth_gate.dart';
+import '../../../../core/providers/session_provider.dart';
 import '../../models/subscription_plan_model.dart';
 import '../../providers/subscription_plan_provider.dart';
 import '../../providers/wallet_provider.dart';
@@ -158,6 +160,10 @@ class _WalletBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // A guest has no wallet — hide the strip entirely rather than show a
+    // zero balance next to top-up and history actions they cannot use.
+    if (!ref.watch(isSignedInProvider)) return const SizedBox.shrink();
+
     final wallet = ref.watch(walletProvider.select((s) => s.wallet));
     final balance = wallet?.couponBalance;
 
@@ -863,12 +869,19 @@ class _SubscribeBar extends ConsumerWidget {
       label =
           'Subscribe · ${selected.formattedPrice} / ${selected.planValidity}';
       final plan = selected;
-      onPressed = () => Navigator.push(
+      // Plans are browsable by anyone; buying one needs an account.
+      onPressed = () => AuthGate.run(
             context,
-            MaterialPageRoute<void>(
-              builder: (_) => SubscriptionCheckoutScreen(
-                planId: plan.id,
-                cancelAnytimeSelected: ref.read(cancelAnytimeProvider(plan.id)),
+            ref,
+            reason: 'subscribe to a plan',
+            action: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => SubscriptionCheckoutScreen(
+                  planId: plan.id,
+                  cancelAnytimeSelected:
+                      ref.read(cancelAnytimeProvider(plan.id)),
+                ),
               ),
             ),
           );

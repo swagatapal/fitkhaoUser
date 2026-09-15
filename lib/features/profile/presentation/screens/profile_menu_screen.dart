@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/auth/auth_gate.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/providers/session_provider.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../history/presentation/screens/history_screen.dart';
 import '../../../history/presentation/screens/order_history_archive_screen.dart';
@@ -29,6 +31,15 @@ class ProfileMenuScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
+    final isGuest = ref.watch(isGuestProvider);
+
+    /// Wraps an account-only destination so a guest is asked to sign in first.
+    VoidCallback gated(String reason, VoidCallback open) => () => AuthGate.run(
+          context,
+          ref,
+          reason: reason,
+          action: open,
+        );
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F4),
@@ -90,16 +101,20 @@ class ProfileMenuScreen extends ConsumerWidget {
                               color: const Color(0xFF2E7CF6),
                               title: 'My Profile',
                               subtitle: 'Name, address & photo',
-                              onTap: () => ProfileMenuActions.open(
-                                  context, const EditProfileScreen()),
+                              onTap: gated(
+                                  'view your profile',
+                                  () => ProfileMenuActions.open(
+                                      context, const EditProfileScreen())),
                             ),
                             _MenuEntry(
                               icon: Icons.home,
                               color: const Color(0xFF2E7CF6),
                               title: 'Saved Addresses',
                               subtitle: 'Your saved address',
-                              onTap: () => ProfileMenuActions.open(
-                                  context, const AddressListScreen()),
+                              onTap: gated(
+                                  'manage saved addresses',
+                                  () => ProfileMenuActions.open(
+                                      context, const AddressListScreen())),
                             ),
                           ],
                         ),
@@ -119,16 +134,21 @@ class ProfileMenuScreen extends ConsumerWidget {
                                 color: const Color(0xFFC66301),
                                 title: 'Your Cart',
                                 subtitle: 'Your save items',
-                                onTap: () => ProfileMenuActions.open(
-                                    context, const CartScreen())),
+                                onTap: gated(
+                                    'use your cart',
+                                    () => ProfileMenuActions.open(
+                                        context, const CartScreen()))),
                             _MenuEntry(
                               icon: Icons.receipt_long_outlined,
                               color: const Color(0xFFC66301),
                               title: 'Orders',
                               subtitle: 'Outlet & subscription orders',
-                              onTap: () => ProfileMenuActions.open(
-                                context,
-                                const HistoryScreen(),
+                              onTap: gated(
+                                'see your orders',
+                                () => ProfileMenuActions.open(
+                                  context,
+                                  const HistoryScreen(),
+                                ),
                               ),
                             ),
                             _MenuEntry(
@@ -136,9 +156,12 @@ class ProfileMenuScreen extends ConsumerWidget {
                               color: const Color(0xFF20A39E),
                               title: 'Order History',
                               subtitle: 'All your past orders',
-                              onTap: () => ProfileMenuActions.open(
-                                context,
-                                const OrderHistoryArchiveScreen(),
+                              onTap: gated(
+                                'see your order history',
+                                () => ProfileMenuActions.open(
+                                  context,
+                                  const OrderHistoryArchiveScreen(),
+                                ),
                               ),
                             ),
                           ],
@@ -167,16 +190,20 @@ class ProfileMenuScreen extends ConsumerWidget {
                               color: const Color(0xFFD81B60),
                               title: 'All Coupons',
                               subtitle: 'Offers you can use',
-                              onTap: () => ProfileMenuActions.open(
-                                  context, const AllCouponsScreen()),
+                              onTap: gated(
+                                  'see your coupons',
+                                  () => ProfileMenuActions.open(
+                                      context, const AllCouponsScreen())),
                             ),
                             _MenuEntry(
                               icon: Icons.notifications_none_rounded,
                               color: const Color(0xFFF5A623),
                               title: 'Notifications',
                               subtitle: 'Alerts & updates',
-                              onTap: () => ProfileMenuActions.open(
-                                  context, const NotificationScreen()),
+                              onTap: gated(
+                                  'see your notifications',
+                                  () => ProfileMenuActions.open(
+                                      context, const NotificationScreen())),
                             ),
                             _MenuEntry(
                               icon: Icons.phone,
@@ -199,24 +226,32 @@ class ProfileMenuScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: AppSizes.spacing24),
 
-                      // ── Logout ────────────────────────────────────────────────
-                      _DestructiveButton(
-                        icon: Icons.logout_rounded,
-                        label: 'Logout',
-                        onTap: () =>
-                            ProfileMenuActions.confirmLogout(context, ref),
-                      ),
-                      const SizedBox(height: AppSizes.spacing12),
-
-                      // ── Delete account ────────────────────────────────────────
-                      _DestructiveButton(
-                        icon: Icons.delete_forever_outlined,
-                        label: 'Delete Account',
-                        filled: false,
-                        onTap: () =>
-                            ProfileMenuActions.confirmDeleteAccount(
-                                context, ref),
-                      ),
+                      // ── Session actions ───────────────────────────────────────
+                      // A guest has nothing to log out of or delete — they get
+                      // the way in instead.
+                      if (isGuest)
+                        _SignInButton(
+                          onTap: () => AuthGate.promptSignIn(
+                            context,
+                            reason: 'use your cart, orders and subscriptions',
+                          ),
+                        )
+                      else ...[
+                        _DestructiveButton(
+                          icon: Icons.logout_rounded,
+                          label: 'Logout',
+                          onTap: () =>
+                              ProfileMenuActions.confirmLogout(context, ref),
+                        ),
+                        const SizedBox(height: AppSizes.spacing12),
+                        _DestructiveButton(
+                          icon: Icons.delete_forever_outlined,
+                          label: 'Delete Account',
+                          filled: false,
+                          onTap: () => ProfileMenuActions.confirmDeleteAccount(
+                              context, ref),
+                        ),
+                      ],
                       const SizedBox(height: AppSizes.spacing20),
 
                       // ── Version footer ────────────────────────────────────────
@@ -647,6 +682,50 @@ class _MenuTile extends StatelessWidget {
               size: AppSizes.icon24,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Sign-in button (guests) ─────────────────────────────────────────────────
+
+/// Full-width primary action shown in place of logout while browsing as a
+/// guest.
+class _SignInButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _SignInButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.primaryGreen,
+      borderRadius: BorderRadius.circular(AppSizes.radius12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing16),
+          alignment: Alignment.center,
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.login_rounded,
+                  color: Colors.white, size: AppSizes.icon20),
+              SizedBox(width: AppSizes.spacing8),
+              Text(
+                'Login / Sign up',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  fontWeight: AppTypography.bold,
+                  color: Colors.white,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

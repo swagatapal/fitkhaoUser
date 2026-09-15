@@ -11,6 +11,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_strings.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/auth/auth_gate.dart';
+import '../../../../core/providers/session_provider.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/kitchen_provider.dart';
@@ -135,21 +137,30 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   /// never gate the food list — serviceability is fetched purely to resolve the
   /// kitchenId (used by checkout) and the kitchen open/close status.
   Future<void> _loadInitialData() async {
-    unawaited(_loadProfileData());
-    unawaited(_loadWalletBalance());
-    unawaited(_loadKitchens());
-    // Keep the server cart fresh on every entry (badge, steppers, totals).
-    unawaited(ref.read(cartProvider.notifier).loadCart());
-    // Load notifications so the bell badge reflects the real unread count.
-    unawaited(ref.read(notificationProvider.notifier).load());
-    // Re-register the FCM device token on every cold start so the server
-    // always has the latest token (tokens rotate after reinstalls/updates).
-    unawaited(ref.read(authProvider.notifier).registerDevice());
+    // The catalogue (dishes + kitchens) is public; everything else below is
+    // account-scoped and would only fail for a guest, so it is skipped
+    // entirely rather than firing doomed requests on every cold start.
+    final signedIn = ref.read(isSignedInProvider);
 
-    // Addresses must load BEFORE the gate evaluates: the gate (and checkout)
-    // read the shared `selectedDeliveryAddressProvider` as the single source of
-    // truth, so we resolve the selection first, then evaluate serviceability.
-    unawaited(_resolveAddressAndEvaluate());
+    unawaited(_loadKitchens());
+
+    if (signedIn) {
+      unawaited(_loadProfileData());
+      unawaited(_loadWalletBalance());
+      // Keep the server cart fresh on every entry (badge, steppers, totals).
+      unawaited(ref.read(cartProvider.notifier).loadCart());
+      // Load notifications so the bell badge reflects the real unread count.
+      unawaited(ref.read(notificationProvider.notifier).load());
+      // Re-register the FCM device token on every cold start so the server
+      // always has the latest token (tokens rotate after reinstalls/updates).
+      unawaited(ref.read(authProvider.notifier).registerDevice());
+
+      // Addresses must load BEFORE the gate evaluates: the gate (and checkout)
+      // read the shared `selectedDeliveryAddressProvider` as the single source
+      // of truth, so we resolve the selection first, then evaluate
+      // serviceability.
+      unawaited(_resolveAddressAndEvaluate());
+    }
 
     final hasCachedDishes = ref.read(allDishesProvider).items.isNotEmpty;
     if (hasCachedDishes) {
@@ -174,11 +185,13 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   }
 
   Future<void> _onRefresh() async {
+    final signedIn = ref.read(isSignedInProvider);
     await Future.wait([
       ref.read(allDishesProvider.notifier).silentRefresh(),
       _loadKitchens(),
-      ref.read(cartProvider.notifier).loadCart(),
-      _resolveAddressAndEvaluate(),
+      // Account-scoped refreshes only apply to a signed-in user.
+      if (signedIn) ref.read(cartProvider.notifier).loadCart(),
+      if (signedIn) _resolveAddressAndEvaluate(),
     ]);
   }
 
@@ -260,6 +273,11 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   }
 
   void _openAddressSwitcher() {
+    // Delivery addresses are account data — a guest has none to switch between.
+    if (!ref.read(isSignedInProvider)) {
+      AuthGate.promptSignIn(context, reason: 'set a delivery address');
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -773,9 +791,14 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         ),
         const SizedBox(width: 10),
         GestureDetector(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const NotificationScreen(),
+          onTap: () => AuthGate.run(
+            context,
+            ref,
+            reason: 'see your notifications',
+            action: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const NotificationScreen(),
+              ),
             ),
           ),
           child: SizedBox(

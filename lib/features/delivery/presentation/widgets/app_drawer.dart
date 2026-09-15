@@ -2,9 +2,11 @@ import 'package:fitkhao_user/features/profile/presentation/screens/address_list_
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/auth/auth_gate.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
+import '../../../../core/providers/session_provider.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../models/kitchen_model.dart';
 import '../../providers/delivery_gate_provider.dart';
@@ -82,9 +84,29 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
     super.dispose();
   }
 
+  /// Opens an account-only destination from the drawer.
+  ///
+  /// The drawer is closed first either way, so the sign-in sheet a guest sees
+  /// is not stacked on top of it. The navigator is captured before closing —
+  /// this widget's context is torn down with the drawer.
+  VoidCallback _gated(String reason, Widget Function() screen) {
+    return () {
+      final navigator = Navigator.of(context);
+      final signedIn = ref.read(isSignedInProvider);
+      Scaffold.of(context).closeDrawer();
+
+      if (signedIn) {
+        navigator.push(MaterialPageRoute<void>(builder: (_) => screen()));
+      } else {
+        AuthGate.promptSignIn(navigator.context, reason: reason);
+      }
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    final isGuest = ref.watch(isGuestProvider);
 
     // Declarative groups → rendered as cards. Behaviour preserved verbatim.
     //final account = <_NavItem>[
@@ -113,16 +135,15 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
         color: const Color(0xFFC66301),
         label: 'Add Address',
         subtitle: 'Add delivery address',
-        onTap: () => ProfileMenuActions.open(context, const AddressListScreen(),
-            insideDrawer: true),
+        onTap: _gated(
+            'manage delivery addresses', () => const AddressListScreen()),
       ),
       _NavItem(
         icon: Icons.receipt_long_outlined,
         color: const Color(0xFFC66301),
         label: 'Orders',
         subtitle: 'Outlet & subscription orders',
-        onTap: () => ProfileMenuActions.open(context, const HistoryScreen(),
-            insideDrawer: true),
+        onTap: _gated('see your orders', () => const HistoryScreen()),
       ),
       _NavItem(
         icon: Icons.card_membership_outlined,
@@ -141,9 +162,8 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
         color: const Color(0xFFF5A623),
         label: 'Notifications',
         subtitle: 'Alerts & updates',
-        onTap: () => ProfileMenuActions.open(
-            context, const NotificationScreen(),
-            insideDrawer: true),
+        onTap: _gated(
+            'see your notifications', () => const NotificationScreen()),
       ),
       _NavItem(
         icon: Icons.support_agent_outlined,
@@ -173,9 +193,22 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
       const _SectionLabel('More'),
       _MenuCard(items: more),
       const SizedBox(height: AppSizes.spacing8),
-      _LogoutButton(
-        onTap: () => ProfileMenuActions.confirmLogout(context, ref),
-      ),
+      // A guest has no session to end — offer the way in instead.
+      if (isGuest)
+        _DrawerSignInButton(
+          onTap: () {
+            final navigator = Navigator.of(context);
+            Scaffold.of(context).closeDrawer();
+            AuthGate.promptSignIn(
+              navigator.context,
+              reason: 'use your cart, orders and subscriptions',
+            );
+          },
+        )
+      else
+        _LogoutButton(
+          onTap: () => ProfileMenuActions.confirmLogout(context, ref),
+        ),
     ];
 
     return Column(
@@ -570,6 +603,50 @@ class _MenuRow extends StatelessWidget {
 }
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
+
+/// Drawer counterpart of [_LogoutButton], shown while browsing as a guest.
+class _DrawerSignInButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _DrawerSignInButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.spacing16),
+      child: Material(
+        color: AppColors.primaryGreen,
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing16),
+            alignment: Alignment.center,
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.login_rounded,
+                    color: Colors.white, size: AppSizes.icon20),
+                SizedBox(width: AppSizes.spacing8),
+                Text(
+                  'Login / Sign up',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.bold,
+                    color: Colors.white,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _LogoutButton extends StatelessWidget {
   final VoidCallback onTap;
