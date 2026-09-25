@@ -4,6 +4,7 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/services/local_storage_service.dart';
 import '../../../core/config/app_config.dart';
 import '../models/order_history_model.dart';
+import '../../../core/utils/dev_log.dart';
 
 /// Repository for order history operations
 class OrderHistoryRepository {
@@ -81,7 +82,7 @@ class OrderHistoryRepository {
         },
       );
 
-      debugPrint('[OrderHistoryRepository] Invoice response: $json');
+      devLog(() => '[OrderHistoryRepository] Invoice response: $json');
 
       final success = json['success'] as bool? ?? false;
       if (!success) {
@@ -201,7 +202,7 @@ class OrderHistoryRepository {
         headers: headers,
       );
 
-      debugPrint('[OrderHistoryRepository] Order history response: $json');
+      devLog(() => '[OrderHistoryRepository] Order history response: $json');
 
       return OrderHistoryResponse.fromJson(json);
     } catch (e) {

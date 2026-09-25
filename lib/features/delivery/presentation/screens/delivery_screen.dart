@@ -316,7 +316,13 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authProvider);
+    // Only the header identity is read from auth here. Watching the whole
+    // AuthState (51 fields) rebuilt this entire screen — including the full
+    // dish list — every time any unrelated field changed, e.g. isLoading
+    // toggling during the background loadProfile() on each entry.
+    final authState = ref.watch(
+      authProvider.select((s) => (name: s.name, imgUrl: s.imgUrl)),
+    );
     final dishState = ref.watch(allDishesProvider);
 
     // Outlet open/close is the authoritative kitchen open-status from the API
@@ -693,11 +699,14 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   // ── Header ──────────────────────────────────────────────────────────────────
 
-  Widget _buildCompactHeader(authState, String location, int unreadCount) {
-    final firstName = (authState.name as String).isNotEmpty
-        ? (authState.name as String).split(' ').first
-        : 'User';
-    final imgUrl = authState.imgUrl as String?;
+  Widget _buildCompactHeader(
+    ({String name, String? imgUrl}) authState,
+    String location,
+    int unreadCount,
+  ) {
+    final firstName =
+        authState.name.isNotEmpty ? authState.name.split(' ').first : 'User';
+    final imgUrl = authState.imgUrl;
     final hasValidUrl =
         imgUrl != null && imgUrl.isNotEmpty && !_profileImageError;
 
@@ -1145,6 +1154,11 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   // ── Dish list ────────────────────────────────────────────────────────────────
 
+/// Highest index that still receives a staggered entrance delay. Beyond this
+  /// every remaining card shares the same delay, so a long list cannot push
+  /// later cards seconds into the future.
+  static const int _kMaxStaggerIndex = 12;
+
   Widget _buildDishList(AllDishesState dishState, bool isActive) {
     Widget content;
     if (dishState.isLoading) {
@@ -1345,12 +1359,16 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           : Column(
               children: [
                 for (final item in section.items)
-                  _FadeSlideIn(
-                    key: ValueKey('all_${item.id}'),
-                    child: _DishCard(
-                      item: item,
-                      isOrderingEnabled: isActive,
-                      onOrderingDisabledTap: _showOrderingClosedSnackBar,
+                  // RepaintBoundary: the list is an eager Column, so without
+                  // one the whole list re-rasterises every scroll frame.
+                  RepaintBoundary(
+                    child: _FadeSlideIn(
+                      key: ValueKey('all_${item.id}'),
+                      child: _DishCard(
+                        item: item,
+                        isOrderingEnabled: isActive,
+                        onOrderingDisabledTap: _showOrderingClosedSnackBar,
+                      ),
                     ),
                   ),
                 const SizedBox(height: AppSizes.spacing8),
@@ -1371,13 +1389,20 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
     return Column(
       children: [
-        for (final item in items)
+        // Indexed loop: the previous `items.indexOf(item)` was a linear scan
+        // per item — O(n²) on every build of this branch.
+        for (var i = 0; i < items.length; i++)
           AnimEntrance(
-            delay: AnimEntrance.stagger(items.indexOf(item)),
+            // Stagger is capped. Uncapped it is 60ms + index × 55ms, so with a
+            // large page item 199 waited ~11s at zero opacity before appearing.
+            // The visible cascade over the first screenful is unchanged.
+            delay: AnimEntrance.stagger(
+                i < _kMaxStaggerIndex ? i : _kMaxStaggerIndex),
             child: _FadeSlideIn(
-              key: ValueKey('cat_${dishState.selectedCategoryId}_${item.id}'),
+              key: ValueKey(
+                  'cat_${dishState.selectedCategoryId}_${items[i].id}'),
               child: _DishCard(
-                item: item,
+                item: items[i],
                 isOrderingEnabled: isActive,
                 onOrderingDisabledTap: _showOrderingClosedSnackBar,
               ),
@@ -1683,6 +1708,12 @@ class _DishCard extends ConsumerWidget {
                       width: AppSizes.icon120,
                       height: AppSizes.icon120,
                       fit: BoxFit.cover,
+                      // Decode to the size actually drawn. Without this a large
+                      // source image is decoded at full resolution for a 120pt
+                      // box — several MB of bitmap per dish, across the whole
+                      // list. Rendered output is unchanged.
+                      memCacheWidth: _dishThumbCachePx(context),
+                      memCacheHeight: _dishThumbCachePx(context),
                       fadeInDuration: const Duration(milliseconds: 200),
                       fadeOutDuration: const Duration(milliseconds: 100),
                       placeholder: (_, __) => Container(
@@ -2142,6 +2173,14 @@ class _CartBar extends ConsumerWidget {
 }
 
 // ─── Fade + slide-up entrance ────────────────────────────────────────────────
+
+/// Physical-pixel size to decode the 120pt dish thumbnail at, capped so a
+/// high-DPI device does not blow the cap out again. Returns null if the
+/// device pixel ratio is unavailable, leaving decoding unchanged.
+int _dishThumbCachePx(BuildContext context) {
+  final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
+  return (AppSizes.icon120 * dpr).round().clamp(120, 480);
+}
 
 class _FadeSlideIn extends StatefulWidget {
   const _FadeSlideIn({required super.key, required this.child});

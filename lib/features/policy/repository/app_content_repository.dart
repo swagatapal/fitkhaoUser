@@ -7,6 +7,7 @@ import '../../../core/errors/app_exception.dart';
 import '../models/app_content_model.dart';
 import '../models/app_constants_model.dart';
 import '../models/app_version_model.dart';
+import '../../../core/utils/dev_log.dart';
 
 /// Repository for fetching app content (terms & conditions, privacy policy)
 /// and app-wide runtime constants.
@@ -21,7 +22,7 @@ class AppContentRepository {
     debugPrint('[AppContentRepository] Fetching content: $code');
     try {
       final json = await _apiClient.getJson('${AppConfig.appContentPath}/$code');
-      debugPrint('[AppContentRepository] Response for $code: $json');
+      devLog(() => '[AppContentRepository] Response for $code: $json');
       return AppContentResponse.fromJson(json);
     } catch (e) {
       debugPrint('[AppContentRepository] Error fetching $code: $e');
@@ -41,7 +42,7 @@ class AppContentRepository {
     debugPrint('[AppContentRepository] Fetching app constants...');
     try {
       final json = await _apiClient.getJson(AppConfig.appConstant);
-      debugPrint('[AppContentRepository] Constants response: $json');
+      devLog(() => '[AppContentRepository] Constants response: $json');
       return AppConstants.fromApiResponse(json);
     } catch (e) {
       debugPrint(
@@ -67,7 +68,7 @@ class AppContentRepository {
       final json = await _apiClient.getJson(
         '${AppConfig.appVersionPath}?platform=$resolvedPlatform&currentVersion=$currentVersion',
       );
-      debugPrint('[AppContentRepository] Version response: $json');
+      devLog(() => '[AppContentRepository] Version response: $json');
       return AppVersionModel.fromJson(json);
     } catch (e) {
       debugPrint('[AppContentRepository] Version check error (skipping): $e');

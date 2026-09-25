@@ -6,6 +6,7 @@ import '../../../core/config/app_config.dart';
 import '../models/wallet_balance_model.dart';
 import '../models/wallet_topup_model.dart';
 import '../models/transaction_model.dart';
+import '../../../core/utils/dev_log.dart';
 
 /// Repository for wallet related operations
 class WalletRepository {
@@ -43,7 +44,7 @@ class WalletRepository {
         headers: headers,
       );
 
-      debugPrint('[WalletRepository] Wallet balance response: $json');
+      devLog(() => '[WalletRepository] Wallet balance response: $json');
 
       return WalletBalanceResponse.fromJson(json);
     } catch (e) {
@@ -92,7 +93,7 @@ class WalletRepository {
         headers: headers,
       );
 
-      debugPrint('[WalletRepository] Wallet topup response: $json');
+      devLog(() => '[WalletRepository] Wallet topup response: $json');
 
       return WalletTopupResponse.fromJson(json);
     } catch (e) {
@@ -131,7 +132,7 @@ class WalletRepository {
         headers: headers,
       );
 
-      debugPrint('[WalletRepository] Transaction history response: $json');
+      devLog(() => '[WalletRepository] Transaction history response: $json');
 
       return TransactionResponse.fromJson(json);
     } catch (e) {

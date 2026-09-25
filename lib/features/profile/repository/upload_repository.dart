@@ -5,6 +5,7 @@ import '../../../core/config/app_config.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/services/local_storage_service.dart';
+import '../../../core/utils/dev_log.dart';
 
 
 /// Response model for image upload
@@ -96,7 +97,7 @@ class UploadRepository {
         fieldName: 'image',
       );
 
-      debugPrint('[UploadRepository] Upload response: $json');
+      devLog(() => '[UploadRepository] Upload response: $json');
 
       final response = ImageUploadResponse.fromJson(json);
 

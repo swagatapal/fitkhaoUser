@@ -4,6 +4,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/services/local_storage_service.dart';
 import '../models/serviceability_model.dart';
+import '../../../core/utils/dev_log.dart';
 
 /// Repository for serviceability check operations
 class ServiceabilityRepository {
@@ -45,7 +46,7 @@ class ServiceabilityRepository {
         headers: headers,
       );
 
-      debugPrint('[ServiceabilityRepository] Serviceability response: $json');
+      devLog(() => '[ServiceabilityRepository] Serviceability response: $json');
 
       return ServiceabilityResponse.fromJson(json);
     } catch (e) {
@@ -73,7 +74,7 @@ class ServiceabilityRepository {
         '${AppConfig.kitchenOpenStatusPath}/$kitchenId/open-status',
         headers: headers,
       );
-      debugPrint('[ServiceabilityRepository] Kitchen open status: $json');
+      devLog(() => '[ServiceabilityRepository] Kitchen open status: $json');
       return KitchenOpenStatusData.fromJson(json);
     } catch (e) {
       debugPrint(

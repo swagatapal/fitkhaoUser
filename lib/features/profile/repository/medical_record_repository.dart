@@ -5,6 +5,7 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/services/local_storage_service.dart';
 import '../models/medical_record_model.dart';
+import '../../../core/utils/dev_log.dart';
 
 /// Medical records / prescriptions owned by the signed-in user.
 class MedicalRecordRepository {
@@ -51,7 +52,7 @@ class MedicalRecordRepository {
             'consultationId': consultationId,
         },
       );
-      debugPrint('[MedicalRecordRepository] Upload response: $json');
+      devLog(() => '[MedicalRecordRepository] Upload response: $json');
       return MedicalRecordsResponse.fromJson(json);
     } catch (e) {
       debugPrint('[MedicalRecordRepository] Upload error: $e');

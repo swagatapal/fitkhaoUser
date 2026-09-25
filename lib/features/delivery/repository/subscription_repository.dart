@@ -9,6 +9,7 @@ import '../models/subscription_pricing_preview_model.dart';
 import '../models/subscription_request_model.dart';
 import '../models/subscription_response_model.dart';
 import '../models/subscription_timeline_model.dart';
+import '../../../core/utils/dev_log.dart';
 
 /// Repository for subscription related operations
 class SubscriptionRepository {
@@ -28,7 +29,7 @@ class SubscriptionRepository {
       final json = await _apiClient.getJson(
         '${AppConfig.subscriptionPlansPath}?isActive=true',
       );
-      debugPrint('[SubscriptionRepository] Plans response: $json');
+      devLog(() => '[SubscriptionRepository] Plans response: $json');
       return SubscriptionPlanResponse.fromJson(json);
     } catch (e) {
       debugPrint('[SubscriptionRepository] Error fetching plans: $e');
@@ -58,7 +59,7 @@ class SubscriptionRepository {
         headers: _authHeaders(),
         body: request.toJson(),
       );
-      debugPrint('[SubscriptionRepository] Subscription response: $json');
+      devLog(() => '[SubscriptionRepository] Subscription response: $json');
       return SubscriptionResponse.fromJson(json);
     } catch (e) {
       debugPrint('[SubscriptionRepository] Subscription error: $e');
@@ -78,7 +79,7 @@ class SubscriptionRepository {
         AppConfig.subscriptionCancelPreviewPath(subscriptionId),
         headers: _authHeaders(),
       );
-      debugPrint('[SubscriptionRepository] Cancel preview response: $json');
+      devLog(() => '[SubscriptionRepository] Cancel preview response: $json');
       return SubscriptionCancelPreviewResponse.fromJson(json);
     } catch (e) {
       debugPrint('[SubscriptionRepository] Cancel preview error: $e');
@@ -104,7 +105,7 @@ class SubscriptionRepository {
             'refundMethod': refundMethod,
         },
       );
-      debugPrint('[SubscriptionRepository] Cancel response: $json');
+      devLog(() => '[SubscriptionRepository] Cancel response: $json');
       return SubscriptionResponse.fromJson(json);
     } catch (e) {
       debugPrint('[SubscriptionRepository] Cancel error: $e');
@@ -166,7 +167,7 @@ class SubscriptionRepository {
         AppConfig.subscriptionTimelinePath,
         headers: _authHeaders(),
       );
-      debugPrint('[SubscriptionRepository] Timeline response: $json');
+      devLog(() => '[SubscriptionRepository] Timeline response: $json');
       return SubscriptionTimelineResponse.fromJson(json);
     } catch (e) {
       debugPrint('[SubscriptionRepository] Timeline error: $e');
@@ -197,7 +198,7 @@ class SubscriptionRepository {
         '$couponQuery',
         headers: _authHeaders(),
       );
-      debugPrint('[SubscriptionRepository] Pricing preview response: $json');
+      devLog(() => '[SubscriptionRepository] Pricing preview response: $json');
       return SubscriptionPricingPreviewResponse.fromJson(json);
     } catch (e) {
       debugPrint('[SubscriptionRepository] Pricing preview error: $e');

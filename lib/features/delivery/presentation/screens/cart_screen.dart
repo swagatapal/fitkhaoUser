@@ -245,6 +245,11 @@ class _CartLineCard extends ConsumerWidget {
               width: AppSizes.icon80,
               height: AppSizes.icon80,
               fit: BoxFit.cover,
+              // Decode at the drawn size rather than the source resolution.
+              memCacheWidth: (AppSizes.icon80 *
+                      (MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0))
+                  .round()
+                  .clamp(80, 320),
               placeholder: (_, __) => Container(
                 width: AppSizes.icon80,
                 height: AppSizes.icon80,

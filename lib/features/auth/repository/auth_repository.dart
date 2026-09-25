@@ -6,6 +6,7 @@ import '../../../core/errors/app_exception.dart';
 import '../models/otp_request_model.dart';
 import '../models/verify_otp_model.dart';
 import '../models/profile_update_model.dart';
+import '../../../core/utils/dev_log.dart';
 
 /// Repository for authentication related operations
 /// Uses local storage and simulated data - no network calls required
@@ -185,7 +186,7 @@ class AuthRepository {
         headers: headers,
       );
 
-      debugPrint('[AuthRepository] Profile fetch response: $json');
+      devLog(() => '[AuthRepository] Profile fetch response: $json');
 
       return json;
     } catch (e) {
@@ -228,7 +229,7 @@ class AuthRepository {
         body: payload,
       );
 
-      debugPrint('[AuthRepository] Profile update response: $json');
+      devLog(() => '[AuthRepository] Profile update response: $json');
 
       return json;
     } catch (e) {
@@ -259,7 +260,7 @@ class AuthRepository {
         headers: headers,
       );
 
-      debugPrint('[AuthRepository] Physiological categories response: $json');
+      devLog(() => '[AuthRepository] Physiological categories response: $json');
       return json;
     } catch (e) {
       debugPrint('[AuthRepository] Physiological categories error: $e');
@@ -289,7 +290,7 @@ class AuthRepository {
         headers: headers,
       );
 
-      debugPrint('[AuthRepository] Professions response: $json');
+      devLog(() => '[AuthRepository] Professions response: $json');
       return json;
     } catch (e) {
       debugPrint('[AuthRepository] Professions error: $e');
@@ -319,7 +320,7 @@ class AuthRepository {
         headers: headers,
       );
 
-      debugPrint('[AuthRepository] Exercises response: $json');
+      devLog(() => '[AuthRepository] Exercises response: $json');
       return json;
     } catch (e) {
       debugPrint('[AuthRepository] Exercises error: $e');
@@ -346,7 +347,7 @@ class AuthRepository {
         headers: headers,
       );
 
-      debugPrint('[AuthRepository] Profile history response: $json');
+      devLog(() => '[AuthRepository] Profile history response: $json');
       return json;
     } catch (e) {
       debugPrint('[AuthRepository] Profile history error: $e');
@@ -397,7 +398,7 @@ class AuthRepository {
         body: payload,
       );
 
-      debugPrint('[AuthRepository] Device registration response: $json');
+      devLog(() => '[AuthRepository] Device registration response: $json');
 
       return json;
     } catch (e) {

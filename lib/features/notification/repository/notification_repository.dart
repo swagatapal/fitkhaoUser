@@ -4,6 +4,7 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/services/local_storage_service.dart';
 import '../../../core/config/app_config.dart';
 import '../models/notification_model.dart';
+import '../../../core/utils/dev_log.dart';
 
 class NotificationRepository {
   final ApiClient _apiClient;
@@ -35,7 +36,7 @@ class NotificationRepository {
         '${AppConfig.notificationsPath}?isDeleted=false',
         headers: _authHeaders(),
       );
-      debugPrint('[NotificationRepository] Response: $json');
+      devLog(() => '[NotificationRepository] Response: $json');
       return NotificationResponse.fromJson(json).notifications;
     } catch (e) {
       debugPrint('[NotificationRepository] Fetch error: $e');

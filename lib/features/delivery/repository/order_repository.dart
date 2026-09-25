@@ -6,6 +6,7 @@ import '../../../core/config/app_config.dart';
 import '../models/order_placement_model.dart';
 import '../models/order_preview_model.dart';
 import '../models/wallet_payment_model.dart';
+import '../../../core/utils/dev_log.dart';
 
 /// Repository for order related operations
 class OrderRepository {
@@ -59,7 +60,7 @@ class OrderRepository {
         headers: headers,
       );
 
-      debugPrint('[OrderRepository] Place order response: $json');
+      devLog(() => '[OrderRepository] Place order response: $json');
 
       return OrderPlacementResponse.fromJson(json);
     } catch (e) {
@@ -142,7 +143,7 @@ class OrderRepository {
         headers: headers,
       );
 
-      debugPrint('[OrderRepository] Wallet payment response: $json');
+      devLog(() => '[OrderRepository] Wallet payment response: $json');
 
       return WalletPaymentResponse.fromJson(json);
     } catch (e) {
@@ -182,7 +183,7 @@ class OrderRepository {
         headers: headers,
       );
 
-      debugPrint('[OrderRepository] createRazorpayWalletTopup response: $json');
+      devLog(() => '[OrderRepository] createRazorpayWalletTopup response: $json');
       return RazorpayCreateOrderResponse.fromJson(json);
     } catch (e) {
       debugPrint('[OrderRepository] createRazorpayWalletTopup error: $e');
@@ -229,8 +230,7 @@ class OrderRepository {
         headers: headers,
       );
 
-      debugPrint(
-          '[OrderRepository] createRazorpaySubscriptionOrder response: $json');
+      devLog(() => '[OrderRepository] createRazorpaySubscriptionOrder response: $json');
       return RazorpayCreateOrderResponse.fromJson(json);
     } catch (e) {
       debugPrint('[OrderRepository] createRazorpaySubscriptionOrder error: $e');
@@ -274,7 +274,7 @@ class OrderRepository {
         headers: headers,
       );
 
-      debugPrint('[OrderRepository] createRazorpayOrder response: $json');
+      devLog(() => '[OrderRepository] createRazorpayOrder response: $json');
       return RazorpayCreateOrderResponse.fromJson(json);
     } catch (e) {
       debugPrint('[OrderRepository] createRazorpayOrder error: $e');
@@ -326,7 +326,7 @@ class OrderRepository {
         headers: headers,
       );
 
-      debugPrint('[OrderRepository] verifyRazorpayPayment response: $json');
+      devLog(() => '[OrderRepository] verifyRazorpayPayment response: $json');
       return RazorpayVerifyPaymentResponse.fromJson(json);
     } catch (e) {
       debugPrint('[OrderRepository] verifyRazorpayPayment error: $e');
@@ -363,7 +363,7 @@ class OrderRepository {
             'deliveryAddressId': deliveryAddressId,
         },
       );
-      debugPrint('[OrderRepository] Subscription slot update response: $json');
+      devLog(() => '[OrderRepository] Subscription slot update response: $json');
       return json;
     } catch (e) {
       debugPrint('[OrderRepository] Subscription slot update error: $e');
@@ -398,7 +398,7 @@ class OrderRepository {
         headers: headers,
       );
 
-      debugPrint('[OrderRepository] Cancel order response: $json');
+      devLog(() => '[OrderRepository] Cancel order response: $json');
 
       return json;
     } catch (e) {
