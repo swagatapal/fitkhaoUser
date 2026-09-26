@@ -11,6 +11,7 @@ import '../../features/policy/repository/app_content_repository.dart';
 import '../../features/dashboard/repository/meal_plan_repository.dart';
 import '../../features/delivery/repository/delivery_slot_repository.dart';
 import '../../features/delivery/repository/coupon_repository.dart';
+import '../../features/delivery/repository/referral_repository.dart';
 import '../../features/delivery/repository/cart_repository.dart';
 
 /// Provider for LocalStorageService
@@ -147,6 +148,18 @@ final couponRepositoryProvider = Provider<CouponRepository>((ref) {
   }
 
   return CouponRepository(apiClient: apiClient, localStorage: localStorage);
+});
+
+/// Provider for ReferralRepository
+final referralRepositoryProvider = Provider<ReferralRepository>((ref) {
+  final localStorage = ref.watch(localStorageProvider).value;
+  final apiClient = ref.watch(apiClientProvider);
+
+  if (localStorage == null) {
+    throw Exception('LocalStorage not initialized');
+  }
+
+  return ReferralRepository(apiClient: apiClient, localStorage: localStorage);
 });
 
 /// Provider for CartRepository

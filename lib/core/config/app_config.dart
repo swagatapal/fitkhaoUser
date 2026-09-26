@@ -130,6 +130,15 @@ class AppConfig {
 
   static const String appVersionPath = '/api/app-version';
   static const String eligibleCouponsPath = '/api/user/coupons';
+
+  /// Validate a partner/organisation referral code (POST, body
+  /// `{ referralCode }`). 404 when unknown or inactive.
+  static const String validateReferralCodePath =
+      '/api/user/validate-referral-code';
+
+  /// Members of a referring organisation. Supports `?organisationId=` to scope
+  /// the list to one organisation.
+  static const String organisationMembersPath = '/api/adm/organisation-members';
   static const String razorpayCreateOrderPath = '/api/razorpay/create-order';
   static const String razorpayVerifyPaymentPath =
       '/api/razorpay/verify-payment';

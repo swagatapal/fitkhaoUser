@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/providers.dart';
@@ -9,6 +10,7 @@ import '../../../../core/services/meta_event_service.dart';
 import '../../../../core/services/razorpay_service.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../models/coupon_model.dart';
+import '../../models/referral_model.dart';
 import '../../models/subscription_pricing_preview_model.dart';
 import '../../providers/subscription_pricing_provider.dart';
 import '../../providers/wallet_provider.dart';
@@ -69,10 +71,39 @@ class _SubscriptionCheckoutScreenState
   List<String> get _couponIds =>
       _appliedCoupon == null ? const [] : [_appliedCoupon!.id];
 
+  // ── Referral ───────────────────────────────────────────────────────────────
+
+  final TextEditingController _referralController = TextEditingController();
+
+  /// The validated referral, or null when none is applied.
+  ReferralValidation? _referral;
+
+  /// Members of [_referral]'s organisation. Only fetched when the validated
+  /// referral is an organisation.
+  List<OrganisationMember> _members = const [];
+
+  /// Member the user picked; their id is sent as `consulterId`.
+  OrganisationMember? _selectedMember;
+
+  bool _isValidatingReferral = false;
+
+  /// Message from the last failed validation, shown under the field.
+  String? _referralError;
+
+  /// Only a validated code is ever sent to the server.
+  String get _referralCode => _referral?.referralCode ?? '';
+
+  String get _consulterId => _selectedMember?.id ?? '';
+
+  /// True when an organisation referral is applied but no member is chosen yet.
+  bool get _needsMemberSelection =>
+      _referral != null && _referral!.isOrganisation && _selectedMember == null;
+
   PricingPreviewArgs get _args => pricingPreviewArgs(
         planId: widget.planId,
         cancelAnytimeSelected: widget.cancelAnytimeSelected,
         couponIds: _couponIds,
+        referralCode: _referralCode,
       );
 
   double get _walletBalance =>
@@ -101,6 +132,7 @@ class _SubscriptionCheckoutScreenState
   @override
   void dispose() {
     _razorpayService.dispose();
+    _referralController.dispose();
     super.dispose();
   }
 
@@ -139,6 +171,23 @@ class _SubscriptionCheckoutScreenState
     if (_isProcessing) return;
     final preview = _preview;
     if (preview == null) return; // not loaded yet
+
+    // An organisation referral is only complete once a member is chosen —
+    // paying now would drop the consulterId and lose the attribution.
+    if (_needsMemberSelection) {
+      setState(() {}); // surfaces the inline prompt on the picker
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Please choose who referred you before paying.'),
+            backgroundColor: AppColors.errorColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      return;
+    }
+
     final method = _effectiveMethod(preview.pricing.totalAmount);
 
     // A subscription is a single line item, so numItems is always 1.
@@ -163,6 +212,8 @@ class _SubscriptionCheckoutScreenState
         planId: widget.planId,
         cancelAnytimeSelected: widget.cancelAnytimeSelected,
         couponIds: _couponIds,
+        referralCode: _referralCode,
+        consulterId: _consulterId,
       );
       if (!mounted) return;
       setState(() => _isProcessing = false);
@@ -630,6 +681,8 @@ class _SubscriptionCheckoutScreenState
                 const SizedBox(height: AppSizes.spacing20),
                 _buildCouponSection(preview),
                 const SizedBox(height: AppSizes.spacing20),
+                _buildReferralSection(),
+                const SizedBox(height: AppSizes.spacing20),
                 _buildPaymentSummary(preview),
                 const SizedBox(height: AppSizes.spacing20),
                 _buildPaymentMethod(preview),
@@ -892,12 +945,27 @@ class _SubscriptionCheckoutScreenState
                 ),
               ],
 
-              // Coupon discount — server-computed, shown only when honoured.
-              if (p.hasDiscount) ...[
+              // Coupon discount — the sum of data.appliedCoupons[].
+              // discountAmount, i.e. what the honoured coupons actually took
+              // off. Never includes the referral, which has its own row below.
+              if (preview.hasCouponDiscount) ...[
                 const SizedBox(height: AppSizes.spacing12),
                 _SummaryRow(
-                  label: _discountLabel(p),
-                  value: '− ${_money(p.discount)}',
+                  label: preview.couponDiscountLabel,
+                  value: '− ${_money(preview.couponDiscount)}',
+                  isDiscount: true,
+                ),
+              ],
+
+              // Referral discount (data.referralDiscount) — a separate
+              // concession from the coupon, so it gets its own line rather
+              // than being folded into the figure above. Both can apply at
+              // once, and the user should be able to see each.
+              if (preview.hasReferralDiscount) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                _SummaryRow(
+                  label: _referralDiscountLabel(preview),
+                  value: '− ${_money(preview.referralDiscount)}',
                   isDiscount: true,
                 ),
               ],
@@ -947,8 +1015,11 @@ class _SubscriptionCheckoutScreenState
   /// True when the server acknowledged the selected coupon. Either signal
   /// counts — a named coupon in `appliedCoupons` or a non-zero discount — so a
   /// response that carries only one of the two is still read as accepted.
+  ///
+  /// Both are read from the preview (data level), not from `pricing`: the
+  /// server reports `appliedCoupons` beside `pricing`, never inside it.
   bool _couponHonoured(SubscriptionPricingPreview preview) =>
-      preview.pricing.hasDiscount || preview.pricing.appliedCoupons.isNotEmpty;
+      preview.hasCouponDiscount || preview.appliedCoupons.isNotEmpty;
 
   /// True when a coupon is selected but the server did not honour it, e.g. it
   /// expired between listing and checkout.
@@ -1082,9 +1153,9 @@ class _SubscriptionCheckoutScreenState
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  honoured && preview.pricing.hasDiscount
+                  honoured && preview.hasCouponDiscount
                       ? '${coupon.code} · you save '
-                          '${_money(preview.pricing.discount)}'
+                          '${_money(preview.couponDiscount)}'
                       : coupon.code,
                   style: const TextStyle(
                     fontSize: AppTypography.fontSize12,
@@ -1139,12 +1210,351 @@ class _SubscriptionCheckoutScreenState
     setState(() => _appliedCoupon = result.coupon);
   }
 
-  /// "Coupon discount (SAVE20)" when the backend names the coupon it honoured.
-  static String _discountLabel(PricingPreview p) {
-    final code = p.appliedCoupons
-        .map((c) => c.code)
-        .firstWhere((c) => c.isNotEmpty, orElse: () => '');
-    return code.isEmpty ? 'Coupon discount' : 'Coupon discount ($code)';
+  /// "Referral discount (O2026)" when the server echoes the referral back,
+  /// falling back to the organisation name, then a plain label.
+  static String _referralDiscountLabel(SubscriptionPricingPreview preview) {
+    final r = preview.referral;
+    final tag = (r?.code.isNotEmpty ?? false)
+        ? r!.code
+        : (r?.name.isNotEmpty ?? false)
+            ? r!.name
+            : '';
+    return tag.isEmpty ? 'Referral discount' : 'Referral discount ($tag)';
+  }
+
+  // ─── Referral ───────────────────────────────────────────────────────────────
+
+  /// Validates the typed code. On success the code joins the pricing-preview
+  /// family key, so the server recomputes the totals with it applied.
+  Future<void> _applyReferral() async {
+    final code = _referralController.text.trim();
+    if (code.isEmpty || _isValidatingReferral) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _isValidatingReferral = true;
+      _referralError = null;
+    });
+
+    try {
+      final repo = ref.read(referralRepositoryProvider);
+      final referral = await repo.validateReferralCode(code);
+
+      // An organisation referral additionally needs one of its members; a
+      // non-organisation one stands alone, so no member list is fetched.
+      var members = const <OrganisationMember>[];
+      if (referral.isOrganisation && referral.id.isNotEmpty) {
+        members = await repo.getOrganisationMembers(
+          organisationId: referral.id,
+        );
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _referral = referral;
+        _members = members;
+        _selectedMember = null;
+        _isValidatingReferral = false;
+      });
+    } catch (e) {
+      debugPrint('[SubscriptionCheckout] referral validate error: $e');
+      if (!mounted) return;
+      setState(() {
+        _isValidatingReferral = false;
+        _referral = null;
+        _members = const [];
+        _selectedMember = null;
+        // The repository surfaces the server's own wording, e.g. "Referral
+        // code not found or inactive."
+        _referralError = ExceptionHandler.getErrorMessage(e);
+      });
+    }
+  }
+
+  void _clearReferral() {
+    _referralController.clear();
+    setState(() {
+      _referral = null;
+      _members = const [];
+      _selectedMember = null;
+      _referralError = null;
+    });
+  }
+
+  Widget _buildReferralSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Referral code',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize18,
+            fontWeight: AppTypography.bold,
+            color: AppColors.textPrimary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        const SizedBox(height: AppSizes.spacing12),
+        if (_referral == null) _buildReferralInput() else _buildAppliedReferral(),
+        if (_referralError != null) ...[
+          const SizedBox(height: AppSizes.spacing8),
+          Text(
+            _referralError!,
+            style: const TextStyle(
+              fontSize: AppTypography.fontSize12,
+              fontWeight: AppTypography.semiBold,
+              color: AppColors.errorColor,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ],
+        // Organisation referrals require picking who referred you.
+        if (_referral != null && _referral!.isOrganisation) ...[
+          const SizedBox(height: AppSizes.spacing12),
+          _buildMemberPicker(),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildReferralInput() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _referralController,
+            enabled: !_isValidatingReferral,
+            textCapitalization: TextCapitalization.characters,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _applyReferral(),
+            style: const TextStyle(
+              fontSize: AppTypography.fontSize14,
+              color: AppColors.textPrimary,
+              fontFamily: 'Lato',
+            ),
+            decoration: InputDecoration(
+              hintText: 'Enter referral code (optional)',
+              hintStyle: const TextStyle(
+                fontSize: AppTypography.fontSize14,
+                color: AppColors.textTertiary,
+                fontFamily: 'Lato',
+              ),
+              prefixIcon: const Icon(Icons.card_giftcard_rounded,
+                  size: AppSizes.icon20, color: AppColors.primaryGreen),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.spacing12,
+                vertical: AppSizes.spacing12,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radius12),
+                borderSide: const BorderSide(color: AppColors.borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radius12),
+                borderSide: const BorderSide(color: AppColors.primaryGreen),
+              ),
+              disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radius12),
+                borderSide: const BorderSide(color: AppColors.borderColor),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSizes.spacing8),
+        SizedBox(
+          height: 48,
+          child: ElevatedButton(
+            onPressed: _isValidatingReferral ? null : _applyReferral,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              disabledBackgroundColor:
+                  AppColors.primaryGreen.withValues(alpha: 0.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radius12),
+              ),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSizes.spacing20),
+            ),
+            child: _isValidatingReferral
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2),
+                  )
+                : const Text(
+                    'Apply',
+                    style: TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.bold,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAppliedReferral() {
+    final referral = _referral!;
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border:
+            Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.verified_rounded,
+              size: AppSizes.icon24, color: AppColors.primaryGreen),
+          const SizedBox(width: AppSizes.spacing12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Referred by ${referral.name}',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.bold,
+                    color: AppColors.primaryGreen,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  referral.subType.isNotEmpty
+                      ? '${referral.referralCode} · ${referral.subType}'
+                      : referral.referralCode,
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    color: AppColors.textSecondary,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _clearReferral,
+            icon: const Icon(Icons.close_rounded,
+                size: AppSizes.icon18, color: AppColors.textSecondary),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Remove referral code',
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Member chooser for an organisation referral. The selected member's id is
+  /// sent as `consulterId` on create.
+  Widget _buildMemberPicker() {
+    if (_members.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSizes.spacing12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF8E1),
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+          border:
+              Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.4)),
+        ),
+        child: const Text(
+          'This organisation has no active members to choose from. You can '
+          'still continue with the referral code.',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize12,
+            color: Color(0xFF795548),
+            height: 1.4,
+            fontFamily: 'Lato',
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Who referred you?',
+          style: TextStyle(
+            fontSize: AppTypography.fontSize14,
+            fontWeight: AppTypography.semiBold,
+            color: AppColors.textPrimary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        const SizedBox(height: AppSizes.spacing8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: AppSizes.spacing12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppSizes.radius12),
+            border: Border.all(
+              color: _needsMemberSelection
+                  ? AppColors.errorColor.withValues(alpha: 0.5)
+                  : AppColors.borderColor,
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<OrganisationMember>(
+              value: _selectedMember,
+              isExpanded: true,
+              hint: const Text(
+                'Select a member',
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize14,
+                  color: AppColors.textTertiary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.textSecondary),
+              items: [
+                for (final m in _members)
+                  DropdownMenuItem<OrganisationMember>(
+                    value: m,
+                    child: Text(
+                      m.specialisation.isNotEmpty
+                          ? '${m.name} · ${m.specialisation}'
+                          : m.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        color: AppColors.textPrimary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+              ],
+              onChanged: (m) => setState(() => _selectedMember = m),
+            ),
+          ),
+        ),
+        if (_needsMemberSelection) ...[
+          const SizedBox(height: AppSizes.spacing6),
+          const Text(
+            'Please choose a member to continue.',
+            style: TextStyle(
+              fontSize: AppTypography.fontSize12,
+              fontWeight: AppTypography.semiBold,
+              color: AppColors.errorColor,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   // ─── Payment method (wallet vs online) ──────────────────────────────────────

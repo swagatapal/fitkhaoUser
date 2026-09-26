@@ -44,15 +44,19 @@ class SubscriptionRepository {
     required String planId,
     required bool cancelAnytimeSelected,
     List<String> couponIds = const [],
+    String referralCode = '',
+    String consulterId = '',
   }) async {
     debugPrint('[SubscriptionRepository] Creating subscription (wallet) — '
         'planId=$planId cancelAnytime=$cancelAnytimeSelected '
-        'coupons=$couponIds');
+        'coupons=$couponIds referral=$referralCode consulter=$consulterId');
     try {
       final request = SubscriptionRequest(
         planId: planId,
         cancelAnytimeSelected: cancelAnytimeSelected,
         couponIds: couponIds,
+        referralCode: referralCode,
+        consulterId: consulterId,
       );
       final json = await _apiClient.postJson(
         AppConfig.createSubscriptionPath,
@@ -185,17 +189,22 @@ class SubscriptionRepository {
     required String planId,
     required bool cancelAnytimeSelected,
     List<String> couponIds = const [],
+    String referralCode = '',
   }) async {
     debugPrint(
-        '[SubscriptionRepository] Pricing preview planId=$planId cancelAnytime=$cancelAnytimeSelected coupons=$couponIds');
+        '[SubscriptionRepository] Pricing preview planId=$planId cancelAnytime=$cancelAnytimeSelected coupons=$couponIds referral=$referralCode');
     try {
       final couponQuery = couponIds.isEmpty
           ? ''
           : '&couponIds=${Uri.encodeQueryComponent(couponIds.join(','))}';
+      // Optional: only sent once a code has actually validated.
+      final referralQuery = referralCode.isEmpty
+          ? ''
+          : '&referralCode=${Uri.encodeQueryComponent(referralCode)}';
       final json = await _apiClient.getJson(
         '${AppConfig.subscriptionPricingPreviewPath}'
         '?planId=$planId&cancelAnytimeSelected=$cancelAnytimeSelected'
-        '$couponQuery',
+        '$couponQuery$referralQuery',
         headers: _authHeaders(),
       );
       devLog(() => '[SubscriptionRepository] Pricing preview response: $json');
