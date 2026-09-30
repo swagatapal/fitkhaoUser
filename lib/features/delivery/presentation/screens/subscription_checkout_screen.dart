@@ -701,7 +701,7 @@ class _SubscriptionCheckoutScreenState
                 const SizedBox(height: AppSizes.spacing16),
                 _buildPlanHeaderCard(preview),
                 const SizedBox(height: AppSizes.spacing20),
-                _buildCouponSection(preview),
+                _buildCouponSection(preview, isRepricing: isRepricing),
                 const SizedBox(height: AppSizes.spacing20),
                 _buildReferralSection(),
                 const SizedBox(height: AppSizes.spacing20),
@@ -1043,12 +1043,23 @@ class _SubscriptionCheckoutScreenState
   bool _couponHonoured(SubscriptionPricingPreview preview) =>
       preview.hasCouponDiscount || preview.appliedCoupons.isNotEmpty;
 
-  /// True when a coupon is selected but the server did not honour it, e.g. it
-  /// expired between listing and checkout.
-  bool _couponRejected(SubscriptionPricingPreview preview) =>
+  /// True when a coupon is selected but the server did not honour it.
+  ///
+  /// [isRepricing] suppresses it: while the new totals are in flight the
+  /// screen is still rendering the PREVIOUS preview, which predates the coupon
+  /// and therefore carries no `appliedCoupons` — reading that as a rejection
+  /// flashed "could not be applied" every time a coupon was picked.
+  bool _couponRejected(
+    SubscriptionPricingPreview preview, {
+    required bool isRepricing,
+  }) =>
+      !isRepricing &&
       _appliedCoupon != null && !_couponHonoured(preview);
 
-  Widget _buildCouponSection(SubscriptionPricingPreview preview) {
+  Widget _buildCouponSection(
+    SubscriptionPricingPreview preview, {
+    required bool isRepricing,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1071,8 +1082,8 @@ class _SubscriptionCheckoutScreenState
         else if (_appliedCoupon == null)
           _buildCouponCta(preview)
         else
-          _buildAppliedCoupon(preview),
-        if (_couponRejected(preview)) ...[
+          _buildAppliedCoupon(preview, isRepricing: isRepricing),
+        if (_couponRejected(preview, isRepricing: isRepricing)) ...[
           const SizedBox(height: AppSizes.spacing8),
           const Text(
             'This coupon could not be applied to your plan. Try another one.',
@@ -1147,9 +1158,16 @@ class _SubscriptionCheckoutScreenState
   }
 
   /// Confirmation tile shown once a coupon is applied.
-  Widget _buildAppliedCoupon(SubscriptionPricingPreview preview) {
+  ///
+  /// While [isRepricing] the tile stays in its positive state: the preview on
+  /// screen still predates the coupon, so judging it now would flip the tile
+  /// red and read "Coupon not applied" for the duration of the refetch.
+  Widget _buildAppliedCoupon(
+    SubscriptionPricingPreview preview, {
+    required bool isRepricing,
+  }) {
     final coupon = _appliedCoupon!;
-    final honoured = _couponHonoured(preview);
+    final honoured = isRepricing || _couponHonoured(preview);
     final accent = honoured ? AppColors.primaryGreen : AppColors.errorColor;
 
     return Container(
