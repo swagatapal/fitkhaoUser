@@ -95,9 +95,29 @@ class _SubscriptionCheckoutScreenState
 
   String get _consulterId => _selectedMember?.id ?? '';
 
-  /// True when an organisation referral is applied but no member is chosen yet.
+  /// True when an organisation referral is applied but no member is chosen
+  /// yet. Choosing one is mandatory — `consulterId` must accompany an
+  /// organisation referral on both create paths.
+  ///
+  /// Requires [_members] to be non-empty: an organisation with no active
+  /// members offers nothing to select, and demanding a choice there would
+  /// block checkout with no way for the user to satisfy it.
   bool get _needsMemberSelection =>
-      _referral != null && _referral!.isOrganisation && _selectedMember == null;
+      _referral != null &&
+      _referral!.isOrganisation &&
+      _members.isNotEmpty &&
+      _selectedMember == null;
+
+  // ── Coupon / referral are mutually exclusive ───────────────────────────────
+  //
+  // Only one concession can be applied to a subscription, so whichever the
+  // user picks first locks the other out until it is removed. Both sections
+  // stay visible — the locked one explains itself rather than disappearing,
+  // which would leave the user wondering where it went.
+
+  bool get _hasCoupon => _appliedCoupon != null;
+
+  bool get _hasReferral => _referral != null;
 
   PricingPreviewArgs get _args => pricingPreviewArgs(
         planId: widget.planId,
@@ -369,6 +389,8 @@ class _SubscriptionCheckoutScreenState
         planId: widget.planId,
         cancelAnytimeSelected: widget.cancelAnytimeSelected,
         couponIds: _couponIds,
+        referralCode: _referralCode,
+        consulterId: _consulterId,
       );
 
       if (!createResponse.success || createResponse.data == null) {
@@ -1040,7 +1062,13 @@ class _SubscriptionCheckoutScreenState
           ),
         ),
         const SizedBox(height: AppSizes.spacing12),
-        if (_appliedCoupon == null)
+        if (_hasReferral)
+          const _LockedOptionTile(
+            icon: Icons.local_offer_outlined,
+            message:
+                'A referral code is applied. Remove it to use a coupon instead.',
+          )
+        else if (_appliedCoupon == null)
           _buildCouponCta(preview)
         else
           _buildAppliedCoupon(preview),
@@ -1201,6 +1229,7 @@ class _SubscriptionCheckoutScreenState
   /// re-keys [subscriptionPricingPreviewProvider], so the totals are refetched
   /// from the server rather than computed on the client.
   Future<void> _openCouponSheet(SubscriptionPricingPreview preview) async {
+    if (_hasReferral) return; // referral occupies the concession slot
     final result = await SubscriptionCouponSheet.show(
       context,
       appliedCouponId: _appliedCoupon?.id,
@@ -1228,7 +1257,8 @@ class _SubscriptionCheckoutScreenState
   /// family key, so the server recomputes the totals with it applied.
   Future<void> _applyReferral() async {
     final code = _referralController.text.trim();
-    if (code.isEmpty || _isValidatingReferral) return;
+    // A coupon already occupies the single concession slot.
+    if (code.isEmpty || _isValidatingReferral || _hasCoupon) return;
 
     FocusScope.of(context).unfocus();
     setState(() {
@@ -1295,8 +1325,17 @@ class _SubscriptionCheckoutScreenState
           ),
         ),
         const SizedBox(height: AppSizes.spacing12),
-        if (_referral == null) _buildReferralInput() else _buildAppliedReferral(),
-        if (_referralError != null) ...[
+        if (_hasCoupon)
+          const _LockedOptionTile(
+            icon: Icons.card_giftcard_rounded,
+            message:
+                'A coupon is applied. Remove it to use a referral code instead.',
+          )
+        else if (_referral == null)
+          _buildReferralInput()
+        else
+          _buildAppliedReferral(),
+        if (_referralError != null && !_hasCoupon) ...[
           const SizedBox(height: AppSizes.spacing8),
           Text(
             _referralError!,
@@ -1833,6 +1872,57 @@ class _ErrorView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Locked option tile (coupon / referral are mutually exclusive) ───────────
+
+/// Shown in place of the coupon or referral control when the other one is
+/// already applied. Explains why it is unavailable rather than hiding it.
+class _LockedOptionTile extends StatelessWidget {
+  const _LockedOptionTile({required this.icon, required this.message});
+
+  final IconData icon;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSizes.spacing12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F6F4),
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border: Border.all(color: AppColors.borderColor),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSizes.spacing8),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+            ),
+            child: Icon(icon,
+                size: AppSizes.icon20, color: AppColors.textTertiary),
+          ),
+          const SizedBox(width: AppSizes.spacing12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                fontSize: AppTypography.fontSize12,
+                color: AppColors.textSecondary,
+                height: 1.35,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+          const Icon(Icons.lock_outline_rounded,
+              size: AppSizes.icon18, color: AppColors.textTertiary),
+        ],
       ),
     );
   }

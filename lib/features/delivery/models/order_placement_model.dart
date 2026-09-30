@@ -121,11 +121,20 @@ class RazorpaySubscriptionOrderRequest {
   /// Rule ids of the coupons to redeem. Omitted from the body when empty.
   final List<String> couponIds;
 
+  /// Partner/organisation referral code. Omitted when blank.
+  final String referralCode;
+
+  /// Chosen organisation member's id — mandatory when the referral resolved to
+  /// an organisation. Omitted when blank.
+  final String consulterId;
+
   const RazorpaySubscriptionOrderRequest({
     required this.planId,
     this.cancelAnytimeSelected = false,
     this.purpose = 'subscription',
     this.couponIds = const [],
+    this.referralCode = '',
+    this.consulterId = '',
   });
 
   Map<String, dynamic> toJson() => {
@@ -133,6 +142,10 @@ class RazorpaySubscriptionOrderRequest {
         'planId': planId,
         'cancelAnytimeSelected': cancelAnytimeSelected,
         if (couponIds.isNotEmpty) 'couponIds': couponIds,
+        // The referral snapshot is stored on the RazorpayPayment doc at
+        // create-order time, so verify-payment needs no further payload.
+        if (referralCode.isNotEmpty) 'referralCode': referralCode,
+        if (consulterId.isNotEmpty) 'consulterId': consulterId,
       };
 }
 

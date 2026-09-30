@@ -198,10 +198,12 @@ class OrderRepository {
     required String planId,
     required bool cancelAnytimeSelected,
     List<String> couponIds = const [],
+    String referralCode = '',
+    String consulterId = '',
   }) async {
     debugPrint('[OrderRepository] Creating Razorpay subscription order — '
         'planId=$planId cancelAnytime=$cancelAnytimeSelected '
-        'coupons=$couponIds');
+        'coupons=$couponIds referral=$referralCode consulter=$consulterId');
 
     try {
       final token = _localStorage.getAuthToken();
@@ -219,6 +221,8 @@ class OrderRepository {
         planId: planId,
         cancelAnytimeSelected: cancelAnytimeSelected,
         couponIds: couponIds,
+        referralCode: referralCode,
+        consulterId: consulterId,
       );
 
       debugPrint(
