@@ -191,10 +191,10 @@ class _CancelSubscriptionSheetState
         mainAxisSize: MainAxisSize.min,
         children: [
           // Meals progress
-          if (p.totalMeals > 0)
+          if (p.meals.totalMeals > 0)
             Text(
-              '${p.mealsConsumed} of ${p.totalMeals} meals consumed'
-              '${p.mealsPerDay > 0 ? ' · ${p.mealsPerDay}/day' : ''}',
+              '${p.meals.mealsConsumed} of ${p.meals.totalMeals} meals consumed'
+              '${p.meals.mealsPerDay > 0 ? ' · ${p.meals.mealsPerDay}/day' : ''}',
               style: TextStyle(
                 fontSize: AppTypography.fontSize12,
                 color: AppColors.textSecondary.withValues(alpha: 0.9),
@@ -203,45 +203,125 @@ class _CancelSubscriptionSheetState
             ),
           const SizedBox(height: AppSizes.spacing12),
 
-          // Refund breakdown
-          Container(
-            padding: const EdgeInsets.all(AppSizes.spacing16),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(AppSizes.radius12),
-              border: Border.all(color: AppColors.borderColor),
-            ),
-            child: Column(
-              children: [
+          // ── What you paid ──────────────────────────────────────────
+          _BreakdownCard(
+            title: 'What you paid',
+            children: [
+              _BreakdownRow(
+                label: 'Plan amount',
+                value: _fmtMoney(p.payment.planAmount),
+              ),
+              if (p.payment.couponDiscount > 0) ...[
+                const SizedBox(height: AppSizes.spacing12),
                 _BreakdownRow(
-                  label: 'Plan amount',
-                  value: _fmtMoney(p.planAmount),
+                  label: 'Coupon discount',
+                  value: '− ${_fmtMoney(p.payment.couponDiscount)}',
                 ),
-                if (p.consultationFee > 0) ...[
+              ],
+              if (p.payment.referralDiscount > 0) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                _BreakdownRow(
+                  label: 'Referral discount',
+                  value: '− ${_fmtMoney(p.payment.referralDiscount)}',
+                ),
+              ],
+              if (p.payment.cancelAnytimeFee > 0) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                _BreakdownRow(
+                  label: 'Cancel-anytime fee',
+                  value: _fmtMoney(p.payment.cancelAnytimeFee),
+                ),
+              ],
+              if (p.payment.gstAmount > 0) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                _BreakdownRow(
+                  label: 'GST',
+                  value: _fmtMoney(p.payment.gstAmount),
+                ),
+              ],
+              const SizedBox(height: AppSizes.spacing12),
+              const Divider(height: 1, color: AppColors.borderColor),
+              const SizedBox(height: AppSizes.spacing12),
+              _BreakdownRow(
+                label: 'Total paid',
+                value: _fmtMoney(p.payment.totalPaid),
+                isBold: true,
+              ),
+            ],
+          ),
+
+          // ── Deductions ─────────────────────────────────────────────────
+          const SizedBox(height: AppSizes.spacing12),
+          _BreakdownCard(
+            title: 'Not refundable',
+            children: [
+              // The consultation fee is withheld but the server reports it
+              // outside `nonRefundable`, so it is itemised explicitly — without
+              // it the figures below would not add up to the refund.
+              if (p.payment.consultationFee > 0)
+                _BreakdownRow(
+                  label: 'Consultation fee',
+                  value: _fmtMoney(p.payment.consultationFee),
+                ),
+              if (p.meals.mealsConsumed > 0) ...[
+                if (p.payment.consultationFee > 0)
                   const SizedBox(height: AppSizes.spacing12),
-                  _BreakdownRow(
-                    label: 'Less: consultation fee',
-                    value: '− ${_fmtMoney(p.consultationFee)}',
-                  ),
-                ],
-                if (p.mealsConsumed > 0) ...[
-                  const SizedBox(height: AppSizes.spacing12),
-                  _BreakdownRow(
-                    label:
-                        'Less: meals consumed (${p.mealsConsumed} × ${_fmtMoney(p.pricePerMeal)})',
-                    value: '− ${_fmtMoney(p.consumedMealsValue)}',
-                  ),
-                ],
+                _BreakdownRow(
+                  label: 'Meals consumed '
+                      '(${p.meals.mealsConsumed} × ${_fmtMoney(p.meals.pricePerMeal)})',
+                  value: _fmtMoney(p.refund.nonRefundable.consumedMeals > 0
+                      ? p.refund.nonRefundable.consumedMeals
+                      : p.meals.consumedValue),
+                ),
+              ],
+              if (p.refund.nonRefundable.cancelAnytimeFee > 0) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                _BreakdownRow(
+                  label: 'Cancel-anytime fee',
+                  value: _fmtMoney(p.refund.nonRefundable.cancelAnytimeFee),
+                ),
+              ],
+              if (p.refund.nonRefundable.gst > 0) ...[
+                const SizedBox(height: AppSizes.spacing12),
+                _BreakdownRow(
+                  label: 'GST',
+                  value: _fmtMoney(p.refund.nonRefundable.gst),
+                ),
+              ],
+              const SizedBox(height: AppSizes.spacing12),
+              const Divider(height: 1, color: AppColors.borderColor),
+              const SizedBox(height: AppSizes.spacing12),
+              _BreakdownRow(
+                label: 'Total deducted',
+                value: '− ${_fmtMoney(p.totalDeducted)}',
+                isBold: true,
+              ),
+            ],
+          ),
+
+          // ── Refund ─────────────────────────────────────────────────────
+          const SizedBox(height: AppSizes.spacing12),
+          _BreakdownCard(
+            title: 'Your refund',
+            highlight: true,
+            children: [
+              if (p.meals.unconsumedMeals > 0)
+                _BreakdownRow(
+                  label: 'Unconsumed meals '
+                      '(${p.meals.unconsumedMeals} × ${_fmtMoney(p.meals.pricePerMeal)})',
+                  value: _fmtMoney(p.meals.unconsumedValue),
+                ),
+              if (p.meals.unconsumedMeals > 0) ...[
                 const SizedBox(height: AppSizes.spacing12),
                 const Divider(height: 1, color: AppColors.borderColor),
                 const SizedBox(height: AppSizes.spacing12),
-                _BreakdownRow(
-                  label: 'Refund amount',
-                  value: _fmtMoney(p.refundAmount),
-                  isBold: true,
-                ),
               ],
-            ),
+              _BreakdownRow(
+                label: 'Refund amount',
+                value: _fmtMoney(p.refund.refundAmount),
+                isBold: true,
+              ),
+            ],
           ),
 
           // Refund destination — money refund, or ₹50 coupons when the user
@@ -349,6 +429,56 @@ String _refundMethodLabel(String method) {
       return method.isEmpty
           ? method
           : '${method[0].toUpperCase()}${method.substring(1)}';
+  }
+}
+
+/// Titled card grouping one part of the cancellation maths.
+class _BreakdownCard extends StatelessWidget {
+  const _BreakdownCard({
+    required this.title,
+    required this.children,
+    this.highlight = false,
+  });
+
+  final String title;
+  final List<Widget> children;
+
+  /// Tints the card green — used for the refund the user actually receives.
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: AppTypography.fontSize13,
+            fontWeight: AppTypography.bold,
+            color: highlight ? AppColors.primaryGreen : AppColors.textSecondary,
+            fontFamily: 'Lato',
+          ),
+        ),
+        const SizedBox(height: AppSizes.spacing8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppSizes.spacing16),
+          decoration: BoxDecoration(
+            color: highlight
+                ? AppColors.primaryGreen.withValues(alpha: 0.06)
+                : AppColors.background,
+            borderRadius: BorderRadius.circular(AppSizes.radius12),
+            border: Border.all(
+              color: highlight
+                  ? AppColors.primaryGreen.withValues(alpha: 0.4)
+                  : AppColors.borderColor,
+            ),
+          ),
+          child: Column(children: children),
+        ),
+      ],
+    );
   }
 }
 
