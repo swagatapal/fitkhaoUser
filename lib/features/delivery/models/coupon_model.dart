@@ -187,3 +187,64 @@ class CouponListResponse {
     );
   }
 }
+
+// ─── Grouping ────────────────────────────────────────────────────────────────
+
+/// One row in a coupon list: a single coupon, or several interchangeable
+/// system-generated ones collapsed into a single entry.
+class CouponGroup {
+  /// The coupon this row represents — the one applied when the row is tapped.
+  final CouponModel coupon;
+
+  /// Every interchangeable code this row stands for. Length 1 for an ordinary
+  /// coupon; more for a collapsed system-generated group.
+  final List<String> codes;
+
+  CouponGroup({required this.coupon, required this.codes});
+
+  /// How many coupons this row collapses. 1 means it is not a group.
+  int get count => codes.length;
+
+  bool get isGroup => codes.length > 1;
+
+  /// True when [code] is one of the interchangeable codes in this row.
+  bool contains(String? code) => code != null && codes.contains(code);
+}
+
+/// Collapses system-generated coupons into one row each.
+///
+/// The backend issues one auto-generated coupon per cancelled meal (e.g.
+/// "Meal 1 of 120"), so a cancelled subscription can produce a hundred-plus
+/// identical ₹50 credits. Listing them individually buries every real campaign
+/// offer, so equivalent ones are shown once with a count.
+///
+/// Only [CouponModel.isSystemGenerated] coupons are grouped, and only with
+/// others carrying the same offer — same name, discount type, value, cap and
+/// minimum — so two different auto-issued denominations stay distinct rather
+/// than being misreported under one figure. Everything else renders exactly as
+/// before, and first-appearance order is preserved so the list does not
+/// reshuffle relative to the API response.
+///
+/// Shared by the cart checkout sheet and the All Coupons screen so the two can
+/// never disagree about what a group is.
+List<CouponGroup> groupCoupons(List<CouponModel> coupons) {
+  final entries = <CouponGroup>[];
+  final indexByKey = <String, int>{};
+
+  for (final c in coupons) {
+    if (!c.isSystemGenerated) {
+      entries.add(CouponGroup(coupon: c, codes: [c.code]));
+      continue;
+    }
+    final key = '${c.name}|${c.discountType}|${c.discountValue}'
+        '|${c.maxDiscountCap}|${c.minOrderAmount}';
+    final at = indexByKey[key];
+    if (at == null) {
+      indexByKey[key] = entries.length;
+      entries.add(CouponGroup(coupon: c, codes: [c.code]));
+    } else {
+      entries[at].codes.add(c.code);
+    }
+  }
+  return entries;
+}

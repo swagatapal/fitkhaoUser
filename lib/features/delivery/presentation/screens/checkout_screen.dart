@@ -2621,7 +2621,8 @@ class _CouponSheet extends ConsumerWidget {
       );
     }
 
-    final entries = _groupCoupons(state.coupons);
+    // Shared with the All Coupons screen so both collapse identically.
+    final entries = groupCoupons(state.coupons);
 
     return ListView.separated(
       padding: const EdgeInsets.all(AppSizes.spacing16),
@@ -2636,9 +2637,9 @@ class _CouponSheet extends ConsumerWidget {
         return _CouponCard(
           coupon: coupon,
           // A group counts as applied when any of its interchangeable codes is.
-          isApplied: entry.codes.contains(appliedCode),
+          isApplied: entry.contains(appliedCode),
           isEligible: eligible,
-          groupCount: entry.codes.length,
+          groupCount: entry.count,
           onApply: eligible ? () => onApply(coupon) : null,
           onRemove: onRemove,
         );
@@ -2646,55 +2647,9 @@ class _CouponSheet extends ConsumerWidget {
     );
   }
 
-  /// Collapses system-generated coupons into one row each.
-  ///
-  /// The backend issues one auto-generated coupon per cancelled meal (e.g.
-  /// "Meal 1 of 120"), so a cancelled subscription can produce a hundred-plus
-  /// identical ₹50 credits. Listing them individually buries every real
-  /// campaign offer, so equivalent ones are shown once with a count.
-  ///
-  /// Only [CouponModel.isSystemGenerated] coupons are grouped, and only with
-  /// others carrying the same offer — same name, discount type, value, cap and
-  /// minimum — so two different auto-issued denominations stay distinct rather
-  /// than being misreported under one figure. Everything else renders exactly
-  /// as before, and first-appearance order is preserved so the list does not
-  /// reshuffle relative to the API response.
-  static List<_CouponEntry> _groupCoupons(List<CouponModel> coupons) {
-    final entries = <_CouponEntry>[];
-    final indexByKey = <String, int>{};
-
-    for (final c in coupons) {
-      if (!c.isSystemGenerated) {
-        entries.add(_CouponEntry(coupon: c, codes: [c.code]));
-        continue;
-      }
-      final key = '${c.name}|${c.discountType}|${c.discountValue}'
-          '|${c.maxDiscountCap}|${c.minOrderAmount}';
-      final at = indexByKey[key];
-      if (at == null) {
-        indexByKey[key] = entries.length;
-        entries.add(_CouponEntry(coupon: c, codes: [c.code]));
-      } else {
-        entries[at].codes.add(c.code);
-      }
-    }
-    return entries;
-  }
 }
 
 // ─── Single Coupon Card ───────────────────────────────────────────────────────
-
-/// One row in the coupon sheet.
-///
-/// [coupon] is the one that gets applied when the row is tapped; [codes] holds
-/// every interchangeable code the row stands for — a single entry for an
-/// ordinary coupon, or all of them for a collapsed system-generated group.
-class _CouponEntry {
-  final CouponModel coupon;
-  final List<String> codes;
-
-  _CouponEntry({required this.coupon, required this.codes});
-}
 
 class _CouponCard extends StatelessWidget {
   final CouponModel coupon;

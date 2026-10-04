@@ -86,6 +86,11 @@ class AllCouponsScreen extends ConsumerWidget {
       );
     }
 
+    // Same collapsing rule as the cart checkout sheet: a cancelled
+    // subscription can issue 100+ identical auto-generated credits, which
+    // would otherwise bury every real campaign offer.
+    final entries = groupCoupons(coupons);
+
     return ListView.separated(
       // AlwaysScrollable so pull-to-refresh works even on a short list.
       physics: const AlwaysScrollableScrollPhysics(
@@ -97,9 +102,12 @@ class AllCouponsScreen extends ConsumerWidget {
         AppSizes.spacing16,
         AppSizes.spacing24,
       ),
-      itemCount: coupons.length,
+      itemCount: entries.length,
       separatorBuilder: (_, __) => const SizedBox(height: AppSizes.spacing12),
-      itemBuilder: (_, i) => _CouponCard(coupon: coupons[i]),
+      itemBuilder: (_, i) => _CouponCard(
+        coupon: entries[i].coupon,
+        groupCount: entries[i].count,
+      ),
     );
   }
 
@@ -262,9 +270,13 @@ class _MessageView extends StatelessWidget {
 // ─── Coupon card ─────────────────────────────────────────────────────────────
 
 class _CouponCard extends StatelessWidget {
-  const _CouponCard({required this.coupon});
+  const _CouponCard({required this.coupon, this.groupCount = 1});
 
   final CouponModel coupon;
+
+  /// How many interchangeable coupons this card stands for. 1 renders exactly
+  /// as before; above 1 adds an "N available" tag.
+  final int groupCount;
 
   void _copyCode(BuildContext context) {
     Clipboard.setData(ClipboardData(text: coupon.code));
@@ -430,6 +442,12 @@ class _CouponCard extends StatelessWidget {
                         icon: Icons.auto_awesome_outlined,
                         label: 'Auto-issued',
                       ),
+                    if (groupCount > 1)
+                      _Tag(
+                        icon: Icons.layers_outlined,
+                        label: '$groupCount available',
+                        highlight: true,
+                      ),
                   ],
                 ),
 
@@ -522,34 +540,49 @@ class _CouponCard extends StatelessWidget {
 
 /// Small pill used for the rule type / minimum order / origin badges.
 class _Tag extends StatelessWidget {
-  const _Tag({required this.icon, required this.label});
+  const _Tag({
+    required this.icon,
+    required this.label,
+    this.highlight = false,
+  });
 
   final IconData icon;
   final String label;
 
+  /// Draws the pill in the accent colour — used for the group count, which is
+  /// the one tag carrying information the user cannot infer from the card.
+  final bool highlight;
+
   @override
   Widget build(BuildContext context) {
+    const accent = Color(0xFF5E35B1);
+    final fg = highlight ? accent : AppColors.textSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSizes.spacing8,
         vertical: AppSizes.spacing4,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F6F4),
+        color: highlight ? const Color(0xFFEDE7F6) : const Color(0xFFF4F6F4),
         borderRadius: BorderRadius.circular(AppSizes.radius20),
-        border: Border.all(color: AppColors.borderColor),
+        border: Border.all(
+          color: highlight
+              ? accent.withValues(alpha: 0.3)
+              : AppColors.borderColor,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: AppSizes.icon12, color: AppColors.textSecondary),
+          Icon(icon, size: AppSizes.icon12, color: fg),
           const SizedBox(width: AppSizes.spacing4),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: AppTypography.fontSize12,
-              fontWeight: AppTypography.medium,
-              color: AppColors.textSecondary,
+              fontWeight:
+                  highlight ? AppTypography.bold : AppTypography.medium,
+              color: fg,
               fontFamily: 'Lato',
             ),
           ),
