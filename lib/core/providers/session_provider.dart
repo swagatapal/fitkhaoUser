@@ -24,3 +24,12 @@ final isSignedInProvider = Provider<bool>((ref) {
 
 /// True when the app is being used without an account.
 final isGuestProvider = Provider<bool>((ref) => !ref.watch(isSignedInProvider));
+
+/// True while the auth flow was entered from a gated action rather than as the
+/// app's entry point.
+///
+/// When set, the auth screens return to wherever the user was (popping the
+/// pushed auth routes) instead of replacing the stack with home — so a guest
+/// who tapped "Subscribe" lands back on the plan they chose, not the menu.
+/// [AuthGate] sets and clears it.
+final authReturnPendingProvider = StateProvider<bool>((ref) => false);

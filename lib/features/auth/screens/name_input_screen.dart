@@ -6,6 +6,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/auth/auth_gate.dart';
+import '../../../core/providers/session_provider.dart';
 import '../../../core/router/route_names.dart';
 import '../../../core/services/meta_event_service.dart';
 import '../../../core/utils/responsive_utils.dart';
@@ -59,7 +61,11 @@ class _NameInputScreenState extends ConsumerState<NameInputScreen> {
       // deliberately don't show a SnackBar here: this screen is torn down by the
       // navigation, and a still-animating SnackBar would fire status callbacks
       // against the deactivated Scaffold and crash.
-      router.go(RouteNames.home);
+      if (ref.read(authReturnPendingProvider)) {
+        AuthGate.popBackToOrigin(context);
+      } else {
+        router.go(RouteNames.home);
+      }
     }
   }
 

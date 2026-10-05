@@ -234,6 +234,7 @@ class ProfileMenuScreen extends ConsumerWidget {
                           onTap: () => AuthGate.promptSignIn(
                             context,
                             reason: 'use your cart, orders and subscriptions',
+                            ref: ref,
                           ),
                         )
                       else ...[

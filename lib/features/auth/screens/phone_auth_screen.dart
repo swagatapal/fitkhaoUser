@@ -46,7 +46,10 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
 
     if (success && mounted) {
       // Navigate to OTP verification screen on success
-      context.go(RouteNames.otpVerification);
+      // push, not go: `go` replaces the whole stack, which would destroy the
+      // screen a guest was on when a gated action sent them here — leaving
+      // nothing to return to after sign-in.
+      context.push(RouteNames.otpVerification);
     }
     // Error message will be shown automatically via the error listener
   }

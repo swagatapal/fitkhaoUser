@@ -31,8 +31,15 @@ class AuthGate {
       action();
       return true;
     }
-    await promptSignIn(context, reason: reason);
-    return false;
+
+    await promptSignIn(context, reason: reason, ref: ref);
+
+    // The auth flow pops back to this screen rather than replacing the stack,
+    // so the caller is still mounted and the pending action can simply run —
+    // the user ends up where they were heading before being interrupted.
+    if (!context.mounted || !ref.read(isSignedInProvider)) return false;
+    action();
+    return true;
   }
 
   /// Shows the guest sign-in sheet and sends the user to the phone screen when
@@ -40,6 +47,7 @@ class AuthGate {
   static Future<void> promptSignIn(
     BuildContext context, {
     required String reason,
+    WidgetRef? ref,
   }) async {
     final wantsSignIn = await showModalBottomSheet<bool>(
       context: context,
@@ -49,7 +57,34 @@ class AuthGate {
     );
 
     if (wantsSignIn != true || !context.mounted) return;
-    context.push(RouteNames.phoneAuth);
+
+    // Tells the auth screens to pop back here on success instead of doing
+    // `go(home)`, which would destroy the stack this screen sits in.
+    ref?.read(authReturnPendingProvider.notifier).state = true;
+    try {
+      await context.push(RouteNames.phoneAuth);
+    } finally {
+      ref?.read(authReturnPendingProvider.notifier).state = false;
+    }
+  }
+
+  /// Pops every auth screen pushed by [promptSignIn], returning the user to
+  /// the screen they were on. Called by the auth screens on success.
+  ///
+  /// Routes are identified by the `name` set on their pages, so this stops at
+  /// the first non-auth route regardless of how many auth steps were shown
+  /// (phone → OTP, plus the name step for a new account).
+  static const Set<String> authRouteNames = {
+    RouteNames.phoneAuth,
+    RouteNames.otpVerification,
+    RouteNames.nameInput,
+  };
+
+  static void popBackToOrigin(BuildContext context) {
+    Navigator.of(context).popUntil((route) {
+      final name = route.settings.name;
+      return name == null || !authRouteNames.contains(name);
+    });
   }
 }
 

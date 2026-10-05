@@ -60,6 +60,8 @@ class AppRouter {
         name: RouteNames.phoneAuth,
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
+          // Named so AuthGate.popBackToOrigin can identify auth routes.
+          name: RouteNames.phoneAuth,
           child: const PhoneAuthScreen(),
         ),
       ),
@@ -69,6 +71,8 @@ class AppRouter {
         name: RouteNames.otpVerification,
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
+          // Named so AuthGate.popBackToOrigin can identify auth routes.
+          name: RouteNames.otpVerification,
           child: const OtpVerificationScreen(),
         ),
       ),
@@ -78,6 +82,8 @@ class AppRouter {
         name: RouteNames.nameInput,
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
+          // Named so AuthGate.popBackToOrigin can identify auth routes.
+          name: RouteNames.nameInput,
           child: const NameInputScreen(),
         ),
       ),

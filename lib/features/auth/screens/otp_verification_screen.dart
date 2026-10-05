@@ -7,6 +7,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/auth/auth_gate.dart';
+import '../../../core/providers/session_provider.dart';
 import '../../../core/router/route_names.dart';
 import '../../../core/services/meta_event_service.dart';
 import '../../../core/utils/responsive_utils.dart';
@@ -216,9 +218,15 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
           // sign-up — they are counted as a registration on the name screen
           // instead, so the two events never both fire for one account.
           MetaEventService.instance.logLogin();
-          context.go(RouteNames.home);
+          if (ref.read(authReturnPendingProvider)) {
+            // Came from a gated action: go back to where they were so the
+            // pending action can run, rather than resetting them to home.
+            AuthGate.popBackToOrigin(context);
+          } else {
+            context.go(RouteNames.home);
+          }
         } else {
-          context.go(RouteNames.nameInput);
+          context.push(RouteNames.nameInput);
         }
       }
     } finally {

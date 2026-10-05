@@ -275,7 +275,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   void _openAddressSwitcher() {
     // Delivery addresses are account data — a guest has none to switch between.
     if (!ref.read(isSignedInProvider)) {
-      AuthGate.promptSignIn(context, reason: 'set a delivery address');
+      AuthGate.promptSignIn(context,
+          reason: 'set a delivery address', ref: ref);
       return;
     }
     showModalBottomSheet(

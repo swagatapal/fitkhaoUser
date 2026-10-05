@@ -98,7 +98,7 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
       if (signedIn) {
         navigator.push(MaterialPageRoute<void>(builder: (_) => screen()));
       } else {
-        AuthGate.promptSignIn(navigator.context, reason: reason);
+        AuthGate.promptSignIn(navigator.context, reason: reason, ref: ref);
       }
     };
   }
@@ -202,6 +202,7 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
             AuthGate.promptSignIn(
               navigator.context,
               reason: 'use your cart, orders and subscriptions',
+              ref: ref,
             );
           },
         )
