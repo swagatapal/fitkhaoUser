@@ -5,7 +5,12 @@
       "Bash(dart analyze *)",
       "Bash(flutter analyze *)",
       "Bash(dart format *)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "mcp__claude_ai_Claude_Docs__update",
+      "Bash(grep -n \"context.go\\\\|context.push\\\\|RouteNames\\\\.\\\\|Text\\(\\\\s*$\\\\|Text\\('\\\\|Text\\(\\\\\"\" features/splash/screens/splash_screen.dart features/auth/screens/phone_auth_screen.dart features/auth/screens/otp_verification_screen.dart features/auth/screens/name_input_screen.dart features/auth/screens/map_picker_screen.dart core/auth/auth_gate.dart)",
+      "Bash(grep -n \"Text\\('\\\\|Text\\(\\\\\"\\\\|'[A-Z][a-z][^']\\\\{5,60\\\\}'\" features/delivery/models/referral_model.dart features/delivery/repository/referral_repository.dart)",
+      "mcp__claude_ai_Claude_Docs__batch",
+      "mcp__claude_ai_Claude_Docs__read"
     ]
   }
 }
