@@ -44,11 +44,19 @@ class AuthGate {
 
   /// Shows the guest sign-in sheet and sends the user to the phone screen when
   /// they accept. Safe to call directly when there is no action to defer.
+  ///
+  /// Passing [ref] asks the auth screens to pop back to [context] on success.
+  /// The flag is written through the [ProviderContainer] rather than [ref]
+  /// itself: callers such as the drawer are disposed while the sheet is open,
+  /// and reading a disposed ref throws before the phone screen is pushed.
   static Future<void> promptSignIn(
     BuildContext context, {
     required String reason,
     WidgetRef? ref,
   }) async {
+    final container = ProviderScope.containerOf(context, listen: false);
+    final returnToOrigin = ref != null;
+
     final wantsSignIn = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -60,11 +68,15 @@ class AuthGate {
 
     // Tells the auth screens to pop back here on success instead of doing
     // `go(home)`, which would destroy the stack this screen sits in.
-    ref?.read(authReturnPendingProvider.notifier).state = true;
+    if (returnToOrigin) {
+      container.read(authReturnPendingProvider.notifier).state = true;
+    }
     try {
       await context.push(RouteNames.phoneAuth);
     } finally {
-      ref?.read(authReturnPendingProvider.notifier).state = false;
+      if (returnToOrigin) {
+        container.read(authReturnPendingProvider.notifier).state = false;
+      }
     }
   }
 

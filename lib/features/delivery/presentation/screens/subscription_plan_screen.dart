@@ -8,6 +8,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/time_converter.dart';
 import '../../../../core/auth/auth_gate.dart';
 import '../../../../core/providers/session_provider.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../models/subscription_plan_model.dart';
 import '../../providers/subscription_plan_provider.dart';
 import '../../providers/wallet_provider.dart';
@@ -47,20 +48,37 @@ class _SubscriptionPlanScreenState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(walletProvider.notifier).loadWalletBalance();
       ref.read(subscriptionPlanProvider.notifier).loadPlans();
+      // The renewal window comes from the profile API and can open while the
+      // app is running, so refresh it whenever this screen opens.
+      if (ref.read(isSignedInProvider)) {
+        ref.read(authProvider.notifier).loadProfile();
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Auto-select a sensible default once plans arrive — the recommended plan
-    // if any, else the first. `ref.listen` reacts without rebuilding this screen.
+    // Auto-select a sensible default once plans arrive — the current plan when
+    // it can be renewed, else the recommended plan, else the first.
+    // `ref.listen` reacts without rebuilding this screen.
     ref.listen<SubscriptionPlanState>(subscriptionPlanProvider, (prev, next) {
       if (next.plans.isEmpty) return;
       if (ref.read(selectedSubscriptionPlanProvider) != null) return;
-      final def = next.plans.firstWhere(
-        (p) => p.features.suggestedPlan,
-        orElse: () => next.plans.first,
-      );
+      final sub = ref.read(authProvider).activeSubscription;
+      SubscriptionPlan? current;
+      if (sub != null && sub.canRenew) {
+        for (final p in next.plans) {
+          if (p.planCode == sub.planCode) {
+            current = p;
+            break;
+          }
+        }
+      }
+      final def = current ??
+          next.plans.firstWhere(
+            (p) => p.features.suggestedPlan,
+            orElse: () => next.plans.first,
+          );
       ref.read(selectedSubscriptionPlanProvider.notifier).state = def.id;
     });
 
@@ -322,6 +340,9 @@ class _ActivePlanBanner extends ConsumerWidget {
           .select((s) => s.hasActiveSubscription ? s.subscription : null),
     );
     if (sub == null) return const SizedBox.shrink();
+    final canRenew = ref.watch(
+      authProvider.select((s) => s.activeSubscription?.canRenew ?? false),
+    );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSizes.spacing16),
@@ -383,6 +404,29 @@ class _ActivePlanBanner extends ConsumerWidget {
                           fontSize: AppTypography.fontSize10,
                           color: Colors.white.withValues(alpha: 0.9),
                           fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
+                    if (canRenew) ...[
+                      const SizedBox(height: AppSizes.spacing4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.spacing8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius:
+                              BorderRadius.circular(AppSizes.radius20),
+                        ),
+                        child: const Text(
+                          'Renewal open · renew this plan below',
+                          style: TextStyle(
+                            fontSize: AppTypography.fontSize10,
+                            fontWeight: AppTypography.bold,
+                            color: AppColors.primaryGreen,
+                            fontFamily: 'Lato',
+                          ),
                         ),
                       ),
                     ],
@@ -512,6 +556,14 @@ class _PlanCard extends ConsumerWidget {
       selectedSubscriptionPlanProvider.select((id) => id == plan.id),
     );
     final isRecommended = plan.features.suggestedPlan;
+    // Only the user's existing plan can be renewed, and only while the
+    // backend reports its renewal window as open.
+    final isRenewable = ref.watch(
+      authProvider.select((s) {
+        final sub = s.activeSubscription;
+        return sub != null && sub.canRenew && sub.planCode == plan.planCode;
+      }),
+    );
 
     return GestureDetector(
       onTap: () =>
@@ -566,6 +618,10 @@ class _PlanCard extends ConsumerWidget {
                             const SizedBox(width: AppSizes.spacing8),
                             const _RecommendedBadge(),
                           ],
+                          if (isRenewable) ...[
+                            const SizedBox(width: AppSizes.spacing8),
+                            const _CurrentPlanBadge(),
+                          ],
                         ],
                       ),
                       const SizedBox(height: AppSizes.spacing4),
@@ -617,6 +673,41 @@ class _PlanCard extends ConsumerWidget {
             // ── Cancel-anytime opt-in (available on every plan) ──
             const SizedBox(height: AppSizes.spacing12),
             _CancelAnytimeToggle(planId: plan.id),
+
+            // ── Renew (existing plan only, while the window is open) ──
+            if (isRenewable) ...[
+              const SizedBox(height: AppSizes.spacing12),
+              SizedBox(
+                width: double.infinity,
+                height: AppSizes.buttonHeightSmall,
+                child: ElevatedButton.icon(
+                  onPressed: () => _openSubscriptionCheckout(
+                    context,
+                    ref,
+                    plan,
+                    reason: 'renew your plan',
+                  ),
+                  icon: const Icon(Icons.autorenew_rounded,
+                      size: AppSizes.icon18),
+                  label: Text(
+                    'Renew · ${plan.formattedPrice} / ${plan.planValidity}',
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.bold,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -829,6 +920,55 @@ class _RecommendedBadge extends StatelessWidget {
   }
 }
 
+class _CurrentPlanBadge extends StatelessWidget {
+  const _CurrentPlanBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppSizes.radius20),
+      ),
+      child: const Text(
+        'CURRENT PLAN',
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: AppTypography.bold,
+          color: AppColors.primaryGreen,
+          letterSpacing: 0.4,
+          fontFamily: 'Lato',
+        ),
+      ),
+    );
+  }
+}
+
+/// Opens checkout for [plan] — used both to subscribe and to renew the
+/// existing plan. Plans are browsable by anyone; buying one needs an account.
+void _openSubscriptionCheckout(
+  BuildContext context,
+  WidgetRef ref,
+  SubscriptionPlan plan, {
+  required String reason,
+}) {
+  AuthGate.run(
+    context,
+    ref,
+    reason: reason,
+    action: () => Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => SubscriptionCheckoutScreen(
+          planId: plan.id,
+          cancelAnytimeSelected: ref.read(cancelAnytimeProvider(plan.id)),
+        ),
+      ),
+    ),
+  );
+}
+
 // ─── Sticky subscribe bar ────────────────────────────────────────────────────
 
 class _SubscribeBar extends ConsumerWidget {
@@ -838,6 +978,11 @@ class _SubscribeBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final hasActive =
         ref.watch(walletProvider.select((s) => s.hasActiveSubscription));
+    // Renewal window is reported by the profile API; while it is open an
+    // active subscriber may buy the next term instead of being blocked.
+    final canRenew = ref.watch(
+      authProvider.select((s) => s.activeSubscription?.canRenew ?? false),
+    );
     final selectedId = ref.watch(selectedSubscriptionPlanProvider);
     final plans = ref.watch(subscriptionPlanProvider.select((s) => s.plans));
 
@@ -857,7 +1002,11 @@ class _SubscribeBar extends ConsumerWidget {
     final String label;
     final VoidCallback? onPressed;
     if (hasActive) {
-      label = 'You already have an active plan';
+      // Subscribers can't buy a new plan here; renewal of the existing plan
+      // is offered on that plan's own card while the window is open.
+      label = canRenew
+          ? 'Renew from your current plan above'
+          : 'You already have an active plan';
       onPressed = null;
     } else if (selected == null) {
       label = 'Select a plan';
@@ -869,21 +1018,11 @@ class _SubscribeBar extends ConsumerWidget {
       label =
           'Subscribe · ${selected.formattedPrice} / ${selected.planValidity}';
       final plan = selected;
-      // Plans are browsable by anyone; buying one needs an account.
-      onPressed = () => AuthGate.run(
+      onPressed = () => _openSubscriptionCheckout(
             context,
             ref,
+            plan,
             reason: 'subscribe to a plan',
-            action: () => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => SubscriptionCheckoutScreen(
-                  planId: plan.id,
-                  cancelAnytimeSelected:
-                      ref.read(cancelAnytimeProvider(plan.id)),
-                ),
-              ),
-            ),
           );
     }
 

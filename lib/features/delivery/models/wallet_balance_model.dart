@@ -108,6 +108,18 @@ class SubscriptionInfo {
   /// Discount % subscribers get on outlet food orders (profile API). 0 = none.
   final int outletFoodDiscountPercent;
 
+  /// True when this subscription was bought as a renewal of a previous one
+  /// (profile API).
+  final bool isRenewal;
+
+  /// How many days before the plan ends renewal becomes possible (profile
+  /// API). 0 when unknown.
+  final int renewalEligibleBeforeDays;
+
+  /// True when the backend currently allows renewing this plan (profile API).
+  /// The renew option is shown only while this is true.
+  final bool renewalWindowOpen;
+
   const SubscriptionInfo({
     required this.id,
     required this.planCode,
@@ -123,6 +135,9 @@ class SubscriptionInfo {
     required this.autoRenew,
     this.mealsPerDay = 0,
     this.outletFoodDiscountPercent = 0,
+    this.isRenewal = false,
+    this.renewalEligibleBeforeDays = 0,
+    this.renewalWindowOpen = false,
   });
 
   factory SubscriptionInfo.fromJson(Map<String, dynamic> json) {
@@ -147,8 +162,16 @@ class SubscriptionInfo {
       mealsPerDay: (json['mealsPerDay'] as num?)?.toInt() ?? 0,
       outletFoodDiscountPercent:
           (json['outletFoodDiscountPercent'] as num?)?.toInt() ?? 0,
+      isRenewal: json['isRenewal'] as bool? ?? false,
+      renewalEligibleBeforeDays:
+          (json['renewalEligibleBeforeDays'] as num?)?.toInt() ?? 0,
+      renewalWindowOpen: json['renewalWindowOpen'] as bool? ?? false,
     );
   }
+
+  /// The renew option is offered only for a live plan whose renewal window
+  /// the backend reports as open.
+  bool get canRenew => isActive && renewalWindowOpen;
 
   /// Get formatted price
   String get formattedPrice => '₹$planAmount';

@@ -1,12 +1,14 @@
 import 'package:fitkhao_user/features/profile/presentation/screens/address_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/auth/auth_gate.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/constants/app_typography.dart';
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../models/kitchen_model.dart';
 import '../../providers/delivery_gate_provider.dart';
@@ -196,14 +198,13 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
       // A guest has no session to end — offer the way in instead.
       if (isGuest)
         _DrawerSignInButton(
+          // An explicit "Login / Sign up" tap needs no explainer sheet — go
+          // straight to the phone screen. The router is captured before the
+          // drawer closes, since this widget's context goes with it.
           onTap: () {
-            final navigator = Navigator.of(context);
+            final router = GoRouter.of(context);
             Scaffold.of(context).closeDrawer();
-            AuthGate.promptSignIn(
-              navigator.context,
-              reason: 'use your cart, orders and subscriptions',
-              ref: ref,
-            );
+            router.push(RouteNames.phoneAuth);
           },
         )
       else
