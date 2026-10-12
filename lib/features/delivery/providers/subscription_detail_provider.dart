@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/providers.dart';
 import '../models/subscription_timeline_model.dart';
+import '../models/upcoming_subscription_model.dart';
 
 /// The current user's subscription journey timeline (steps + daily meals).
 /// Token-scoped, so no id is needed. `invalidate` to refresh.
@@ -18,6 +19,24 @@ final subscriptionTimelineProvider =
         res.message.isNotEmpty ? res.message : 'Could not load your journey.');
   }
   return res.data!;
+});
+
+/// The user's upcoming (paid, not yet started) subscriptions, soonest first.
+/// `invalidate` to refresh, e.g. after cancelling one.
+final upcomingSubscriptionsProvider =
+    FutureProvider.autoDispose<List<UpcomingSubscription>>((ref) async {
+  // Make sure the auth token is loaded before the request is built.
+  await ref.watch(localStorageProvider.future);
+  final res =
+      await ref.read(subscriptionRepositoryProvider).getUpcomingSubscriptions();
+  if (!res.success) {
+    throw Exception(res.message.isNotEmpty
+        ? res.message
+        : 'Could not load your upcoming plans.');
+  }
+  final list = [...res.subscriptions]
+    ..sort((a, b) => a.startDate.compareTo(b.startDate));
+  return list;
 });
 
 /// Event history for a subscription (auto-disposed, keyed by subscriptionId).

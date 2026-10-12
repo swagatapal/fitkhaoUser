@@ -113,6 +113,14 @@ class AppConfig {
   static String subscriptionCancelPath(String subscriptionId) =>
       '/api/subscriptions/$subscriptionId/cancel';
 
+  /// Upcoming (paid, not yet started) subscriptions of the user (auth, GET).
+  static const String upcomingSubscriptionsPath = '/api/subscription/upcoming';
+
+  /// Cancel an upcoming subscription before it starts (auth, POST).
+  /// Body (optional): `{ reason }`.
+  static String subscriptionCancelUpcomingPath(String subscriptionId) =>
+      '/api/subscriptions/$subscriptionId/cancel-upcoming';
+
   /// Subscription invoice (auth).
   static String subscriptionInvoicePath(String subscriptionId) =>
       '/api/subscriptions/$subscriptionId/invoice';

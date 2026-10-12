@@ -18,6 +18,7 @@ import '../widgets/subscription_benefits.dart';
 import 'my_subscription_screen.dart';
 import 'subscription_checkout_screen.dart';
 import 'transaction_history_screen.dart';
+import 'upcoming_subscriptions_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Subscription plan screen.
@@ -102,6 +103,7 @@ class _SubscriptionPlanScreenState
                     children: const [
                       SizedBox(height: AppSizes.spacing16),
                       _WalletBar(),
+                      _UpcomingPlansButton(),
                       SizedBox(height: AppSizes.spacing16),
                       _ActivePlanBanner(),
                       _PlansHeader(),
@@ -292,6 +294,89 @@ class _WalletBar extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Upcoming plans entry ────────────────────────────────────────────────────
+
+/// Opens [UpcomingSubscriptionsScreen] — paid plans that have not started yet
+/// (e.g. renewals queued behind the active plan). Signed-in users only.
+class _UpcomingPlansButton extends ConsumerWidget {
+  const _UpcomingPlansButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(isSignedInProvider)) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSizes.spacing12),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(
+              builder: (_) => const UpcomingSubscriptionsScreen(),
+            ),
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.spacing12,
+              vertical: AppSizes.spacing10,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppSizes.radius8),
+              border: Border.all(
+                  color: AppColors.borderColor.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppSizes.spacing8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                  child: const Icon(Icons.event_note_rounded,
+                      color: AppColors.primaryGreen, size: AppSizes.icon20),
+                ),
+                const SizedBox(width: AppSizes.spacing12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Upcoming plans',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize14,
+                          fontWeight: AppTypography.bold,
+                          color: AppColors.textPrimary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Plans that start after your current one',
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize10,
+                          color: AppColors.textSecondary,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textSecondary, size: AppSizes.icon20),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

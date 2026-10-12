@@ -9,6 +9,7 @@ import '../models/subscription_pricing_preview_model.dart';
 import '../models/subscription_request_model.dart';
 import '../models/subscription_response_model.dart';
 import '../models/subscription_timeline_model.dart';
+import '../models/upcoming_subscription_model.dart';
 import '../../../core/utils/dev_log.dart';
 
 /// Repository for subscription related operations
@@ -113,6 +114,50 @@ class SubscriptionRepository {
       return SubscriptionResponse.fromJson(json);
     } catch (e) {
       debugPrint('[SubscriptionRepository] Cancel error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
+  /// Fetches the user's upcoming (paid, not yet started) subscriptions.
+  /// GET /api/subscription/upcoming. Auth required.
+  Future<UpcomingSubscriptionsResponse> getUpcomingSubscriptions() async {
+    debugPrint('[SubscriptionRepository] Fetching upcoming subscriptions...');
+    try {
+      final json = await _apiClient.getJson(
+        AppConfig.upcomingSubscriptionsPath,
+        headers: _authHeaders(),
+      );
+      devLog(() => '[SubscriptionRepository] Upcoming response: $json');
+      return UpcomingSubscriptionsResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[SubscriptionRepository] Upcoming error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw NetworkException(message: message, originalError: e);
+    }
+  }
+
+  /// Cancels an upcoming subscription before it starts. [reason] is sent in
+  /// the body when provided. Auth required.
+  Future<CancelUpcomingResponse> cancelUpcomingSubscription({
+    required String subscriptionId,
+    String? reason,
+  }) async {
+    debugPrint(
+        '[SubscriptionRepository] Cancelling upcoming $subscriptionId...');
+    try {
+      final json = await _apiClient.postJson(
+        AppConfig.subscriptionCancelUpcomingPath(subscriptionId),
+        headers: _authHeaders(),
+        body: {
+          if (reason != null && reason.trim().isNotEmpty)
+            'reason': reason.trim(),
+        },
+      );
+      devLog(() => '[SubscriptionRepository] Cancel upcoming response: $json');
+      return CancelUpcomingResponse.fromJson(json);
+    } catch (e) {
+      debugPrint('[SubscriptionRepository] Cancel upcoming error: $e');
       final message = ExceptionHandler.getErrorMessage(e);
       throw NetworkException(message: message, originalError: e);
     }
