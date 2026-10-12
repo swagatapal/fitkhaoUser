@@ -420,7 +420,7 @@ class _ActivePlanBanner extends ConsumerWidget {
                               BorderRadius.circular(AppSizes.radius20),
                         ),
                         child: const Text(
-                          'Renewal open · renew this plan below',
+                          'Renewal open',
                           style: TextStyle(
                             fontSize: AppTypography.fontSize10,
                             fontWeight: AppTypography.bold,

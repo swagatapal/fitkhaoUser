@@ -160,6 +160,10 @@ class AppliedReferral {
 /// The `pricing` block from the preview response.
 class PricingPreview {
   final double planAmount;
+
+  /// Offer price of the plan, from `discountedPlanAmount`. 0 when the plan has
+  /// no offer — see [hasPlanDiscount].
+  final double discountedPlanAmount;
   final bool cancelAnytimeSelected;
   final double cancelAnytimeFee;
   final double subtotal;
@@ -184,6 +188,7 @@ class PricingPreview {
 
   const PricingPreview({
     this.planAmount = 0,
+    this.discountedPlanAmount = 0,
     this.cancelAnytimeSelected = false,
     this.cancelAnytimeFee = 0,
     this.subtotal = 0,
@@ -201,9 +206,25 @@ class PricingPreview {
   /// True when a coupon actually reduced the payable amount.
   bool get hasDiscount => discount > 0;
 
+  /// True when the plan is on offer: a non-zero discounted price below the
+  /// regular one. A 0 (or missing) `discountedPlanAmount` means no offer.
+  bool get hasPlanDiscount =>
+      discountedPlanAmount > 0 && discountedPlanAmount < planAmount;
+
+  /// What the offer takes off the regular plan price.
+  double get planDiscount =>
+      hasPlanDiscount ? planAmount - discountedPlanAmount : 0;
+
+  /// The price the plan actually sells for — the offer price when there is
+  /// one, else the regular price.
+  double get effectivePlanAmount =>
+      hasPlanDiscount ? discountedPlanAmount : planAmount;
+
   factory PricingPreview.fromJson(Map<String, dynamic> json) {
     return PricingPreview(
       planAmount: (json['planAmount'] as num?)?.toDouble() ?? 0,
+      discountedPlanAmount:
+          (json['discountedPlanAmount'] as num?)?.toDouble() ?? 0,
       cancelAnytimeSelected: json['cancelAnytimeSelected'] as bool? ?? false,
       cancelAnytimeFee: (json['cancelAnytimeFee'] as num?)?.toDouble() ?? 0,
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0,

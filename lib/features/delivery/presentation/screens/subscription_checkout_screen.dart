@@ -835,8 +835,21 @@ class _SubscriptionCheckoutScreenState
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
+              // On offer: the regular price struck through above the offer
+              // price. No offer (`discountedPlanAmount` 0): regular price only.
+              if (preview.pricing.hasPlanDiscount)
+                Text(
+                  _money(preview.pricing.planAmount),
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize13,
+                    color: Colors.white.withValues(alpha: 0.85),
+                    decoration: TextDecoration.lineThrough,
+                    decorationColor: Colors.white.withValues(alpha: 0.85),
+                    fontFamily: 'Lato',
+                  ),
+                ),
               Text(
-                _money(preview.pricing.planAmount),
+                _money(preview.pricing.effectivePlanAmount),
                 style: const TextStyle(
                   fontSize: AppTypography.fontSize24,
                   fontWeight: AppTypography.bold,
@@ -845,7 +858,7 @@ class _SubscriptionCheckoutScreenState
                 ),
               ),
               Text(
-                'base price',
+                preview.pricing.hasPlanDiscount ? 'offer price' : 'base price',
                 style: TextStyle(
                   fontSize: AppTypography.fontSize10,
                   color: Colors.white.withValues(alpha: 0.85),
@@ -901,9 +914,12 @@ class _SubscriptionCheckoutScreenState
               // Tapping the plan amount discloses what makes it up. Only a
               // toggle when there is something inside — an empty dropdown
               // would be a dead affordance.
+              // On offer: regular price struck through, then the offer price
+              // (`discountedPlanAmount`). No offer: the regular price alone.
               _SummaryRow(
                 label: 'Plan amount',
-                value: _money(p.planAmount),
+                value: _money(p.effectivePlanAmount),
+                strikeValue: p.hasPlanDiscount ? _money(p.planAmount) : null,
                 onTap: hasBreakdown
                     ? () => setState(
                         () => _planBreakdownExpanded = !_planBreakdownExpanded)
@@ -992,8 +1008,9 @@ class _SubscriptionCheckoutScreenState
                 ),
               ],
 
-              // Subtotal (shown when it differs from plan amount).
-              if (p.subtotal > 0 && p.subtotal != p.planAmount) ...[
+              // Subtotal (shown when it differs from the plan amount shown
+              // above — the offer price when there is one).
+              if (p.subtotal > 0 && p.subtotal != p.effectivePlanAmount) ...[
                 const SizedBox(height: AppSizes.spacing12),
                 _SummaryRow(label: 'Subtotal', value: _money(p.subtotal)),
               ],
@@ -2041,10 +2058,15 @@ class _SummaryRow extends StatelessWidget {
     this.isDiscount = false,
     this.onTap,
     this.expanded = false,
+    this.strikeValue,
   });
 
   final String label;
   final String value;
+
+  /// Former price drawn struck through before [value], e.g. a plan's regular
+  /// price beside its offer price. Null draws nothing.
+  final String? strikeValue;
   final bool isBold;
 
   /// Renders as a smaller, secondary "included" line — not a charged total.
@@ -2100,6 +2122,19 @@ class _SummaryRow extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (strikeValue != null) ...[
+              Text(
+                strikeValue!,
+                style: TextStyle(
+                  fontSize: AppTypography.fontSize12,
+                  color: AppColors.textTertiary,
+                  decoration: TextDecoration.lineThrough,
+                  decorationColor: AppColors.textTertiary,
+                  fontFamily: 'Lato',
+                ),
+              ),
+              const SizedBox(width: AppSizes.spacing6),
+            ],
             Text(
               value,
               style: TextStyle(
