@@ -223,11 +223,26 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
   final MenuRepository _repo;
   AllDishesNotifier(this._repo) : super(const AllDishesState());
 
+  /// Page size of the "All" view; the next page loads on scroll.
+  static const int allPageSize = 10;
+
+  /// Page size of a per-category view; the next page loads on scroll.
+  static const int categoryPageSize = 20;
+
+  /// Kitchen the per-category view is scoped to (sent as `kitchenId`).
+  String? _kitchenId;
+
+  /// Bumped whenever the active view changes (category picked, "All" restored,
+  /// full reload) so a late response for a previous view is dropped instead of
+  /// overwriting — or being appended to — the list now on screen.
+  int _viewToken = 0;
+
   // ── Initial load ──────────────────────────────────────────────────────────
 
   /// Fetches categories and the first page of ALL items in parallel.
   /// Always resets to the "All" view.
   Future<void> loadMenuItems() async {
+    final token = ++_viewToken;
     state = const AllDishesState(
       areCategoriesLoading: true,
       isLoading: true,
@@ -238,12 +253,13 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
     final pageFuture = _repo.getMenuPage(
       categoryId: null,
       pageIndex: 0,
-      pageSize: 10,
+      pageSize: allPageSize,
     );
 
     try {
       final categories = await categoriesFuture;
       final page = await pageFuture;
+      if (token != _viewToken) return;
 
       state = AllDishesState(
         categories: categories,
@@ -252,6 +268,7 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
         allTotalPages: page.totalPages,
       );
     } catch (e) {
+      if (token != _viewToken) return;
       state = AllDishesState(error: e.toString());
     }
   }
@@ -259,18 +276,30 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
   // ── Category selection ────────────────────────────────────────────────────
 
   /// [categoryId] = null → switch back to "All" view (no API call, cache used).
-  /// [categoryId] = id   → load first page for that category.
-  Future<void> selectCategory(String? categoryId) async {
+  /// [categoryId] = id   → load the first page of that category from
+  /// `GET /api/adm/outlet-dish?category=<id>&kitchenId=<kitchenId>&…`,
+  /// [categoryPageSize] dishes at a time.
+  Future<void> selectCategory(String? categoryId, {String? kitchenId}) async {
+    final token = ++_viewToken;
+
     if (categoryId == null) {
       // Restore All view instantly from cache
-      state = state.copyWith(clearCategoryFilter: true, clearError: true);
+      state = state.copyWith(
+        clearCategoryFilter: true,
+        isLoading: false,
+        isLoadingMore: false,
+        clearError: true,
+      );
       return;
     }
+
+    _kitchenId = kitchenId;
 
     // Per-category: reset category cache and fetch page 0
     state = state.copyWith(
       selectedCategoryId: categoryId,
       isLoading: true,
+      isLoadingMore: false,
       categoryItems: [],
       catPage: 0,
       catTotalPages: 1,
@@ -280,9 +309,11 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
     try {
       final page = await _repo.getMenuPage(
         categoryId: categoryId,
+        kitchenId: _kitchenId,
         pageIndex: 0,
-        pageSize: 10,
+        pageSize: categoryPageSize,
       );
+      if (token != _viewToken) return; // another tab was picked meanwhile
       state = state.copyWith(
         categoryItems: page.items,
         catPage: 0,
@@ -290,17 +321,19 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
         isLoading: false,
       );
     } catch (e) {
+      if (token != _viewToken) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
   // ── Scroll-triggered pagination ───────────────────────────────────────────
 
-  /// Appends the next page. Works identically for both "All" and
-  /// per-category views — the correct [categoryId] is always in state.
+  /// Appends the next page (pageIndex + 1) of the active view: [allPageSize]
+  /// dishes for "All", [categoryPageSize] for a category.
   Future<void> loadMore() async {
     if (!state.canLoadMore) return;
 
+    final token = _viewToken;
     final isAll = state.isAllView;
     final nextPage = (isAll ? state.allPage : state.catPage) + 1;
 
@@ -309,9 +342,12 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
     try {
       final page = await _repo.getMenuPage(
         categoryId: state.selectedCategoryId,
+        kitchenId: isAll ? null : _kitchenId,
         pageIndex: nextPage,
-        pageSize: 10,
+        pageSize: isAll ? allPageSize : categoryPageSize,
       );
+      // The view changed mid-flight — this page belongs to another list.
+      if (token != _viewToken) return;
 
       if (isAll) {
         state = state.copyWith(
@@ -329,7 +365,10 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
         );
       }
     } catch (e) {
-      state = state.copyWith(isLoadingMore: false, error: e.toString());
+      if (token != _viewToken) return;
+      // Keep the dishes already shown; just stop the spinner. Scrolling to the
+      // bottom again retries this page.
+      state = state.copyWith(isLoadingMore: false);
     }
   }
 
@@ -362,7 +401,7 @@ class AllDishesNotifier extends StateNotifier<AllDishesState> {
       final page = await _repo.getMenuPage(
         categoryId: null,
         pageIndex: 0,
-        pageSize: 10,
+        pageSize: allPageSize,
       );
       // Only swap if nothing else changed the view in the meantime.
       state = state.copyWith(

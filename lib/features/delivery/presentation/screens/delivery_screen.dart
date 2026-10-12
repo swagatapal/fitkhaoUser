@@ -82,6 +82,7 @@ class DeliveryScreen extends ConsumerStatefulWidget {
 class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   Timer? _searchDebounce;
 
@@ -105,6 +106,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     _scrollController.dispose();
     _searchDebounce?.cancel();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -241,8 +243,36 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     }
   }
 
+  /// Loads the next page after the frame when the browse list is not tall
+  /// enough to scroll. See the listener in [build].
+  void _fillViewport() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      if (ref.read(dishSearchProvider).isActive) return;
+      if (_scrollController.position.maxScrollExtent > 0) return;
+      if (ref.read(allDishesProvider).canLoadMore) {
+        ref.read(allDishesProvider.notifier).loadMore();
+      }
+    });
+  }
+
+  /// Opens a category tab — its dishes are fetched for the selected kitchen,
+  /// a page at a time. `null` returns to "All".
+  void _selectCategory(String? categoryId) {
+    ref.read(allDishesProvider.notifier).selectCategory(
+          categoryId,
+          kitchenId: ref.read(kitchenProvider).selectedKitchenId,
+        );
+  }
+
   void _onDishSearchChanged(String value) {
     _searchDebounce?.cancel();
+    // Box emptied (backspaced to nothing) → leave search and drop the keyboard,
+    // just like tapping the clear button.
+    if (value.isEmpty) {
+      _clearDishSearch();
+      return;
+    }
     // Debounce keystrokes; the provider sequences requests to drop stale ones.
     _searchDebounce = Timer(const Duration(milliseconds: 350), () {
       final kitchenId = ref.read(kitchenProvider).selectedKitchenId;
@@ -256,6 +286,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     _searchController.clear();
     _searchDebounce?.cancel();
     ref.read(dishSearchProvider.notifier).clear();
+    _searchFocusNode.unfocus();
   }
 
   // ── Location helpers ──────────────────────────────────────────────────────
@@ -343,6 +374,11 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final unreadCount = ref.watch(
       notificationProvider.select((s) => s.unreadCount),
     );
+
+    // Dishes now arrive a page at a time. When a page (or a dish-type filter)
+    // leaves too few dishes to scroll, the scroll listener never fires, so
+    // keep fetching until the list fills the screen or runs out of pages.
+    ref.listen<AllDishesState>(allDishesProvider, (_, __) => _fillViewport());
 
     // When the saved address list changes (add / delete / set-default), re-run
     // selection resolution: keep the current pick if it survived, otherwise
@@ -885,6 +921,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         ),
         child: TextField(
           controller: _searchController,
+          focusNode: _searchFocusNode,
           onChanged: _onDishSearchChanged,
           textInputAction: TextInputAction.search,
           style: const TextStyle(
@@ -970,15 +1007,13 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
           _categoryTab(
             label: 'All',
             isSelected: selectedCatId == null,
-            onTap: () =>
-                ref.read(allDishesProvider.notifier).selectCategory(null),
+            onTap: () => _selectCategory(null),
           ),
           ...dishState.categories.map(
             (cat) => _categoryTab(
               label: cat.name,
               isSelected: selectedCatId == cat.id,
-              onTap: () =>
-                  ref.read(allDishesProvider.notifier).selectCategory(cat.id),
+              onTap: () => _selectCategory(cat.id),
             ),
           ),
         ],

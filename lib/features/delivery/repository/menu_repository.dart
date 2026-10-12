@@ -91,25 +91,32 @@ class MenuRepository {
 
   /// Fetch a single page of menu items.
   ///
+  /// `GET /api/adm/outlet-dish?isActive=true&pageIndex=&pageSize=`
+  /// plus `&category=` and `&kitchenId=` when supplied.
+  ///
   /// [categoryId] — when supplied, only items in that category are returned.
+  /// [kitchenId]  — scopes the dishes to a kitchen when supplied.
   /// [mealType]   — optional client-side meal-type filter (legacy support).
   Future<MenuPageResult> getMenuPage({
     String? categoryId,
+    String? kitchenId,
     String? mealType,
     int pageIndex = 0,
     int pageSize = 20,
   }) async {
     debugPrint('[MenuRepository] Fetching dish page $pageIndex '
-        '(category: $categoryId, pageSize: $pageSize)…');
+        '(category: $categoryId, kitchen: $kitchenId, pageSize: $pageSize)…');
 
     try {
       final buffer = StringBuffer(
         '${AppConfig.outletDishPath}?isActive=true'
-        '&pageIndex=$pageIndex&pageSize=${200}',
-        //'&pageIndex=$pageIndex&pageSize=$pageSize',
+        '&pageIndex=$pageIndex&pageSize=$pageSize',
       );
       if (categoryId != null && categoryId.isNotEmpty) {
         buffer.write('&category=$categoryId');
+      }
+      if (kitchenId != null && kitchenId.isNotEmpty) {
+        buffer.write('&kitchenId=$kitchenId');
       }
 
       final json = await _apiClient.getJson(
@@ -117,22 +124,11 @@ class MenuRepository {
         headers: _authHeaders(),
       );
 
-      final data = json['data'] as Map<String, dynamic>? ?? {};
-      final rawItems = data['dishes'] as List<dynamic>?
-          ?? data['items'] as List<dynamic>?
-          ?? [];
-      final totalCount = (data['count'] as num?)?.toInt()
-          ?? (data['totalCount'] as num?)?.toInt()
-          ?? rawItems.length;
-      final totalPages = (data['totalPages'] as num?)?.toInt() ?? 1;
+      final page = _parsePage(json, pageIndex);
+      debugPrint('[MenuRepository] Page $pageIndex/${page.totalPages} — '
+          '${page.items.length} items');
 
-      debugPrint(
-        '[MenuRepository] Page $pageIndex/$totalPages — ${rawItems.length} items',
-      );
-
-      var menuItems = rawItems
-          .map((item) => MenuItem.fromJson(item as Map<String, dynamic>))
-          .toList();
+      var menuItems = page.items;
 
       // Legacy meal-type client-side filter (used by MenuListScreen)
       if (mealType != null && mealType.isNotEmpty) {
@@ -147,8 +143,8 @@ class MenuRepository {
 
       return MenuPageResult(
         items: menuItems,
-        totalCount: totalCount,
-        totalPages: totalPages,
+        totalCount: page.totalCount,
+        totalPages: page.totalPages,
         currentPage: pageIndex,
       );
     } catch (e) {
