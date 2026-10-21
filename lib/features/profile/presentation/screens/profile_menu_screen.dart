@@ -182,8 +182,7 @@ class ProfileMenuScreen extends ConsumerWidget {
                               color: const Color(0xFF8B5CF6),
                               title: 'Membership',
                               subtitle: 'Plans & wallet balance',
-                              onTap: () => ProfileMenuActions.open(
-                                  context, const SubscriptionPlanScreen()),
+                              onTap: () => openSubscriptionPlans(context),
                             ),
                             _MenuEntry(
                               icon: Icons.local_offer_outlined,

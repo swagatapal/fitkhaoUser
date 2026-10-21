@@ -3057,11 +3057,7 @@ class _TakeSubscriptionFab extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(30),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => const SubscriptionPlanScreen(),
-          ),
-        ),
+        onTap: () => openSubscriptionPlans(context),
         child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSizes.spacing16,
@@ -3214,11 +3210,7 @@ class _NoSubscriptionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const SubscriptionPlanScreen(),
-        ),
-      ),
+      onTap: () => openSubscriptionPlans(context),
       child: Container(
         padding: const EdgeInsets.all(AppSizes.spacing12),
         decoration: BoxDecoration(

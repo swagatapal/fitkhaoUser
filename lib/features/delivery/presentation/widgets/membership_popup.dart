@@ -221,13 +221,11 @@ class _MembershipPopupState extends State<MembershipPopup>
                                     onPressed: ()async{
                                       final navigator = Navigator.of(context);
                                       await _closePopup();
-                                      if (mounted) {
-                                        navigator.push(
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                            const SubscriptionPlanScreen(),
-                                          ),
-                                        );
+                                      // The popup is gone; the navigator's
+                                      // own context is still valid. Guests
+                                      // log in before the plans open.
+                                      if (navigator.mounted) {
+                                        openSubscriptionPlans(navigator.context);
                                       }
                                     },
                                     style: ElevatedButton.styleFrom(
@@ -258,13 +256,11 @@ class _MembershipPopupState extends State<MembershipPopup>
                                     onPressed: () async {
                                       final navigator = Navigator.of(context);
                                       await _closePopup();
-                                      if (mounted) {
-                                        navigator.push(
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                const SubscriptionPlanScreen(),
-                                          ),
-                                        );
+                                      // The popup is gone; the navigator's
+                                      // own context is still valid. Guests
+                                      // log in before the plans open.
+                                      if (navigator.mounted) {
+                                        openSubscriptionPlans(navigator.context);
                                       }
                                     },
                                     style: ElevatedButton.styleFrom(

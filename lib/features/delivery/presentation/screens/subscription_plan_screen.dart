@@ -8,6 +8,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/time_converter.dart';
 import '../../../../core/auth/auth_gate.dart';
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../models/subscription_plan_model.dart';
 import '../../models/wallet_balance_model.dart';
@@ -34,6 +35,38 @@ import 'upcoming_subscriptions_screen.dart';
 // widget state, which is what keeps the rebuild surface minimal.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Reason shown on the sign-in sheet: "You need an account to …".
+const _kPlansSignInReason = 'view and buy subscription plans';
+
+/// Opens [SubscriptionPlanScreen]. Use this instead of pushing the screen
+/// directly. A guest first sees the "Sign in to continue" sheet; tapping
+/// Login / Sign up opens phone login, and the plans open only once they are
+/// signed in. "Keep browsing" or backing out of login opens nothing.
+///
+/// Everything it needs from [context] is read synchronously up front (the
+/// sheet and login run on the navigator's own context), so it is safe to call
+/// from a drawer or popup that closes right after.
+Future<void> openSubscriptionPlans(BuildContext context) async {
+  final container = ProviderScope.containerOf(context, listen: false);
+  final navigator = Navigator.of(context);
+
+  if (!container.read(isSignedInProvider)) {
+    // Sheet → phone login; the auth screens pop back here on success instead
+    // of `go(home)`, so the plans can open from where the user was.
+    await AuthGate.promptSignIn(
+      navigator.context,
+      reason: _kPlansSignInReason,
+      returnToOrigin: true,
+    );
+    if (!container.read(isSignedInProvider)) return; // declined or abandoned
+    if (!navigator.mounted) return;
+  }
+
+  navigator.push(
+    MaterialPageRoute<void>(builder: (_) => const SubscriptionPlanScreen()),
+  );
+}
+
 class SubscriptionPlanScreen extends ConsumerStatefulWidget {
   const SubscriptionPlanScreen({super.key});
 
@@ -47,7 +80,39 @@ class _SubscriptionPlanScreenState
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (ref.read(isSignedInProvider)) {
+        _refresh();
+      } else {
+        _requireSignIn();
+      }
+    });
+  }
+
+  /// Backup for routes that reach this screen without [openSubscriptionPlans]
+  /// (the router route / notification deep link): a guest gets the same
+  /// sign-in sheet, then phone login, and comes back here once signed in.
+  /// Declining or backing out of login closes the screen.
+  Future<void> _requireSignIn() async {
+    await AuthGate.promptSignIn(
+      context,
+      reason: _kPlansSignInReason,
+      returnToOrigin: true,
+    );
+    if (!mounted) return;
+
+    if (ref.read(isSignedInProvider)) {
+      _refresh();
+      return;
+    }
+
+    // Login abandoned — leave without ever showing the plans.
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+    } else {
+      context.go(RouteNames.home);
+    }
   }
 
   /// Reloads everything on this screen — wallet, plans, and the profile (the
@@ -86,6 +151,16 @@ class _SubscriptionPlanScreenState
           );
       ref.read(selectedSubscriptionPlanProvider.notifier).state = def.id;
     });
+
+    // Guest: nothing is shown while login runs on top of this screen.
+    if (!ref.watch(isSignedInProvider)) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFFAFBFC),
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primaryGreen),
+        ),
+      );
+    }
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,

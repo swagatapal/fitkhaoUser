@@ -266,12 +266,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               const SizedBox(height: AppSizes.spacing16),
               GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SubscriptionPlanScreen(),
-                  ),
-                ),
+                onTap: () => openSubscriptionPlans(context),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
@@ -327,10 +322,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildCompactPlanCard(SubscriptionPlan plan) {
     final f = plan.features;
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const SubscriptionPlanScreen()),
-      ),
+      onTap: () => openSubscriptionPlans(context),
       child: Container(
         padding: const EdgeInsets.all(AppSizes.spacing16),
         decoration: BoxDecoration(
@@ -506,11 +498,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           if (higherPlans.isNotEmpty) ...[
             const SizedBox(height: AppSizes.spacing16),
             GestureDetector(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const SubscriptionPlanScreen()),
-              ),
+              onTap: () => openSubscriptionPlans(context),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -721,11 +709,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               const SizedBox(width: AppSizes.spacing12),
               GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const SubscriptionPlanScreen()),
-                ),
+                onTap: () => openSubscriptionPlans(context),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSizes.spacing20,

@@ -152,9 +152,12 @@ class _AppMenuContentState extends ConsumerState<AppMenuContent>
         color: const Color(0xFF8B5CF6),
         label: 'Membership',
         subtitle: 'Plans & wallet balance',
-        onTap: () => ProfileMenuActions.open(
-            context, const SubscriptionPlanScreen(),
-            insideDrawer: true),
+        onTap: () {
+          // The helper reads everything it needs from `context` before its
+          // first await, so the drawer can start closing right after.
+          openSubscriptionPlans(context);
+          Scaffold.of(context).closeDrawer();
+        },
       ),
     ];
 

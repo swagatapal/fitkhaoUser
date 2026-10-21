@@ -49,13 +49,17 @@ class AuthGate {
   /// The flag is written through the [ProviderContainer] rather than [ref]
   /// itself: callers such as the drawer are disposed while the sheet is open,
   /// and reading a disposed ref throws before the phone screen is pushed.
+  ///
+  /// [returnToOrigin] asks for the same pop-back without a [ref] (e.g. from a
+  /// plain function); it defaults to `ref != null`.
   static Future<void> promptSignIn(
     BuildContext context, {
     required String reason,
     WidgetRef? ref,
+    bool? returnToOrigin,
   }) async {
     final container = ProviderScope.containerOf(context, listen: false);
-    final returnToOrigin = ref != null;
+    final popBackHere = returnToOrigin ?? ref != null;
 
     final wantsSignIn = await showModalBottomSheet<bool>(
       context: context,
@@ -68,13 +72,13 @@ class AuthGate {
 
     // Tells the auth screens to pop back here on success instead of doing
     // `go(home)`, which would destroy the stack this screen sits in.
-    if (returnToOrigin) {
+    if (popBackHere) {
       container.read(authReturnPendingProvider.notifier).state = true;
     }
     try {
       await context.push(RouteNames.phoneAuth);
     } finally {
-      if (returnToOrigin) {
+      if (popBackHere) {
         container.read(authReturnPendingProvider.notifier).state = false;
       }
     }
