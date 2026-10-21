@@ -10,6 +10,7 @@ import '../../../../core/auth/auth_gate.dart';
 import '../../../../core/providers/session_provider.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../models/subscription_plan_model.dart';
+import '../../models/wallet_balance_model.dart';
 import '../../providers/subscription_plan_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../widgets/cancel_subscription_sheet.dart';
@@ -46,15 +47,20 @@ class _SubscriptionPlanScreenState
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(walletProvider.notifier).loadWalletBalance();
-      ref.read(subscriptionPlanProvider.notifier).loadPlans();
-      // The renewal window comes from the profile API and can open while the
-      // app is running, so refresh it whenever this screen opens.
-      if (ref.read(isSignedInProvider)) {
-        ref.read(authProvider.notifier).loadProfile();
-      }
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+  }
+
+  /// Reloads everything on this screen — wallet, plans, and the profile (the
+  /// renewal window and grace period come from it and can change while the
+  /// app is running). Used on open and by pull-to-refresh.
+  Future<void> _refresh() async {
+    final signedIn = ref.read(isSignedInProvider);
+    await Future.wait([
+      // Wallet and profile are account-scoped; a guest has neither.
+      if (signedIn) ref.read(walletProvider.notifier).loadWalletBalance(),
+      ref.read(subscriptionPlanProvider.notifier).loadPlans(),
+      if (signedIn) ref.read(authProvider.notifier).loadProfile(),
+    ]);
   }
 
   @override
@@ -67,12 +73,10 @@ class _SubscriptionPlanScreenState
       if (ref.read(selectedSubscriptionPlanProvider) != null) return;
       final sub = ref.read(authProvider).activeSubscription;
       SubscriptionPlan? current;
-      if (sub != null && sub.canRenew) {
-        for (final p in next.plans) {
-          if (p.planCode == sub.planCode) {
-            current = p;
-            break;
-          }
+      for (final p in next.plans) {
+        if (_isRenewable(sub, p)) {
+          current = p;
+          break;
         }
       }
       final def = current ??
@@ -90,31 +94,39 @@ class _SubscriptionPlanScreenState
         bottomNavigationBar: const _SubscribeBar(),
         body: SafeArea(
           bottom: false,
-          child: CustomScrollView(
-            slivers: [
-              _buildHeader(),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSizes.screenPaddingHorizontal,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      SizedBox(height: AppSizes.spacing16),
-                      _WalletBar(),
-                      _UpcomingPlansButton(),
-                      SizedBox(height: AppSizes.spacing16),
-                      _ActivePlanBanner(),
-                      _PlansHeader(),
-                      SizedBox(height: AppSizes.spacing12),
-                      _PlansList(),
-                      SizedBox(height: AppSizes.spacing24),
-                    ],
+          child: RefreshIndicator(
+            color: AppColors.primaryGreen,
+            onRefresh: _refresh,
+            child: CustomScrollView(
+              // Always scrollable so the pull works even when the plans fit
+              // on one screen.
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                _buildHeader(),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSizes.screenPaddingHorizontal,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        SizedBox(height: AppSizes.spacing16),
+                        _WalletBar(),
+                        _UpcomingPlansButton(),
+                        SizedBox(height: AppSizes.spacing16),
+                        _ActivePlanBanner(),
+                        _GracePeriodBanner(),
+                        _PlansHeader(),
+                        SizedBox(height: AppSizes.spacing12),
+                        _PlansList(),
+                        SizedBox(height: AppSizes.spacing24),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -644,10 +656,7 @@ class _PlanCard extends ConsumerWidget {
     // Only the user's existing plan can be renewed, and only while the
     // backend reports its renewal window as open.
     final isRenewable = ref.watch(
-      authProvider.select((s) {
-        final sub = s.activeSubscription;
-        return sub != null && sub.canRenew && sub.planCode == plan.planCode;
-      }),
+      authProvider.select((s) => _isRenewable(s.activeSubscription, plan)),
     );
 
     return GestureDetector(
@@ -759,7 +768,8 @@ class _PlanCard extends ConsumerWidget {
             const SizedBox(height: AppSizes.spacing12),
             _CancelAnytimeToggle(planId: plan.id),
 
-            // ── Renew (existing plan only, while the window is open) ──
+            // ── Renew (existing plan only, while the window or the grace
+            //    period after the plan ends is open) ──
             if (isRenewable) ...[
               const SizedBox(height: AppSizes.spacing12),
               SizedBox(
@@ -774,14 +784,7 @@ class _PlanCard extends ConsumerWidget {
                   ),
                   icon: const Icon(Icons.autorenew_rounded,
                       size: AppSizes.icon18),
-                  label: Text(
-                    'Renew · ${plan.formattedPrice} / ${plan.planValidity}',
-                    style: const TextStyle(
-                      fontSize: AppTypography.fontSize14,
-                      fontWeight: AppTypography.bold,
-                      fontFamily: 'Lato',
-                    ),
-                  ),
+                  label: _RenewPriceLabel(plan: plan),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryGreen,
                     foregroundColor: Colors.white,
@@ -1024,6 +1027,139 @@ class _CurrentPlanBadge extends StatelessWidget {
           color: AppColors.primaryGreen,
           letterSpacing: 0.4,
           fontFamily: 'Lato',
+        ),
+      ),
+    );
+  }
+}
+
+/// True when [sub] can be renewed as [plan]: it must be the user's own plan,
+/// and either the backend reports the renewal window open, or the plan has
+/// ended and is still inside the plan's grace period (`renewal.gracePeriodDays`
+/// days after its end date).
+bool _isRenewable(SubscriptionInfo? sub, SubscriptionPlan plan) {
+  if (sub == null || sub.planCode != plan.planCode) return false;
+  return sub.canRenew || sub.isInGracePeriod(plan.gracePeriodDays);
+}
+
+/// "Renew · ~~₹3999~~ ₹2999 / 3 Days" — the regular renewal price struck
+/// through beside the discounted one, from `plan.renewal`. Without a renewal
+/// discount the plan's price is shown on its own.
+class _RenewPriceLabel extends StatelessWidget {
+  const _RenewPriceLabel({required this.plan});
+
+  final SubscriptionPlan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    const base = TextStyle(
+      fontSize: AppTypography.fontSize14,
+      fontWeight: AppTypography.bold,
+      color: Colors.white,
+      fontFamily: 'Lato',
+    );
+    final renewal = plan.renewal;
+    final discounted = renewal != null && renewal.hasDiscount;
+
+    return Text.rich(
+      TextSpan(
+        style: base,
+        children: [
+          const TextSpan(text: 'Renew · '),
+          if (discounted) ...[
+            TextSpan(
+              text: '₹${renewal.price.toStringAsFixed(0)}',
+              style: TextStyle(
+                fontWeight: AppTypography.regular,
+                color: Colors.white.withValues(alpha: 0.75),
+                decoration: TextDecoration.lineThrough,
+                decorationColor: Colors.white.withValues(alpha: 0.75),
+              ),
+            ),
+            const TextSpan(text: ' '),
+            TextSpan(text: '₹${renewal.discountPrice.toStringAsFixed(0)}'),
+          ] else
+            TextSpan(text: plan.formattedPrice),
+          TextSpan(text: ' / ${plan.planValidity}'),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+/// Shown when the user's plan has ended but its grace period is still running:
+/// tells them how long they have left to renew it.
+class _GracePeriodBanner extends ConsumerWidget {
+  const _GracePeriodBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sub = ref.watch(authProvider.select((s) => s.activeSubscription));
+    final plans = ref.watch(subscriptionPlanProvider.select((s) => s.plans));
+    if (sub == null) return const SizedBox.shrink();
+
+    SubscriptionPlan? plan;
+    for (final p in plans) {
+      if (p.planCode == sub.planCode) {
+        plan = p;
+        break;
+      }
+    }
+    if (plan == null || !sub.isInGracePeriod(plan.gracePeriodDays)) {
+      return const SizedBox.shrink();
+    }
+
+    final ended = convertMongoUtcToIstExceptTime(sub.endDate);
+    final renewBy = convertMongoUtcToIstExceptTime(
+        sub.graceEndsAt(plan.gracePeriodDays)?.toIso8601String());
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSizes.spacing16),
+      child: Container(
+        padding: const EdgeInsets.all(AppSizes.spacing12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF8E1),
+          borderRadius: BorderRadius.circular(AppSizes.radius8),
+          border: Border.all(
+              color: const Color(0xFFFFB300).withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.hourglass_bottom_rounded,
+                color: Color(0xFFC66301), size: AppSizes.icon20),
+            const SizedBox(width: AppSizes.spacing12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${sub.planName} ended'
+                    '${ended.isNotEmpty ? ' on $ended' : ''}',
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize14,
+                      fontWeight: AppTypography.bold,
+                      color: AppColors.textPrimary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    renewBy.isNotEmpty
+                        ? 'You can still renew it until $renewBy.'
+                        : 'You can still renew it for a few days.',
+                    style: const TextStyle(
+                      fontSize: AppTypography.fontSize12,
+                      color: AppColors.textSecondary,
+                      fontFamily: 'Lato',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

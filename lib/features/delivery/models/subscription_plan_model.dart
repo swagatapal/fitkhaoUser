@@ -124,6 +124,54 @@ class SubscriptionPlanData {
   }
 }
 
+/// A plan's renewal settings, from `plan.renewal`:
+///
+/// ```json
+/// { "price": 3999, "discountPrice": 2999, "consultationFee": 500,
+///   "otherFeeAmt": 0, "discountPercent": 25, "copyPreviousMealPlan": true,
+///   "copyPreviousMealPlanDays": 2, "renewalEligibleBeforeDays": 0,
+///   "gracePeriodDays": 10 }
+/// ```
+class PlanRenewal {
+  /// Regular price of a renewal.
+  final double price;
+
+  /// Discounted renewal price. 0 when renewing carries no discount.
+  final double discountPrice;
+  final int discountPercent;
+
+  /// How many days before the plan ends renewal opens.
+  final int renewalEligibleBeforeDays;
+
+  /// How many days after the plan ends renewal stays open.
+  final int gracePeriodDays;
+
+  const PlanRenewal({
+    this.price = 0,
+    this.discountPrice = 0,
+    this.discountPercent = 0,
+    this.renewalEligibleBeforeDays = 0,
+    this.gracePeriodDays = 0,
+  });
+
+  /// True when renewing is cheaper than the regular renewal price.
+  bool get hasDiscount => discountPrice > 0 && discountPrice < price;
+
+  /// What a renewal actually costs.
+  double get effectivePrice => hasDiscount ? discountPrice : price;
+
+  factory PlanRenewal.fromJson(Map<String, dynamic> json) {
+    return PlanRenewal(
+      price: (json['price'] as num?)?.toDouble() ?? 0,
+      discountPrice: (json['discountPrice'] as num?)?.toDouble() ?? 0,
+      discountPercent: (json['discountPercent'] as num?)?.toInt() ?? 0,
+      renewalEligibleBeforeDays:
+          (json['renewalEligibleBeforeDays'] as num?)?.toInt() ?? 0,
+      gracePeriodDays: (json['gracePeriodDays'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 /// Individual subscription plan
 class SubscriptionPlan {
   final String id;
@@ -143,6 +191,9 @@ class SubscriptionPlan {
   final PlanFeatures features;
   final PlanRules rules;
 
+  /// Renewal pricing + window, from `renewal`. Null when the plan has none.
+  final PlanRenewal? renewal;
+
   const SubscriptionPlan({
     required this.id,
     required this.planCode,
@@ -157,7 +208,11 @@ class SubscriptionPlan {
     required this.isActive,
     this.features = const PlanFeatures(),
     this.rules = const PlanRules(),
+    this.renewal,
   });
+
+  /// Days after the plan ends during which it can still be renewed.
+  int get gracePeriodDays => renewal?.gracePeriodDays ?? 0;
 
   /// Number of days as a string — used by SubscriptionCheckoutScreen
   String get planDays => durationInDays.toString();
@@ -208,6 +263,9 @@ class SubscriptionPlan {
       rules: json['rules'] != null
           ? PlanRules.fromJson(json['rules'] as Map<String, dynamic>)
           : const PlanRules(),
+      renewal: json['renewal'] is Map<String, dynamic>
+          ? PlanRenewal.fromJson(json['renewal'] as Map<String, dynamic>)
+          : null,
     );
   }
 

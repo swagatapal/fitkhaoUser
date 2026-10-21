@@ -173,6 +173,28 @@ class SubscriptionInfo {
   /// the backend reports as open.
   bool get canRenew => isActive && renewalWindowOpen;
 
+  /// When the plan ended (or ends), or null when [endDate] is missing.
+  DateTime? get endDateTime =>
+      endDate.isEmpty ? null : DateTime.tryParse(endDate)?.toUtc();
+
+  /// Last moment the plan can still be renewed after it ends: [endDate] plus
+  /// [graceDays]. Null when there is no end date or no grace period.
+  DateTime? graceEndsAt(int graceDays) {
+    final end = endDateTime;
+    if (end == null || graceDays <= 0) return null;
+    return end.add(Duration(days: graceDays));
+  }
+
+  /// True when the plan has already ended but is still inside its grace
+  /// period, so renewing it is allowed.
+  bool isInGracePeriod(int graceDays, {DateTime? now}) {
+    final end = endDateTime;
+    final graceEnd = graceEndsAt(graceDays);
+    if (end == null || graceEnd == null) return false;
+    final t = (now ?? DateTime.now()).toUtc();
+    return t.isAfter(end) && !t.isAfter(graceEnd);
+  }
+
   /// Get formatted price
   String get formattedPrice => '₹$planAmount';
 
