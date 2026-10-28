@@ -19,6 +19,7 @@ import 'address_list_screen.dart';
 import 'all_coupons_screen.dart';
 import 'edit_profile_screen.dart';
 import 'profile_menu_actions.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 
 /// Full-screen, polished version of the navigation menu.
 ///
@@ -526,10 +527,12 @@ class _ProfileFlexibleHeader extends StatelessWidget {
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
+        // Same size as the shared AppBackButton used across the app.
         child: SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(icon, color: Colors.white, size: AppSizes.icon20),
+          width: AppBackButton.size,
+          height: AppBackButton.size,
+          child: Icon(icon,
+              color: Colors.white, size: AppBackButton.iconSize),
         ),
       ),
     );

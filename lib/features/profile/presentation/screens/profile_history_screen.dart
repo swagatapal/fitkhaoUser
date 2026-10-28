@@ -9,6 +9,7 @@ import '../../provider/exercise_provider.dart';
 import '../../provider/profession_provider.dart';
 import '../../provider/profile_history_provider.dart';
 import '../../../auth/providers/auth_provider.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 
 class ProfileHistoryScreen extends ConsumerStatefulWidget {
   const ProfileHistoryScreen({super.key});
@@ -56,9 +57,10 @@ class _ProfileHistoryScreenState extends ConsumerState<ProfileHistoryScreen> {
           ),
         ),
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+        leadingWidth: 12 + AppBackButton.size + 4,
+        leading: const Padding(
+          padding: EdgeInsets.only(left: 12, right: 4),
+          child: Center(child: AppBackButton(onColor: true)),
         ),
       ),
       body: _buildBody(historyState, exerciseGroups, professionGroups),

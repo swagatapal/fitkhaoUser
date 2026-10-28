@@ -14,6 +14,7 @@ import '../../../../shared/widgets/primary_button.dart';
 import '../../../auth/models/auth_state.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../provider/upload_image_provider.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -736,20 +737,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
                   child: Row(
                     children: [
-                      Material(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        shape: const CircleBorder(),
-                        child: InkWell(
-                          customBorder: const CircleBorder(),
-                          onTap: () => context.pop(),
-                          child: const SizedBox(
-                            width: 40,
-                            height: 40,
-                            child: Icon(Icons.arrow_back_rounded,
-                                color: Colors.white,
-                                size: AppSizes.icon20),
-                          ),
-                        ),
+                      AppBackButton(
+                        onColor: true,
+                        onTap: () => context.pop(),
                       ),
                     ],
                   ),
