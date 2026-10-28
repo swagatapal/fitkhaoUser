@@ -23,6 +23,7 @@ import '../../providers/wallet_provider.dart';
 import '../../../profile/models/delivery_address_model.dart';
 import '../../../profile/presentation/screens/address_list_screen.dart';
 import '../../../profile/providers/delivery_address_provider.dart';
+import '../widgets/item_instructions_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -77,6 +78,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String _selectedPaymentMethod = 'wallet'; // 'wallet' | 'gateway'
   final TextEditingController _instructionsController = TextEditingController();
   bool _isProcessing = false;
+
+  /// Per-dish cooking notes from the instructions sheet, keyed by dish id and
+  /// sent as `items[].specialInstructions`. Kept so a retry pre-fills them.
+  final Map<String, String> _itemNotes = {};
 
   // Coupon state
   CouponModel? _appliedCoupon;
@@ -1301,7 +1306,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           height: AppSizes.buttonHeight,
           child: ElevatedButton(
             onPressed:
-                canPlace ? () => _placeOrder(cartItems, subTotal) : null,
+                canPlace ? () => _onConfirmOrder(cartItems, subTotal) : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryGreen,
               disabledBackgroundColor:
@@ -1336,6 +1341,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   // ─── Order Placement ──────────────────────────────────────────────────────
+
+  /// Confirm Order: first asks for optional cooking notes per item, then
+  /// places the order. Closing the sheet places nothing.
+  Future<void> _onConfirmOrder(List<CartItem> cartItems, double subTotal) async {
+    FocusScope.of(context).unfocus();
+    final notes = await showItemInstructionsSheet(
+      context,
+      cartItems: cartItems,
+      initial: _itemNotes,
+    );
+    if (notes == null || !mounted) return;
+
+    _itemNotes
+      ..clear()
+      ..addAll(notes);
+    await _placeOrder(cartItems, subTotal);
+  }
 
   /// Builds the common delivery payload, then branches:
   /// • wallet  → POST /api/orders/place directly
@@ -1388,8 +1410,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         deliveryInstructions: instructions.isNotEmpty ? instructions : null,
       );
 
+      // Each item carries its own note from the instructions sheet as
+      // `specialInstructions` (omitted from the JSON when blank).
       final orderItems = cartItems
-          .map((c) => OrderItem(dishId: c.menuItem.id, quantity: c.quantity, dishServing: 1))
+          .map((c) => OrderItem(
+                dishId: c.menuItem.id,
+                quantity: c.quantity,
+                dishServing: 1,
+                specialInstructions: _itemNotes[c.menuItem.id],
+              ))
           .toList();
 
       final couponIds = _appliedCoupon != null ? [_appliedCoupon!.id] : <String>[];
