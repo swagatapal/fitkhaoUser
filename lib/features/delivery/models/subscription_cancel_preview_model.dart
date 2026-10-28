@@ -30,7 +30,8 @@ class SubscriptionCancelPreviewResponse {
 /// fields directly on `data`; both parse, so a server on either version works.
 class SubscriptionCancelPreview {
   /// When true, the user chose "cancel anytime" → a money refund (wallet/bank).
-  /// When false, the refund is issued as ₹50 coupons for the unconsumed meals.
+  /// When false, the refund is issued as meal coupons (worth [couponValue]
+  /// each) for the unconsumed meals.
   final bool cancelAnytimeSelected;
 
   /// What the user originally paid, itemised.
@@ -45,6 +46,18 @@ class SubscriptionCancelPreview {
   final List<String> availableRefundMethods;
   final CancelPreviewSubscription? subscription;
 
+  /// Face value of one meal coupon (₹), from `couponValue`. Only meaningful
+  /// when the refund is issued as coupons (cancelAnytimeSelected == false).
+  final double couponValue;
+
+  /// Coupons issued, from `totalCoupons`. 0 when the API omits it — see
+  /// [couponCount] for the fallback.
+  final int totalCoupons;
+
+  /// Combined worth of the coupons, from `totalCouponValue`. 0 when omitted —
+  /// see [couponTotalValue].
+  final double totalCouponValue;
+
   const SubscriptionCancelPreview({
     this.cancelAnytimeSelected = true,
     this.payment = const CancelPaymentBreakdown(),
@@ -52,6 +65,9 @@ class SubscriptionCancelPreview {
     this.refund = const CancelRefundBreakdown(),
     this.availableRefundMethods = const [],
     this.subscription,
+    this.couponValue = 0,
+    this.totalCoupons = 0,
+    this.totalCouponValue = 0,
   });
 
   double get refundAmount => refund.refundAmount;
@@ -70,12 +86,18 @@ class SubscriptionCancelPreview {
       payment.totalPaid > 0 &&
       (payment.totalPaid - totalDeducted - refund.refundAmount).abs() < 1.0;
 
-  /// Number of unconsumed meals — one ₹50 coupon is issued per meal when the
-  /// refund is taken as coupons (cancelAnytimeSelected == false).
+  /// Number of unconsumed meals — one coupon of [couponValue] is issued per
+  /// meal when the refund is taken as coupons (cancelAnytimeSelected == false).
   int get remainingMeals => meals.unconsumedMeals;
 
-  /// Face value of a single meal coupon (₹).
-  static const double couponValue = 50;
+  /// How many coupons the user gets: `totalCoupons`, else one per unconsumed
+  /// meal.
+  int get couponCount => totalCoupons > 0 ? totalCoupons : remainingMeals;
+
+  /// What the coupons are worth together: `totalCouponValue`, else
+  /// [couponCount] × [couponValue].
+  double get couponTotalValue =>
+      totalCouponValue > 0 ? totalCouponValue : couponCount * couponValue;
 
   factory SubscriptionCancelPreview.fromJson(Map<String, dynamic> json) {
     final sub = json['subscription'];
@@ -97,6 +119,9 @@ class SubscriptionCancelPreview {
       subscription: sub is Map<String, dynamic>
           ? CancelPreviewSubscription.fromJson(sub)
           : null,
+      couponValue: (json['couponValue'] as num?)?.toDouble() ?? 0,
+      totalCoupons: (json['totalCoupons'] as num?)?.toInt() ?? 0,
+      totalCouponValue: (json['totalCouponValue'] as num?)?.toDouble() ?? 0,
     );
   }
 }

@@ -172,8 +172,9 @@ class _CancelSubscriptionSheetState
   }
 
   Widget _buildPreviewBody(SubscriptionCancelPreview p) {
-    // When "cancel anytime" wasn't selected, the refund is issued as ₹50 meal
-    // coupons instead of money — no refund destination is chosen.
+    // When "cancel anytime" wasn't selected, the refund is issued as meal
+    // coupons (value from the API) instead of money — no refund destination
+    // is chosen.
     final couponMode = !p.cancelAnytimeSelected;
     final methods = p.availableRefundMethods;
     // Resolve the effective selected method. In coupon mode the cancellation
@@ -324,13 +325,14 @@ class _CancelSubscriptionSheetState
             ],
           ),
 
-          // Refund destination — money refund, or ₹50 coupons when the user
+          // Refund destination — money refund, or meal coupons when the user
           // didn't opt into "cancel anytime".
           if (couponMode) ...[
             const SizedBox(height: AppSizes.spacing16),
             _CouponRefundCard(
-              couponCount: p.remainingMeals,
-              couponValue: SubscriptionCancelPreview.couponValue,
+              couponCount: p.couponCount,
+              couponValue: p.couponValue,
+              totalValue: p.couponTotalValue,
             ),
           ] else if (methods.isNotEmpty) ...[
             const SizedBox(height: AppSizes.spacing16),
@@ -527,19 +529,34 @@ class _BreakdownRow extends StatelessWidget {
 }
 
 /// Shown in place of the "Refund to" section when the refund is issued as
-/// ₹50 meal coupons (cancel-anytime not selected).
+/// meal coupons (cancel-anytime not selected). Count, per-coupon value and
+/// total all come from the cancel-preview API (`totalCoupons`, `couponValue`,
+/// `totalCouponValue`).
 class _CouponRefundCard extends StatelessWidget {
   const _CouponRefundCard({
     required this.couponCount,
     required this.couponValue,
+    required this.totalValue,
   });
 
   final int couponCount;
   final double couponValue;
+  final double totalValue;
 
   @override
   Widget build(BuildContext context) {
-    final total = couponCount * couponValue;
+    final String detail;
+    if (couponCount <= 0) {
+      detail = 'No unused meals left to convert into coupons';
+    } else if (couponValue > 0) {
+      detail = '$couponCount ${couponCount == 1 ? 'coupon' : 'coupons'} of '
+          '${_fmtMoney(couponValue)} each · worth ${_fmtMoney(totalValue)}';
+    } else {
+      // Value not sent — never show a made-up "₹0 each".
+      detail = '$couponCount ${couponCount == 1 ? 'coupon' : 'coupons'}'
+          '${totalValue > 0 ? ' · worth ${_fmtMoney(totalValue)}' : ''}';
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSizes.spacing16),
@@ -581,9 +598,7 @@ class _CouponRefundCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '$couponCount ${couponCount == 1 ? 'coupon' : 'coupons'} of '
-                  '${_fmtMoney(couponValue)} each'
-                  '${couponCount > 0 ? ' · worth ${_fmtMoney(total)}' : ''}',
+                  detail,
                   style: TextStyle(
                     fontSize: AppTypography.fontSize12,
                     color: AppColors.textSecondary.withValues(alpha: 0.9),
