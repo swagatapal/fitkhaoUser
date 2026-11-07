@@ -11,7 +11,11 @@
       "Bash(grep -n \"Text\\('\\\\|Text\\(\\\\\"\\\\|'[A-Z][a-z][^']\\\\{5,60\\\\}'\" features/delivery/models/referral_model.dart features/delivery/repository/referral_repository.dart)",
       "mcp__claude_ai_Claude_Docs__batch",
       "mcp__claude_ai_Claude_Docs__read",
-      "mcp__claude-vscode__getDiagnostics"
+      "mcp__claude-vscode__getDiagnostics",
+      "Bash(python3 -)",
+      "Bash(ls -d ~/flutter ~/development/flutter ~/fvm/default /opt/homebrew/Caskroom/flutter/*/flutter /usr/local/flutter ~/Documents/flutter ~/Downloads/flutter 2>/dev/null; cat /Users/devantitsolutions/Downloads/fitkhao_user/.dart_tool/package_config.json 2>/dev/null | grep -o '\"rootUri\": \"file://[^\"]*flutter/packages/flutter\"' | head -1)",
+      "Read(//Users/devantitsolutions/**)",
+      "Bash(\"/Users/devantitsolutions/development/flutter 3.47.5/bin/flutter\" analyze lib/features/delivery/presentation/widgets/home_plans_showcase.dart)"
     ]
   }
 }

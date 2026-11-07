@@ -31,6 +31,8 @@ import '../../../profile/providers/delivery_address_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../../models/wallet_balance_model.dart';
 import '../widgets/food_detail_popup.dart';
+import '../widgets/home_plans_showcase.dart';
+import '../../providers/subscription_plan_provider.dart';
 import '../widgets/location_view_sheet.dart';
 import 'checkout_screen.dart';
 import 'my_subscription_screen.dart';
@@ -88,6 +90,31 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 
   final bool _profileImageError = false;
 
+  /// True once the FitKhao Plus plans section has scrolled off screen. Only
+  /// then does the floating "Take Subscription" button appear, so the same
+  /// offer is never shown twice at once.
+  final ValueNotifier<bool> _plansScrolledAway = ValueNotifier(false);
+
+  /// Scroll offset past which the plans section is out of view.
+  static const double _plansOutOfViewOffset = 320;
+
+  /// Attached to the plan section so its real bottom edge can be measured —
+  /// the plan grid's height depends on how many plans there are.
+  final GlobalKey _planSectionKey = GlobalKey();
+
+  /// True when the plan section's bottom edge has scrolled above the screen.
+  /// Falls back to [_plansOutOfViewOffset] when the section isn't built.
+  bool _isPlanSectionScrolledAway(ScrollPosition position) {
+    final box =
+        _planSectionKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize || !box.attached) {
+      return position.pixels > _plansOutOfViewOffset;
+    }
+    final bottom = box.localToGlobal(Offset(0, box.size.height)).dy;
+    // A little below the top so the pinned filter bar counts as "covering".
+    return bottom < MediaQuery.of(context).padding.top + 80;
+  }
+
   /// IDs of categories that are currently collapsed in the "All" grouped view.
   final Set<String> _collapsedCategories = {};
 
@@ -104,6 +131,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   void dispose() {
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
+    _plansScrolledAway.dispose();
     _searchDebounce?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
@@ -145,6 +173,11 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final signedIn = ref.read(isSignedInProvider);
 
     unawaited(_loadKitchens());
+
+    // Plans are public and lead the home screen, so load them for everyone.
+    if (ref.read(subscriptionPlanProvider).plans.isEmpty) {
+      unawaited(ref.read(subscriptionPlanProvider.notifier).loadPlans());
+    }
 
     if (signedIn) {
       unawaited(_loadProfileData());
@@ -191,6 +224,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     await Future.wait([
       ref.read(allDishesProvider.notifier).silentRefresh(),
       _loadKitchens(),
+      ref.read(subscriptionPlanProvider.notifier).loadPlans(),
       // Account-scoped refreshes only apply to a signed-in user.
       if (signedIn) ref.read(cartProvider.notifier).loadCart(),
       if (signedIn) _resolveAddressAndEvaluate(),
@@ -230,6 +264,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   void _handleScroll() {
     if (!_scrollController.hasClients) return;
     final position = _scrollController.position;
+
+    _plansScrolledAway.value = _isPlanSectionScrolledAway(position);
 
     if (position.pixels < position.maxScrollExtent - 120) {
       return;
@@ -368,6 +404,11 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final search = ref.watch(dishSearchProvider);
     final isSearching = search.isActive;
 
+    // Home = plans + outlet food. The plan section on top adapts to the user
+    // (guest / prospect / renew / member — see HomePlanSection). Hidden while
+    // searching so results stay easy to scan.
+    final showPlanSection = !isSearching;
+
     // Entry-gate state: area serviceability + location / notification prompts.
     final gate = ref.watch(deliveryGateProvider);
 
@@ -379,6 +420,24 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     // leaves too few dishes to scroll, the scroll listener never fires, so
     // keep fetching until the list fills the screen or runs out of pages.
     ref.listen<AllDishesState>(allDishesProvider, (_, __) => _fillViewport());
+
+    // Starting a search collapses the plan section above the search bar, so
+    // bring the (now much shorter) page back to the top — search bar and
+    // results in view instead of scrolled past.
+    ref.listen<bool>(dishSearchProvider.select((s) => s.isActive),
+        (prev, next) {
+      if (prev == false && next) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _scrollController.hasClients) {
+            _scrollController.animateTo(
+              0,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+            );
+          }
+        });
+      }
+    });
 
     // When the saved address list changes (add / delete / set-default), re-run
     // selection resolution: keep the current pick if it survived, otherwise
@@ -472,8 +531,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                                 const SizedBox(height: AppSizes.spacing4),
                                 _buildCompactHeader(
                                     authState, displayAddress, unreadCount),
-                                const SizedBox(height: AppSizes.spacing8),
-                                _buildDishSearchBar(),
+                                // Search lives under "Order from our
+                                // kitchen" — it searches the outlet menu.
 
                                 //const _PromoSlider(),
                                 const SizedBox(height: AppSizes.spacing8),
@@ -489,6 +548,41 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                                   _buildNotificationInfo(),
                               ],
                             ),
+                          ),
+                        ),
+
+                        // ── Subscription half: plans / your plan / renew ────
+                        // Always in the sliver list (just collapsed while
+                        // searching) so the slivers below keep their place
+                        // and the search field never loses focus/keyboard.
+                        SliverToBoxAdapter(
+                          key: const ValueKey('home-plan-section'),
+                          child: showPlanSection
+                              ? HomePlanSection(
+                                  key: _planSectionKey,
+                                  onOpenMySubscription:
+                                      widget.onSwitchToSubscription,
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+
+                        // ── Outlet-food half: title + search ───────────────
+                        SliverToBoxAdapter(
+                          key: const ValueKey('home-menu-header'),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const HomeMenuSectionTitle(),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  AppSizes.screenPaddingHorizontal,
+                                  AppSizes.spacing8,
+                                  AppSizes.screenPaddingHorizontal,
+                                  0,
+                                ),
+                                child: _buildDishSearchBar(),
+                              ),
+                            ],
                           ),
                         ),
 
@@ -551,12 +645,34 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                             bottom: MediaQuery.of(context).size.height * 0.03 +
                                 (cartBarVisible ? 84 : 0),
                           ),
-                          child: hasActive
-                              ? _MySubscriptionFab(
-                                  sub: sub,
-                                  onSwitch: widget.onSwitchToSubscription,
-                                )
-                              : const _TakeSubscriptionFab(),
+                          // Shown only once the plan section is off screen
+                          // (or hidden by a search) — the section already
+                          // carries the same action, so it's never doubled.
+                          child: ValueListenableBuilder<bool>(
+                            valueListenable: _plansScrolledAway,
+                            builder: (_, scrolledAway, child) {
+                              final visible = scrolledAway || isSearching;
+                              return IgnorePointer(
+                                ignoring: !visible,
+                                child: AnimatedScale(
+                                  scale: visible ? 1 : 0.6,
+                                  duration: const Duration(milliseconds: 200),
+                                  child: AnimatedOpacity(
+                                    opacity: visible ? 1 : 0,
+                                    duration:
+                                        const Duration(milliseconds: 200),
+                                    child: child,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: hasActive
+                                ? _MySubscriptionFab(
+                                    sub: sub,
+                                    onSwitch: widget.onSwitchToSubscription,
+                                  )
+                                : const _TakeSubscriptionFab(),
+                          ),
                         ),
                       );
                     },
