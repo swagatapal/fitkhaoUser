@@ -429,40 +429,46 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: const Color(0xFFF4F6F4),
-        body: Stack(
+        body: Column(
           children: [
-            Column(
-              children: [
-                _isLoadingProfile
-                    ? Expanded(
-                        child: Column(
-                          children: [
-                            _buildHeaderOnly(),
-                            const Expanded(
-                              child: Center(
-                                child: CircularProgressIndicator(
-                                  color: AppColors.primaryGreen,
-                                ),
-                              ),
-                            ),
-                          ],
+            Expanded(
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                slivers: [
+                  // ── Sticky profile header (same as My Profile) ──
+                  SliverAppBar(
+                    pinned: true,
+                    expandedHeight: 100,
+                    backgroundColor: const Color(0xFF4A7C3E),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    scrolledUnderElevation: 4,
+                    shadowColor: Colors.black26,
+                    automaticallyImplyLeading: false,
+                    systemOverlayStyle: SystemUiOverlayStyle.light,
+                    flexibleSpace: Builder(
+                      builder: (headerContext) =>
+                          _buildFlexibleHeader(headerContext, authState),
+                    ),
+                  ),
+                  if (_isLoadingProfile)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primaryGreen,
                         ),
-                      )
-                    : Expanded(
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+                      sliver: SliverToBoxAdapter(
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildHeaderOnly(),
-                            Expanded(
-                              child: CustomScrollView(
-                                physics: const BouncingScrollPhysics(),
-                                slivers: [
-                                  SliverPadding(
-                                    padding:
-                                        const EdgeInsets.fromLTRB(16, 72, 16, 24),
-                                    sliver: SliverToBoxAdapter(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
                                 _sectionCard(
                                   icon: Icons.person_outline_rounded,
                                   title: 'Personal Information',
@@ -513,311 +519,236 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
                                   ],
                                 ),
-                                const SizedBox(height: 16),
-                                // _sectionCard(
-                                //   icon: Icons.location_on_outlined,
-                                //   title: 'Your Home Address',
-                                //   children: [
-                                //     _field(
-                                //       label:
-                                //           '${AppStrings.buildingNameNumber} *',
-                                //       child: _buildTextField(
-                                //         controller: _buildingController,
-                                //         focusNode: _buildingFocusNode,
-                                //         hint:
-                                //             AppStrings.buildingNameNumber,
-                                //         prefixIcon:
-                                //             Icons.apartment_rounded,
-                                //         inputFormatters: [
-                                //           FilteringTextInputFormatter
-                                //               .deny(
-                                //             RegExp(
-                                //               r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                //               r'\ud83c[\ud000-\udfff]|'
-                                //               r'\ud83d[\ud000-\udfff]|'
-                                //               r'\ud83e[\ud000-\udfff])',
-                                //             ),
-                                //           ),
-                                //         ],
-                                //         onChanged: (value) => setState(
-                                //             () =>
-                                //                 _building = value.trim()),
-                                //       ),
-                                //     ),
-                                //     const SizedBox(height: 16),
-                                //     Row(
-                                //       crossAxisAlignment:
-                                //           CrossAxisAlignment.start,
-                                //       children: [
-                                //         Expanded(
-                                //           child: _field(
-                                //             label:
-                                //                 '${AppStrings.floorNumber} *',
-                                //             child: _buildTextField(
-                                //               controller:
-                                //                   _floorController,
-                                //               focusNode: _floorFocusNode,
-                                //               hint:
-                                //                   AppStrings.floorNumber,
-                                //               prefixIcon:
-                                //                   Icons.stairs_outlined,
-                                //               keyboardType:
-                                //                   TextInputType.number,
-                                //               inputFormatters: [
-                                //                 FilteringTextInputFormatter
-                                //                     .digitsOnly,
-                                //               ],
-                                //               onChanged: (value) =>
-                                //                   setState(() => _floor =
-                                //                       value.trim()),
-                                //             ),
-                                //           ),
-                                //         ),
-                                //         const SizedBox(width: 12),
-                                //         Expanded(
-                                //           child: _field(
-                                //             label:
-                                //                 '${AppStrings.pincode} *',
-                                //             child: _buildTextField(
-                                //               controller:
-                                //                   _pincodeController,
-                                //               focusNode:
-                                //                   _pincodeFocusNode,
-                                //               hint: AppStrings.pincode,
-                                //               prefixIcon:
-                                //                   Icons.pin_drop_outlined,
-                                //               keyboardType:
-                                //                   TextInputType.number,
-                                //               inputFormatters: [
-                                //                 FilteringTextInputFormatter
-                                //                     .digitsOnly,
-                                //                 LengthLimitingTextInputFormatter(
-                                //                     6),
-                                //               ],
-                                //               onChanged: (value) =>
-                                //                   setState(() =>
-                                //                       _pincode =
-                                //                           value.trim()),
-                                //             ),
-                                //           ),
-                                //         ),
-                                //       ],
-                                //     ),
-                                //     const SizedBox(height: 16),
-                                //     _field(
-                                //       label: '${AppStrings.street} *',
-                                //       child: _buildTextField(
-                                //         controller: _streetController,
-                                //         focusNode: _streetFocusNode,
-                                //         hint: AppStrings.street,
-                                //         prefixIcon:
-                                //             Icons.signpost_outlined,
-                                //         inputFormatters: [
-                                //           FilteringTextInputFormatter
-                                //               .deny(
-                                //             RegExp(
-                                //               r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                //               r'\ud83c[\ud000-\udfff]|'
-                                //               r'\ud83d[\ud000-\udfff]|'
-                                //               r'\ud83e[\ud000-\udfff])',
-                                //             ),
-                                //           ),
-                                //         ],
-                                //         onChanged: (value) => setState(
-                                //             () => _street = value.trim()),
-                                //       ),
-                                //     ),
-                                //     const SizedBox(height: 16),
-                                //     _field(
-                                //       label: '${AppStrings.landmark} *',
-                                //       helper: AppStrings
-                                //           .putYourDetailedAddress,
-                                //       child: _buildTextField(
-                                //         controller: _landmarkController,
-                                //         focusNode: _landmarkFocusNode,
-                                //         hint: AppStrings.landmark,
-                                //         prefixIcon: Icons.place_outlined,
-                                //         inputFormatters: [
-                                //           FilteringTextInputFormatter
-                                //               .deny(
-                                //             RegExp(
-                                //               r'(\u00a9|\u00ae|[\u2000-\u3300]|'
-                                //               r'\ud83c[\ud000-\udfff]|'
-                                //               r'\ud83d[\ud000-\udfff]|'
-                                //               r'\ud83e[\ud000-\udfff])',
-                                //             ),
-                                //           ),
-                                //         ],
-                                //         onChanged: (value) => setState(
-                                //             () =>
-                                //                 _landmark = value.trim()),
-                                //       ),
-                                //     ),
-                                //     const SizedBox(height: 16),
-                                //     _buildMapLocationIndicator(),
-                                //     const SizedBox(height: 12),
-                                //     PrimaryButton(
-                                //       height: context.inputHeight,
-                                //       text: AppStrings.locateOnMap,
-                                //       onPressed: !_isNavigatingToMap &&
-                                //               !_isSavingProfile
-                                //           ? _handleLocateOnMap
-                                //           : null,
-                                //       textColor: AppColors.textWhite,
-                                //       backgroundColor:
-                                //           const Color(0xFF5D9E40),
-                                //       borderRadius: AppSizes.radius8,
-                                //       isLoading: _isNavigatingToMap,
-                                //     ),
-                                //   ],
-                                // ),
-                              ],
-                            ),
-                          ),
+                          ],
                         ),
-                        SliverPadding(
-                          padding: const EdgeInsets.only(bottom: 80),
-                          sliver: SliverToBoxAdapter(child: Container()),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
                 ],
               ),
-              ),
-                if (!_isLoadingProfile) _buildBottomSaveBar(authState),
-              ],
             ),
-            if (!_isLoadingProfile)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: _buildAvatarOverlay(),
-              ),
+            if (!_isLoadingProfile) _buildBottomSaveBar(authState),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeaderOnly() {
-    final headerHeight = MediaQuery.of(context).size.height * 0.1;
+  // ─── Collapsible sticky header (mirrors ProfileMenuScreen) ─────────────────
+  //
+  // Reads the collapse progress from [FlexibleSpaceBarSettings] and cross-fades
+  // the expanded hero (avatar with camera badge + name + phone) into a compact
+  // bar (small avatar + name). The back button stays visible in both states.
 
-    return SizedBox(
-      height: headerHeight,
-      child: ClipRRect(
-        borderRadius:
-            const BorderRadius.vertical(bottom: Radius.circular(28)),
-        child: Container(
-          height: headerHeight,
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF5D9E40), Color(0xFF4A7D33)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+  Widget _buildFlexibleHeader(BuildContext context, AuthState authState) {
+    final name = _name.trim().isNotEmpty
+        ? _name.trim()
+        : (authState.name.isNotEmpty ? authState.name : 'FitKhao User');
+    final phoneLabel =
+        '${authState.countryCode} ${authState.phoneNumber}'.trim();
+    final topInset = MediaQuery.of(context).padding.top;
+
+    // Collapse progress: 0 = fully expanded, 1 = fully collapsed.
+    final settings =
+        context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
+    double t = 0;
+    if (settings != null) {
+      final delta = settings.maxExtent - settings.minExtent;
+      if (delta > 0) {
+        t = (1 - (settings.currentExtent - settings.minExtent) / delta)
+            .clamp(0.0, 1.0);
+      }
+    }
+    final expandedOpacity = (1 - t * 1.6).clamp(0.0, 1.0);
+    final compactOpacity = ((t - 0.55) / 0.45).clamp(0.0, 1.0);
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF4A7C3E), Color(0xFF6BA84F)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        clipBehavior: Clip.hardEdge,
+        children: [
+          // Decorative translucent circles
+          Positioned(top: -30, right: -20, child: _circle(120, 0.08)),
+          Positioned(bottom: -25, left: -25, child: _circle(90, 0.06)),
+
+          // Expanded hero — anchored to the bottom, fades out while collapsing.
+          Positioned(
+            left: AppSizes.spacing20 + AppSizes.spacing20 + AppSizes.spacing20,
+            right: AppSizes.spacing20,
+            bottom: AppSizes.spacing20,
+            child: Opacity(
+              opacity: expandedOpacity,
+              child: IgnorePointer(
+                ignoring: expandedOpacity < 0.5,
+                child: Row(
+                  children: [
+                    _buildAvatar(36, showCamera: true),
+                    const SizedBox(width: AppSizes.spacing16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: AppTypography.fontSize20,
+                              fontWeight: AppTypography.bold,
+                              color: Colors.white,
+                              fontFamily: 'Lato',
+                            ),
+                          ),
+                          if (phoneLabel.isNotEmpty) ...[
+                            const SizedBox(height: AppSizes.spacing4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.phone_outlined,
+                                  size: AppSizes.icon14,
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                ),
+                                const SizedBox(width: AppSizes.spacing4),
+                                Text(
+                                  phoneLabel,
+                                  style: TextStyle(
+                                    fontSize: AppTypography.fontSize13,
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontFamily: 'Lato',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Opacity(
-                opacity: 0.18,
-                child: Image.asset(
-                  'assets/images/header_bg.png',
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Positioned(top: -24, right: -16, child: _circle(110, 0.08)),
-              Positioned(bottom: 10, left: -20, child: _circle(70, 0.06)),
-              SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
-                  child: Row(
-                    children: [
-                      AppBackButton(
-                        onColor: true,
-                        onTap: () => context.pop(),
-                      ),
-                    ],
+
+          // Top action row (persistent) + compact identity (fades in collapsed).
+          Positioned(
+            top: topInset + 6,
+            left: AppSizes.spacing12,
+            right: AppSizes.spacing12,
+            child: SizedBox(
+              height: 44,
+              child: Row(
+                children: [
+                  AppBackButton(
+                    onColor: true,
+                    onTap: () => context.pop(),
                   ),
-                ),
+                  Expanded(
+                    child: Opacity(
+                      opacity: compactOpacity,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.spacing12,
+                        ),
+                        child: Row(
+                          children: [
+                            _buildAvatar(20, showCamera: false),
+                            const SizedBox(width: AppSizes.spacing8),
+                            Expanded(
+                              child: Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: AppTypography.fontSize18,
+                                  fontWeight: AppTypography.bold,
+                                  color: Colors.white,
+                                  fontFamily: 'Lato',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildAvatarOverlay() {
-    final headerHeight = MediaQuery.of(context).size.height * 0.1;
-    const avatarRadius = 52.0;
-
-    return Padding(
-      padding: EdgeInsets.only(top: headerHeight - avatarRadius),
-      child: Center(child: _buildAvatar(avatarRadius)),
-    );
-  }
-
-
-  Widget _buildAvatar(double radius) {
+  /// Profile photo in the header's style (white ring), with an optional
+  /// camera badge that opens the image picker.
+  Widget _buildAvatar(double radius, {required bool showCamera}) {
     final hasFile = _profileImage != null;
     final hasUrl = _uploadedImageUrl != null && _uploadedImageUrl!.isNotEmpty;
+    final name = _name.trim();
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: CircleAvatar(
-            radius: radius,
-            backgroundColor: AppColors.primaryGreen.withValues(alpha: 0.12),
-            backgroundImage: hasFile
-                ? FileImage(_profileImage!)
-                : hasUrl
-                    ? NetworkImage(_uploadedImageUrl!) as ImageProvider
-                    : null,
-            child: (!hasFile && !hasUrl)
-                ? Icon(Icons.person_rounded,
-                    size: radius, color: AppColors.primaryGreen)
+    final avatar = Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: 0.25),
+      ),
+      child: CircleAvatar(
+        radius: radius,
+        backgroundColor: Colors.white,
+        backgroundImage: hasFile
+            ? FileImage(_profileImage!)
+            : hasUrl
+                ? NetworkImage(_uploadedImageUrl!) as ImageProvider
                 : null,
-          ),
-        ),
-        Positioned(
-          bottom: 0,
-          right: 0,
-          child: GestureDetector(
-            onTap: _pickImage,
+        child: (!hasFile && !hasUrl)
+            ? Text(
+                initial,
+                style: TextStyle(
+                  fontSize: radius * 0.8,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryGreen,
+                  fontFamily: 'Lato',
+                ),
+              )
+            : null,
+      ),
+    );
+
+    if (!showCamera) return avatar;
+
+    return GestureDetector(
+      onTap: _pickImage,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          avatar,
+          Positioned(
+            bottom: -2,
+            right: -2,
             child: Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: AppColors.primaryGreen,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2.5),
+                border: Border.all(color: Colors.white, width: 2),
               ),
               child: const Icon(
                 Icons.camera_alt_rounded,
                 color: Colors.white,
-                size: AppSizes.icon16,
+                size: 12,
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
