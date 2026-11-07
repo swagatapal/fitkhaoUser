@@ -407,7 +407,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     // Home = plans + outlet food. The plan section on top adapts to the user
     // (guest / prospect / renew / member — see HomePlanSection). Hidden while
     // searching so results stay easy to scan.
-    final showPlanSection = !isSearching;
+    // Outlet closed → the whole "Order from our kitchen" half (title, search,
+    // filters, dishes) is hidden; the closed banner up top explains why.
+    // A search left open from before the kitchen closed no longer counts, so
+    // it can't keep the plans hidden either.
+    final searchingMenu = isSearching && kitchenOpen;
+    final showPlanSection = !searchingMenu;
 
     // Entry-gate state: area serviceability + location / notification prompts.
     final gate = ref.watch(deliveryGateProvider);
@@ -477,10 +482,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     // PASSIVE → otherwise                         → grayscale, view-only.
     final isOrderingActive = kitchenOpen && !areaBlocked;
 
-    final closedReason =
-        ref.watch(kitchenProvider.select((s) => s.kitchenClosedReason)) ??
-            'The outlet is currently closed';
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -538,9 +539,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                                 const SizedBox(height: AppSizes.spacing8),
                                 // Area not serviceable → blocks ordering.
                                 if (areaBlocked) _buildNotServiceableBanner(),
-                                // Kitchen closed (independent of area).
-                                if (!kitchenOpen)
-                                  _buildPassiveBanner(closedReason),
+                                // Kitchen closed: no banner — the kitchen
+                                // menu section is simply hidden (below).
                                 // Location permission missing (food stays enabled).
                                 if (gate.showLocationInfo) _buildLocationInfo(),
                                 // Notifications off — soft nudge.
@@ -567,6 +567,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         ),
 
                         // ── Outlet-food half: title + search ───────────────
+                        // Only while the kitchen is open.
+                        if (kitchenOpen) ...[
                         SliverToBoxAdapter(
                           key: const ValueKey('home-menu-header'),
                           child: Column(
@@ -607,6 +609,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                                 : _buildDishList(dishState, isOrderingActive),
                           ),
                         ),
+                        ],
 
                         // ── Bottom spacer (reserves room for the cart bar) ──
                         SliverToBoxAdapter(
@@ -651,7 +654,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                           child: ValueListenableBuilder<bool>(
                             valueListenable: _plansScrolledAway,
                             builder: (_, scrolledAway, child) {
-                              final visible = scrolledAway || isSearching;
+                              final visible = scrolledAway || searchingMenu;
                               return IgnorePointer(
                                 ignoring: !visible,
                                 child: AnimatedScale(
@@ -706,58 +709,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   }
 
   // ── Passive banner ──────────────────────────────────────────────────────────
-
-  Widget _buildPassiveBanner(String reason) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.spacing12,
-        vertical: AppSizes.spacing10,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E1),
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-        border:
-            Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSizes.spacing6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFB300).withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.lock_clock_rounded,
-              color: Color(0xFFC66301),
-              size: AppSizes.icon16,
-            ),
-          ),
-          const SizedBox(width: AppSizes.spacing10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Outlet Closed',
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize13,
-                    fontWeight: AppTypography.bold,
-                    color: Color(0xFFC66301),
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Not-serviceable banner ───────────────────────────────────────────────────
 
   Widget _buildNotServiceableBanner() {
     final zone = ref.watch(deliveryGateProvider.select((s) => s.zoneName));
