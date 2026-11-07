@@ -8,6 +8,7 @@ import '../../../../core/constants/app_typography.dart';
 import '../../../../core/utils/time_converter.dart';
 import '../../../../core/auth/auth_gate.dart';
 import '../../../../core/providers/session_provider.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../models/subscription_plan_model.dart';
 import '../../models/wallet_balance_model.dart';
@@ -114,6 +115,16 @@ class _SubscriptionPlanScreenState
     });
   }
 
+  /// Back: pop when there is a screen underneath; otherwise (reached via a
+  /// route that replaced the stack) go home instead of a silent no-op pop.
+  void _goBack() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go(RouteNames.home);
+    }
+  }
+
   /// Reloads everything on this screen — wallet, plans, and the profile (the
   /// renewal window and grace period come from it and can change while the
   /// app is running). Used on open and by pull-to-refresh.
@@ -159,7 +170,15 @@ class _SubscriptionPlanScreenState
       if (prev == false && next) _refresh();
     });
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
+    // System back too: with nothing underneath, go home rather than exit.
+    final canPop = Navigator.of(context).canPop();
+
+    return PopScope(
+      canPop: canPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) context.go(RouteNames.home);
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: const Color(0xFFFAFBFC),
@@ -209,6 +228,7 @@ class _SubscriptionPlanScreenState
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -231,7 +251,7 @@ class _SubscriptionPlanScreenState
         child: Row(
           children: [
             GestureDetector(
-              onTap: () => context.pop(),
+              onTap: _goBack,
               child: Container(
                 padding: const EdgeInsets.all(AppSizes.spacing8),
                 decoration: BoxDecoration(
