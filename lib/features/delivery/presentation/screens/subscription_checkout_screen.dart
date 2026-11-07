@@ -12,6 +12,7 @@ import '../../../auth/providers/auth_provider.dart';
 import '../../models/coupon_model.dart';
 import '../../models/referral_model.dart';
 import '../../models/subscription_pricing_preview_model.dart';
+import '../../providers/subscription_plan_provider.dart';
 import '../../providers/subscription_pricing_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../widgets/subscription_benefits.dart';
@@ -41,6 +42,18 @@ class SubscriptionCheckoutScreen extends ConsumerStatefulWidget {
 class _SubscriptionCheckoutScreenState
     extends ConsumerState<SubscriptionCheckoutScreen> {
   bool _isProcessing = false;
+
+  /// "Cancel anytime" for this purchase. Starts from the plan screen's choice
+  /// but can be switched here too — a reminder for anyone who skipped it.
+  /// Every price, the wallet purchase and the Razorpay order use this value.
+  late bool _cancelAnytime = widget.cancelAnytimeSelected;
+
+  void _setCancelAnytime(bool value) {
+    if (value == _cancelAnytime) return;
+    setState(() => _cancelAnytime = value);
+    // Keep the plan screen's switch in step for when the user goes back.
+    ref.read(cancelAnytimeProvider(widget.planId).notifier).state = value;
+  }
 
   /// User-chosen payment method ('wallet' | 'online'), or null to use the
   /// smart default (wallet when the balance covers the total, else online).
@@ -121,7 +134,7 @@ class _SubscriptionCheckoutScreenState
 
   PricingPreviewArgs get _args => pricingPreviewArgs(
         planId: widget.planId,
-        cancelAnytimeSelected: widget.cancelAnytimeSelected,
+        cancelAnytimeSelected: _cancelAnytime,
         couponIds: _couponIds,
         referralCode: _referralCode,
       );
@@ -230,7 +243,7 @@ class _SubscriptionCheckoutScreenState
       final repo = ref.read(subscriptionRepositoryProvider);
       final res = await repo.createSubscription(
         planId: widget.planId,
-        cancelAnytimeSelected: widget.cancelAnytimeSelected,
+        cancelAnytimeSelected: _cancelAnytime,
         couponIds: _couponIds,
         referralCode: _referralCode,
         consulterId: _consulterId,
@@ -387,7 +400,7 @@ class _SubscriptionCheckoutScreenState
       final orderRepo = ref.read(orderRepositoryProvider);
       final createResponse = await orderRepo.createRazorpaySubscriptionOrder(
         planId: widget.planId,
-        cancelAnytimeSelected: widget.cancelAnytimeSelected,
+        cancelAnytimeSelected: _cancelAnytime,
         couponIds: _couponIds,
         referralCode: _referralCode,
         consulterId: _consulterId,
@@ -705,6 +718,8 @@ class _SubscriptionCheckoutScreenState
                 const SizedBox(height: AppSizes.spacing20),
                 _buildReferralSection(),
                 const SizedBox(height: AppSizes.spacing20),
+                _buildCancelAnytimeOption(preview),
+                const SizedBox(height: AppSizes.spacing20),
                 _buildPaymentSummary(preview),
                 const SizedBox(height: AppSizes.spacing20),
                 _buildPaymentMethod(preview),
@@ -783,6 +798,173 @@ class _SubscriptionCheckoutScreenState
   }
 
   // ─── Plan header card ───────────────────────────────────────────────────────
+
+  // ─── Cancel-anytime option / reminder ──────────────────────────────────────
+
+  /// Lets the user add (or drop) "Cancel anytime" right here. When it's off,
+  /// the card is a reminder: it spells out what the add-on gets them versus
+  /// cancelling without it. Toggling re-prices the order from the server.
+  Widget _buildCancelAnytimeOption(SubscriptionPricingPreview preview) {
+    final on = _cancelAnytime;
+    final fee = preview.pricing.cancelAnytimeFee > 0
+        ? preview.pricing.cancelAnytimeFee
+        : preview.cancelAnytimeFee;
+    final couponAmount = preview.plan.features.cancelCouponAmount > 0
+        ? preview.plan.features.cancelCouponAmount
+        : 50;
+    final accent = on ? AppColors.primaryGreen : kSubscriptionAccent;
+
+    final benefits = <(IconData, String)>[
+      (Icons.event_busy_rounded, 'Cancel your plan whenever you want'),
+      (
+        Icons.account_balance_wallet_rounded,
+        'Get money back for unused meals — not just coupons'
+      ),
+      (
+        Icons.verified_user_rounded,
+        'Peace of mind if your schedule or plans change'
+      ),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSizes.spacing16),
+      decoration: BoxDecoration(
+        color: on
+            ? AppColors.primaryGreen.withValues(alpha: 0.06)
+            : const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(AppSizes.radius12),
+        border: Border.all(color: accent.withValues(alpha: on ? 0.4 : 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSizes.spacing8),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  on ? Icons.check_circle_rounded : Icons.lightbulb_rounded,
+                  color: accent,
+                  size: AppSizes.icon20,
+                ),
+              ),
+              const SizedBox(width: AppSizes.spacing12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      on
+                          ? 'Cancel anytime added'
+                          : 'Forgot to add Cancel anytime?',
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize15,
+                        fontWeight: AppTypography.bold,
+                        color: AppColors.textPrimary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      fee > 0
+                          ? 'Just ${_money(fee)} extra — protect your plan'
+                          : 'Small one-time fee — protect your plan',
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        color: AppColors.textSecondary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                value: on,
+                activeThumbColor: AppColors.primaryGreen,
+                onChanged: _isProcessing ? null : _setCancelAnytime,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSizes.spacing12),
+          for (final (icon, label) in benefits)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSizes.spacing6),
+              child: Row(
+                children: [
+                  Icon(icon, size: 16, color: accent),
+                  const SizedBox(width: AppSizes.spacing8),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: AppTypography.fontSize13,
+                        color: AppColors.textPrimary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (!on) ...[
+            const SizedBox(height: AppSizes.spacing6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSizes.spacing10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppSizes.radius8),
+              ),
+              child: Text(
+                'Without it, this plan is non-refundable — unused meals '
+                'become ₹$couponAmount outlet coupons each, not money back.',
+                style: const TextStyle(
+                  fontSize: AppTypography.fontSize12,
+                  color: AppColors.textSecondary,
+                  height: 1.35,
+                  fontFamily: 'Lato',
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSizes.spacing12),
+            SizedBox(
+              width: double.infinity,
+              height: AppSizes.buttonHeightSmall,
+              child: ElevatedButton.icon(
+                onPressed:
+                    _isProcessing ? null : () => _setCancelAnytime(true),
+                icon: const Icon(Icons.add_rounded, size: AppSizes.icon18),
+                label: Text(
+                  fee > 0
+                      ? 'Add Cancel anytime · ${_money(fee)}'
+                      : 'Add Cancel anytime',
+                  style: const TextStyle(
+                    fontSize: AppTypography.fontSize14,
+                    fontWeight: AppTypography.bold,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   Widget _buildPlanHeaderCard(SubscriptionPricingPreview preview) {
     final plan = preview.plan;
