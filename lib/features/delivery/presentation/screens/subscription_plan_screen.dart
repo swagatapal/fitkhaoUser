@@ -148,7 +148,7 @@ class _SubscriptionPlanScreenState
       // First arrival of plans (cold start) → their cards now exist.
       if (prev == null || prev.plans.isEmpty) _scrollToRequestedPlan();
       if (ref.read(selectedSubscriptionPlanProvider) != null) return;
-      final sub = ref.read(authProvider).activeSubscription;
+      final sub = ref.read(authProvider).renewalSubscription;
       SubscriptionPlan? current;
       for (final p in next.plans) {
         if (_isRenewable(sub, p)) {
@@ -626,7 +626,10 @@ class _ActivePlanBanner extends ConsumerWidget {
     );
     if (sub == null) return const SizedBox.shrink();
     final canRenew = ref.watch(
-      authProvider.select((s) => s.activeSubscription?.canRenew ?? false),
+      authProvider.select((s) {
+        final a = s.activeSubscription;
+        return a != null && a.isActive && a.canRenewNow();
+      }),
     );
 
     return Padding(
@@ -850,7 +853,7 @@ class _PlanCard extends ConsumerWidget {
     // Only the user's existing plan can be renewed, and only while the
     // backend reports its renewal window as open.
     final isRenewable = ref.watch(
-      authProvider.select((s) => _isRenewable(s.activeSubscription, plan)),
+      authProvider.select((s) => _isRenewable(s.renewalSubscription, plan)),
     );
 
     return GestureDetector(
@@ -1227,13 +1230,17 @@ class _CurrentPlanBadge extends StatelessWidget {
   }
 }
 
-/// True when [sub] can be renewed as [plan]: it must be the user's own plan,
-/// and either the backend reports the renewal window open, or the plan has
-/// ended and is still inside the plan's grace period (`renewal.gracePeriodDays`
-/// days after its end date).
+/// True when [sub] can be renewed as [plan].
+///
+/// [sub] is `AuthState.renewalSubscription` — the live plan, or, when
+/// `activeSubscription` is null, the profile's `lastExpiredSubscription`. It
+/// must be the same plan as the card, and [SubscriptionInfo.canRenewNow] must
+/// hold: backend `renewalWindowOpen` and now inside the renewal window
+/// (`renewalWindowOpensAt`…`renewalWindowClosesAt`, or `endDate +
+/// gracePeriodDays` for an ended plan, falling back to the plan's grace days).
 bool _isRenewable(SubscriptionInfo? sub, SubscriptionPlan plan) {
   if (sub == null || sub.planCode != plan.planCode) return false;
-  return sub.canRenew || sub.isInGracePeriod(plan.gracePeriodDays);
+  return sub.canRenewNow(fallbackGraceDays: plan.gracePeriodDays);
 }
 
 /// "Renew · ~~₹3999~~ ₹2999 / 3 Days" — the regular renewal price struck
@@ -1290,9 +1297,10 @@ class _GracePeriodBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sub = ref.watch(authProvider.select((s) => s.activeSubscription));
+    // Only for an ended plan (live plans use the active banner instead).
+    final sub = ref.watch(authProvider.select((s) => s.renewalSubscription));
     final plans = ref.watch(subscriptionPlanProvider.select((s) => s.plans));
-    if (sub == null) return const SizedBox.shrink();
+    if (sub == null || sub.isActive) return const SizedBox.shrink();
 
     SubscriptionPlan? plan;
     for (final p in plans) {
@@ -1301,13 +1309,15 @@ class _GracePeriodBanner extends ConsumerWidget {
         break;
       }
     }
-    if (plan == null || !sub.isInGracePeriod(plan.gracePeriodDays)) {
+    if (plan == null ||
+        !sub.canRenewNow(fallbackGraceDays: plan.gracePeriodDays)) {
       return const SizedBox.shrink();
     }
 
     final ended = convertMongoUtcToIstExceptTime(sub.endDate);
-    final renewBy = convertMongoUtcToIstExceptTime(
-        sub.graceEndsAt(plan.gracePeriodDays)?.toIso8601String());
+    final renewBy = convertMongoUtcToIstExceptTime(sub
+        .renewalDeadline(fallbackGraceDays: plan.gracePeriodDays)
+        ?.toIso8601String());
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSizes.spacing16),
@@ -1396,7 +1406,10 @@ class _SubscribeBar extends ConsumerWidget {
     // Renewal window is reported by the profile API; while it is open an
     // active subscriber may buy the next term instead of being blocked.
     final canRenew = ref.watch(
-      authProvider.select((s) => s.activeSubscription?.canRenew ?? false),
+      authProvider.select((s) {
+        final a = s.activeSubscription;
+        return a != null && a.isActive && a.canRenewNow();
+      }),
     );
     final selectedId = ref.watch(selectedSubscriptionPlanProvider);
     final plans = ref.watch(subscriptionPlanProvider.select((s) => s.plans));

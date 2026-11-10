@@ -836,7 +836,9 @@ class HomePlanSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final signedIn = ref.watch(isSignedInProvider);
-    final sub = ref.watch(authProvider.select((s) => s.activeSubscription));
+    // Live plan, or — when activeSubscription is null — the profile's
+    // lastExpiredSubscription (drives the renew card in its grace period).
+    final sub = ref.watch(authProvider.select((s) => s.renewalSubscription));
     final plans = ref.watch(subscriptionPlanProvider.select((s) => s.plans));
 
     // The plan the user had / has, when it is in the catalogue.
@@ -857,7 +859,7 @@ class HomePlanSection extends ConsumerWidget {
       mode = _PlanSectionMode.member;
     } else if (sub != null &&
         ownPlan != null &&
-        sub.isInGracePeriod(ownPlan.gracePeriodDays)) {
+        sub.canRenewNow(fallbackGraceDays: ownPlan.gracePeriodDays)) {
       mode = _PlanSectionMode.renew;
     } else {
       mode = _PlanSectionMode.prospect;
@@ -1015,7 +1017,8 @@ class _MemberPlanCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final outletOff = sub.outletFoodDiscountPercent;
     final days = sub.remainingDays;
-    final canRenew = sub.canRenew && plan != null;
+    final canRenew = plan != null &&
+        sub.canRenewNow(fallbackGraceDays: plan!.gracePeriodDays);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -1136,7 +1139,8 @@ class _RenewPlanCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final renewal = plan.renewal;
     final renewBy = convertMongoUtcToIstExceptTime(
-        sub.graceEndsAt(plan.gracePeriodDays)?.toIso8601String());
+        sub.renewalDeadline(fallbackGraceDays: plan.gracePeriodDays)
+            ?.toIso8601String());
     final discounted = renewal != null && renewal.hasDiscount;
 
     return Padding(
