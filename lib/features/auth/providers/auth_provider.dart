@@ -116,7 +116,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = state.copyWith(
           isLoading: false,
           errorMessage: null,
-          receivedOtpMessage: response.message+response.otpId.toString(),
+          receivedOtpMessage: response.message,
           // for dev
           //+response.otpId.toString()
         );
@@ -537,11 +537,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
           }
         }
 
+        // Most recently ended plan — sent while activeSubscription is null,
+        // carrying the renewal window / grace period used to offer Renew.
+        SubscriptionInfo? lastExpiredSubscription;
+        final lastExpiredJson = user['lastExpiredSubscription'];
+        if (lastExpiredJson is Map<String, dynamic>) {
+          try {
+            lastExpiredSubscription =
+                SubscriptionInfo.fromJson(lastExpiredJson);
+          } catch (e) {
+            debugPrint(
+                '[AuthNotifier] Error parsing lastExpiredSubscription: $e');
+          }
+        }
+
         // Update state with fetched data. When the profile carries no active
         // subscription, clear any stale one (copyWith's ?? would otherwise keep
         // it) so cancellation reflects across the app immediately.
         state = state.copyWith(
           clearActiveSubscription: activeSubscription == null,
+          lastExpiredSubscription: lastExpiredSubscription,
+          clearLastExpiredSubscription: lastExpiredSubscription == null,
           userId: userId,
           phoneNumber: mobileNumber.isNotEmpty ? mobileNumber : null,
           name: name,

@@ -35,40 +35,41 @@ import 'upcoming_subscriptions_screen.dart';
 // widget state, which is what keeps the rebuild surface minimal.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Reason shown on the sign-in sheet: "You need an account to …".
-const _kPlansSignInReason = 'view and buy subscription plans';
+/// Reason shown on the wallet sign-in sheet: "You need an account to …".
+const _kWalletSignInReason = 'see your wallet balance';
 
-/// Opens [SubscriptionPlanScreen]. Use this instead of pushing the screen
-/// directly. A guest first sees the "Sign in to continue" sheet; tapping
-/// Login / Sign up opens phone login, and the plans open only once they are
-/// signed in. "Keep browsing" or backing out of login opens nothing.
+/// Opens [SubscriptionPlanScreen]. Plans are open to everyone, guests
+/// included — only account actions on the screen (wallet balance, subscribing)
+/// ask for login.
 ///
-/// Everything it needs from [context] is read synchronously up front (the
-/// sheet and login run on the navigator's own context), so it is safe to call
-/// from a drawer or popup that closes right after.
-Future<void> openSubscriptionPlans(BuildContext context) async {
+/// Everything it needs from [context] is read synchronously up front, so it
+/// is safe to call from a drawer or popup that closes right after.
+///
+/// [scrollToPlanId] — the plan the user tapped (e.g. a home "View plan"
+/// card): it is selected and the screen opens scrolled to it.
+Future<void> openSubscriptionPlans(
+  BuildContext context, {
+  String? scrollToPlanId,
+}) async {
   final container = ProviderScope.containerOf(context, listen: false);
+  if (scrollToPlanId != null) {
+    container.read(selectedSubscriptionPlanProvider.notifier).state =
+        scrollToPlanId;
+  }
   final navigator = Navigator.of(context);
 
-  if (!container.read(isSignedInProvider)) {
-    // Sheet → phone login; the auth screens pop back here on success instead
-    // of `go(home)`, so the plans can open from where the user was.
-    await AuthGate.promptSignIn(
-      navigator.context,
-      reason: _kPlansSignInReason,
-      returnToOrigin: true,
-    );
-    if (!container.read(isSignedInProvider)) return; // declined or abandoned
-    if (!navigator.mounted) return;
-  }
-
   navigator.push(
-    MaterialPageRoute<void>(builder: (_) => const SubscriptionPlanScreen()),
+    MaterialPageRoute<void>(
+      builder: (_) => SubscriptionPlanScreen(scrollToPlanId: scrollToPlanId),
+    ),
   );
 }
 
 class SubscriptionPlanScreen extends ConsumerStatefulWidget {
-  const SubscriptionPlanScreen({super.key});
+  const SubscriptionPlanScreen({super.key, this.scrollToPlanId});
+
+  /// When set, the screen opens scrolled to this plan's card.
+  final String? scrollToPlanId;
 
   @override
   ConsumerState<SubscriptionPlanScreen> createState() =>
@@ -77,39 +78,48 @@ class SubscriptionPlanScreen extends ConsumerStatefulWidget {
 
 class _SubscriptionPlanScreenState
     extends ConsumerState<SubscriptionPlanScreen> {
+  /// One key per plan card, so the screen can scroll to a given plan.
+  final Map<String, GlobalKey> _planCardKeys = {};
+
+  /// Set once the user drags the list — auto-scroll never fights them.
+  bool _userScrolled = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (ref.read(isSignedInProvider)) {
-        _refresh();
-      } else {
-        _requireSignIn();
-      }
+      // Plans are usually cached from home → scroll right away, then once
+      // more after wallet/profile load (their banners push cards down).
+      _scrollToRequestedPlan();
+      _refresh().then((_) => _scrollToRequestedPlan());
     });
   }
 
-  /// Backup for routes that reach this screen without [openSubscriptionPlans]
-  /// (the router route / notification deep link): a guest gets the same
-  /// sign-in sheet, then phone login, and comes back here once signed in.
-  /// Declining or backing out of login closes the screen.
-  Future<void> _requireSignIn() async {
-    await AuthGate.promptSignIn(
-      context,
-      reason: _kPlansSignInReason,
-      returnToOrigin: true,
-    );
-    if (!mounted) return;
+  /// Brings [SubscriptionPlanScreen.scrollToPlanId]'s card into view, just
+  /// below the pinned header. No-op when no plan was requested, the card is
+  /// not built yet, or the user has started scrolling themselves.
+  void _scrollToRequestedPlan() {
+    final id = widget.scrollToPlanId;
+    if (id == null || _userScrolled) return;
+    // After the frame, so freshly built cards have their final layout.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _userScrolled) return;
+      final cardContext = _planCardKeys[id]?.currentContext;
+      if (cardContext == null) return;
+      Scrollable.ensureVisible(
+        cardContext,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutCubic,
+        alignment: 0.12, // leave room for the pinned header above the card
+      );
+    });
+  }
 
-    if (ref.read(isSignedInProvider)) {
-      _refresh();
-      return;
-    }
-
-    // Login abandoned — leave without ever showing the plans.
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.pop();
+  /// Back: pop when there is a screen underneath; otherwise (reached via a
+  /// route that replaced the stack) go home instead of a silent no-op pop.
+  void _goBack() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
     } else {
       context.go(RouteNames.home);
     }
@@ -135,8 +145,10 @@ class _SubscriptionPlanScreenState
     // `ref.listen` reacts without rebuilding this screen.
     ref.listen<SubscriptionPlanState>(subscriptionPlanProvider, (prev, next) {
       if (next.plans.isEmpty) return;
+      // First arrival of plans (cold start) → their cards now exist.
+      if (prev == null || prev.plans.isEmpty) _scrollToRequestedPlan();
       if (ref.read(selectedSubscriptionPlanProvider) != null) return;
-      final sub = ref.read(authProvider).activeSubscription;
+      final sub = ref.read(authProvider).renewalSubscription;
       SubscriptionPlan? current;
       for (final p in next.plans) {
         if (_isRenewable(sub, p)) {
@@ -152,17 +164,21 @@ class _SubscriptionPlanScreenState
       ref.read(selectedSubscriptionPlanProvider.notifier).state = def.id;
     });
 
-    // Guest: nothing is shown while login runs on top of this screen.
-    if (!ref.watch(isSignedInProvider)) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFFAFBFC),
-        body: Center(
-          child: CircularProgressIndicator(color: AppColors.primaryGreen),
-        ),
-      );
-    }
+    // A guest who logs in from this screen (wallet prompt, Subscribe) gets
+    // their wallet, active plan and renewal state loaded right away.
+    ref.listen<bool>(isSignedInProvider, (prev, next) {
+      if (prev == false && next) _refresh();
+    });
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
+    // System back too: with nothing underneath, go home rather than exit.
+    final canPop = Navigator.of(context).canPop();
+
+    return PopScope(
+      canPop: canPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) context.go(RouteNames.home);
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: const Color(0xFFFAFBFC),
@@ -172,7 +188,13 @@ class _SubscriptionPlanScreenState
           child: RefreshIndicator(
             color: AppColors.primaryGreen,
             onRefresh: _refresh,
-            child: CustomScrollView(
+            child: NotificationListener<UserScrollNotification>(
+              // A drag by the user cancels any pending auto-scroll.
+              onNotification: (_) {
+                _userScrolled = true;
+                return false;
+              },
+              child: CustomScrollView(
               // Always scrollable so the pull works even when the plans fit
               // on one screen.
               physics: const AlwaysScrollableScrollPhysics(),
@@ -185,25 +207,27 @@ class _SubscriptionPlanScreenState
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        SizedBox(height: AppSizes.spacing16),
-                        _WalletBar(),
-                        _UpcomingPlansButton(),
-                        SizedBox(height: AppSizes.spacing16),
-                        _ActivePlanBanner(),
-                        _GracePeriodBanner(),
-                        _PlansHeader(),
-                        SizedBox(height: AppSizes.spacing12),
-                        _PlansList(),
-                        SizedBox(height: AppSizes.spacing24),
+                      children: [
+                        const SizedBox(height: AppSizes.spacing16),
+                        const _WalletBar(),
+                        const _UpcomingPlansButton(),
+                        const SizedBox(height: AppSizes.spacing16),
+                        const _ActivePlanBanner(),
+                        const _GracePeriodBanner(),
+                        const _PlansHeader(),
+                        const SizedBox(height: AppSizes.spacing12),
+                        _PlansList(cardKeys: _planCardKeys),
+                        const SizedBox(height: AppSizes.spacing24),
                       ],
                     ),
                   ),
                 ),
               ],
+              ),
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -227,7 +251,7 @@ class _SubscriptionPlanScreenState
         child: Row(
           children: [
             GestureDetector(
-              onTap: () => context.pop(),
+              onTap: _goBack,
               child: Container(
                 padding: const EdgeInsets.all(AppSizes.spacing8),
                 decoration: BoxDecoration(
@@ -267,9 +291,9 @@ class _WalletBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // A guest has no wallet — hide the strip entirely rather than show a
-    // zero balance next to top-up and history actions they cannot use.
-    if (!ref.watch(isSignedInProvider)) return const SizedBox.shrink();
+    // A guest has no wallet — offer login instead of a zero balance next to
+    // top-up and history actions they cannot use.
+    if (!ref.watch(isSignedInProvider)) return const _GuestWalletPrompt();
 
     final wallet = ref.watch(walletProvider.select((s) => s.wallet));
     final balance = wallet?.couponBalance;
@@ -381,6 +405,95 @@ class _WalletBar extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Wallet bar for guests: the balance is account data, so it asks them to
+/// log in. Login returns to this screen, which then loads the wallet.
+class _GuestWalletPrompt extends ConsumerWidget {
+  const _GuestWalletPrompt();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(AppSizes.radius8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppSizes.radius8),
+        onTap: () => AuthGate.promptSignIn(
+          context,
+          reason: _kWalletSignInReason,
+          ref: ref,
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(AppSizes.spacing12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppSizes.radius8),
+            border:
+                Border.all(color: AppColors.borderColor.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSizes.spacing10),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+                child: const Icon(Icons.account_balance_wallet_rounded,
+                    color: AppColors.primaryGreen, size: AppSizes.icon20),
+              ),
+              const SizedBox(width: AppSizes.spacing12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Wallet balance',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize14,
+                        fontWeight: AppTypography.bold,
+                        color: AppColors.textPrimary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Log in to see your balance and recharge',
+                      style: TextStyle(
+                        fontSize: AppTypography.fontSize12,
+                        color: AppColors.textSecondary,
+                        fontFamily: 'Lato',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSizes.spacing12,
+                  vertical: AppSizes.spacing8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen,
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                ),
+                child: const Text(
+                  'Log in',
+                  style: TextStyle(
+                    fontSize: AppTypography.fontSize12,
+                    fontWeight: AppTypography.bold,
+                    color: Colors.white,
+                    fontFamily: 'Lato',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -513,7 +626,10 @@ class _ActivePlanBanner extends ConsumerWidget {
     );
     if (sub == null) return const SizedBox.shrink();
     final canRenew = ref.watch(
-      authProvider.select((s) => s.activeSubscription?.canRenew ?? false),
+      authProvider.select((s) {
+        final a = s.activeSubscription;
+        return a != null && a.isActive && a.canRenewNow();
+      }),
     );
 
     return Padding(
@@ -683,7 +799,10 @@ class _PlansHeader extends StatelessWidget {
 // ─── Plans list (loading / error / empty / list) ─────────────────────────────
 
 class _PlansList extends ConsumerWidget {
-  const _PlansList();
+  const _PlansList({required this.cardKeys});
+
+  /// Owned by the screen; one key per plan id so it can scroll to a card.
+  final Map<String, GlobalKey> cardKeys;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -707,7 +826,10 @@ class _PlansList extends ConsumerWidget {
         for (final plan in state.plans)
           Padding(
             padding: const EdgeInsets.only(bottom: AppSizes.spacing16),
-            child: _PlanCard(plan: plan),
+            child: KeyedSubtree(
+              key: cardKeys.putIfAbsent(plan.id, GlobalKey.new),
+              child: _PlanCard(plan: plan),
+            ),
           ),
       ],
     );
@@ -731,7 +853,7 @@ class _PlanCard extends ConsumerWidget {
     // Only the user's existing plan can be renewed, and only while the
     // backend reports its renewal window as open.
     final isRenewable = ref.watch(
-      authProvider.select((s) => _isRenewable(s.activeSubscription, plan)),
+      authProvider.select((s) => _isRenewable(s.renewalSubscription, plan)),
     );
 
     return GestureDetector(
@@ -1108,13 +1230,17 @@ class _CurrentPlanBadge extends StatelessWidget {
   }
 }
 
-/// True when [sub] can be renewed as [plan]: it must be the user's own plan,
-/// and either the backend reports the renewal window open, or the plan has
-/// ended and is still inside the plan's grace period (`renewal.gracePeriodDays`
-/// days after its end date).
+/// True when [sub] can be renewed as [plan].
+///
+/// [sub] is `AuthState.renewalSubscription` — the live plan, or, when
+/// `activeSubscription` is null, the profile's `lastExpiredSubscription`. It
+/// must be the same plan as the card, and [SubscriptionInfo.canRenewNow] must
+/// hold: backend `renewalWindowOpen` and now inside the renewal window
+/// (`renewalWindowOpensAt`…`renewalWindowClosesAt`, or `endDate +
+/// gracePeriodDays` for an ended plan, falling back to the plan's grace days).
 bool _isRenewable(SubscriptionInfo? sub, SubscriptionPlan plan) {
   if (sub == null || sub.planCode != plan.planCode) return false;
-  return sub.canRenew || sub.isInGracePeriod(plan.gracePeriodDays);
+  return sub.canRenewNow(fallbackGraceDays: plan.gracePeriodDays);
 }
 
 /// "Renew · ~~₹3999~~ ₹2999 / 3 Days" — the regular renewal price struck
@@ -1171,9 +1297,10 @@ class _GracePeriodBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sub = ref.watch(authProvider.select((s) => s.activeSubscription));
+    // Only for an ended plan (live plans use the active banner instead).
+    final sub = ref.watch(authProvider.select((s) => s.renewalSubscription));
     final plans = ref.watch(subscriptionPlanProvider.select((s) => s.plans));
-    if (sub == null) return const SizedBox.shrink();
+    if (sub == null || sub.isActive) return const SizedBox.shrink();
 
     SubscriptionPlan? plan;
     for (final p in plans) {
@@ -1182,13 +1309,15 @@ class _GracePeriodBanner extends ConsumerWidget {
         break;
       }
     }
-    if (plan == null || !sub.isInGracePeriod(plan.gracePeriodDays)) {
+    if (plan == null ||
+        !sub.canRenewNow(fallbackGraceDays: plan.gracePeriodDays)) {
       return const SizedBox.shrink();
     }
 
     final ended = convertMongoUtcToIstExceptTime(sub.endDate);
-    final renewBy = convertMongoUtcToIstExceptTime(
-        sub.graceEndsAt(plan.gracePeriodDays)?.toIso8601String());
+    final renewBy = convertMongoUtcToIstExceptTime(sub
+        .renewalDeadline(fallbackGraceDays: plan.gracePeriodDays)
+        ?.toIso8601String());
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSizes.spacing16),
@@ -1277,7 +1406,10 @@ class _SubscribeBar extends ConsumerWidget {
     // Renewal window is reported by the profile API; while it is open an
     // active subscriber may buy the next term instead of being blocked.
     final canRenew = ref.watch(
-      authProvider.select((s) => s.activeSubscription?.canRenew ?? false),
+      authProvider.select((s) {
+        final a = s.activeSubscription;
+        return a != null && a.isActive && a.canRenewNow();
+      }),
     );
     final selectedId = ref.watch(selectedSubscriptionPlanProvider);
     final plans = ref.watch(subscriptionPlanProvider.select((s) => s.plans));

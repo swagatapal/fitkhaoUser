@@ -28,9 +28,13 @@ import '../../../profile/models/delivery_address_model.dart';
 import '../../../profile/presentation/screens/address_form_screen.dart';
 import '../../../profile/presentation/screens/address_list_screen.dart';
 import '../../../profile/providers/delivery_address_provider.dart';
+import '../../../../shared/widgets/app_back_button.dart';
 import '../widgets/app_drawer.dart';
 import '../../models/wallet_balance_model.dart';
 import '../widgets/food_detail_popup.dart';
+import '../widgets/home_plans_showcase.dart';
+import '../widgets/subscription_benefits.dart' show kSubscriptionAccent;
+import '../../providers/subscription_plan_provider.dart';
 import '../widgets/location_view_sheet.dart';
 import 'checkout_screen.dart';
 import 'my_subscription_screen.dart';
@@ -69,11 +73,26 @@ const List<_DishTypeOption> _kDishTypeOptions = [
 ];
 
 class DeliveryScreen extends ConsumerStatefulWidget {
-  const DeliveryScreen({super.key, this.onSwitchToSubscription});
+  const DeliveryScreen({
+    super.key,
+    this.onSwitchToSubscription,
+    this.outletOnly = false,
+  });
+
+  /// Opens the outlet as its own screen — only "Order from our kitchen"
+  /// (search, filters, dishes, cart). Reached from the "Go to Outlet" button.
+  static Route<void> outletRoute() => MaterialPageRoute<void>(
+        builder: (_) => const DeliveryScreen(outletOnly: true),
+      );
 
   /// When hosted inside the home shell for a subscribed user, this switches
   /// back to the subscription view instead of pushing a new route.
   final VoidCallback? onSwitchToSubscription;
+
+  /// Outlet-only mode: a back-button header instead of the home header, no
+  /// plans section, no drawer or floating subscription button, and back
+  /// simply pops (no "tap again to exit").
+  final bool outletOnly;
 
   @override
   ConsumerState<DeliveryScreen> createState() => _DeliveryScreenState();
@@ -87,6 +106,31 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   Timer? _searchDebounce;
 
   final bool _profileImageError = false;
+
+  /// True once the FitKhao Plus plans section has scrolled off screen. Only
+  /// then does the floating "Take Subscription" button appear, so the same
+  /// offer is never shown twice at once.
+  final ValueNotifier<bool> _plansScrolledAway = ValueNotifier(false);
+
+  /// Scroll offset past which the plans section is out of view.
+  static const double _plansOutOfViewOffset = 320;
+
+  /// Attached to the plan section so its real bottom edge can be measured —
+  /// the plan grid's height depends on how many plans there are.
+  final GlobalKey _planSectionKey = GlobalKey();
+
+  /// True when the plan section's bottom edge has scrolled above the screen.
+  /// Falls back to [_plansOutOfViewOffset] when the section isn't built.
+  bool _isPlanSectionScrolledAway(ScrollPosition position) {
+    final box =
+        _planSectionKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize || !box.attached) {
+      return position.pixels > _plansOutOfViewOffset;
+    }
+    final bottom = box.localToGlobal(Offset(0, box.size.height)).dy;
+    // A little below the top so the pinned filter bar counts as "covering".
+    return bottom < MediaQuery.of(context).padding.top + 80;
+  }
 
   /// IDs of categories that are currently collapsed in the "All" grouped view.
   final Set<String> _collapsedCategories = {};
@@ -104,9 +148,15 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   void dispose() {
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
+    _plansScrolledAway.dispose();
     _searchDebounce?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
+    // Search state is shared with home; don't leave the home screen stuck in
+    // a search that was typed on the outlet screen.
+    if (widget.outletOnly && _searchController.text.isNotEmpty) {
+      ref.read(dishSearchProvider.notifier).clear();
+    }
     super.dispose();
   }
 
@@ -145,6 +195,22 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final signedIn = ref.read(isSignedInProvider);
 
     unawaited(_loadKitchens());
+
+    // Outlet screen: home already loaded the account data — only make sure
+    // the menu is there (cached dishes refresh silently).
+    if (widget.outletOnly) {
+      if (ref.read(allDishesProvider).items.isNotEmpty) {
+        unawaited(ref.read(allDishesProvider.notifier).silentRefresh());
+      } else {
+        await _loadAllDishes();
+      }
+      return;
+    }
+
+    // Plans are public and lead the home screen, so load them for everyone.
+    if (ref.read(subscriptionPlanProvider).plans.isEmpty) {
+      unawaited(ref.read(subscriptionPlanProvider.notifier).loadPlans());
+    }
 
     if (signedIn) {
       unawaited(_loadProfileData());
@@ -191,6 +257,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     await Future.wait([
       ref.read(allDishesProvider.notifier).silentRefresh(),
       _loadKitchens(),
+      ref.read(subscriptionPlanProvider.notifier).loadPlans(),
       // Account-scoped refreshes only apply to a signed-in user.
       if (signedIn) ref.read(cartProvider.notifier).loadCart(),
       if (signedIn) _resolveAddressAndEvaluate(),
@@ -230,6 +297,8 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   void _handleScroll() {
     if (!_scrollController.hasClients) return;
     final position = _scrollController.position;
+
+    _plansScrolledAway.value = _isPlanSectionScrolledAway(position);
 
     if (position.pixels < position.maxScrollExtent - 120) {
       return;
@@ -368,6 +437,16 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final search = ref.watch(dishSearchProvider);
     final isSearching = search.isActive;
 
+    // Home = plans + outlet food. The plan section on top adapts to the user
+    // (guest / prospect / renew / member — see HomePlanSection). Hidden while
+    // searching so results stay easy to scan.
+    // Outlet closed → the whole "Order from our kitchen" half (title, search,
+    // filters, dishes) is hidden; the closed banner up top explains why.
+    // A search left open from before the kitchen closed no longer counts, so
+    // it can't keep the plans hidden either.
+    final searchingMenu = isSearching && kitchenOpen;
+    final showPlanSection = !searchingMenu;
+
     // Entry-gate state: area serviceability + location / notification prompts.
     final gate = ref.watch(deliveryGateProvider);
 
@@ -379,6 +458,24 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     // leaves too few dishes to scroll, the scroll listener never fires, so
     // keep fetching until the list fills the screen or runs out of pages.
     ref.listen<AllDishesState>(allDishesProvider, (_, __) => _fillViewport());
+
+    // Starting a search collapses the plan section above the search bar, so
+    // bring the (now much shorter) page back to the top — search bar and
+    // results in view instead of scrolled past.
+    ref.listen<bool>(dishSearchProvider.select((s) => s.isActive),
+        (prev, next) {
+      if (prev == false && next) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _scrollController.hasClients) {
+            _scrollController.animateTo(
+              0,
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+            );
+          }
+        });
+      }
+    });
 
     // When the saved address list changes (add / delete / set-default), re-run
     // selection resolution: keep the current pick if it survived, otherwise
@@ -418,13 +515,11 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     // PASSIVE → otherwise                         → grayscale, view-only.
     final isOrderingActive = kitchenOpen && !areaBlocked;
 
-    final closedReason =
-        ref.watch(kitchenProvider.select((s) => s.kitchenClosedReason)) ??
-            'The outlet is currently closed';
-
     return PopScope(
-      canPop: false,
+      // The outlet screen is a normal pushed page — back just closes it.
+      canPop: widget.outletOnly,
       onPopInvokedWithResult: (didPop, result) {
+        if (widget.outletOnly) return;
         DateTime now = DateTime.now();
         if (didPop ||
             currentBackPressTime == null ||
@@ -446,7 +541,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
         child: Scaffold(
           key: _scaffoldKey,
           backgroundColor: AppColors.background,
-          drawer: const AppDrawer(),
+          drawer: widget.outletOnly ? null : const AppDrawer(),
           body: SafeArea(
             child: Stack(
               children: [
@@ -470,18 +565,20 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: AppSizes.spacing4),
-                                _buildCompactHeader(
-                                    authState, displayAddress, unreadCount),
-                                const SizedBox(height: AppSizes.spacing8),
-                                _buildDishSearchBar(),
+                                if (widget.outletOnly)
+                                  _buildOutletHeader()
+                                else
+                                  _buildCompactHeader(
+                                      authState, displayAddress, unreadCount),
+                                // Search lives under "Order from our
+                                // kitchen" — it searches the outlet menu.
 
                                 //const _PromoSlider(),
                                 const SizedBox(height: AppSizes.spacing8),
                                 // Area not serviceable → blocks ordering.
                                 if (areaBlocked) _buildNotServiceableBanner(),
-                                // Kitchen closed (independent of area).
-                                if (!kitchenOpen)
-                                  _buildPassiveBanner(closedReason),
+                                // Kitchen closed: no banner — the kitchen
+                                // menu section is simply hidden (below).
                                 // Location permission missing (food stays enabled).
                                 if (gate.showLocationInfo) _buildLocationInfo(),
                                 // Notifications off — soft nudge.
@@ -489,6 +586,44 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                                   _buildNotificationInfo(),
                               ],
                             ),
+                          ),
+                        ),
+
+                        // ── Subscription half: plans / your plan / renew ────
+                        // Always in the sliver list (just collapsed while
+                        // searching) so the slivers below keep their place
+                        // and the search field never loses focus/keyboard.
+                        SliverToBoxAdapter(
+                          key: const ValueKey('home-plan-section'),
+                          child: showPlanSection && !widget.outletOnly
+                              ? HomePlanSection(
+                                  key: _planSectionKey,
+                                  onOpenMySubscription:
+                                      widget.onSwitchToSubscription,
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+
+                        // ── Outlet-food half: title + search ───────────────
+                        // Only while the kitchen is open.
+                        if (kitchenOpen) ...[
+                        SliverToBoxAdapter(
+                          key: const ValueKey('home-menu-header'),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (!widget.outletOnly)
+                                const HomeMenuSectionTitle(),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  AppSizes.screenPaddingHorizontal,
+                                  AppSizes.spacing8,
+                                  AppSizes.screenPaddingHorizontal,
+                                  0,
+                                ),
+                                child: _buildDishSearchBar(),
+                              ),
+                            ],
                           ),
                         ),
 
@@ -513,6 +648,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                                 : _buildDishList(dishState, isOrderingActive),
                           ),
                         ),
+                        ],
+
+                        // Outlet screen with the kitchen closed — say so
+                        // instead of showing an empty page.
+                        if (widget.outletOnly && !kitchenOpen)
+                          const SliverToBoxAdapter(child: _OutletClosedView()),
 
                         // ── Bottom spacer (reserves room for the cart bar) ──
                         SliverToBoxAdapter(
@@ -534,12 +675,34 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                 // Active plan → "My Subscription"; otherwise → "Take
                 // Subscription". Sits above the cart bar when the cart is
                 // showing so the two never overlap.
+                if (!widget.outletOnly)
                 Positioned.fill(
                   child: Consumer(
                     builder: (context, ref, _) {
                       final sub = ref.watch(
                           authProvider.select((s) => s.activeSubscription));
                       final hasActive = sub != null && sub.isActive;
+                      // No active plan → "Go to Outlet", always on hand
+                      // (while the kitchen is open) to jump straight to the
+                      // food menu on its own screen.
+                      if (!hasActive) {
+                        if (!kitchenOpen) return const SizedBox.shrink();
+                        final cartShowing =
+                            ref.watch(cartTotalItemsProvider) > 0 &&
+                                isOrderingActive;
+                        return Align(
+                          alignment: Alignment.bottomRight,
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              right: AppSizes.screenPaddingHorizontal,
+                              bottom:
+                                  MediaQuery.of(context).size.height * 0.03 +
+                                      (cartShowing ? 84 : 0),
+                            ),
+                            child: const _GoToOutletFab(),
+                          ),
+                        );
+                      }
                       final cartBarVisible =
                           ref.watch(cartTotalItemsProvider) > 0 &&
                               isOrderingActive;
@@ -551,12 +714,32 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                             bottom: MediaQuery.of(context).size.height * 0.03 +
                                 (cartBarVisible ? 84 : 0),
                           ),
-                          child: hasActive
-                              ? _MySubscriptionFab(
-                                  sub: sub,
-                                  onSwitch: widget.onSwitchToSubscription,
-                                )
-                              : const _TakeSubscriptionFab(),
+                          // Shown only once the plan section is off screen
+                          // (or hidden by a search) — the section already
+                          // carries the same action, so it's never doubled.
+                          child: ValueListenableBuilder<bool>(
+                            valueListenable: _plansScrolledAway,
+                            builder: (_, scrolledAway, child) {
+                              final visible = scrolledAway || searchingMenu;
+                              return IgnorePointer(
+                                ignoring: !visible,
+                                child: AnimatedScale(
+                                  scale: visible ? 1 : 0.6,
+                                  duration: const Duration(milliseconds: 200),
+                                  child: AnimatedOpacity(
+                                    opacity: visible ? 1 : 0,
+                                    duration:
+                                        const Duration(milliseconds: 200),
+                                    child: child,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: _MySubscriptionFab(
+                              sub: sub,
+                              onSwitch: widget.onSwitchToSubscription,
+                            ),
+                          ),
                         ),
                       );
                     },
@@ -590,58 +773,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   }
 
   // ── Passive banner ──────────────────────────────────────────────────────────
-
-  Widget _buildPassiveBanner(String reason) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: AppSizes.spacing8),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSizes.spacing12,
-        vertical: AppSizes.spacing10,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E1),
-        borderRadius: BorderRadius.circular(AppSizes.radius8),
-        border:
-            Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSizes.spacing6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFB300).withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.lock_clock_rounded,
-              color: Color(0xFFC66301),
-              size: AppSizes.icon16,
-            ),
-          ),
-          const SizedBox(width: AppSizes.spacing10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Outlet Closed',
-                  style: TextStyle(
-                    fontSize: AppTypography.fontSize13,
-                    fontWeight: AppTypography.bold,
-                    color: Color(0xFFC66301),
-                    fontFamily: 'Lato',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Not-serviceable banner ───────────────────────────────────────────────────
 
   Widget _buildNotServiceableBanner() {
     final zone = ref.watch(deliveryGateProvider.select((s) => s.zoneName));
@@ -735,6 +866,35 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   }
 
   // ── Header ──────────────────────────────────────────────────────────────────
+
+  /// Header of the outlet screen: back button + "Order from our kitchen".
+  Widget _buildOutletHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSizes.spacing8),
+      child: Row(
+        children: [
+          const AppBackButton(),
+          const SizedBox(width: AppSizes.spacing12),
+          const Icon(Icons.restaurant_menu_rounded,
+              size: AppSizes.icon20, color: AppColors.primaryGreen),
+          const SizedBox(width: AppSizes.spacing6),
+          const Expanded(
+            child: Text(
+              'Order from our kitchen',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: AppTypography.fontSize18,
+                fontWeight: AppTypography.bold,
+                color: AppColors.textPrimary,
+                fontFamily: 'Lato',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildCompactHeader(
     ({String name, String? imgUrl}) authState,
@@ -3048,8 +3208,10 @@ class _MySubscriptionFab extends StatelessWidget {
 
 /// Floating pill shown when the user has no active subscription — opens the
 /// plans screen. Mirrors [_MySubscriptionFab] so the two read as one control.
-class _TakeSubscriptionFab extends StatelessWidget {
-  const _TakeSubscriptionFab();
+/// "Go to Outlet" — shown to users without an active plan; opens the outlet
+/// (only the "Order from our kitchen" section) as its own screen.
+class _GoToOutletFab extends StatelessWidget {
+  const _GoToOutletFab();
 
   @override
   Widget build(BuildContext context) {
@@ -3057,7 +3219,7 @@ class _TakeSubscriptionFab extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(30),
-        onTap: () => openSubscriptionPlans(context),
+        onTap: () => Navigator.of(context).push(DeliveryScreen.outletRoute()),
         child: Container(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSizes.spacing16,
@@ -3065,14 +3227,14 @@ class _TakeSubscriptionFab extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [AppColors.darkGreen, AppColors.primaryGreen],
+              colors: [Color(0xFFE58A2B), kSubscriptionAccent],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(30),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primaryGreen.withValues(alpha: 0.35),
+                color: kSubscriptionAccent.withValues(alpha: 0.35),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -3081,11 +3243,11 @@ class _TakeSubscriptionFab extends StatelessWidget {
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.workspace_premium_rounded,
+              Icon(Icons.storefront_rounded,
                   color: Colors.white, size: AppSizes.icon20),
               SizedBox(width: AppSizes.spacing8),
               Text(
-                'Take Subscription',
+                'Go to Outlet',
                 style: TextStyle(
                   fontSize: AppTypography.fontSize14,
                   fontWeight: AppTypography.bold,
@@ -3096,6 +3258,45 @@ class _TakeSubscriptionFab extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Outlet screen body while the kitchen is closed.
+class _OutletClosedView extends StatelessWidget {
+  const _OutletClosedView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(32, 80, 32, 32),
+      child: Column(
+        children: [
+          Icon(Icons.storefront_outlined,
+              size: 56, color: AppColors.textTertiary),
+          SizedBox(height: AppSizes.spacing12),
+          Text(
+            'Our kitchen is closed right now',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize16,
+              fontWeight: AppTypography.bold,
+              color: AppColors.textPrimary,
+              fontFamily: 'Lato',
+            ),
+          ),
+          SizedBox(height: AppSizes.spacing6),
+          Text(
+            'Please check back during kitchen hours.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: AppTypography.fontSize13,
+              color: AppColors.textSecondary,
+              fontFamily: 'Lato',
+            ),
+          ),
+        ],
       ),
     );
   }

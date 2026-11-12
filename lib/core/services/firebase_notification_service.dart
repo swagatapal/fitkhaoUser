@@ -482,7 +482,11 @@ class FirebaseNotificationService {
 
     if (FcmEvent.subscriptionEvents.contains(eventType) ||
         FcmEvent.walletEvents.contains(eventType)) {
-      AppRouter.router.go(RouteNames.subscriptionPlans);
+      // Same pattern as orders: home as the base, the plans on top, so the
+      // back button returns to home. A bare `go(subscriptionPlans)` replaced
+      // the whole stack and left back with nothing to pop.
+      AppRouter.router.go(RouteNames.home);
+      AppRouter.router.push(RouteNames.subscriptionPlans);
       _pendingNavigationData = null;
       _notificationNavigationRequested = false;
       return;

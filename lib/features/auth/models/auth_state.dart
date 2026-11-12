@@ -74,6 +74,18 @@ class AuthState {
   // Active subscription from profile API
   final SubscriptionInfo? activeSubscription;
 
+  /// The user's most recently ended plan (profile `lastExpiredSubscription`).
+  /// Present after a plan expires, while `activeSubscription` is null — used
+  /// to offer renewal during its grace period.
+  final SubscriptionInfo? lastExpiredSubscription;
+
+  /// The subscription renewal applies to: the live plan when there is one,
+  /// otherwise the last expired plan.
+  SubscriptionInfo? get renewalSubscription =>
+      (activeSubscription?.isActive ?? false)
+          ? activeSubscription
+          : lastExpiredSubscription;
+
   // Profile update tracking
   final DateTime? profileUpdatedAt;
 
@@ -128,11 +140,14 @@ class AuthState {
     this.foodPreference = 'veg',
     this.selectedConditionCodes = const [],
     this.activeSubscription,
+    this.lastExpiredSubscription,
     this.profileUpdatedAt,
   });
 
   AuthState copyWith({
     bool clearActiveSubscription = false,
+    SubscriptionInfo? lastExpiredSubscription,
+    bool clearLastExpiredSubscription = false,
     String? userId,
     String? phoneNumber,
     String? countryCode,
@@ -237,6 +252,9 @@ class AuthState {
       foodPreference: foodPreference ?? this.foodPreference,
       selectedConditionCodes:
           selectedConditionCodes ?? this.selectedConditionCodes,
+      lastExpiredSubscription: clearLastExpiredSubscription
+          ? null
+          : (lastExpiredSubscription ?? this.lastExpiredSubscription),
       activeSubscription: clearActiveSubscription
           ? null
           : (activeSubscription ?? this.activeSubscription),

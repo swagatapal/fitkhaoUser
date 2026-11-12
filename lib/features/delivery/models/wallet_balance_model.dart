@@ -120,6 +120,15 @@ class SubscriptionInfo {
   /// The renew option is shown only while this is true.
   final bool renewalWindowOpen;
 
+  /// Days after [endDate] the plan can still be renewed (profile API). 0 when
+  /// the subscription doesn't say — callers may fall back to the plan's.
+  final int gracePeriodDays;
+
+  /// Backend-computed renewal window, ISO strings (profile API). Empty when
+  /// not sent. When present they bound [renewalWindowOpen].
+  final String renewalWindowOpensAt;
+  final String renewalWindowClosesAt;
+
   const SubscriptionInfo({
     required this.id,
     required this.planCode,
@@ -138,6 +147,9 @@ class SubscriptionInfo {
     this.isRenewal = false,
     this.renewalEligibleBeforeDays = 0,
     this.renewalWindowOpen = false,
+    this.gracePeriodDays = 0,
+    this.renewalWindowOpensAt = '',
+    this.renewalWindowClosesAt = '',
   });
 
   factory SubscriptionInfo.fromJson(Map<String, dynamic> json) {
@@ -166,6 +178,9 @@ class SubscriptionInfo {
       renewalEligibleBeforeDays:
           (json['renewalEligibleBeforeDays'] as num?)?.toInt() ?? 0,
       renewalWindowOpen: json['renewalWindowOpen'] as bool? ?? false,
+      gracePeriodDays: (json['gracePeriodDays'] as num?)?.toInt() ?? 0,
+      renewalWindowOpensAt: json['renewalWindowOpensAt'] as String? ?? '',
+      renewalWindowClosesAt: json['renewalWindowClosesAt'] as String? ?? '',
     );
   }
 
@@ -194,6 +209,41 @@ class SubscriptionInfo {
     final t = (now ?? DateTime.now()).toUtc();
     return t.isAfter(end) && !t.isAfter(graceEnd);
   }
+
+  static DateTime? _parse(String v) =>
+      v.isEmpty ? null : DateTime.tryParse(v)?.toUtc();
+
+  DateTime? get windowOpensAt => _parse(renewalWindowOpensAt);
+  DateTime? get windowClosesAt => _parse(renewalWindowClosesAt);
+
+  /// Grace days to use: the subscription's own, else [fallback] (the plan's
+  /// `renewal.gracePeriodDays`).
+  int effectiveGraceDays(int fallback) =>
+      gracePeriodDays > 0 ? gracePeriodDays : fallback;
+
+  /// Whether this subscription can be renewed right now. Works for both the
+  /// profile's `activeSubscription` and its `lastExpiredSubscription`:
+  ///
+  /// • the backend must report `renewalWindowOpen: true`, and
+  /// • now must be inside the window — `renewalWindowOpensAt` …
+  ///   `renewalWindowClosesAt` when sent (so a cached profile can't keep the
+  ///   button alive after the window shuts), otherwise, for an ended plan,
+  ///   within `endDate + gracePeriodDays`.
+  bool canRenewNow({int fallbackGraceDays = 0, DateTime? now}) {
+    if (!renewalWindowOpen) return false;
+    final t = (now ?? DateTime.now()).toUtc();
+    final opens = windowOpensAt;
+    final closes = windowClosesAt;
+    if (opens != null && t.isBefore(opens)) return false;
+    if (closes != null) return !t.isAfter(closes);
+    if (isActive) return true;
+    return isInGracePeriod(effectiveGraceDays(fallbackGraceDays), now: t);
+  }
+
+  /// Last moment renewal is allowed: `renewalWindowClosesAt`, else
+  /// `endDate + grace`. Null when neither is known.
+  DateTime? renewalDeadline({int fallbackGraceDays = 0}) =>
+      windowClosesAt ?? graceEndsAt(effectiveGraceDays(fallbackGraceDays));
 
   /// Get formatted price
   String get formattedPrice => '₹$planAmount';
