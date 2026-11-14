@@ -216,6 +216,45 @@ class _SectionHeader extends StatelessWidget {
 final NumberFormat _inr = NumberFormat.decimalPattern('en_IN');
 String _rupees(double v) => '₹${_inr.format(v.round())}';
 
+/// Display-only "was" price for the Pujo offer: the real price + 40%, shown
+/// struck through. The plan's real [SubscriptionPlan.price] is what's charged.
+/// shortcut: hard-coded seasonal markup, move to the plans API / remote config
+/// if offers become a regular thing.
+double pujoMrp(double price) => price * 1.4;
+
+/// "🪔 PUJO SPECIAL OFFER" tag on the home plan cards.
+class PujoOfferTag extends StatelessWidget {
+  const PujoOfferTag({super.key, required this.onDark});
+
+  final bool onDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        gradient: onDark
+            ? null
+            : const LinearGradient(
+                colors: [Color(0xFFE53935), Color(0xFFFF8F00)],
+              ),
+        color: onDark ? const Color(0xFFFFE082) : null,
+        borderRadius: BorderRadius.circular(AppSizes.radius20),
+      ),
+      child: Text(
+        '🪔 PUJO SPECIAL OFFER',
+        style: TextStyle(
+          fontSize: 8.5,
+          fontWeight: AppTypography.extraBold,
+          letterSpacing: 0.4,
+          color: onDark ? const Color(0xFFB71C1C) : Colors.white,
+          fontFamily: 'Lato',
+        ),
+      ),
+    );
+  }
+}
+
 /// Rough per-meal price for comparing plans. Null when the plan doesn't state
 /// its meals per day.
 double? _perMeal(SubscriptionPlan plan) {
@@ -454,6 +493,18 @@ class _FeaturedPlanCard extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
+                      const PujoOfferTag(onDark: true),
+                      const SizedBox(height: 4),
+                      Text(
+                        _rupees(pujoMrp(plan.price)),
+                        style: TextStyle(
+                          fontSize: AppTypography.fontSize13,
+                          color: soft,
+                          decoration: TextDecoration.lineThrough,
+                          decorationColor: soft,
+                          fontFamily: 'Lato',
+                        ),
+                      ),
                       Text(
                         _rupees(plan.price),
                         style: TextStyle(
@@ -622,17 +673,36 @@ class _GridPlanCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: AppSizes.spacing6),
+                        const PujoOfferTag(onDark: false),
+                        const SizedBox(height: 4),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
-                          child: Text(
-                            _rupees(plan.price),
-                            style: TextStyle(
-                              fontSize: AppTypography.fontSize22,
-                              fontWeight: AppTypography.extraBold,
-                              color: accent,
-                              fontFamily: 'Lato',
-                            ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                _rupees(plan.price),
+                                style: TextStyle(
+                                  fontSize: AppTypography.fontSize22,
+                                  fontWeight: AppTypography.extraBold,
+                                  color: accent,
+                                  fontFamily: 'Lato',
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _rupees(pujoMrp(plan.price)),
+                                style: const TextStyle(
+                                  fontSize: AppTypography.fontSize12,
+                                  color: AppColors.textTertiary,
+                                  decoration: TextDecoration.lineThrough,
+                                  decorationColor: AppColors.textTertiary,
+                                  fontFamily: 'Lato',
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         Text(

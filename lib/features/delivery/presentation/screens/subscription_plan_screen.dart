@@ -15,6 +15,7 @@ import '../../models/wallet_balance_model.dart';
 import '../../providers/subscription_plan_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../widgets/cancel_subscription_sheet.dart';
+import '../widgets/home_plans_showcase.dart' show PujoOfferTag, pujoMrp;
 import '../widgets/recharge_topup_modal.dart';
 import '../widgets/subscription_benefits.dart';
 import 'my_subscription_screen.dart';
@@ -1105,7 +1106,12 @@ class _PriceRow extends StatelessWidget {
       );
     }
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const PujoOfferTag(onDark: false),
+        const SizedBox(height: AppSizes.spacing6),
+        Row(
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
       children: [
@@ -1115,6 +1121,18 @@ class _PriceRow extends StatelessWidget {
             fontSize: AppTypography.fontSize24,
             fontWeight: AppTypography.bold,
             color: AppColors.primaryGreen,
+            fontFamily: 'Lato',
+          ),
+        ),
+        const SizedBox(width: AppSizes.spacing6),
+        // Display-only Pujo "was" price (real price is what's charged).
+        Text(
+          '₹${pujoMrp(plan.price).toStringAsFixed(0)}',
+          style: const TextStyle(
+            fontSize: AppTypography.fontSize14,
+            color: AppColors.textTertiary,
+            decoration: TextDecoration.lineThrough,
+            decorationColor: AppColors.textTertiary,
             fontFamily: 'Lato',
           ),
         ),
@@ -1141,6 +1159,8 @@ class _PriceRow extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ],
         ),
       ],
     );
