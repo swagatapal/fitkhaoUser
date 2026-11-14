@@ -444,7 +444,13 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     // filters, dishes) is hidden; the closed banner up top explains why.
     // A search left open from before the kitchen closed no longer counts, so
     // it can't keep the plans hidden either.
-    final searchingMenu = isSearching && kitchenOpen;
+    // Members always see the kitchen menu on home (greyed out while the
+    // kitchen is closed) — they have no "Go to Outlet" button to reach it.
+    final hasActivePlan = ref.watch(
+      authProvider.select((s) => s.activeSubscription?.isActive ?? false),
+    );
+    final showKitchenMenu = kitchenOpen || widget.outletOnly || hasActivePlan;
+    final searchingMenu = isSearching && showKitchenMenu;
     final showPlanSection = !searchingMenu;
 
     // Entry-gate state: area serviceability + location / notification prompts.
@@ -605,8 +611,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         ),
 
                         // ── Outlet-food half: title + search ───────────────
-                        // Only while the kitchen is open.
-                        if (kitchenOpen) ...[
+                        // Home: only while the kitchen is open. Outlet
+                        // screen: always — closed shows the menu greyed out
+                        // and view-only (isOrderingActive is false).
+                        if (showKitchenMenu) ...[
                         SliverToBoxAdapter(
                           key: const ValueKey('home-menu-header'),
                           child: Column(
@@ -650,11 +658,6 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                         ),
                         ],
 
-                        // Outlet screen with the kitchen closed — say so
-                        // instead of showing an empty page.
-                        if (widget.outletOnly && !kitchenOpen)
-                          const SliverToBoxAdapter(child: _OutletClosedView()),
-
                         // ── Bottom spacer (reserves room for the cart bar) ──
                         SliverToBoxAdapter(
                           child: Consumer(
@@ -682,11 +685,10 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       final sub = ref.watch(
                           authProvider.select((s) => s.activeSubscription));
                       final hasActive = sub != null && sub.isActive;
-                      // No active plan → "Go to Outlet", always on hand
-                      // (while the kitchen is open) to jump straight to the
-                      // food menu on its own screen.
+                      // No active plan → "Go to Outlet", always on hand —
+                      // even while the kitchen is closed (the outlet screen
+                      // then shows its own "kitchen is closed" message).
                       if (!hasActive) {
-                        if (!kitchenOpen) return const SizedBox.shrink();
                         final cartShowing =
                             ref.watch(cartTotalItemsProvider) > 0 &&
                                 isOrderingActive;
@@ -3263,44 +3265,6 @@ class _GoToOutletFab extends StatelessWidget {
   }
 }
 
-/// Outlet screen body while the kitchen is closed.
-class _OutletClosedView extends StatelessWidget {
-  const _OutletClosedView();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(32, 80, 32, 32),
-      child: Column(
-        children: [
-          Icon(Icons.storefront_outlined,
-              size: 56, color: AppColors.textTertiary),
-          SizedBox(height: AppSizes.spacing12),
-          Text(
-            'Our kitchen is closed right now',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: AppTypography.fontSize16,
-              fontWeight: AppTypography.bold,
-              color: AppColors.textPrimary,
-              fontFamily: 'Lato',
-            ),
-          ),
-          SizedBox(height: AppSizes.spacing6),
-          Text(
-            'Please check back during kitchen hours.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: AppTypography.fontSize13,
-              color: AppColors.textSecondary,
-              fontFamily: 'Lato',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _ActiveSubscriptionCard extends StatelessWidget {
   const _ActiveSubscriptionCard({required this.sub});
