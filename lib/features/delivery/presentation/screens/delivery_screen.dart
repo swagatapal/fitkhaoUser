@@ -465,6 +465,13 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     // keep fetching until the list fills the screen or runs out of pages.
     ref.listen<AllDishesState>(allDishesProvider, (_, __) => _fillViewport());
 
+    // Guest just logged in (from any screen): load what the home only fetches
+    // for signed-in users — profile (header name), wallet, cart, addresses,
+    // notifications — right away instead of on the next app start.
+    ref.listen<bool>(isSignedInProvider, (prev, next) {
+      if (prev == false && next && !widget.outletOnly) _loadInitialData();
+    });
+
     // Starting a search collapses the plan section above the search bar, so
     // bring the (now much shorter) page back to the top — search bar and
     // results in view instead of scrolled past.
