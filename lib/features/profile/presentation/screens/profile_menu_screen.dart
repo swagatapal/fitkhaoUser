@@ -15,6 +15,7 @@ import '../../../notification/presentation/notification_screen.dart';
 import '../../../policy/presentation/screens/policy_screen.dart';
 import '../../../delivery/presentation/screens/subscription_plan_screen.dart';
 import '../../../delivery/presentation/screens/cart_screen.dart';
+import '../../../delivery/providers/kitchen_provider.dart';
 import 'address_list_screen.dart';
 import 'all_coupons_screen.dart';
 import 'edit_profile_screen.dart';
@@ -135,10 +136,26 @@ class ProfileMenuScreen extends ConsumerWidget {
                                 color: const Color(0xFFC66301),
                                 title: 'Your Cart',
                                 subtitle: 'Your save items',
-                                onTap: gated(
-                                    'use your cart',
-                                    () => ProfileMenuActions.open(
-                                        context, const CartScreen()))),
+                                onTap: gated('use your cart', () {
+                                  // Kitchen closed → nothing can be ordered;
+                                  // say so instead of opening the cart.
+                                  final kitchen = ref.read(kitchenProvider);
+                                  if (kitchen.isKitchenOpen == false) {
+                                    ScaffoldMessenger.of(context)
+                                      ..hideCurrentSnackBar()
+                                      ..showSnackBar(SnackBar(
+                                        content: Text(
+                                            kitchen.kitchenClosedReason ??
+                                                'The outlet is currently closed'),
+                                        behavior: SnackBarBehavior.floating,
+                                        backgroundColor:
+                                            const Color(0xFFC66301),
+                                      ));
+                                    return;
+                                  }
+                                  ProfileMenuActions.open(
+                                      context, const CartScreen());
+                                })),
                             _MenuEntry(
                               icon: Icons.receipt_long_outlined,
                               color: const Color(0xFFC66301),
