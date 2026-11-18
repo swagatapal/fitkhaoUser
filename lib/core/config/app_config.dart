@@ -40,6 +40,10 @@ class AppConfig {
   static const String verifyOtpPath = '/api/auth/verify-otp';
   static const String updateProfilePath = '/api/user/profile';
 
+  /// Request a call back from the team (auth, POST, empty body). The server
+  /// reads name / mobile / address from the token.
+  static const String userCallbackPath = '/api/user/callback';
+
   /// Delivery addresses (user-managed)
   /// • list   → GET    deliveryAddressesPath
   /// • create → POST   deliveryAddressPath
