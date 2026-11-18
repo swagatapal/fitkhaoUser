@@ -225,7 +225,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Future<bool> _checkAndHandleAppVersion() async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = "5.0.0";
+      final currentVersion = "6.0.0";
       //final currentVersion = packageInfo.version;
 
       final repo = ref.read(appContentRepositoryProvider);
