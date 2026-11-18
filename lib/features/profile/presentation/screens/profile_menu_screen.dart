@@ -222,6 +222,16 @@ class ProfileMenuScreen extends ConsumerWidget {
                                   () => ProfileMenuActions.open(
                                       context, const NotificationScreen())),
                             ),
+                            // Signed-in only — guests get it on the sign-in
+                            // sheet instead (login first, then the request).
+                            if (!isGuest)
+                              _MenuEntry(
+                                icon: Icons.phone_callback_rounded,
+                                color: const Color(0xFF0E9F8A),
+                                title: 'Request a call back',
+                                subtitle: 'Our team will call you',
+                                onTap: () => AuthGate.requestCallback(context),
+                              ),
                             _MenuEntry(
                               icon: Icons.phone,
                               color: const Color(0xFF1E9E63),

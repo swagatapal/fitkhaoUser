@@ -25,8 +25,8 @@ class AppConfig {
   //static const String baseApiUrl = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net';
 
 // development url
-   static const String baseApiUrl =
-      'https://fitkhaodev-dtambvcxh2c2c7f3.centralindia-01.azurewebsites.net';
+//    static const String baseApiUrl =
+//       'https://fitkhaodev-dtambvcxh2c2c7f3.centralindia-01.azurewebsites.net';
 
 
  // UAT url
@@ -34,11 +34,15 @@ class AppConfig {
  //      'https://fitkhaouat-cpaaf6ggg6hnabfr.centralindia-01.azurewebsites.net';
 
  //production url
- //static const String baseApiUrl  = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net';
+ static const String baseApiUrl  = 'https://fitkhao-cbacb6hnb6b0dpab.centralindia-01.azurewebsites.net';
 
   static const String sendOtpPath = '/api/auth/send-otp';
   static const String verifyOtpPath = '/api/auth/verify-otp';
   static const String updateProfilePath = '/api/user/profile';
+
+  /// Request a call back from the team (auth, POST, empty body). The server
+  /// reads name / mobile / address from the token.
+  static const String userCallbackPath = '/api/user/callback';
 
   /// Delivery addresses (user-managed)
   /// • list   → GET    deliveryAddressesPath

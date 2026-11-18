@@ -357,6 +357,34 @@ class AuthRepository {
   }
 
   /// Register device for push notifications
+  /// POST /api/user/callback — asks the team to call the signed-in user back.
+  /// Body is empty; the server builds the request (status: pending) from the
+  /// token's user details.
+  Future<Map<String, dynamic>> requestCallback() async {
+    try {
+      final token = getAuthToken();
+      if (token == null || token.isEmpty) {
+        throw AuthException(
+          message: 'Authentication required. Please login again.',
+        );
+      }
+      final json = await _apiClient.postJson(
+        AppConfig.userCallbackPath,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: const <String, dynamic>{},
+      );
+      devLog(() => '[AuthRepository] Callback response: $json');
+      return json;
+    } catch (e) {
+      debugPrint('[AuthRepository] Callback request error: $e');
+      final message = ExceptionHandler.getErrorMessage(e);
+      throw AuthException(message: message, originalError: e);
+    }
+  }
+
   Future<Map<String, dynamic>> registerDevice({
     required String deviceToken,
     required String deviceType,
